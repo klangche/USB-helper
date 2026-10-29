@@ -219,6 +219,22 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void DeviceOnUnreadablePortIsUnknownNotDisconnected()
+    {
+        var history = new SessionHistory();
+        history.Record(Desk);
+        var unreadablePort = Port("ROOT", 2, null) with { Problem = "Could not read the port: The device is not ready." };
+        var rootHub = new UsbNode("ROOT", UsbNodeKind.Hub, "ROOT", [Port("ROOT", 1, Hub("HUB", Device("KEYBOARD"))), unreadablePort]);
+        IReadOnlyList<UsbNode> now = [Controller("C1", rootHub)];
+
+        var report = Evaluate(now, Profile(), [.. history.Missing(now)]);
+
+        Assert.Equal(ConnectionStatus.Grey, report.Connections["MOUSE"]);
+        Assert.Empty(report.Missing);
+        Assert.Equal(LimitState.Unknown, report.Hubs.State);
+    }
+
+    [Fact]
     public void HubWithoutPortsIsIncompleteEvenWithoutProblem()
     {
         var report = Evaluate([Controller("C1", Hub("ROOT", new UsbNode("HUB", UsbNodeKind.Hub, "HUB", [])))], Profile());

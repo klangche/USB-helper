@@ -6,7 +6,7 @@ namespace UsbHelper.Core.Diagnostics;
 /// <param name="Node">The hub or device as it was last seen.</param>
 /// <param name="PortId">The port it was connected to.</param>
 /// <param name="PortName">A readable name for that port, such as "Port 2 of Generic USB Hub".</param>
-/// <param name="AncestorIds">The controller and hubs it was behind.</param>
+/// <param name="AncestorIds">The controller, hubs and ports it was behind, its own port included.</param>
 public sealed record MissingDevice(UsbNode Node, string PortId, string PortName, IReadOnlyList<string> AncestorIds);
 
 /// <summary>
@@ -46,11 +46,11 @@ public sealed class SessionHistory
             {
                 if (!node.Id.StartsWith(port.Id + "|", StringComparison.Ordinal))
                 {
-                    seen[node.Id] = new MissingDevice(node, port.Id, $"{port.Name} of {hub.Name}", ancestors);
+                    seen[node.Id] = new MissingDevice(node, port.Id, $"{port.Name} of {hub.Name}", [.. ancestors, port.Id]);
                 }
                 if (node.Kind == UsbNodeKind.Hub)
                 {
-                    RecordBelow(node, [.. ancestors, node.Id]);
+                    RecordBelow(node, [.. ancestors, port.Id, node.Id]);
                 }
             }
         }

@@ -105,16 +105,18 @@ status; when several apply, the first in this list wins:
    a `partial` profile) and met.
 
 The overall result is the highest of all lines and limits, so it is never green
-while required information is missing. If a hub cannot be read, what is behind
-it cannot be counted: limits that are not already exceeded are reported as
-unknown, and devices seen behind it earlier are grey (unknown), not red. A hub
-without ports and a controller without a root hub count as unreadable. Errors
-on a controller or root hub make the overall result purple and are listed as
-findings; they have no connection line of their own. A limit or exception is
-verified only when the file that sets it is itself `verified` or `partial`. Every finding names its device, port or computer and the reason, and
-is marked as a detected fact, a verified database fact, a predicted risk or
-unknown. Model exceptions from the profile are listed as database facts when the
-profile is verified or partial, otherwise as unknown.
+while required information is missing. Every finding names its device, port or
+computer and the reason, and is marked as a detected fact, a verified database
+fact, a predicted risk or unknown. A limit or model exception is a verified
+database fact only when the file that sets it is itself `verified` or
+`partial`.
+
+If a hub, port or controller cannot be read (a hub without ports, a port with an
+error and nothing on it, a controller without a root hub), what is behind it
+cannot be counted: limits that are not already exceeded are reported as unknown,
+and devices seen behind it earlier are grey (unknown), not red. Errors on a
+controller or root hub make the overall result purple and are listed as
+findings; they have no connection line of their own.
 
 ## Platforms
 

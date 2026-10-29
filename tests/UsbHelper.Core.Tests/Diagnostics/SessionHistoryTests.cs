@@ -70,7 +70,7 @@ public class SessionHistoryTests
 
         var keyboard = history.Missing(HubUnplugged).Single(device => device.Node.Id == "KEYBOARD");
 
-        Assert.Equal(["C1", "ROOT", "HUB"], keyboard.AncestorIds);
+        Assert.Equal(["C1", "ROOT", "ROOT|port1", "HUB", "HUB|port1"], keyboard.AncestorIds);
     }
 
     [Fact]
