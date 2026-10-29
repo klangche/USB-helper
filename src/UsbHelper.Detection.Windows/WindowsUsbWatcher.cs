@@ -13,11 +13,17 @@ namespace UsbHelper.Detection.Windows;
 [SupportedOSPlatform("windows")]
 internal sealed class WindowsUsbWatcher : IDisposable
 {
-    // Plugging in one device produces several events; they are handled together.
+    // Plugging in one device produces several events; they are handled together once no new event came for
+    // SettleTime, but never later than MaxWait after the first one.
     private static readonly TimeSpan SettleTime = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan MaxWait = TimeSpan.FromSeconds(2);
+
+    // After a failed read, the whole tree is read again after this delay.
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
 
     private readonly Action<IReadOnlyList<UsbChange>> onChanges;
-    private readonly CmNotifyCallback callback; // Kept in a field so the delegate is not collected while registered.
+    private readonly CmNotifyCallback callback;
+    private readonly GCHandle callbackHandle; // Keeps the delegate alive while Windows may call it.
     private readonly Timer timer;
     private readonly Lock pendingLock = new();
     private readonly Lock processLock = new();
@@ -25,12 +31,15 @@ internal sealed class WindowsUsbWatcher : IDisposable
     private readonly IntPtr registration;
     private IReadOnlyList<UsbNode> tree;
     private bool disposed;
+    private bool fullReadDue; // A read failed earlier, so changes may have been missed.
+    private DateTime firstPendingAt;
 
     public WindowsUsbWatcher(IReadOnlyList<UsbNode> tree, Action<IReadOnlyList<UsbChange>> onChanges)
     {
         this.tree = tree;
         this.onChanges = onChanges;
         callback = OnNotification;
+        callbackHandle = GCHandle.Alloc(callback);
         timer = new Timer(_ => Process());
 
         var filter = Marshal.AllocHGlobal(CM_NOTIFY_FILTER_SIZE);
@@ -44,6 +53,7 @@ internal sealed class WindowsUsbWatcher : IDisposable
             if (result != CR_SUCCESS)
             {
                 timer.Dispose();
+                callbackHandle.Free();
                 throw new InvalidOperationException($"CM_Register_Notification failed (CONFIGRET {result}).");
             }
         }
@@ -61,6 +71,7 @@ internal sealed class WindowsUsbWatcher : IDisposable
             disposed = true;
         }
         timer.Dispose();
+        callbackHandle.Free();
     }
 
     private uint OnNotification(IntPtr notify, IntPtr context, uint action, IntPtr eventData, uint eventDataSize)
@@ -75,8 +86,14 @@ internal sealed class WindowsUsbWatcher : IDisposable
                 var parent = removed ? null : WindowsUsbReader.ParentInstanceId(instanceId);
                 lock (pendingLock)
                 {
+                    var now = DateTime.UtcNow;
+                    if (pending.Count == 0)
+                    {
+                        firstPendingAt = now;
+                    }
                     pending.Add(new DeviceEvent(instanceId, removed, parent));
-                    timer.Change(SettleTime, Timeout.InfiniteTimeSpan);
+                    var wait = Math.Min(SettleTime.Ticks, Math.Max(0, (MaxWait - (now - firstPendingAt)).Ticks));
+                    timer.Change(TimeSpan.FromTicks(wait), Timeout.InfiniteTimeSpan);
                 }
             }
         }
@@ -88,12 +105,15 @@ internal sealed class WindowsUsbWatcher : IDisposable
         lock (processLock)
         {
             List<DeviceEvent> events;
+            bool full;
             lock (pendingLock)
             {
                 events = [.. pending];
                 pending.Clear();
+                full = fullReadDue;
+                fullReadDue = false;
             }
-            if (disposed || events.Count == 0)
+            if (disposed || (events.Count == 0 && !full))
             {
                 return;
             }
@@ -101,16 +121,17 @@ internal sealed class WindowsUsbWatcher : IDisposable
             IReadOnlyList<UsbChange> changes;
             try
             {
-                var plan = RefreshPlanner.Plan(tree, events);
-                changes = plan.Full
-                    ? UsbTreeDiff.Compare(tree, UsbTreeBuilder.Build(WindowsUsbReader.Read()))
-                    : plan.HubIds
-                        .SelectMany(id => UsbTreeDiff.CompareHub(UsbTree.Find(tree, id)!, UsbTreeBuilder.BuildHub(WindowsUsbReader.ReadHub(id), id)))
-                        .ToList();
+                changes = full ? ReadAll() : ReadAffected(events);
             }
             catch (Win32Exception)
             {
-                return; // Windows could not list the devices right now; the next event reads again.
+                // Windows could not list the devices right now. Read everything again shortly, so nothing is lost.
+                lock (pendingLock)
+                {
+                    fullReadDue = true;
+                    timer.Change(RetryDelay, Timeout.InfiniteTimeSpan);
+                }
+                return;
             }
             if (changes.Count > 0)
             {
@@ -119,4 +140,26 @@ internal sealed class WindowsUsbWatcher : IDisposable
             }
         }
     }
+
+    private IReadOnlyList<UsbChange> ReadAffected(IReadOnlyList<DeviceEvent> events)
+    {
+        var plan = RefreshPlanner.Plan(tree, events);
+        if (plan.Full)
+        {
+            return ReadAll();
+        }
+        var changes = new List<UsbChange>();
+        foreach (var hubId in plan.HubIds)
+        {
+            var hubChanges = UsbTreeDiff.CompareHub(UsbTree.Find(tree, hubId)!, UsbTreeBuilder.BuildHub(WindowsUsbReader.ReadHub(hubId), hubId));
+            if (hubChanges == null)
+            {
+                return ReadAll(); // The hub itself changed, for example it could not be read: compare from the top.
+            }
+            changes.AddRange(hubChanges);
+        }
+        return changes;
+    }
+
+    private IReadOnlyList<UsbChange> ReadAll() => UsbTreeDiff.Compare(tree, UsbTreeBuilder.Build(WindowsUsbReader.Read()));
 }

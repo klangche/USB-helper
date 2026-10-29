@@ -21,7 +21,15 @@ public static class UsbTreeDiff
             else if (SameNode(oldRoot, newRoot) && oldRoot.Children.Count == 1 && newRoot.Children.Count == 1
                 && SameNode(oldRoot.Children[0], newRoot.Children[0]))
             {
-                changes.AddRange(CompareHub(oldRoot.Children[0], newRoot.Children[0])); // Same root hub: compare its ports.
+                // Same root hub: compare its ports, unless the hub itself changed.
+                if (CompareHub(oldRoot.Children[0], newRoot.Children[0]) is { } hubChanges)
+                {
+                    changes.AddRange(hubChanges);
+                }
+                else
+                {
+                    changes.Add(new UsbChange(UsbChangeKind.Changed, null, newRoot));
+                }
             }
             else if (!SameTree(oldRoot, newRoot))
             {
@@ -31,9 +39,17 @@ public static class UsbTreeDiff
         return changes;
     }
 
-    /// <summary>Changes on the ports of one hub, read twice. Both must have the same id.</summary>
-    public static IReadOnlyList<UsbChange> CompareHub(UsbNode oldHub, UsbNode newHub)
+    /// <summary>
+    /// Changes on the ports of one hub, read twice. Returns null when the hub itself changed (its name, problem
+    /// or set of ports, for example because it could not be read); port changes cannot express that, so the
+    /// caller must compare from a level higher up.
+    /// </summary>
+    public static IReadOnlyList<UsbChange>? CompareHub(UsbNode oldHub, UsbNode newHub)
     {
+        if (!SameNode(oldHub, newHub) || !oldHub.Children.Select(port => port.Id).SequenceEqual(newHub.Children.Select(port => port.Id)))
+        {
+            return null;
+        }
         var changes = new List<UsbChange>();
         foreach (var newPort in newHub.Children)
         {
@@ -45,9 +61,9 @@ public static class UsbTreeDiff
                 continue;
             }
             if (oldPort != null && oldChild != null && newChild != null && oldChild.Kind == UsbNodeKind.Hub
-                && SameNode(oldPort, newPort) && SameNode(oldChild, newChild))
+                && SameNode(oldPort, newPort) && CompareHub(oldChild, newChild) is { } belowHub)
             {
-                changes.AddRange(CompareHub(oldChild, newChild)); // Same hub on the port: look further down.
+                changes.AddRange(belowHub); // Same hub on the port: report the changes further down.
                 continue;
             }
             var kind = oldChild == null && newChild != null ? UsbChangeKind.Added

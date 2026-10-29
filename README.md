@@ -109,8 +109,10 @@ reads again only the hub the device is connected to, including everything
 below it. When an event cannot be placed in the known tree (for example a dock
 that brings its own USB controller), the whole tree is read again once and
 only the differences are reported. Connection errors are reported only when
-Windows reports them on the next read; a port error that Windows raises without
-any device event is seen at the next event on that hub.
+Windows reports them on the next read; a port error or device problem code that
+Windows sets without any device event (for example more than half a second
+after the device started) is seen at the next event on that hub. If a read
+fails, the whole tree is read again two seconds later.
 
 Contributors and AI agents follow AGENTS.md.
 

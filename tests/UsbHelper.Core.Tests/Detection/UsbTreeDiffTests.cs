@@ -96,7 +96,29 @@ public class UsbTreeDiffTests
         Assert.Null(change.ParentId);
     }
 
-    public static TheoryData<int> Cases => [0, 1, 2, 3, 4];
+    [Fact]
+    public void HubThatChangedItselfCannotBeComparedByPorts()
+    {
+        var before = Hub("HUB", Device("KEYBOARD"), null);
+
+        Assert.Null(UsbTreeDiff.CompareHub(before, Hub("HUB") with { Problem = "Could not read the hub." }));
+        Assert.Null(UsbTreeDiff.CompareHub(before, Hub("HUB", Device("KEYBOARD"))));
+        Assert.Empty(UsbTreeDiff.CompareHub(before, Hub("HUB", Device("KEYBOARD"), null))!);
+    }
+
+    [Fact]
+    public void UnreadableHubBehindPortIsReportedOnThatPort()
+    {
+        var change = Single(
+            Machine(Hub("HUB", Device("KEYBOARD"), null), null),
+            Machine(Hub("HUB") with { Problem = "Could not read the hub." }, null));
+
+        Assert.Equal(UsbChangeKind.Changed, change.Kind);
+        Assert.Equal("ROOT|port1", change.Node.Id);
+        Assert.Equal("Could not read the hub.", change.Node.Children[0].Problem);
+    }
+
+    public static TheoryData<int> Cases => [0, 1, 2, 3, 4, 5];
 
     private static readonly IReadOnlyList<UsbNode>[] Trees =
     [
@@ -104,6 +126,7 @@ public class UsbTreeDiffTests
         Machine(Device("MOUSE"), Hub("HUB", Device("KEYBOARD"), null)),
         Machine(Device("MOUSE", "code 43"), Hub("HUB", null, Device("STICK"))),
         Machine(Hub("HUB", Device("KEYBOARD"), null), Device("MOUSE")),
+        Machine(Hub("HUB") with { Problem = "Could not read the hub." }, Device("MOUSE")),
         [Controller("C1", Hub("ROOT", null, null)), Controller("DOCK", Hub("DOCKROOT", Device("NIC")))],
     ];
 
