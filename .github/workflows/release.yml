@@ -1,0 +1,75 @@
+name: Release
+
+# Tags vX.Y.Z on main build the portable Windows zip and publish a GitHub release.
+# Pull requests that change the packaging build the zip as an artifact only.
+on:
+  push:
+    tags: ["v*.*.*"]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - release/**
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+            if ($LASTEXITCODE -ne 0) { throw "Releases build only from tags on main." }
+            $version = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $version = '0.0.0-pr'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - run: dotnet restore --locked-mode
+
+      - run: dotnet test --no-restore -c Release
+
+      - run: dotnet restore src/UsbHelper.App -r win-x64 --locked-mode
+
+      - name: Publish
+        run: >-
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
+          -p:Version=${{ steps.version.outputs.version }} -o publish
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $name = "usb-helper-$version-windows-x64"
+          New-Item -ItemType Directory $name | Out-Null
+          Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
+          Copy-Item -Recurse publish/database "$name/database"
+          (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version) | Set-Content "$name/READ_ME_FIRST.txt"
+          Copy-Item LICENSE "$name/LICENSE.txt"
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+          "ZIP=$name.zip" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-zip
+          path: ${{ env.ZIP }}
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create ${{ github.ref_name }} ${{ env.ZIP }} --verify-tag --title ${{ github.ref_name }} --generate-notes
