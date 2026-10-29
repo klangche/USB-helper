@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore --locked-mode
+
+      - run: dotnet build --no-restore -c Release
+
+      - run: dotnet format --verify-no-changes --no-restore
+
+      - run: dotnet test --no-build -c Release
