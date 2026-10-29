@@ -229,3 +229,7 @@ Filled in by the setup pull request. Changed only by the owner.
     administrator rights. This replaces the .msi rule in section 8.
   - 2026-10-29: the owner allowed one initial commit pushed directly to main,
     to create the branch for the setup pull request.
+  - 2026-10-29: every merge to `main` is released automatically. The version
+    comes from the pull request titles since the last release
+    (`release/next-version.sh`); titles without a release prefix make no
+    release. This replaces the release-start rule in section 8.
