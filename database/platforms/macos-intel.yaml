@@ -1,0 +1,6 @@
+id: macos-intel
+inherits: base
+platform: macos
+architecture: x64
+notes:
+  - "Generic Intel Mac platform profile."
