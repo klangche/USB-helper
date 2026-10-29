@@ -142,7 +142,12 @@ tests. Builds and releases run on GitHub Actions.
   later topology and diagnostics. No GUI or operating-system code.
 - `src/UsbHelper.Detection.Windows`: Windows USB detection (SetupAPI and the USB
   hub IOCTLs).
-- `src/UsbHelper.App`: the GUI.
+- `src/UsbHelper.App`: the GUI. Run it from source on Windows with
+  `dotnet run --project src/UsbHelper.App`. It reads `database/` next to the
+  executable (copied there by the build), picks the computer profile only when
+  the manufacturer and model reported by Windows match a profile exactly, and
+  otherwise lets the user choose. All texts it shows are in
+  `src/UsbHelper.App/Resources/Strings.resx`.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running

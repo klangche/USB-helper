@@ -1,6 +1,105 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:UsbHelper.App"
+        xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:res="using:UsbHelper.App.Resources"
         x:Class="UsbHelper.App.MainWindow"
-        Width="800" Height="450"
-        Title="USB-helper">
+        x:DataType="vm:MainViewModel"
+        Width="1100" Height="700"
+        Title="{x:Static res:Strings.WindowTitle}">
+
+  <DockPanel Margin="12">
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+      <TextBlock Text="{x:Static res:Strings.ComputerProfile}" VerticalAlignment="Center" />
+      <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" MinWidth="360">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ProfileOption">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="3*,6,2*">
+
+      <Panel Grid.Column="0">
+        <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
+          <TreeView.Styles>
+            <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            </Style>
+          </TreeView.Styles>
+          <TreeView.ItemTemplate>
+            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
+              <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding StatusText}">
+                <!-- The connection line from the port to this hub or device, in its status colour. -->
+                <Rectangle Width="28" Height="4" VerticalAlignment="Center"
+                           Fill="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                <TextBlock Text="{Binding Text}" />
+              </StackPanel>
+            </TreeDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+        <TextBlock Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   TextWrapping="Wrap" Margin="8" />
+      </Panel>
+
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+
+      <ScrollViewer Grid.Column="2">
+        <StackPanel Spacing="10" Margin="8,0,0,0">
+
+          <StackPanel IsVisible="{Binding HasDatabaseErrors}" Spacing="4">
+            <TextBlock Text="{x:Static res:Strings.DatabaseErrors}" FontWeight="Bold" TextWrapping="Wrap" Foreground="#C62828" />
+            <ItemsControl ItemsSource="{Binding DatabaseErrors}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="monospace" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+          <Border Background="{Binding OverallColor, Converter={x:Static app:HexBrushConverter.Instance}}" CornerRadius="4" Padding="8">
+            <TextBlock Text="{Binding OverallText}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap" />
+          </Border>
+
+          <TextBlock Text="{Binding HubsText}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding TiersText}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding HopsText}" TextWrapping="Wrap" />
+
+          <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
+          <ItemsControl ItemsSource="{Binding Disconnected}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DisconnectedItem">
+                <DockPanel Margin="0,2">
+                  <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Clear}" Command="{Binding Clear}" />
+                  <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Text="{x:Static res:Strings.Findings}" FontWeight="Bold" Margin="0,8,0,0" />
+          <ItemsControl ItemsSource="{Binding Findings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FindingItem">
+                <StackPanel Margin="0,0,0,6">
+                  <TextBlock FontWeight="SemiBold" TextWrapping="Wrap">
+                    <Run Text="{Binding Kind}" />
+                    <Run Text=" · " />
+                    <Run Text="{Binding Subject}" />
+                  </TextBlock>
+                  <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
 </Window>
