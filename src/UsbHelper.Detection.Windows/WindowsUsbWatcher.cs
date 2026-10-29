@@ -31,6 +31,7 @@ internal sealed class WindowsUsbWatcher : IDisposable
     private readonly IntPtr registration;
     private IReadOnlyList<UsbNode> tree;
     private bool disposed;
+    private int disposeCalls;
     private bool fullReadDue; // A read failed earlier, so changes may have been missed.
     private DateTime firstPendingAt;
 
@@ -65,6 +66,10 @@ internal sealed class WindowsUsbWatcher : IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Increment(ref disposeCalls) > 1)
+        {
+            return;
+        }
         CM_Unregister_Notification(registration); // Waits for callbacks that are running.
         lock (processLock)
         {
@@ -151,7 +156,8 @@ internal sealed class WindowsUsbWatcher : IDisposable
         var changes = new List<UsbChange>();
         foreach (var hubId in plan.HubIds)
         {
-            var hubChanges = UsbTreeDiff.CompareHub(UsbTree.Find(tree, hubId)!, UsbTreeBuilder.BuildHub(WindowsUsbReader.ReadHub(hubId), hubId));
+            var oldHub = UsbTree.Find(tree, hubId)!;
+            var hubChanges = UsbTreeDiff.CompareHub(oldHub, UsbTreeBuilder.BuildHub(WindowsUsbReader.ReadHub(hubId), oldHub));
             if (hubChanges == null)
             {
                 return ReadAll(); // The hub itself changed, for example it could not be read: compare from the top.

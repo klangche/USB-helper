@@ -96,6 +96,34 @@ public class UsbTreeBuilderTests
         Assert.Equal(mouse.InstanceId, ports[1].Children[0].Id);
     }
 
+    [Fact]
+    public void HubReadAgainMatchesTheHubInTheTree()
+    {
+        var hubNode = new RawDevNode(@"USB\VID_05E3&PID_0610\6&1&0&2", "Generic USB Hub", null);
+        var rawHub = new RawHub(hubNode, [EmptyPort(1)], null);
+        var inTree = BuildSingle(new RawPort(2, 1, true, 0x05E3, 0x0610, hubNode, rawHub)).Children[0].Children[0].Children[0];
+
+        var again = UsbTreeBuilder.BuildHub(rawHub, inTree);
+
+        Assert.Equal((ushort)0x05E3, again.VendorId);
+        Assert.Empty(UsbTreeDiff.CompareHub(inTree, again)!);
+    }
+
+    [Fact]
+    public void HubReadAgainWithoutDeviceNodeKeepsItsName()
+    {
+        var inTree = new UsbNode(@"USB\VID_05E3&PID_0610\6&1&0&2", UsbNodeKind.Hub, "Generic USB Hub", [])
+        {
+            VendorId = 0x05E3,
+            ProductId = 0x0610,
+        };
+
+        var again = UsbTreeBuilder.BuildHub(new RawHub(null, [], null), inTree);
+
+        Assert.Equal("Generic USB Hub", again.Name);
+        Assert.Empty(UsbTreeDiff.CompareHub(inTree, again)!);
+    }
+
     [Theory]
     [InlineData(2, "The device failed enumeration.")]
     [InlineData(3, "The port reports a general failure.")]
