@@ -81,6 +81,17 @@ public class TopologyCountsTests
     }
 
     [Fact]
+    public void UnreadableHubCountsAsOneHubWithNothingBelow()
+    {
+        var unreadable = new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." };
+        var tree = Machine(unreadable);
+
+        Assert.Equal(1, TopologyCounts.HubCount(tree));
+        Assert.Equal(["HUB"], TopologyCounts.Depths(tree).Keys);
+        Assert.Equal(new ConnectionDepth(2, 0), TopologyCounts.Depths(tree)["HUB"]);
+    }
+
+    [Fact]
     public void RootHubsAndControllersHaveNoDepth()
     {
         var depths = TopologyCounts.Depths(Machine(Device("MOUSE")));

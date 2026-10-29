@@ -11,6 +11,8 @@ public sealed record ConnectionDepth(int Tier, int Hops);
 /// The counting rules for the three topology limits (owner decision in #2).
 /// Example: root port, dock hub, monitor hub, keyboard: the keyboard is tier 4 with 2 hops, and there are 2 hubs.
 /// Hubs inside docks and monitors count like any other hub, because the operating system reports them as hubs.
+/// A hub that could not be read (it has a <see cref="UsbNode.Problem"/> and no ports) counts as one hub with
+/// nothing below it, so the counts are then minimums; the diagnostics must report that case as unknown.
 /// </summary>
 public static class TopologyCounts
 {
