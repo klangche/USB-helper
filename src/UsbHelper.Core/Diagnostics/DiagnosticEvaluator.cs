@@ -168,7 +168,7 @@ public static class DiagnosticEvaluator
         && VerifiedStatuses.Contains(status)
         && statusValue.File == value.File;
 
-    private static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
+    internal static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
         nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));
 
     // Every hub port with the hub it belongs to, root hubs included.

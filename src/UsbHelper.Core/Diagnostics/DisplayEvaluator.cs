@@ -79,7 +79,15 @@ internal static class DisplayEvaluator
             var subject = port.Fields.TryGetValue("location", out var location) && location.Scalar is string place
                 ? $"Port {name} ({place})"
                 : $"Port {name}";
-            findings.Add(new Finding(kind, DiagnosticEvaluator.ComputerId, subject, Describe(port)));
+            var (known, unknown) = Describe(port);
+            if (known.Count > 0)
+            {
+                findings.Add(new Finding(kind, DiagnosticEvaluator.ComputerId, subject, string.Join("; ", known) + "."));
+            }
+            if (unknown.Count > 0)
+            {
+                findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, subject, $"Unknown: {string.Join(", ", unknown)}."));
+            }
             foreach (var limitation in port.Find("limitations")?.Items ?? [])
             {
                 findings.Add(new Finding(kind, DiagnosticEvaluator.ComputerId, subject, (string)limitation.Scalar!));
@@ -91,7 +99,7 @@ internal static class DisplayEvaluator
                 DiagnosticEvaluator.ComputerId, computer, (string)restriction.Scalar!));
         }
 
-        var adapters = AllNodes(tree).Where(node => node.Kind == UsbNodeKind.Device && node.VendorId == DisplayLinkVendorId).ToList();
+        var adapters = DiagnosticEvaluator.AllNodes(tree).Where(node => node.Kind == UsbNodeKind.Device && node.VendorId == DisplayLinkVendorId).ToList();
         foreach (var adapter in adapters)
         {
             findings.Add(new Finding(FactKind.DetectedFact, adapter.Id, adapter.Name,
@@ -100,6 +108,7 @@ internal static class DisplayEvaluator
         var support = ports.Values.Select(port => port.Find("displaylink")).Where(value => value?.Kind == ValueKind.Boolean).ToList();
         if (adapters.Count > 0 && !support.Any(value => (bool)value!.Scalar!))
         {
+            // A risk only when every port says "no"; if some ports do not say, support is unknown.
             if (support.Count > 0 && support.Count == ports.Count)
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
@@ -118,30 +127,36 @@ internal static class DisplayEvaluator
         return (check, contribution);
     }
 
-    // Only the fields the profile sets are described; an omitted field is not claimed either way.
-    private static string Describe(ProfileValue port)
+    // Only the fields the profile sets are described; an omitted field is not claimed either way. Fields set to
+    // null are returned separately, so they are reported as unknown rather than as database facts.
+    private static (List<string> Known, List<string> Unknown) Describe(ProfileValue port)
     {
-        var parts = new List<string>();
-        if (port.Find("usb") is { Kind: ValueKind.String } usb)
+        var known = new List<string>();
+        var unknown = new List<string>();
+        if (port.Find("usb") is { } usb)
         {
-            parts.Add($"USB: {usb.Scalar}");
+            (usb.Kind == ValueKind.String ? known : unknown).Add(usb.Kind == ValueKind.String ? $"USB: {usb.Scalar}" : "USB");
         }
         if (port.Find("thunderbolt") is { } thunderbolt)
         {
-            parts.Add(thunderbolt.Kind == ValueKind.Integer ? $"Thunderbolt {thunderbolt.Scalar}" : "Thunderbolt: unknown");
+            (thunderbolt.Kind == ValueKind.Integer ? known : unknown).Add(thunderbolt.Kind == ValueKind.Integer ? $"Thunderbolt {thunderbolt.Scalar}" : "Thunderbolt");
         }
         foreach (var (field, label) in Capabilities)
         {
             if (port.Find(field) is { } value)
             {
-                parts.Add($"{label}: {(value.Kind == ValueKind.Boolean ? ((bool)value.Scalar! ? "yes" : "no") : "unknown")}");
+                if (value.Kind == ValueKind.Boolean)
+                {
+                    known.Add($"{label}: {((bool)value.Scalar! ? "yes" : "no")}");
+                }
+                else
+                {
+                    unknown.Add(label);
+                }
             }
         }
-        return parts.Count == 0 ? "No capabilities recorded." : string.Join("; ", parts) + ".";
+        return (known, unknown);
     }
 
     private static ConnectionStatus Max(ConnectionStatus a, ConnectionStatus b) => a > b ? a : b;
-
-    private static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
-        nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));
 }

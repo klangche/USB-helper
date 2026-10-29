@@ -116,7 +116,9 @@ public class DisplayEvaluatorTests
         var report = Evaluate(Desk, Profile(extra: ports), 0);
 
         Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Port left_front (left side, front)",
-            "USB: usb-c; Thunderbolt 4; DisplayPort Alt Mode: yes; DisplayPort MST: unknown."), report.Findings);
+            "USB: usb-c; Thunderbolt 4; DisplayPort Alt Mode: yes."), report.Findings);
+        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Port left_front (left side, front)",
+            "Unknown: DisplayPort MST."), report.Findings);
         Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Port right",
             "USB: usb-c; DisplayPort Alt Mode: no."), report.Findings);
         Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Port right", "Charging only below 15 W."), report.Findings);
