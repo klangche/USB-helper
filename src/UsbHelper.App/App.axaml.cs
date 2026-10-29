@@ -50,17 +50,27 @@ public partial class App : Application
         }
 
         var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read());
+        var detector = new WindowsUsbDetector();
+        IReadOnlyList<UsbNode> tree;
         try
         {
-            var detector = new WindowsUsbDetector();
-            var tree = detector.Enumerate();
-            viewModel.Load(tree);
-            var watch = detector.Watch(tree, changes => Dispatcher.UIThread.Post(() => viewModel.Apply(changes)));
-            desktop.Exit += (_, _) => watch.Dispose();
+            tree = detector.Enumerate();
         }
         catch (Win32Exception e)
         {
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.DetectionFailed, e.Message);
+            return viewModel;
+        }
+        viewModel.Load(tree);
+        try
+        {
+            var watch = detector.Watch(tree, changes => Dispatcher.UIThread.Post(() => viewModel.Apply(changes)));
+            desktop.Exit += (_, _) => watch.Dispose();
+        }
+        catch (Exception e) when (e is Win32Exception or InvalidOperationException)
+        {
+            // The tree stays visible; it just does not follow changes.
+            viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.LiveUpdatesOff, e.Message);
         }
         return viewModel;
     }

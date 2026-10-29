@@ -37,6 +37,12 @@
   <data name="DetectionFailed" xml:space="preserve">
     <value>USB detection failed: {0}</value>
   </data>
+  <data name="LiveUpdatesOff" xml:space="preserve">
+    <value>Live updates are off, so the tree shows the state at startup: {0}</value>
+  </data>
+  <data name="FindingHeader" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
   <data name="Overall" xml:space="preserve">
     <value>Overall: {0}</value>
   </data>

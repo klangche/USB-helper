@@ -24,7 +24,9 @@
 
     <Grid ColumnDefinitions="3*,6,2*">
 
-      <Panel Grid.Column="0">
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
@@ -42,9 +44,7 @@
             </TreeDataTemplate>
           </TreeView.ItemTemplate>
         </TreeView>
-        <TextBlock Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
-                   TextWrapping="Wrap" Margin="8" />
-      </Panel>
+      </DockPanel>
 
       <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
 
@@ -87,11 +87,7 @@
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:FindingItem">
                 <StackPanel Margin="0,0,0,6">
-                  <TextBlock FontWeight="SemiBold" TextWrapping="Wrap">
-                    <Run Text="{Binding Kind}" />
-                    <Run Text=" · " />
-                    <Run Text="{Binding Subject}" />
-                  </TextBlock>
+                  <TextBlock Text="{Binding Header}" FontWeight="SemiBold" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
                 </StackPanel>
               </DataTemplate>

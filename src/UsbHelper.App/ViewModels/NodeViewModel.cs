@@ -16,16 +16,13 @@ public sealed class NodeViewModel : ObservableObject
     private ConnectionStatus? status;
     private bool isExpanded = true;
 
-    private NodeViewModel(string id, UsbNodeKind kind, bool isDisconnected)
+    private NodeViewModel(string id, bool isDisconnected)
     {
         Id = id;
-        Kind = kind;
         IsDisconnected = isDisconnected;
     }
 
     public string Id { get; }
-
-    public UsbNodeKind Kind { get; }
 
     /// <summary>A device seen earlier, shown at its last port.</summary>
     public bool IsDisconnected { get; }
@@ -105,7 +102,7 @@ public sealed class NodeViewModel : ObservableObject
 
     private static NodeViewModel Create(UsbNode node, DiagnosticReport report, bool isDisconnected)
     {
-        var item = new NodeViewModel(node.Id, node.Kind, isDisconnected);
+        var item = new NodeViewModel(node.Id, isDisconnected);
         item.Update(node, report);
         return item;
     }

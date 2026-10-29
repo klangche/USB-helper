@@ -10,8 +10,8 @@ namespace UsbHelper.App.ViewModels;
 /// <param name="Profile">The computer profile, or null for "no profile".</param>
 public sealed record ProfileOption(string Label, ResolvedProfile? Profile);
 
-/// <param name="Kind">Detected, database, risk or unknown, as text.</param>
-public sealed record FindingItem(string Kind, string Subject, string Message);
+/// <param name="Header">Kind (detected, database, risk, unknown) and subject.</param>
+public sealed record FindingItem(string Header, string Message);
 
 public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 
@@ -154,7 +154,9 @@ public sealed class MainViewModel : ObservableObject
         Findings.Clear();
         foreach (var finding in report.Findings)
         {
-            Findings.Add(new FindingItem(KindText(finding.Kind), finding.SubjectName, finding.Message));
+            Findings.Add(new FindingItem(
+                string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName),
+                finding.Message));
         }
     }
 
