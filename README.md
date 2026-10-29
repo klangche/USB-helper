@@ -88,6 +88,30 @@ Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: root port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
 
+## Diagnostic rules
+
+Each connection line (from a hub port to the hub or device on it) gets one
+status; when several apply, the first in this list wins:
+
+1. Red: a hub or device seen since the app started is no longer connected. It
+   stays red until it returns or is cleared.
+2. Purple: the operating system reports an error on the port or the device.
+3. Yellow: its tier or hop depth is above the profile's limit, or it is a hub
+   and the hub count is above `max_hubs`. This applies to unverified limits too;
+   the finding then says the limit is unverified.
+4. Grey: a limit is unknown (`null`, or no computer profile selected) or comes
+   from an `unverified` profile.
+5. Green: none of the above, so all three limits are known, verified (or from
+   a `partial` profile) and met.
+
+The overall result is the highest of all lines and limits, so it is never green
+while required information is missing. If a hub cannot be read, what is behind
+it cannot be counted, and limits that are not already exceeded are reported as
+unknown. Every finding names its device, port or computer and the reason, and
+is marked as a detected fact, a verified database fact, a predicted risk or
+unknown. Model exceptions from the profile are listed as database facts when the
+profile is verified or partial, otherwise as unknown.
+
 ## Platforms
 
 - Windows x64: first target. Portable, no installation, no administrator
