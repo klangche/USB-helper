@@ -58,6 +58,9 @@
   <data name="LimitHops" xml:space="preserve">
     <value>Most hops</value>
   </data>
+  <data name="LimitDisplays" xml:space="preserve">
+    <value>External displays</value>
+  </data>
   <data name="LimitWithin" xml:space="preserve">
     <value>within limit</value>
   </data>

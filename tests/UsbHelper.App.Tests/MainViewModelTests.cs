@@ -152,6 +152,31 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void DisplayCountIsReadOnEveryRefreshAndShown()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        var displays = 1;
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => displays);
+        viewModel.Load(Desk);
+
+        Assert.Equal("External displays: 1, limit 2 (within limit, verified)", viewModel.DisplaysText);
+
+        displays = 3;
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        Assert.Equal("External displays: 3, limit 2 (exceeded, verified)", viewModel.DisplaysText);
+    }
+
+    [Fact]
+    public void UnknownDisplayCountIsShownAsUnknown()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        Assert.Equal("External displays: unknown, limit unknown (unknown, not verified)", viewModel.DisplaysText);
+    }
+
+    [Fact]
     public void DatabaseErrorsAreListedWithFileAndLine()
     {
         var viewModel = new MainViewModel(null, [new DatabaseError("computers/c.yaml", 4, "Unknown field 'x'.")], new ComputerIdentity(null, null));

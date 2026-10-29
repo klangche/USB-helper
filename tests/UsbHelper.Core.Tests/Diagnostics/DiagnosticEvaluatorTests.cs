@@ -30,8 +30,9 @@ public class DiagnosticEvaluatorTests
         return db.Load().Computers["test.c"];
     }
 
+    // No external displays: these tests are about topology. Display rules are in DisplayEvaluatorTests.
     private static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, params MissingDevice[] missing) =>
-        DiagnosticEvaluator.Evaluate(tree, profile, missing);
+        DiagnosticEvaluator.Evaluate(tree, profile, missing, externalDisplays: 0);
 
     [Fact]
     public void AllLimitsKnownVerifiedAndMetIsGreen()

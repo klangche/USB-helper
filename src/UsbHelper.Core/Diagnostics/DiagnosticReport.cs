@@ -5,6 +5,7 @@ namespace UsbHelper.Core.Diagnostics;
 /// <param name="Connections">
 /// Status of each connection line, by the id of the hub or device on the port. Missing devices are included (red).
 /// </param>
+/// <param name="Displays">External displays and DisplayLink adapters, separate from the topology limits.</param>
 /// <param name="Missing">
 /// Devices seen this session that are no longer connected. Devices that were behind a hub that now cannot be read
 /// are not listed here; they are grey with an unknown finding.
@@ -16,5 +17,6 @@ public sealed record DiagnosticReport(
     LimitCheck Hubs,
     LimitCheck Tiers,
     LimitCheck Hops,
+    DisplayCheck Displays,
     IReadOnlyList<MissingDevice> Missing,
     IReadOnlyList<Finding> Findings);

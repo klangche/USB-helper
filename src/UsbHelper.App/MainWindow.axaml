@@ -69,6 +69,7 @@
           <TextBlock Text="{Binding HubsText}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding TiersText}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding HopsText}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding DisplaysText}" TextWrapping="Wrap" />
 
           <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
           <ItemsControl ItemsSource="{Binding Disconnected}">

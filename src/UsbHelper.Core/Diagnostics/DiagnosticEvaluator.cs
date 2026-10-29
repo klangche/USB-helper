@@ -18,7 +18,9 @@ public static class DiagnosticEvaluator
 
     /// <param name="profile">The resolved computer profile, or null when none is selected.</param>
     /// <param name="missing">From <see cref="SessionHistory.Missing"/>.</param>
-    public static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing)
+    /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
+    public static DiagnosticReport Evaluate(
+        IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null)
     {
         var findings = new List<Finding>();
         var computer = profile?.Find("model")?.Scalar as string ?? "This computer";
@@ -122,11 +124,14 @@ public static class DiagnosticEvaluator
                 verified ? (string)exception.Scalar! : $"{exception.Scalar} (unverified, {exception.File})"));
         }
 
+        var (displays, displayContribution) = DisplayEvaluator.Evaluate(tree, profile, externalDisplays, computer, findings);
+
         var overall = connections.Values
             .Concat(new[] { hubs, tiers, hops }.Select(Contribution))
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
+            .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, disconnected, findings);
+        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings);
     }
 
     private static LimitCheck Check(ResolvedProfile? profile, string field, int actual, bool incomplete)
@@ -158,12 +163,12 @@ public static class DiagnosticEvaluator
 
     // A value is verified when the file that set it is itself verified (or partial). A value inherited from an
     // unverified platform profile stays unverified even if the computer profile is verified.
-    private static bool IsVerified(ResolvedProfile? profile, ProfileValue value) =>
+    internal static bool IsVerified(ResolvedProfile? profile, ProfileValue value) =>
         profile?.Find("verification.status") is { Scalar: string status } statusValue
         && VerifiedStatuses.Contains(status)
         && statusValue.File == value.File;
 
-    private static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
+    internal static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
         nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));
 
     // Every hub port with the hub it belongs to, root hubs included.

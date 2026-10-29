@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using UsbHelper.Core.Detection;
 using UsbHelper.Detection.Windows;
 
@@ -12,6 +13,15 @@ if (!OperatingSystem.IsWindows())
 var detector = new WindowsUsbDetector();
 var tree = detector.Enumerate();
 Print(tree, 0);
+Console.WriteLine();
+try
+{
+    Console.WriteLine($"Active external displays (DisplayLink and wireless not counted): {WindowsDisplayReader.CountExternalDisplays()}");
+}
+catch (Win32Exception e)
+{
+    Console.WriteLine($"Active external displays: unknown ({e.Message})");
+}
 
 if (args.Contains("--watch"))
 {
