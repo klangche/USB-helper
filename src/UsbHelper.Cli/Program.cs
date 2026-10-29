@@ -12,6 +12,8 @@ if (!OperatingSystem.IsWindows())
 var detector = new WindowsUsbDetector();
 var tree = detector.Enumerate();
 Print(tree, 0);
+Console.WriteLine();
+Console.WriteLine($"Active external displays (DisplayLink and wireless not counted): {WindowsDisplayReader.CountExternalDisplays()}");
 
 if (args.Contains("--watch"))
 {

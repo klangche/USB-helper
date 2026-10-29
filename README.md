@@ -59,6 +59,42 @@ status or date, duplicate ids, a missing parent, or a parent of the wrong kind
 (platforms inherit from `base`, computers from a platform, so inheritance
 cannot loop).
 
+### Ports and displays
+
+Port capabilities are recorded per physical port under `ports:` in a computer
+profile, and only where documented. A field that is left out is not claimed
+either way; `null` means unknown.
+
+```yaml
+ports:
+  left_front:
+    location: left side, front
+    usb: usb-c
+    thunderbolt: 4            # generation
+    usb4: true
+    displayport_alt_mode: true
+    displayport_mst: null     # unknown
+    native_displayport: false
+    hdmi: false
+    displaylink: true
+    limitations:
+      - "Charging only below 15 W."
+displays:
+  max_external: 2
+  restrictions:
+    - "HDMI and the left front port share one display output."
+```
+
+Display checks are separate from the topology limits. The app counts the active
+external displays that use the computer's own outputs (HDMI, DisplayPort,
+DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
+`displays.max_external`; DisplayLink and wireless displays are not counted.
+DisplayLink adapters are found in the USB tree and checked against the ports'
+`displaylink` values. Which physical port a monitor uses cannot be detected, so
+the port capabilities and restrictions are listed, not matched to monitors. A
+display count is never derived from the number of ports, a USB-C port is never
+assumed to carry video, and no bandwidth is calculated.
+
 ### Adding or updating a computer profile
 
 1. Copy `database/computers/.template.yaml` to
