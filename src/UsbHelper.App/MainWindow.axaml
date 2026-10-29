@@ -1,0 +1,6 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UsbHelper.App.MainWindow"
+        Width="800" Height="450"
+        Title="USB-helper">
+</Window>

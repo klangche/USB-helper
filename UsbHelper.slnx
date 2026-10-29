@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UsbHelper.App/UsbHelper.App.csproj" />
+    <Project Path="src/UsbHelper.Core/UsbHelper.Core.csproj" />
+    <Project Path="src/UsbHelper.Detection.Windows/UsbHelper.Detection.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UsbHelper.Core.Tests/UsbHelper.Core.Tests.csproj" />
+  </Folder>
+</Solution>
