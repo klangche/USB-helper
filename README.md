@@ -73,6 +73,21 @@ cannot loop).
 5. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
 
+## Topology counting
+
+The three limits in a computer profile are checked independently:
+
+- **Tier depth** (`max_tiers`): the root hub is tier 1, each hub below it adds
+  one, and the device's own tier counts.
+- **Hop depth** (`max_hops`): the number of hubs between the root port and the
+  device, root hub excluded.
+- **Hub count** (`max_hubs`): all external hubs connected to the computer, root
+  hubs excluded.
+
+Hubs inside docks and monitors count like any other hub, because the operating
+system reports them as hubs. Example: root port, dock hub, monitor hub,
+keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
+
 ## Platforms
 
 - Windows x64: first target. Portable, no installation, no administrator
