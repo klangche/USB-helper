@@ -1,0 +1,106 @@
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using Microsoft.Win32.SafeHandles;
+
+namespace UsbHelper.Detection.Windows;
+
+/// <summary>SetupAPI, cfgmgr32 and kernel32 functions and constants used for USB enumeration.</summary>
+[SupportedOSPlatform("windows")]
+internal static class NativeMethods
+{
+    public static readonly Guid GuidDevInterfaceUsbHostController = new("3abf6f2d-71c4-462a-8a92-1e6861e6af27");
+
+    public const uint DIGCF_PRESENT = 0x2;
+    public const uint DIGCF_ALLCLASSES = 0x4;
+    public const uint DIGCF_DEVICEINTERFACE = 0x10;
+
+    public const uint SPDRP_DEVICEDESC = 0x0;
+    public const uint SPDRP_DRIVER = 0x9;
+    public const uint SPDRP_FRIENDLYNAME = 0xC;
+
+    public const uint DN_HAS_PROBLEM = 0x400;
+    public const uint CR_SUCCESS = 0;
+
+    public const uint GENERIC_WRITE = 0x40000000;
+    public const uint FILE_SHARE_WRITE = 0x2;
+    public const uint OPEN_EXISTING = 3;
+
+    // CTL_CODE(FILE_DEVICE_USB, function, METHOD_BUFFERED, FILE_ANY_ACCESS) from usbioctl.h.
+    public const uint IOCTL_USB_GET_ROOT_HUB_NAME = 0x220408;
+    public const uint IOCTL_USB_GET_NODE_INFORMATION = 0x220408;
+    public const uint IOCTL_USB_GET_NODE_CONNECTION_NAME = 0x220414;
+    public const uint IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME = 0x220420;
+    public const uint IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX = 0x220448;
+
+    public static readonly IntPtr InvalidHandleValue = new(-1);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SP_DEVINFO_DATA
+    {
+        public uint cbSize;
+        public Guid ClassGuid;
+        public uint DevInst;
+        public IntPtr Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SP_DEVICE_INTERFACE_DATA
+    {
+        public uint cbSize;
+        public Guid InterfaceClassGuid;
+        public uint Flags;
+        public IntPtr Reserved;
+    }
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetClassDevsW", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr SetupDiGetClassDevs(IntPtr classGuid, string? enumerator, IntPtr hwndParent, uint flags);
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetClassDevsW", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr SetupDiGetClassDevs(ref Guid classGuid, string? enumerator, IntPtr hwndParent, uint flags);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiEnumDeviceInfo(IntPtr deviceInfoSet, uint memberIndex, ref SP_DEVINFO_DATA deviceInfoData);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiEnumDeviceInterfaces(
+        IntPtr deviceInfoSet, IntPtr deviceInfoData, ref Guid interfaceClassGuid, uint memberIndex,
+        ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData);
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDeviceInterfaceDetailW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiGetDeviceInterfaceDetail(
+        IntPtr deviceInfoSet, ref SP_DEVICE_INTERFACE_DATA deviceInterfaceData, IntPtr deviceInterfaceDetailData,
+        uint deviceInterfaceDetailDataSize, out uint requiredSize, ref SP_DEVINFO_DATA deviceInfoData);
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDeviceRegistryPropertyW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiGetDeviceRegistryProperty(
+        IntPtr deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData, uint property, out uint propertyRegDataType,
+        byte[] propertyBuffer, uint propertyBufferSize, out uint requiredSize);
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDeviceInstanceIdW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiGetDeviceInstanceId(
+        IntPtr deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData, byte[] deviceInstanceId, uint deviceInstanceIdSize,
+        out uint requiredSize);
+
+    [DllImport("cfgmgr32.dll")]
+    public static extern uint CM_Get_DevNode_Status(out uint status, out uint problemNumber, uint devInst, uint flags);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern SafeFileHandle CreateFile(
+        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition,
+        uint flagsAndAttributes, IntPtr templateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeviceIoControl(
+        SafeFileHandle device, uint ioControlCode, byte[] inBuffer, int inBufferSize, byte[] outBuffer,
+        int outBufferSize, out int bytesReturned, IntPtr overlapped);
+}

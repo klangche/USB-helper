@@ -93,6 +93,15 @@ Not released yet.
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions.
 
+- `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
+  later topology and diagnostics. No GUI or operating-system code.
+- `src/UsbHelper.Detection.Windows`: Windows USB detection (SetupAPI and the USB
+  hub IOCTLs).
+- `src/UsbHelper.App`: the GUI.
+- `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
+  Device Manager ("Devices by connection"). Windows only:
+  `dotnet run --project src/UsbHelper.Cli`.
+
 Contributors and AI agents follow AGENTS.md.
 
 ## License

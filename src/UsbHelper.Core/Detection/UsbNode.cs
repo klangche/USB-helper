@@ -1,0 +1,28 @@
+namespace UsbHelper.Core.Detection;
+
+public enum UsbNodeKind
+{
+    Controller,
+    Hub,
+    Port,
+    Device,
+}
+
+/// <summary>
+/// One element of the detected USB tree. A controller has its root hub as child, a hub has its ports,
+/// a port has the hub or device connected to it (none when empty).
+/// </summary>
+/// <param name="Id">Stable across enumerations while the device stays on the same port.</param>
+/// <param name="Name">Name reported by the operating system.</param>
+public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnlyList<UsbNode> Children)
+{
+    /// <summary>Port number on the parent hub; set for ports only.</summary>
+    public int? PortNumber { get; init; }
+
+    public ushort? VendorId { get; init; }
+
+    public ushort? ProductId { get; init; }
+
+    /// <summary>A problem the operating system reports for this element, or null when it reports none.</summary>
+    public string? Problem { get; init; }
+}

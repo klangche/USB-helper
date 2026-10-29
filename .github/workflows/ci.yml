@@ -20,3 +20,6 @@ jobs:
       - run: dotnet format --verify-no-changes --no-restore
 
       - run: dotnet test --no-build -c Release
+
+      - name: Print detected USB tree
+        run: dotnet run --project src/UsbHelper.Cli -c Release --no-build
