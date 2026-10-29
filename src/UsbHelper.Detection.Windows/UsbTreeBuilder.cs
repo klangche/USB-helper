@@ -41,7 +41,7 @@ internal static class UsbTreeBuilder
         return new UsbNode(id, UsbNodeKind.Port, $"Port {port.Number}", children)
         {
             PortNumber = port.Number,
-            Problem = ConnectionProblem(port.ConnectionStatus),
+            Problem = port.Error == null ? ConnectionProblem(port.ConnectionStatus) : $"Could not read the port: {port.Error}",
         };
     }
 

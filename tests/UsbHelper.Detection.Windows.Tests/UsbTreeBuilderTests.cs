@@ -83,6 +83,19 @@ public class UsbTreeBuilderTests
         Assert.Equal("Could not read the hub: Access is denied.", hub.Problem);
     }
 
+    [Fact]
+    public void UnreadablePortReportsTheErrorAndKeepsTheOtherPorts()
+    {
+        var unreadable = new RawPort(1, 0, false, 0, 0, null, null) { Error = "The device is not ready." };
+        var mouse = new RawDevNode(@"USB\VID_046D&PID_C52B\5&2B0E5E8&0&2", "USB Composite Device", null);
+
+        var ports = BuildSingle(unreadable, DevicePort(2, mouse)).Children[0].Children;
+
+        Assert.Equal("Could not read the port: The device is not ready.", ports[0].Problem);
+        Assert.Empty(ports[0].Children);
+        Assert.Equal(mouse.InstanceId, ports[1].Children[0].Id);
+    }
+
     [Theory]
     [InlineData(2, "The device failed enumeration.")]
     [InlineData(3, "The port reports a general failure.")]

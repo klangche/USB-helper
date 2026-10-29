@@ -43,9 +43,20 @@ internal static class WindowsUsbReader
             var deviceInterface = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>() };
             for (uint i = 0; SetupDiEnumDeviceInterfaces(set, IntPtr.Zero, ref guid, i, ref deviceInterface); i++)
             {
+                // A controller that cannot be read is reported, not allowed to hide the others.
                 var info = NewDevInfoData();
-                var path = InterfacePath(set, ref deviceInterface, ref info);
-                var node = DevNode(set, ref info);
+                RawDevNode node;
+                string path;
+                try
+                {
+                    path = InterfacePath(set, ref deviceInterface, ref info);
+                    node = DevNode(set, ref info);
+                }
+                catch (Win32Exception e)
+                {
+                    controllers.Add(new RawController(new RawDevNode($"controller{i}", "USB host controller", null), null, e.Message));
+                    continue;
+                }
                 try
                 {
                     using var handle = Open(path);
@@ -90,7 +101,14 @@ internal static class WindowsUsbReader
     {
         var information = new byte[ConnectionInformationSize];
         BitConverter.TryWriteBytes(information, (uint)port);
-        Ioctl(hub, IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX, information, information.Length);
+        try
+        {
+            Ioctl(hub, IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX, information, information.Length);
+        }
+        catch (Win32Exception e)
+        {
+            return new RawPort(port, 0, false, 0, 0, null, null) { Error = e.Message };
+        }
         var status = BitConverter.ToInt32(information, ConnectionStatusOffset);
         var isHub = information[DeviceIsHubOffset] != 0;
 
@@ -131,7 +149,15 @@ internal static class WindowsUsbReader
             var info = NewDevInfoData();
             for (uint i = 0; SetupDiEnumDeviceInfo(set, i, ref info); i++)
             {
-                var node = DevNode(set, ref info);
+                RawDevNode node;
+                try
+                {
+                    node = DevNode(set, ref info);
+                }
+                catch (Win32Exception)
+                {
+                    continue; // Its port then shows an unknown device instead of failing the whole read.
+                }
                 index.ByInstanceId[node.InstanceId] = node;
                 if (StringProperty(set, ref info, SPDRP_DRIVER) is { } driverKey)
                 {

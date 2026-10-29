@@ -22,4 +22,8 @@ internal sealed record RawPort(
     ushort VendorId,
     ushort ProductId,
     RawDevNode? Device,
-    RawHub? Hub);
+    RawHub? Hub)
+{
+    /// <summary>Why the port could not be read, or null.</summary>
+    public string? Error { get; init; }
+}
