@@ -1,16 +1,12 @@
 name: Release
 
-# A release of main, started from the Actions page ("Run workflow", version X.Y.Z) or by
-# pushing a tag vX.Y.Z on main, builds the portable Windows zip and publishes a GitHub release.
+# Every push to main (a merged pull request) makes a release when the pull request titles since
+# the last tag ask for one (release/next-version.sh picks the version): it builds the portable
+# Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
 # Pull requests that change the packaging build the zip as an artifact only.
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release, X.Y.Z (for example 0.1.0)"
-        required: true
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -22,9 +18,17 @@ on:
 permissions:
   contents: read
 
+# Releases run one at a time, so each one sees the tag of the one before.
+concurrency:
+  group: release-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: false
+
 jobs:
-  windows:
-    runs-on: windows-latest
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -32,31 +36,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            version=0.0.0-pr
+          else
+            last=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)
+            version=$(
+              for sha in $(git rev-list --first-parent "${last:+$last..}HEAD"); do
+                gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq '.[0].title // empty'
+              done | release/next-version.sh "$last"
+            )
+            echo "Last release: ${last:-none}. Next: ${version:-no release}."
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: version
+    if: needs.version.outputs.version != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-
-      - name: Version
-        id: version
-        shell: pwsh
-        env:
-          INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
-            if ($env:GITHUB_REF -ne 'refs/heads/main') { throw "Releases build only from main." }
-            $version = $env:INPUT_VERSION.Trim()
-            if ($version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw "Version must be X.Y.Z, for example 0.1.0." }
-            git rev-parse -q --verify "refs/tags/v$version"
-            if ($LASTEXITCODE -eq 0) { throw "Tag v$version already exists." }
-            $global:LASTEXITCODE = 0
-          } elseif ($env:GITHUB_REF_TYPE -eq 'tag') {
-            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
-            if ($LASTEXITCODE -ne 0) { throw "Releases build only from tags on main." }
-            $version = $env:GITHUB_REF_NAME.Substring(1)
-          } else {
-            $version = '0.0.0-pr'
-          }
-          "version=$version" >> $env:GITHUB_OUTPUT
 
       - run: dotnet restore --locked-mode
 
@@ -68,12 +75,12 @@ jobs:
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
-          -p:Version=${{ steps.version.outputs.version }} -o publish
+          -p:Version=${{ needs.version.outputs.version }} -o publish
 
       - name: Zip
         shell: pwsh
         run: |
-          $version = '${{ steps.version.outputs.version }}'
+          $version = '${{ needs.version.outputs.version }}'
           $name = "usb-helper-$version-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
           Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
@@ -91,7 +98,7 @@ jobs:
 
   # Only this job can write to the repository, and never for pull requests.
   github-release:
-    needs: windows
+    needs: [version, windows]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -101,10 +108,10 @@ jobs:
         with:
           name: windows-zip
 
-      # Creates the tag on the built commit when it does not exist yet (release started from the Actions page).
+      # Creates the tag on the built commit.
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: v${{ needs.windows.outputs.version }}
+          TAG: v${{ needs.version.outputs.version }}
         run: gh release create "$TAG" usb-helper-*-windows-x64.zip --target "$GITHUB_SHA" --title "$TAG" --generate-notes
