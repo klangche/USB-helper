@@ -1,0 +1,6 @@
+id: apple-mobile-a-series
+inherits: base
+platform: ios
+architecture: arm64
+notes:
+  - "Generic Apple A-series mobile device profile. Not a Mac computer profile."

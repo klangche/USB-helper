@@ -1,0 +1,9 @@
+schema_version: 1
+
+defaults:
+  limits:
+    max_hubs: null
+    max_tiers: null
+    max_hops: null
+  verification:
+    status: unverified

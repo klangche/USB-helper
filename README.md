@@ -38,10 +38,39 @@ database/
 ```
 
 A computer profile inherits from a platform profile, which inherits from
-`base.yaml`. An omitted field inherits; an explicit value overrides; an
-explicit `null` means unknown. Every profile records its sources, a
-verification status (`verified`, `partial`, `unverified`) and the date it was
-last checked. To add a computer, copy `database/computers/.template.yaml`.
+`base.yaml`. Every profile records its sources, a verification status
+(`verified`, `partial`, `unverified`) and the date it was last checked.
+
+Inheritance rules:
+
+- An omitted field inherits the parent's value.
+- An explicit value overrides the parent's value.
+- An explicit `null` overrides the parent's value and means unknown. Unknown
+  is never replaced by a guessed default.
+- Mappings merge field by field. Lists add the child's items after the
+  parent's. An empty list (`[]`) or mapping (`{}`) adds nothing and never
+  erases inherited data; use `null` to mark inherited data as unknown.
+
+The database is only read, never written, by the application. Loading stops
+with a list of every problem found, each with file and line: invalid YAML,
+duplicate fields, unknown fields, wrong value types, invalid verification
+status or date, duplicate ids, a missing parent, or a parent of the wrong kind
+(platforms inherit from `base`, computers from a platform, so inheritance
+cannot loop).
+
+### Adding or updating a computer profile
+
+1. Copy `database/computers/.template.yaml` to
+   `database/computers/<manufacturer>/<model>.yaml`.
+2. Set `id` (unique), `inherits` (a platform id from `database/platforms/`),
+   `manufacturer` and `model`. Keep `limits.max_hubs`, `limits.max_tiers` and
+   `limits.max_hops` in the file, `null` if unknown.
+3. Fill in only values you can cite. List every source in `sources`, set
+   `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
+   Remove template fields you do not need; they then inherit.
+4. Run `dotnet test`: it loads the whole database and reports any problem.
+5. Open a pull request. Changes to verified values need review; the git history
+   keeps every correction.
 
 ## Platforms
 

@@ -1,0 +1,6 @@
+id: windows-intel
+inherits: base
+platform: windows
+architecture: x64
+notes:
+  - "Generic Windows platform profile for Intel processors."
