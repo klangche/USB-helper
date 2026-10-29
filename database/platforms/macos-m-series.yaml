@@ -1,6 +1,0 @@
-id: macos-m-series
-inherits: base
-platform: macos
-architecture: arm64
-notes:
-  - "Generic Apple Silicon platform profile."

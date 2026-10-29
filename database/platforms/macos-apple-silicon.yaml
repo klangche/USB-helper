@@ -1,0 +1,6 @@
+id: macos-apple-silicon
+inherits: base
+platform: macos
+architecture: arm64
+notes:
+  - "Generic profile for Macs with an Apple chip (M-series or A-series)."

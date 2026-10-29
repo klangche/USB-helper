@@ -24,9 +24,9 @@ public class RealDatabaseTests
         var db = HardwareDatabase.Load(DatabaseFolder());
 
         Assert.Equal(
-            ["apple-mobile-a-series", "macos-intel", "macos-m-series", "windows-amd", "windows-intel"],
+            ["apple-mobile-a-series", "macos-apple-silicon", "macos-intel", "windows-amd", "windows-intel"],
             db.Platforms.Keys.Order());
-        Assert.Equal("arm64", db.Platforms["macos-m-series"].Find("architecture")!.Scalar);
+        Assert.Equal("arm64", db.Platforms["macos-apple-silicon"].Find("architecture")!.Scalar);
         Assert.Equal(ValueKind.Null, db.Platforms["windows-intel"].Find("limits.max_hubs")!.Kind);
     }
 
