@@ -184,12 +184,13 @@ changes.
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions: every pull request is built
-and tested on Windows. Every merge to `main` is released automatically by
+and tested on Windows. Merges to `main` are released automatically by
 `.github/workflows/release.yml`: `release/next-version.sh` picks the version
 from the titles of the pull requests merged since the last release (`Fixed:`
 and `Security:` bump the patch version, `Added:`, `Changed:` and `Removed:` the
 minor version, a `!` such as `Changed!:` the major version; the first release
-is 0.1.0). The workflow then builds the portable zip, creates the tag `vX.Y.Z`
+is 0.1.0; titles with none of these prefixes make no release). The workflow
+then builds the portable zip, creates the tag `vX.Y.Z`
 and publishes a GitHub release with notes from the pull request titles.
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and

@@ -9,7 +9,7 @@ set -euo pipefail
 
 last="${1:-}"
 bump=0
-while IFS= read -r title; do
+while IFS= read -r title || [[ -n $title ]]; do
   level=0
   if [[ $title =~ ^(Added|Changed|Removed|Fixed|Security)!: ]]; then
     level=3
