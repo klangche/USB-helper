@@ -47,22 +47,21 @@ public class ValidationTests
     }
 
     [Theory]
-    [InlineData("displays:\n  max_external: five", "expected a whole number")]
-    [InlineData("displays:\n  max_external: -1", "must not be negative")]
-    [InlineData("displays:\n  max_external: \"5\"", "expected a whole number")]
-    [InlineData("ports:\n  left:\n    displayport_alt_mode: yes", "expected true, false or null")]
-    [InlineData("exceptions: just text", "expected a list")]
-    [InlineData("exceptions:\n  - 5", "expected a list of text items")]
-    [InlineData("verification:\n  status: confirmed", "expected one of verified, partial, unverified")]
-    [InlineData("verification:\n  last_checked: 29.10.2026", "expected a date as YYYY-MM-DD")]
-    [InlineData("displays: 2", "expected a mapping")]
-    public void WrongTypeIsRejected(string yaml, string messagePart)
+    [InlineData("displays:\n  max_external: five", 10, "expected a whole number")]
+    [InlineData("displays:\n  max_external: -1", 10, "must not be negative")]
+    [InlineData("displays:\n  max_external: \"5\"", 10, "expected a whole number")]
+    [InlineData("ports:\n  left:\n    displayport_alt_mode: yes", 11, "expected true, false or null")]
+    [InlineData("exceptions: just text", 9, "expected a list")]
+    [InlineData("exceptions:\n  - 5", 9, "expected a list of text items")]
+    [InlineData("verification:\n  status: confirmed", 10, "expected one of verified, partial, unverified")]
+    [InlineData("verification:\n  status: null", 10, "expected one of verified, partial, unverified")]
+    [InlineData("verification:\n  last_checked: 29.10.2026", 10, "expected a date as YYYY-MM-DD")]
+    [InlineData("displays: 2", 9, "expected a mapping")]
+    public void WrongTypeIsRejected(string yaml, int line, string messagePart)
     {
         using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", yaml);
 
-        var error = Assert.Single(db.LoadErrors());
-        Assert.Equal("computers/c.yaml", error.File);
-        Assert.Contains(messagePart, error.Message);
+        Single(db.LoadErrors(), "computers/c.yaml", line, messagePart);
     }
 
     [Fact]
@@ -95,7 +94,7 @@ public class ValidationTests
 
         Assert.Equal(["computers/a.yaml", "computers/b.yaml", "platforms/loop.yaml"], errors.Select(error => error.File).Order());
         Assert.All(errors, error => Assert.Equal(2, error.Line));
-        Assert.Contains(errors, error => error.Message.Contains("must inherit from a platform profile"));
+        Assert.Contains(errors, error => error.Message.Contains("a computer profile must inherit from a platform profile"));
         Assert.Contains(errors, error => error.Message.Contains("must inherit from 'base'"));
     }
 
@@ -164,6 +163,22 @@ public class ValidationTests
         using var db = new TestDatabase().Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nports:\n  left:\n    usb: usb-3\n");
 
         Single(db.LoadErrors(), "platforms/test-platform.yaml", 7, "'ports' belongs in computer profiles");
+    }
+
+    [Fact]
+    public void ComputerInheritingBaseIsRejected()
+    {
+        using var db = new TestDatabase().Write("computers/c.yaml", "id: test.c\ninherits: base\nmanufacturer: T\nmodel: M\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n");
+
+        Single(db.LoadErrors(), "computers/c.yaml", 2, "'base' is not a platform profile");
+    }
+
+    [Fact]
+    public void BaseMustNotDefinePorts()
+    {
+        using var db = new TestDatabase().Write("base.yaml", TestDatabase.Base + "\n  ports:\n    left:\n      usb: usb-3\n");
+
+        Single(db.LoadErrors(), "base.yaml", 9, "'ports' belongs in computer profiles, not base.yaml");
     }
 
     [Fact]

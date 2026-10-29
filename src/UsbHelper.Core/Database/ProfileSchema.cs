@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace UsbHelper.Core.Database;
 
-/// <summary>Allowed fields of a profile and their types. Any field may be <c>null</c> (unknown).</summary>
+/// <summary>Allowed fields of a profile and their types. Any field except <c>verification.status</c> may be <c>null</c> (unknown).</summary>
 internal static class ProfileSchema
 {
     private enum FieldType { String, Integer, Boolean, Date, Status, StringList, Mapping }
@@ -33,13 +33,22 @@ internal static class ProfileSchema
         ["verification.last_checked"] = FieldType.Date,
     };
 
-    public static readonly IReadOnlySet<string> ComputerOnlyFields = new HashSet<string> { "manufacturer", "model", "chip", "ports" };
+    private static readonly string[] ComputerOnlyFields = ["manufacturer", "model", "chip", "ports"];
 
     public static readonly string[] VerificationStatuses = ["verified", "partial", "unverified"];
 
     /// <summary>Checks every field of <paramref name="mapping"/> except those in <paramref name="skip"/>.</summary>
     public static void Validate(ProfileValue mapping, IReadOnlySet<string> skip, List<DatabaseError> errors) =>
         ValidateMapping(mapping, "", skip, errors);
+
+    /// <summary>Rejects fields that only computer profiles may set, such as port layouts.</summary>
+    public static void RejectComputerOnlyFields(ProfileValue mapping, string profileKind, List<DatabaseError> errors)
+    {
+        foreach (var field in ComputerOnlyFields.Where(mapping.Fields.ContainsKey))
+        {
+            errors.Add(new DatabaseError(mapping.File, mapping.Fields[field].Line, $"Field '{field}' belongs in computer profiles, not {profileKind}."));
+        }
+    }
 
     private static void ValidateMapping(ProfileValue mapping, string prefix, IReadOnlySet<string> skip, List<DatabaseError> errors)
     {
@@ -55,7 +64,7 @@ internal static class ProfileSchema
                 errors.Add(new DatabaseError(value.File, value.Line, $"Unknown field '{path}'."));
                 continue;
             }
-            if (value.Kind == ValueKind.Null)
+            if (value.Kind == ValueKind.Null && type != FieldType.Status)
             {
                 continue;
             }

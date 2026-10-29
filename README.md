@@ -46,7 +46,8 @@ Inheritance rules:
 - An omitted field inherits the parent's value.
 - An explicit value overrides the parent's value.
 - An explicit `null` overrides the parent's value and means unknown. Unknown
-  is never replaced by a guessed default.
+  is never replaced by a guessed default. `verification.status` cannot be
+  `null`; use `unverified`.
 - Mappings merge field by field. Lists add the child's items after the
   parent's. An empty list (`[]`) or mapping (`{}`) adds nothing and never
   erases inherited data; use `null` to mark inherited data as unknown.

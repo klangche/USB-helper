@@ -55,8 +55,8 @@ public sealed class HardwareDatabase
         {
             if (!platforms.TryGetValue(profile.Inherits, out var parent))
             {
-                var reason = computerFiles.Any(other => other.Id == profile.Inherits)
-                    ? $"'{profile.Inherits}' is a computer profile; a computer profile must inherit from a platform profile."
+                var reason = profile.Inherits == "base" || computerFiles.Any(other => other.Id == profile.Inherits)
+                    ? $"'{profile.Inherits}' is not a platform profile; a computer profile must inherit from a platform profile."
                     : $"Parent profile '{profile.Inherits}' does not exist.";
                 errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, reason));
                 continue;
@@ -107,6 +107,7 @@ public sealed class HardwareDatabase
             return empty;
         }
         ProfileSchema.Validate(defaults, new HashSet<string>(), errors);
+        ProfileSchema.RejectComputerOnlyFields(defaults, "base.yaml", errors);
         return defaults;
     }
 
@@ -146,10 +147,7 @@ public sealed class HardwareDatabase
             }
             else
             {
-                foreach (var field in ProfileSchema.ComputerOnlyFields.Where(root.Fields.ContainsKey))
-                {
-                    errors.Add(new DatabaseError(file, root.Fields[field].Line, $"Field '{field}' belongs in computer profiles, not platform profiles."));
-                }
+                ProfileSchema.RejectComputerOnlyFields(root, "platform profiles", errors);
             }
             if (id == null || inherits == null)
             {
