@@ -4,9 +4,9 @@ A portable diagnostic tool that shows the USB topology of a computer as a live
 tree and checks a BYOD/BYOM setup (bring your own device / monitor) against
 that computer's hardware limits.
 
-Status: in planning. Nothing is built yet.
+Status: first version for Windows; computer profiles still to be added.
 
-## Features (planned)
+## Features
 
 - Live USB tree: controllers, hubs, ports and devices, updated on connect and
   disconnect without rebuilding the whole tree.
@@ -164,17 +164,29 @@ findings; they have no connection line of their own.
 
 ## Install
 
-Not released yet. Releases will be a zip
-(`usb-helper-<version>-windows-x64.zip`): unzip and run.
+Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
+[releases](https://github.com/klangche/USB-helper/releases), unzip it, and
+follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder next
+to `USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
+.\USB-helper.exe` in PowerShell), and start it. No installation, no
+administrator rights and no network connection are needed.
 
 ## Usage
 
-Not released yet.
+Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
+hub and device, and a summary with the overall result, the hub, tier, hop and
+display checks, disconnected devices and all findings. The computer profile is
+selected automatically when one matches this computer exactly; otherwise pick
+one in the top bar. Plug and unplug devices: only the affected part of the tree
+changes.
 
 ## Development
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
-tests. Builds and releases run on GitHub Actions.
+tests. Builds and releases run on GitHub Actions: every pull request is built
+and tested on Windows; the owner tags `vX.Y.Z` on `main`, and
+`.github/workflows/release.yml` then builds the portable zip and publishes a
+GitHub release with notes from the pull request titles.
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.
@@ -206,4 +218,4 @@ Contributors and AI agents follow AGENTS.md.
 
 ## License
 
-Not chosen yet.
+MIT, see [LICENSE](LICENSE).
