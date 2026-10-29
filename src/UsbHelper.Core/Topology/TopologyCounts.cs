@@ -1,0 +1,46 @@
+using UsbHelper.Core.Detection;
+
+namespace UsbHelper.Core.Topology;
+
+/// <summary>Where a hub or device sits in the tree.</summary>
+/// <param name="Tier">USB tier: the root hub is tier 1, each hub below adds one, the node's own tier counts.</param>
+/// <param name="Hops">Hubs between the root port and the node, root hub excluded.</param>
+public sealed record ConnectionDepth(int Tier, int Hops);
+
+/// <summary>
+/// The counting rules for the three topology limits (owner decision in #2).
+/// Example: root port, dock hub, monitor hub, keyboard: the keyboard is tier 4 with 2 hops, and there are 2 hubs.
+/// Hubs inside docks and monitors count like any other hub, because the operating system reports them as hubs.
+/// </summary>
+public static class TopologyCounts
+{
+    /// <summary>Number of external hubs connected to the computer. Root hubs are not counted.</summary>
+    public static int HubCount(IReadOnlyList<UsbNode> tree) => tree.SelectMany(controller => controller.Children).Sum(HubsBelow);
+
+    /// <summary>Tier and hop depth of every connected hub and device, by id. Root hubs and controllers are not included.</summary>
+    public static IReadOnlyDictionary<string, ConnectionDepth> Depths(IReadOnlyList<UsbNode> tree)
+    {
+        var depths = new Dictionary<string, ConnectionDepth>();
+        foreach (var rootHub in tree.SelectMany(controller => controller.Children))
+        {
+            AddBelow(rootHub, hubsAbove: 1, depths);
+        }
+        return depths;
+    }
+
+    // hubsAbove counts the hub itself and every hub above it, root hub included.
+    private static void AddBelow(UsbNode hub, int hubsAbove, Dictionary<string, ConnectionDepth> depths)
+    {
+        foreach (var connected in hub.Children.SelectMany(port => port.Children))
+        {
+            depths[connected.Id] = new ConnectionDepth(Tier: hubsAbove + 1, Hops: hubsAbove - 1);
+            if (connected.Kind == UsbNodeKind.Hub)
+            {
+                AddBelow(connected, hubsAbove + 1, depths);
+            }
+        }
+    }
+
+    private static int HubsBelow(UsbNode hub) =>
+        hub.Children.SelectMany(port => port.Children).Where(node => node.Kind == UsbNodeKind.Hub).Sum(child => 1 + HubsBelow(child));
+}
