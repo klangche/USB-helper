@@ -2,5 +2,15 @@ id: apple-mobile-a-series
 inherits: base
 platform: ios
 architecture: arm64
+limits:
+  max_hops: 4
+  recommended_hops: 2
 notes:
   - "Generic Apple A-series mobile device profile. Not a Mac computer profile."
+  - "Hop limits from the usb-script config (iPhone USB-C, iPad USB-C (M-series)): max 4, recommended 2. Tested in practice, not a manufacturer specification."
+  - "usb-script gives iPhone USB-C and iPad USB-C (M-series) the same values."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.iphone, platformStability.ipad; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

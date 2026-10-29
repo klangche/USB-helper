@@ -11,7 +11,8 @@ public class DiagnosticEvaluatorTests
     // Root port 1: hub with a keyboard (tier 3, 1 hop); root port 2: mouse (tier 2, 0 hops). One external hub.
     private static readonly IReadOnlyList<UsbNode> Desk = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD")), Device("MOUSE")))];
 
-    private static ResolvedProfile Profile(string hubs = "5", string tiers = "7", string hops = "5", string status = "verified", string extra = "")
+    private static ResolvedProfile Profile(
+        string hubs = "5", string tiers = "7", string hops = "5", string status = "verified", string extra = "", string recommendedHops = "null")
     {
         using var db = new TestDatabase();
         db.Write("computers/c.yaml", $"""
@@ -23,6 +24,7 @@ public class DiagnosticEvaluatorTests
               max_hubs: {hubs}
               max_tiers: {tiers}
               max_hops: {hops}
+              recommended_hops: {recommendedHops}
             verification:
               status: {status}
             {extra}
@@ -106,6 +108,48 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Yellow, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
         Assert.Contains(report.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message == "Hop depth 1 exceeds limits.max_hops 0.");
+    }
+
+    [Fact]
+    public void HopsAboveRecommendedIsYellowWithRiskFinding()
+    {
+        var report = Evaluate(Desk, Profile(recommendedHops: "0"));
+
+        Assert.Equal(ConnectionStatus.Yellow, report.Overall);
+        Assert.Equal(ConnectionStatus.Yellow, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
+        Assert.Contains(new Finding(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD",
+            "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5."), report.Findings);
+        Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Test laptop",
+            "limits.recommended_hops = 0 (computers/c.yaml)."), report.Findings);
+    }
+
+    [Fact]
+    public void HopsAboveMaximumReportsOnlyTheMaximum()
+    {
+        var report = Evaluate(Desk, Profile(hops: "0", recommendedHops: "0"));
+
+        Assert.Equal(ConnectionStatus.Yellow, report.Connections["KEYBOARD"]);
+        Assert.Single(report.Findings, finding => finding.SubjectId == "KEYBOARD");
+    }
+
+    [Fact]
+    public void UnknownRecommendedHopsIsNeitherGreyNorNamed()
+    {
+        var report = Evaluate(Desk, Profile());
+
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("recommended_hops"));
+    }
+
+    [Fact]
+    public void ExceededUnverifiedRecommendedHopsSaysUnverified()
+    {
+        var report = Evaluate(Desk, Profile(status: "unverified", recommendedHops: "0"));
+
+        Assert.Equal(ConnectionStatus.Yellow, report.Connections["KEYBOARD"]);
+        Assert.Contains(report.Findings, finding => finding.Message
+            == "Hop depth 1 exceeds the recommended limits.recommended_hops 0 (unverified limit); limits.max_hops is 5 (unverified limit).");
     }
 
     [Fact]
