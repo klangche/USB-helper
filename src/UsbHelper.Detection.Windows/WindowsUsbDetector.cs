@@ -8,4 +8,7 @@ namespace UsbHelper.Detection.Windows;
 public sealed class WindowsUsbDetector : IUsbDetector
 {
     public IReadOnlyList<UsbNode> Enumerate() => UsbTreeBuilder.Build(WindowsUsbReader.Read());
+
+    public IDisposable Watch(IReadOnlyList<UsbNode> tree, Action<IReadOnlyList<UsbChange>> onChanges) =>
+        new WindowsUsbWatcher(tree, onChanges);
 }

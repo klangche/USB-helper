@@ -2,13 +2,31 @@ using UsbHelper.Core.Detection;
 using UsbHelper.Detection.Windows;
 
 // Prints the detected USB tree, for checking detection against USBView or Device Manager.
+// With --watch it then prints each change until Enter is pressed.
 if (!OperatingSystem.IsWindows())
 {
     Console.Error.WriteLine("USB detection is only implemented for Windows.");
     return 1;
 }
 
-Print(new WindowsUsbDetector().Enumerate(), 0);
+var detector = new WindowsUsbDetector();
+var tree = detector.Enumerate();
+Print(tree, 0);
+
+if (args.Contains("--watch"))
+{
+    Console.WriteLine();
+    Console.WriteLine("Watching for changes. Plug or unplug a device; press Enter to stop.");
+    using var watch = detector.Watch(tree, changes =>
+    {
+        foreach (var change in changes)
+        {
+            Console.WriteLine($"{DateTime.Now:HH:mm:ss} {change.Kind} on {change.ParentId ?? "the controller list"}:");
+            Print([change.Node], 1);
+        }
+    });
+    Console.ReadLine();
+}
 return 0;
 
 static void Print(IReadOnlyList<UsbNode> nodes, int depth)
