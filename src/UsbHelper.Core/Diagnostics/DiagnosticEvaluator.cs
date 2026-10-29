@@ -13,7 +13,7 @@ public static class DiagnosticEvaluator
     /// <summary>Subject id of findings about the computer as a whole.</summary>
     public const string ComputerId = "computer";
 
-    // A value in a partially verified profile is verified; its unknown values are null.
+    // A value set in a partially verified profile is verified; its unknown values are null.
     private static readonly string[] VerifiedStatuses = ["verified", "partial"];
 
     /// <param name="profile">The resolved computer profile, or null when none is selected.</param>
@@ -27,14 +27,17 @@ public static class DiagnosticEvaluator
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer, "No computer profile is selected, so no limits are known."));
         }
 
-        // A hub that could not be read hides what is behind it, so the counts are then minimums.
-        var unreadableHubs = AllNodes(tree).Where(node => node.Kind == UsbNodeKind.Hub && node.Problem != null && node.Children.Count == 0).ToList();
-        foreach (var hub in unreadableHubs)
+        // A hub without ports, or a controller without a root hub, could not be read: what is behind it is
+        // unknown, so the counts are then minimums. A working hub always has at least one port.
+        var unreadable = AllNodes(tree)
+            .Where(node => (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller) && node.Children.Count == 0)
+            .ToList();
+        foreach (var node in unreadable)
         {
-            findings.Add(new Finding(FactKind.Unknown, hub.Id, hub.Name,
-                "Devices behind this hub cannot be read, so the hub count and depths are at least what is shown."));
+            findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name,
+                "What is connected behind it cannot be read, so the hub count and depths are at least what is shown."));
         }
-        var incomplete = unreadableHubs.Count > 0;
+        var incomplete = unreadable.Count > 0;
         var depths = TopologyCounts.Depths(tree);
         var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(tree), incomplete);
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
@@ -56,7 +59,9 @@ public static class DiagnosticEvaluator
             foreach (var node in port.Children)
             {
                 var depth = depths[node.Id];
-                var status = limitsKnown ? ConnectionStatus.Green : ConnectionStatus.Grey;
+                var status = limitsKnown && (node.Kind != UsbNodeKind.Hub || hubs.State != LimitState.Unknown)
+                    ? ConnectionStatus.Green
+                    : ConnectionStatus.Grey;
                 if (depth.Tier > tiers.Limit)
                 {
                     status = ConnectionStatus.Yellow;
@@ -81,8 +86,19 @@ public static class DiagnosticEvaluator
             }
         }
 
+        // Behind something that cannot be read, a device may still be there: unknown, not disconnected.
+        var disconnected = new List<MissingDevice>();
         foreach (var device in missing)
         {
+            var hiddenBehind = unreadable.FirstOrDefault(node => device.AncestorIds.Contains(node.Id));
+            if (hiddenBehind != null)
+            {
+                connections[device.Node.Id] = ConnectionStatus.Grey;
+                findings.Add(new Finding(FactKind.Unknown, device.Node.Id, device.Node.Name,
+                    $"It was behind {hiddenBehind.Name}, which cannot be read; it may still be connected."));
+                continue;
+            }
+            disconnected.Add(device);
             connections[device.Node.Id] = ConnectionStatus.Red;
             findings.Add(new Finding(FactKind.DetectedFact, device.Node.Id, device.Node.Name,
                 $"Disconnected: it was connected to {device.PortName} and is no longer present."));
@@ -97,18 +113,18 @@ public static class DiagnosticEvaluator
             findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, node.Problem!));
         }
 
-        var verifiedProfile = IsVerified(profile);
         foreach (var exception in profile?.Find("exceptions")?.Items ?? [])
         {
-            findings.Add(new Finding(verifiedProfile ? FactKind.VerifiedDatabaseFact : FactKind.Unknown, ComputerId, computer,
-                verifiedProfile ? (string)exception.Scalar! : $"{exception.Scalar} (unverified, {exception.File})"));
+            var verified = IsVerified(profile, exception);
+            findings.Add(new Finding(verified ? FactKind.VerifiedDatabaseFact : FactKind.Unknown, ComputerId, computer,
+                verified ? (string)exception.Scalar! : $"{exception.Scalar} (unverified, {exception.File})"));
         }
 
         var overall = connections.Values
             .Concat(new[] { hubs, tiers, hops }.Select(Contribution))
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, missing, findings);
+        return new DiagnosticReport(overall, connections, hubs, tiers, hops, disconnected, findings);
     }
 
     private static LimitCheck Check(ResolvedProfile? profile, string field, int actual, bool incomplete)
@@ -119,7 +135,7 @@ public static class DiagnosticEvaluator
             : actual > limit ? LimitState.Exceeded
             : incomplete ? LimitState.Unknown
             : LimitState.Within;
-        return new LimitCheck(field, actual, limit, limit != null && IsVerified(profile), value?.File, state);
+        return new LimitCheck(field, actual, limit, limit != null && IsVerified(profile, value!), value?.File, state);
     }
 
     private static Finding LimitFinding(LimitCheck limit, string computer)
@@ -138,8 +154,12 @@ public static class DiagnosticEvaluator
 
     private static string Unverified(LimitCheck limit) => limit.Verified ? "" : " (unverified limit)";
 
-    private static bool IsVerified(ResolvedProfile? profile) =>
-        profile?.Find("verification.status")?.Scalar is string status && VerifiedStatuses.Contains(status);
+    // A value is verified when the file that set it is itself verified (or partial). A value inherited from an
+    // unverified platform profile stays unverified even if the computer profile is verified.
+    private static bool IsVerified(ResolvedProfile? profile, ProfileValue value) =>
+        profile?.Find("verification.status") is { Scalar: string status } statusValue
+        && VerifiedStatuses.Contains(status)
+        && statusValue.File == value.File;
 
     private static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
         nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));

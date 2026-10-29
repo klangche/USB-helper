@@ -52,6 +52,28 @@ public class SessionHistoryTests
     }
 
     [Fact]
+    public void PlaceholderForUnidentifiedDeviceIsNotRemembered()
+    {
+        IReadOnlyList<UsbNode> failed = [Controller("C1", Hub("ROOT", Device("ROOT|port1|device", "The device failed enumeration.")))];
+        IReadOnlyList<UsbNode> identified = [Controller("C1", Hub("ROOT", Device("MOUSE")))];
+        var history = new SessionHistory();
+        history.Record(failed);
+
+        Assert.Empty(history.Missing(identified));
+    }
+
+    [Fact]
+    public void MissingDeviceKnowsWhatItWasBehind()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+
+        var keyboard = history.Missing(HubUnplugged).Single(device => device.Node.Id == "KEYBOARD");
+
+        Assert.Equal(["C1", "ROOT", "HUB"], keyboard.AncestorIds);
+    }
+
+    [Fact]
     public void DeviceMovedToAnotherPortRemembersItsNewPort()
     {
         IReadOnlyList<UsbNode> moved = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD")), null, Device("MOUSE")))];

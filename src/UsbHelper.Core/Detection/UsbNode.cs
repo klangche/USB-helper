@@ -12,7 +12,10 @@ public enum UsbNodeKind
 /// One element of the detected USB tree. A controller has its root hub as child, a hub has its ports,
 /// a port has the hub or device connected to it (none when empty).
 /// </summary>
-/// <param name="Id">Stable across enumerations while the device stays on the same port.</param>
+/// <param name="Id">
+/// Stable across enumerations while the device stays on the same port. An id that starts with its port's id and
+/// <c>|</c> is a placeholder for a hub or device the operating system could not identify.
+/// </param>
 /// <param name="Name">Name reported by the operating system.</param>
 public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnlyList<UsbNode> Children)
 {

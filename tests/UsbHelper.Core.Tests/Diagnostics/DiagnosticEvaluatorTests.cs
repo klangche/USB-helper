@@ -203,6 +203,81 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void DevicesBehindUnreadableHubAreUnknownNotDisconnected()
+    {
+        var history = new SessionHistory();
+        history.Record(Desk);
+        var unreadable = new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub: The device is not ready." };
+        IReadOnlyList<UsbNode> now = [Controller("C1", Hub("ROOT", unreadable, Device("MOUSE")))];
+
+        var report = Evaluate(now, Profile(), [.. history.Missing(now)]);
+
+        Assert.Equal(ConnectionStatus.Grey, report.Connections["KEYBOARD"]);
+        Assert.Empty(report.Missing);
+        Assert.Contains(new Finding(FactKind.Unknown, "KEYBOARD", "KEYBOARD", "It was behind HUB, which cannot be read; it may still be connected."), report.Findings);
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.StartsWith("Disconnected"));
+    }
+
+    [Fact]
+    public void HubWithoutPortsIsIncompleteEvenWithoutProblem()
+    {
+        var report = Evaluate([Controller("C1", Hub("ROOT", new UsbNode("HUB", UsbNodeKind.Hub, "HUB", [])))], Profile());
+
+        Assert.Equal(LimitState.Unknown, report.Hubs.State);
+        Assert.Equal(ConnectionStatus.Grey, report.Connections["HUB"]);
+        Assert.NotEqual(ConnectionStatus.Green, report.Overall);
+    }
+
+    [Fact]
+    public void ControllerWithoutRootHubIsIncomplete()
+    {
+        var report = Evaluate([Controller("C1", Hub("ROOT", Device("MOUSE"))), new UsbNode("C2", UsbNodeKind.Controller, "C2", [])], Profile());
+
+        Assert.Equal(LimitState.Unknown, report.Hubs.State);
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.SubjectId == "C2");
+        Assert.NotEqual(ConnectionStatus.Green, report.Overall);
+    }
+
+    [Fact]
+    public void MissingHubAndItsDevicesAreRedAndBeatAnError()
+    {
+        var history = new SessionHistory();
+        history.Record(Desk);
+        IReadOnlyList<UsbNode> now = [Controller("C1", Hub("ROOT", null, Device("MOUSE", "code 43")))];
+
+        var report = Evaluate(now, Profile(), [.. history.Missing(now)]);
+
+        Assert.Equal(ConnectionStatus.Red, report.Connections["HUB"]);
+        Assert.Equal(ConnectionStatus.Red, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
+        Assert.Equal(ConnectionStatus.Red, report.Overall);
+    }
+
+    [Fact]
+    public void ValueInheritedFromUnverifiedPlatformIsNotVerified()
+    {
+        using var db = new TestDatabase();
+        db.Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nexceptions:\n  - \"Platform-wide note.\"\n");
+        db.Write("computers/c.yaml", """
+            id: test.c
+            inherits: test-platform
+            manufacturer: Test
+            model: Test laptop
+            limits:
+              max_hubs: 5
+              max_tiers: 7
+              max_hops: 5
+            verification:
+              status: verified
+            """);
+
+        var report = Evaluate(Desk, db.Load().Computers["test.c"]);
+
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("Platform-wide note."));
+        Assert.True(report.Hubs.Verified);
+    }
+
+    [Fact]
     public void RecoveredConnectionIsGreenAgain()
     {
         IReadOnlyList<UsbNode> broken = [Controller("C1", Hub("ROOT", Device("MOUSE", "code 43")))];
