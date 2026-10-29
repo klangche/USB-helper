@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- All texts the GUI shows. English first; a translation adds Strings.<culture>.resx with the same keys. -->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="WindowTitle" xml:space="preserve">
+    <value>USB-helper</value>
+  </data>
+  <data name="ComputerProfile" xml:space="preserve">
+    <value>Computer profile:</value>
+  </data>
+  <data name="NoProfile" xml:space="preserve">
+    <value>No profile (limits unknown)</value>
+  </data>
+  <data name="DetectedComputer" xml:space="preserve">
+    <value>Detected: {0} {1}</value>
+  </data>
+  <data name="UnknownValue" xml:space="preserve">
+    <value>unknown</value>
+  </data>
+  <data name="DatabaseErrors" xml:space="preserve">
+    <value>The hardware database has errors, so no computer profile can be used:</value>
+  </data>
+  <data name="DetectionUnavailable" xml:space="preserve">
+    <value>USB detection is not available on this operating system yet.</value>
+  </data>
+  <data name="DetectionFailed" xml:space="preserve">
+    <value>USB detection failed: {0}</value>
+  </data>
+  <data name="LiveUpdatesOff" xml:space="preserve">
+    <value>Live updates are off, so the tree shows the state at startup: {0}</value>
+  </data>
+  <data name="FindingHeader" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Overall" xml:space="preserve">
+    <value>Overall: {0}</value>
+  </data>
+  <data name="LimitLine" xml:space="preserve">
+    <value>{0}: {1}, limit {2} ({3}, {4})</value>
+  </data>
+  <data name="LimitHubs" xml:space="preserve">
+    <value>External hubs</value>
+  </data>
+  <data name="LimitTiers" xml:space="preserve">
+    <value>Deepest tier</value>
+  </data>
+  <data name="LimitHops" xml:space="preserve">
+    <value>Most hops</value>
+  </data>
+  <data name="LimitWithin" xml:space="preserve">
+    <value>within limit</value>
+  </data>
+  <data name="LimitExceeded" xml:space="preserve">
+    <value>exceeded</value>
+  </data>
+  <data name="LimitUnknown" xml:space="preserve">
+    <value>unknown</value>
+  </data>
+  <data name="Verified" xml:space="preserve">
+    <value>verified</value>
+  </data>
+  <data name="Unverified" xml:space="preserve">
+    <value>not verified</value>
+  </data>
+  <data name="Disconnected" xml:space="preserve">
+    <value>Disconnected devices</value>
+  </data>
+  <data name="DisconnectedFrom" xml:space="preserve">
+    <value>{0}, last on {1}</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Findings" xml:space="preserve">
+    <value>Findings</value>
+  </data>
+  <data name="NodeDisconnected" xml:space="preserve">
+    <value>{0} (disconnected)</value>
+  </data>
+  <data name="NodeWithIds" xml:space="preserve">
+    <value>{0} ({1:X4}:{2:X4})</value>
+  </data>
+  <data name="NodeProblem" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="StatusGreen" xml:space="preserve">
+    <value>OK: present, all limits known and met</value>
+  </data>
+  <data name="StatusGrey" xml:space="preserve">
+    <value>Unknown: a limit is unknown or unverified</value>
+  </data>
+  <data name="StatusYellow" xml:space="preserve">
+    <value>Limit exceeded</value>
+  </data>
+  <data name="StatusPurple" xml:space="preserve">
+    <value>Connection error reported by the operating system</value>
+  </data>
+  <data name="StatusRed" xml:space="preserve">
+    <value>Disconnected</value>
+  </data>
+  <data name="KindDetectedFact" xml:space="preserve">
+    <value>Detected</value>
+  </data>
+  <data name="KindVerifiedDatabaseFact" xml:space="preserve">
+    <value>Database (verified)</value>
+  </data>
+  <data name="KindPredictedRisk" xml:space="preserve">
+    <value>Risk</value>
+  </data>
+  <data name="KindUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+</root>
