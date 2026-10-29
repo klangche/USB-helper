@@ -9,6 +9,7 @@ namespace UsbHelper.Detection.Windows;
 internal static class NativeMethods
 {
     public static readonly Guid GuidDevInterfaceUsbHostController = new("3abf6f2d-71c4-462a-8a92-1e6861e6af27");
+    public static readonly Guid GuidDevInterfaceUsbHub = new("f18a0e88-c30c-11d0-8815-00a0c906bed8");
 
     public const uint DIGCF_PRESENT = 0x2;
     public const uint DIGCF_ALLCLASSES = 0x4;
@@ -20,6 +21,18 @@ internal static class NativeMethods
 
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
+
+    // CM_NOTIFY_FILTER: cbSize, Flags, FilterType, Reserved, then a union whose largest member is
+    // WCHAR InstanceId[MAX_DEVICE_ID_LEN = 200].
+    public const int CM_NOTIFY_FILTER_SIZE = 16 + 400;
+    public const uint CM_NOTIFY_FILTER_FLAG_ALL_DEVICE_INSTANCES = 0x2;
+    public const uint CM_NOTIFY_FILTER_TYPE_DEVICEINSTANCE = 2;
+    public const uint CM_NOTIFY_ACTION_DEVICEINSTANCEENUMERATED = 7;
+    public const uint CM_NOTIFY_ACTION_DEVICEINSTANCESTARTED = 8;
+    public const uint CM_NOTIFY_ACTION_DEVICEINSTANCEREMOVED = 9;
+
+    // CM_NOTIFY_EVENT_DATA: FilterType, Reserved, then the instance id.
+    public const int CM_NOTIFY_EVENT_DATA_INSTANCE_ID_OFFSET = 8;
 
     public const uint GENERIC_WRITE = 0x40000000;
     public const uint FILE_SHARE_WRITE = 0x2;
@@ -92,6 +105,24 @@ internal static class NativeMethods
 
     [DllImport("cfgmgr32.dll")]
     public static extern uint CM_Get_DevNode_Status(out uint status, out uint problemNumber, uint devInst, uint flags);
+
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    public delegate uint CmNotifyCallback(IntPtr notify, IntPtr context, uint action, IntPtr eventData, uint eventDataSize);
+
+    [DllImport("cfgmgr32.dll")]
+    public static extern uint CM_Register_Notification(IntPtr filter, IntPtr context, CmNotifyCallback callback, out IntPtr notifyContext);
+
+    [DllImport("cfgmgr32.dll")]
+    public static extern uint CM_Unregister_Notification(IntPtr notifyContext);
+
+    [DllImport("cfgmgr32.dll", EntryPoint = "CM_Locate_DevNodeW", CharSet = CharSet.Unicode)]
+    public static extern uint CM_Locate_DevNode(out uint devInst, string deviceId, uint flags);
+
+    [DllImport("cfgmgr32.dll")]
+    public static extern uint CM_Get_Parent(out uint parentDevInst, uint devInst, uint flags);
+
+    [DllImport("cfgmgr32.dll", EntryPoint = "CM_Get_Device_IDW")]
+    public static extern uint CM_Get_Device_ID(uint devInst, byte[] buffer, uint bufferLength, uint flags);
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern SafeFileHandle CreateFile(

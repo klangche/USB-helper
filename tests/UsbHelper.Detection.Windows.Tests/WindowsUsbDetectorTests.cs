@@ -21,6 +21,20 @@ public class WindowsUsbDetectorTests
         Assert.Equal(ids.Count, ids.Distinct().Count());
     }
 
+    // Registers for Windows device notifications and unregisters again.
+    [Fact]
+    public void WatchStartsAndStopsOnWindows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        var detector = new WindowsUsbDetector();
+
+        var watch = detector.Watch(detector.Enumerate(), _ => { });
+        watch.Dispose();
+    }
+
     private static void Collect(IReadOnlyList<UsbNode> nodes, List<string> ids)
     {
         foreach (var node in nodes)

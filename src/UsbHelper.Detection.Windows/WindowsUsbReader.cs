@@ -76,12 +76,59 @@ internal static class WindowsUsbReader
         return controllers;
     }
 
-    private static RawHub ReadHub(string symbolicName, DevNodeIndex devNodes)
+    /// <summary>Reads one hub and everything below it again.</summary>
+    public static RawHub ReadHub(string hubInstanceId)
     {
-        devNodes.ByInstanceId.TryGetValue(HubName.ToInstanceId(symbolicName), out var node);
+        var devNodes = ReadUsbDevNodes();
+        devNodes.ByInstanceId.TryGetValue(hubInstanceId, out var node);
+        var guid = GuidDevInterfaceUsbHub;
+        var set = SetupDiGetClassDevs(ref guid, hubInstanceId, IntPtr.Zero, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+        if (set == InvalidHandleValue)
+        {
+            return new RawHub(node, [], new Win32Exception().Message);
+        }
         try
         {
-            using var handle = Open(HubName.ToDevicePath(symbolicName));
+            var deviceInterface = new SP_DEVICE_INTERFACE_DATA { cbSize = (uint)Marshal.SizeOf<SP_DEVICE_INTERFACE_DATA>() };
+            if (!SetupDiEnumDeviceInterfaces(set, IntPtr.Zero, ref guid, 0, ref deviceInterface))
+            {
+                return new RawHub(node, [], "The hub is no longer present.");
+            }
+            var info = NewDevInfoData();
+            return ReadHub(InterfacePath(set, ref deviceInterface, ref info), node, devNodes);
+        }
+        catch (Win32Exception e)
+        {
+            return new RawHub(node, [], e.Message);
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(set);
+        }
+    }
+
+    /// <summary>The parent device node's instance id, or null when the device is gone.</summary>
+    public static string? ParentInstanceId(string instanceId)
+    {
+        if (CM_Locate_DevNode(out var devInst, instanceId, 0) != CR_SUCCESS || CM_Get_Parent(out var parent, devInst, 0) != CR_SUCCESS)
+        {
+            return null;
+        }
+        var buffer = new byte[NameBufferSize];
+        return CM_Get_Device_ID(parent, buffer, NameBufferSize / 2, 0) == CR_SUCCESS ? Decode(buffer, 0).ToUpperInvariant() : null;
+    }
+
+    private static RawHub ReadHub(string symbolicName, DevNodeIndex devNodes) =>
+        ReadHub(
+            HubName.ToDevicePath(symbolicName),
+            devNodes.ByInstanceId.GetValueOrDefault(HubName.ToInstanceId(symbolicName)),
+            devNodes);
+
+    private static RawHub ReadHub(string devicePath, RawDevNode? node, DevNodeIndex devNodes)
+    {
+        try
+        {
+            using var handle = Open(devicePath);
             var information = new byte[NodeInformationSize];
             Ioctl(handle, IOCTL_USB_GET_NODE_INFORMATION, information, information.Length);
             var ports = new List<RawPort>();
@@ -179,7 +226,7 @@ internal static class WindowsUsbReader
         {
             throw new Win32Exception();
         }
-        var instanceId = Decode(buffer, 0);
+        var instanceId = Decode(buffer, 0).ToUpperInvariant(); // Instance ids are case-insensitive; keep one form.
         var name = StringProperty(set, ref info, SPDRP_FRIENDLYNAME) ?? StringProperty(set, ref info, SPDRP_DEVICEDESC) ?? instanceId;
         int? problem = CM_Get_DevNode_Status(out var status, out var problemNumber, info.DevInst, 0) == CR_SUCCESS
             && (status & DN_HAS_PROBLEM) != 0 ? (int)problemNumber : null;

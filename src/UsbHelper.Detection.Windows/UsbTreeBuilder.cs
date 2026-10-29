@@ -11,6 +11,9 @@ internal static class UsbTreeBuilder
     public static IReadOnlyList<UsbNode> Build(IReadOnlyList<RawController> controllers) =>
         controllers.Select(Controller).ToList();
 
+    /// <summary>A hub read again on its own; <paramref name="id"/> is its id in the tree.</summary>
+    public static UsbNode BuildHub(RawHub hub, string id) => Hub(hub, null, id);
+
     private static UsbNode Controller(RawController controller)
     {
         var id = controller.Node.InstanceId;

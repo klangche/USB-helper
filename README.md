@@ -100,7 +100,17 @@ tests. Builds and releases run on GitHub Actions.
 - `src/UsbHelper.App`: the GUI.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
-  `dotnet run --project src/UsbHelper.Cli`.
+  `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running
+  and print each change while devices are plugged in or out.
+
+Live updates on Windows: the app listens for USB device events (no polling, no
+administrator rights), waits half a second for related events to settle, then
+reads again only the hub the device is connected to, including everything
+below it. When an event cannot be placed in the known tree (for example a dock
+that brings its own USB controller), the whole tree is read again once and
+only the differences are reported. Connection errors are reported only when
+Windows reports them on the next read; a port error that Windows raises without
+any device event is seen at the next event on that hub.
 
 Contributors and AI agents follow AGENTS.md.
 
