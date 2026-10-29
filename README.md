@@ -202,8 +202,8 @@ hub and device, and a summary with the overall result, the hub, tier, hop and
 display checks, disconnected devices and all findings. The computer profile is
 selected automatically when one matches this computer exactly; otherwise pick
 one in the top bar, either a computer or a generic platform ("Platform:
-windows-intel", for example). Plug and unplug devices: only the affected part of the tree
-changes.
+windows-intel", for example). Plug and unplug devices: only the affected part
+of the tree changes.
 
 ## Development
 
