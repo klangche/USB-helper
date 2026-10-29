@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -49,7 +50,7 @@ public partial class App : Application
             return new MainViewModel(database, errors, new ComputerIdentity(null, null)) { Notice = Strings.DetectionUnavailable };
         }
 
-        var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read());
+        var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read(), ReadExternalDisplays);
         var detector = new WindowsUsbDetector();
         IReadOnlyList<UsbNode> tree;
         try
@@ -73,5 +74,19 @@ public partial class App : Application
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.LiveUpdatesOff, e.Message);
         }
         return viewModel;
+    }
+
+    // Unknown rather than a guess when Windows cannot report the display configuration.
+    [SupportedOSPlatform("windows")]
+    private static int? ReadExternalDisplays()
+    {
+        try
+        {
+            return WindowsDisplayReader.CountExternalDisplays();
+        }
+        catch (Win32Exception)
+        {
+            return null;
+        }
     }
 }

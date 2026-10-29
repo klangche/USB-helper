@@ -21,6 +21,8 @@ internal static class DatabaseFolder
               max_hubs: 5
               max_tiers: 7
               max_hops: 5
+            displays:
+              max_external: 2
             verification:
               status: {status}
             """);

@@ -22,14 +22,18 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
+    private readonly Func<int?> readExternalDisplays;
     private IReadOnlyList<UsbNode> tree = [];
     private ProfileOption selectedProfile;
     private NodeViewModel? selectedNode;
     private string? notice;
     private DiagnosticReport report;
 
-    public MainViewModel(HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity)
+    /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
+    public MainViewModel(
+        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null)
     {
+        this.readExternalDisplays = readExternalDisplays ?? (() => null);
         DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
         var none = new ProfileOption(Strings.NoProfile, null);
         Profiles =
@@ -92,6 +96,13 @@ public sealed class MainViewModel : ObservableObject
 
     public string HopsText => LimitText(Strings.LimitHops, report.Hops);
 
+    public string DisplaysText =>
+        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
+            report.Displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
+            report.Displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
+            StateText(report.Displays.State),
+            report.Displays.Verified ? Strings.Verified : Strings.Unverified);
+
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
@@ -112,7 +123,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void Refresh()
     {
-        report = DiagnosticEvaluator.Evaluate(tree, SelectedProfile.Profile, history.Missing(tree));
+        report = DiagnosticEvaluator.Evaluate(tree, SelectedProfile.Profile, history.Missing(tree), readExternalDisplays());
 
         for (var i = 0; i < tree.Count; i++)
         {
@@ -138,6 +149,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HubsText));
         OnPropertyChanged(nameof(TiersText));
         OnPropertyChanged(nameof(HopsText));
+        OnPropertyChanged(nameof(DisplaysText));
 
         Disconnected.Clear();
         foreach (var missing in report.Missing)
@@ -163,13 +175,15 @@ public sealed class MainViewModel : ObservableObject
     private static string LimitText(string label, LimitCheck limit) =>
         string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,
             limit.Limit?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            limit.State switch
-            {
-                LimitState.Within => Strings.LimitWithin,
-                LimitState.Exceeded => Strings.LimitExceeded,
-                _ => Strings.LimitUnknown,
-            },
+            StateText(limit.State),
             limit.Verified ? Strings.Verified : Strings.Unverified);
+
+    private static string StateText(LimitState state) => state switch
+    {
+        LimitState.Within => Strings.LimitWithin,
+        LimitState.Exceeded => Strings.LimitExceeded,
+        _ => Strings.LimitUnknown,
+    };
 
     private static string KindText(FactKind kind) => kind switch
     {

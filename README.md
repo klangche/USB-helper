@@ -91,7 +91,9 @@ DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 `displays.max_external`; DisplayLink and wireless displays are not counted.
 DisplayLink adapters are found in the USB tree and checked against the ports'
 `displaylink` values. Which physical port a monitor uses cannot be detected, so
-the port capabilities and restrictions are listed, not matched to monitors. A
+the port capabilities and restrictions are listed, not matched to monitors. The
+GUI reads the display count again at every USB change and profile change; a
+monitor plugged in without any USB change shows up at the next one. A
 display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
