@@ -35,12 +35,12 @@ public class DisplayEvaluatorTests
         DiagnosticEvaluator.Evaluate(tree, profile, [], displays);
 
     [Fact]
-    public void UnknownDisplayCountIsNeverGreen()
+    public void UnknownDisplayCountIsNamedButNotJudged()
     {
         var report = Evaluate(Desk, Profile(), null);
 
         Assert.Equal(LimitState.Unknown, report.Displays.State);
-        Assert.NotEqual(ConnectionStatus.Green, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Overall); // Owner decision in #39: unknowns are findings, not grey.
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message == "The number of external displays is not known.");
     }
 
@@ -65,33 +65,33 @@ public class DisplayEvaluatorTests
     }
 
     [Fact]
-    public void TooManyDisplaysIsYellowWithARisk()
+    public void TooManyDisplaysIsUnstableWithARisk()
     {
         var report = Evaluate(Desk, Profile(maxExternal: "1"), 2);
 
         Assert.Equal(LimitState.Exceeded, report.Displays.State);
-        Assert.Equal(ConnectionStatus.Yellow, report.Overall);
+        Assert.Equal(ConnectionStatus.Purple, report.Overall);
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.Message == "2 external displays are active; displays.max_external is 1.");
     }
 
     [Fact]
-    public void DisplaysWithUnknownLimitAreGrey()
+    public void UnknownDisplayLimitIsNamedButNotJudged()
     {
         var report = Evaluate(Desk, Profile(maxExternal: "null"), 1);
 
         Assert.Equal(LimitState.Unknown, report.Displays.State);
-        Assert.Equal(ConnectionStatus.Grey, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("displays.max_external is unknown"));
     }
 
     [Fact]
-    public void UnverifiedDisplayLimitIsGreyEvenWhenMet()
+    public void UnverifiedDisplayLimitIsJudged()
     {
         var report = Evaluate(Desk, Profile(status: "unverified"), 1);
 
         Assert.Equal(LimitState.Within, report.Displays.State);
         Assert.False(report.Displays.Verified);
-        Assert.Equal(ConnectionStatus.Grey, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
     }
 
     [Fact]
@@ -159,18 +159,18 @@ public class DisplayEvaluatorTests
 
         var report = Evaluate([Controller("C1", Hub("ROOT", adapter))], Profile(extra: "ports:\n  left:\n    displaylink: false"), 0);
 
-        Assert.Equal(ConnectionStatus.Yellow, report.Overall);
+        Assert.Equal(ConnectionStatus.Orange, report.Overall); // A documented limitation: potentially unstable.
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.Message.StartsWith("A DisplayLink adapter is connected, but"));
     }
 
     [Fact]
-    public void DisplayLinkWithUnknownSupportIsGrey()
+    public void DisplayLinkWithUnknownSupportIsNamedButNotJudged()
     {
         var adapter = Device("DL") with { VendorId = 0x17E9, ProductId = 0x6006 };
 
         var report = Evaluate([Controller("C1", Hub("ROOT", adapter))], Profile(), 0);
 
-        Assert.Equal(ConnectionStatus.Grey, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.Contains("DisplayLink is unknown"));
     }
 }

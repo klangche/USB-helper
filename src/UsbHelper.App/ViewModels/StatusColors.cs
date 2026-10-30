@@ -13,7 +13,7 @@ public static class StatusColors
     {
         ConnectionStatus.Green => "#2E7D32",
         ConnectionStatus.Grey => "#9E9E9E",
-        ConnectionStatus.Yellow => "#F9A825",
+        ConnectionStatus.Orange => "#EF6C00",
         ConnectionStatus.Purple => "#8E24AA",
         ConnectionStatus.Red => "#C62828",
         _ => throw new ArgumentOutOfRangeException(nameof(status)),
@@ -23,7 +23,7 @@ public static class StatusColors
     {
         ConnectionStatus.Green => Strings.StatusGreen,
         ConnectionStatus.Grey => Strings.StatusGrey,
-        ConnectionStatus.Yellow => Strings.StatusYellow,
+        ConnectionStatus.Orange => Strings.StatusOrange,
         ConnectionStatus.Purple => Strings.StatusPurple,
         ConnectionStatus.Red => Strings.StatusRed,
         _ => throw new ArgumentOutOfRangeException(nameof(status)),

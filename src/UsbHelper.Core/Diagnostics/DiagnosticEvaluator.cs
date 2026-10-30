@@ -16,7 +16,27 @@ public static class DiagnosticEvaluator
     // A value set in a partially verified profile is verified; its unknown values are null.
     private static readonly string[] VerifiedStatuses = ["verified", "partial"];
 
-    /// <param name="profile">The resolved computer profile, or null when none is selected.</param>
+    /// <summary>
+    /// Evaluates the tree against every checked profile. Each line shows the worst result over the profiles; with no
+    /// profile checked, everything is unknown (grey).
+    /// </summary>
+    public static SystemsReport EvaluateAll(
+        IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null)
+    {
+        if (profiles.Count == 0)
+        {
+            var unknown = Evaluate(tree, null, missing, externalDisplays);
+            return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
+        }
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays))).ToList();
+        var connections = results
+            .SelectMany(result => result.Report.Connections)
+            .GroupBy(line => line.Key, line => line.Value)
+            .ToDictionary(group => group.Key, group => group.Max());
+        return new SystemsReport(results.Max(result => result.Report.Overall), connections, results, results[0].Report);
+    }
+
+    /// <param name="profile">The resolved computer or platform profile, or null when none is selected.</param>
     /// <param name="missing">From <see cref="SessionHistory.Missing"/>.</param>
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
     public static DiagnosticReport Evaluate(
@@ -63,38 +83,41 @@ public static class DiagnosticEvaluator
                 $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{Unverified(hubs)}."));
         }
 
-        var limitsKnown = new[] { hubs, tiers, hops }.All(limit => limit.Limit != null && limit.Verified);
+        // Owner decision in #39: stability is judged on the limits the profile knows; an unknown limit is a finding,
+        // and only a profile without any limit leaves the lines unknown.
+        var anyLimitKnown = new[] { hubs, tiers, hops, recommendedHops }.Any(limit => limit.Limit != null);
         var connections = new Dictionary<string, ConnectionStatus>();
         foreach (var (_, port) in Ports(tree))
         {
             foreach (var node in port.Children)
             {
                 var depth = depths[node.Id];
-                var status = limitsKnown && (node.Kind != UsbNodeKind.Hub || hubs.State != LimitState.Unknown)
+                // A hub cannot be judged against a known hub limit when the hub count could not be read completely.
+                var status = anyLimitKnown && (node.Kind != UsbNodeKind.Hub || hubs.Limit == null || hubs.State != LimitState.Unknown)
                     ? ConnectionStatus.Green
                     : ConnectionStatus.Grey;
                 if (depth.Tier > tiers.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
+                    status = ConnectionStatus.Purple;
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{Unverified(tiers)}."));
                 }
                 if (depth.Hops > hops.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
+                    status = ConnectionStatus.Purple;
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{Unverified(hops)}."));
                 }
                 else if (depth.Hops > recommendedHops.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
+                    status = Max(status, ConnectionStatus.Orange);
                     var maximum = hops.Limit == null ? "unknown" : $"{hops.Limit}{Unverified(hops)}";
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{Unverified(recommendedHops)}; {hops.Field} is {maximum}."));
                 }
                 if (node.Kind == UsbNodeKind.Hub && hubs.State == LimitState.Exceeded)
                 {
-                    status = ConnectionStatus.Yellow; // Every hub counts toward the exceeded hub count.
+                    status = ConnectionStatus.Purple; // Every hub counts toward the exceeded hub count.
                 }
                 if (node.Problem != null || port.Problem != null)
                 {
@@ -142,6 +165,7 @@ public static class DiagnosticEvaluator
 
         var overall = connections.Values
             .Concat(new[] { hubs, tiers, hops }.Select(Contribution))
+            .Append(anyLimitKnown ? ConnectionStatus.Green : ConnectionStatus.Grey)
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
@@ -168,10 +192,14 @@ public static class DiagnosticEvaluator
             : new Finding(FactKind.VerifiedDatabaseFact, ComputerId, computer, $"{limit.Field} = {limit.Limit}{source}.");
     }
 
+    // An unknown limit adds nothing; a known one that cannot be checked completely (a hub could not be read) is unknown.
     private static ConnectionStatus Contribution(LimitCheck limit) =>
-        limit.State == LimitState.Exceeded ? ConnectionStatus.Yellow
-        : limit.State == LimitState.Unknown || !limit.Verified ? ConnectionStatus.Grey
+        limit.Limit == null ? ConnectionStatus.Green
+        : limit.State == LimitState.Exceeded ? ConnectionStatus.Purple
+        : limit.State == LimitState.Unknown ? ConnectionStatus.Grey
         : ConnectionStatus.Green;
+
+    private static ConnectionStatus Max(ConnectionStatus a, ConnectionStatus b) => a > b ? a : b;
 
     private static string Unverified(LimitCheck limit) => limit.Verified ? "" : " (unverified limit)";
 

@@ -22,7 +22,11 @@ internal static class DisplayEvaluator
         ("displaylink", "DisplayLink"),
     ];
 
-    /// <summary>Adds the display findings and returns the check and its share of the overall status.</summary>
+    /// <summary>
+    /// Adds the display findings and returns the check and its share of the overall status: unstable above
+    /// <c>displays.max_external</c>, potentially unstable for a documented DisplayLink limitation. Unknown values are
+    /// findings only (owner decision in #39).
+    /// </summary>
     public static (DisplayCheck Check, ConnectionStatus Contribution) Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? externalDisplays, string computer, List<Finding> findings)
     {
@@ -40,7 +44,6 @@ internal static class DisplayEvaluator
         {
             findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
                 "The number of external displays is not known."));
-            contribution = ConnectionStatus.Grey;
         }
         else
         {
@@ -64,11 +67,7 @@ internal static class DisplayEvaluator
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
                     $"{externalDisplays} external displays are active; displays.max_external is {max}{(verified ? "" : " (unverified limit)")}."));
-                contribution = ConnectionStatus.Yellow;
-            }
-            else if (state == LimitState.Unknown || !verified)
-            {
-                contribution = Max(contribution, ConnectionStatus.Grey);
+                contribution = ConnectionStatus.Purple;
             }
         }
 
@@ -113,13 +112,12 @@ internal static class DisplayEvaluator
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
                     "A DisplayLink adapter is connected, but the computer profile marks no port as supporting DisplayLink."));
-                contribution = ConnectionStatus.Yellow;
+                contribution = Max(contribution, ConnectionStatus.Orange);
             }
             else
             {
                 findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
                     "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."));
-                contribution = Max(contribution, ConnectionStatus.Grey);
             }
         }
 
