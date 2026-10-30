@@ -131,7 +131,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
 
-        Assert.Equal("test.c", viewModel.SelectedProfile.Profile!.Id);
+        Assert.Equal(ComputerProfileId.From("Dell Inc.", "Latitude 7450"), viewModel.SelectedProfile.Profile!.Id);
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
 
         viewModel.SelectedProfile = viewModel.Profiles[0];

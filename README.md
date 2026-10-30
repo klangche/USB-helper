@@ -101,15 +101,23 @@ assumed to carry video, and no bandwidth is calculated.
 
 1. Copy `database/computers/.template.yaml` to
    `database/computers/<manufacturer>/<model>.yaml`.
-2. Set `id` (unique), `inherits` (a platform id from `database/platforms/`),
-   `manufacturer` and `model`. Keep `limits.max_hubs`, `limits.max_tiers` and
-   `limits.max_hops` in the file, `null` if unknown.
+2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
+   and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
+   `limits.max_tiers` and `limits.max_hops` in the file, `null` if unknown.
+   Do not add an `id`: it is computed (see below).
 3. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
 4. Run `dotnet test`: it loads the whole database and reports any problem.
 5. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
+
+A computer profile's id is never written in the file. The app computes it from
+`manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters
+and digits, for example `y98inr` for `Dell Inc.` / `Latitude 7450`. The same
+names always give the same id, so nobody can set or change it, and a second
+file for the same model is rejected. Platform profiles keep their written `id`,
+which computer profiles name in `inherits`.
 
 ## Topology counting
 

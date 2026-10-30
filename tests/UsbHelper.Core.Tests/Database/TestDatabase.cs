@@ -42,18 +42,23 @@ internal sealed class TestDatabase : IDisposable
         return this;
     }
 
-    /// <summary>A computer profile inheriting from test-platform, with the required fields and <paramref name="extra"/> appended.</summary>
-    public TestDatabase WriteComputer(string file, string id, string extra = "") => Write(file, $"""
-        id: {id}
+    /// <summary>
+    /// A computer profile of manufacturer "Test" inheriting from test-platform, with the required fields and
+    /// <paramref name="extra"/> appended. Its id is <see cref="IdOf"/>(<paramref name="model"/>).
+    /// </summary>
+    public TestDatabase WriteComputer(string file, string model, string extra = "") => Write(file, $"""
         inherits: test-platform
         manufacturer: Test
-        model: Test model
+        model: {model}
         limits:
           max_hubs: null
           max_tiers: null
           max_hops: null
         {extra}
         """);
+
+    /// <summary>The computed id of a computer written with <see cref="WriteComputer"/>.</summary>
+    public static string IdOf(string model) => ComputerProfileId.From("Test", model);
 
     public HardwareDatabase Load() => HardwareDatabase.Load(Folder);
 

@@ -21,7 +21,7 @@ public class ValidationTests
         var loaded = db.Load();
 
         Assert.Equal(["test-platform"], loaded.Platforms.Keys);
-        Assert.Equal(["test.c"], loaded.Computers.Keys);
+        Assert.Equal([TestDatabase.IdOf("test.c")], loaded.Computers.Keys);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public class ValidationTests
             limits_typo: 3
             """);
 
-        Single(db.LoadErrors(), "computers/c.yaml", 9, "Unknown field 'limits_typo'");
+        Single(db.LoadErrors(), "computers/c.yaml", 8, "Unknown field 'limits_typo'");
     }
 
     [Fact]
@@ -43,24 +43,24 @@ public class ValidationTests
                 hdmi_typo: true
             """);
 
-        Single(db.LoadErrors(), "computers/c.yaml", 11, "Unknown field 'ports.left.hdmi_typo'");
+        Single(db.LoadErrors(), "computers/c.yaml", 10, "Unknown field 'ports.left.hdmi_typo'");
     }
 
     [Theory]
-    [InlineData("displays:\n  max_external: five", 10, "expected a whole number")]
-    [InlineData("displays:\n  max_external: -1", 10, "must not be negative")]
-    [InlineData("displays:\n  max_external: \"5\"", 10, "expected a whole number")]
-    [InlineData("ports:\n  left:\n    displayport_alt_mode: yes", 11, "expected true, false or null")]
-    [InlineData("ports:\n  left:\n    thunderbolt: four", 11, "expected a whole number")]
-    [InlineData("ports:\n  left:\n    hdmi: 1", 11, "expected true, false or null")]
-    [InlineData("ports:\n  left:\n    limitations: none", 11, "expected a list")]
-    [InlineData("displays:\n  restrictions: none", 10, "expected a list")]
-    [InlineData("exceptions: just text", 9, "expected a list")]
-    [InlineData("exceptions:\n  - 5", 9, "expected a list of text items")]
-    [InlineData("verification:\n  status: confirmed", 10, "expected one of verified, partial, unverified")]
-    [InlineData("verification:\n  status: null", 10, "expected one of verified, partial, unverified")]
-    [InlineData("verification:\n  last_checked: 29.10.2026", 10, "expected a date as YYYY-MM-DD")]
-    [InlineData("displays: 2", 9, "expected a mapping")]
+    [InlineData("displays:\n  max_external: five", 9, "expected a whole number")]
+    [InlineData("displays:\n  max_external: -1", 9, "must not be negative")]
+    [InlineData("displays:\n  max_external: \"5\"", 9, "expected a whole number")]
+    [InlineData("ports:\n  left:\n    displayport_alt_mode: yes", 10, "expected true, false or null")]
+    [InlineData("ports:\n  left:\n    thunderbolt: four", 10, "expected a whole number")]
+    [InlineData("ports:\n  left:\n    hdmi: 1", 10, "expected true, false or null")]
+    [InlineData("ports:\n  left:\n    limitations: none", 10, "expected a list")]
+    [InlineData("displays:\n  restrictions: none", 9, "expected a list")]
+    [InlineData("exceptions: just text", 8, "expected a list")]
+    [InlineData("exceptions:\n  - 5", 8, "expected a list of text items")]
+    [InlineData("verification:\n  status: confirmed", 9, "expected one of verified, partial, unverified")]
+    [InlineData("verification:\n  status: null", 9, "expected one of verified, partial, unverified")]
+    [InlineData("verification:\n  last_checked: 29.10.2026", 9, "expected a date as YYYY-MM-DD")]
+    [InlineData("displays: 2", 8, "expected a mapping")]
     public void WrongTypeIsRejected(string yaml, int line, string messagePart)
     {
         using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", yaml);
@@ -72,7 +72,6 @@ public class ValidationTests
     public void MissingParentIsRejected()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", """
-            id: test.c
             inherits: no-such-platform
             manufacturer: Test
             model: Test model
@@ -82,7 +81,7 @@ public class ValidationTests
               max_hops: null
             """);
 
-        Single(db.LoadErrors(), "computers/c.yaml", 2, "Parent profile 'no-such-platform' does not exist");
+        Single(db.LoadErrors(), "computers/c.yaml", 1, "Parent profile 'no-such-platform' does not exist");
     }
 
     [Fact]
@@ -90,26 +89,52 @@ public class ValidationTests
     {
         // Computers may only inherit from platforms and platforms only from base, so a cycle cannot resolve.
         using var db = new TestDatabase()
-            .Write("computers/a.yaml", "id: test.a\ninherits: test.b\nmanufacturer: T\nmodel: A\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n")
-            .Write("computers/b.yaml", "id: test.b\ninherits: test.a\nmanufacturer: T\nmodel: B\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n")
+            .Write("computers/a.yaml", "inherits: base\nmanufacturer: T\nmodel: A\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n")
+            .Write("computers/b.yaml", $"inherits: {ComputerProfileId.From("T", "A")}\nmanufacturer: T\nmodel: B\nlimits: {{max_hubs: null, max_tiers: null, max_hops: null}}\n")
             .Write("platforms/loop.yaml", "id: loop\ninherits: loop\n");
 
         var errors = db.LoadErrors();
 
         Assert.Equal(["computers/a.yaml", "computers/b.yaml", "platforms/loop.yaml"], errors.Select(error => error.File).Order());
-        Assert.All(errors, error => Assert.Equal(2, error.Line));
+        Assert.All(errors, error => Assert.Equal(error.File.StartsWith("computers/") ? 1 : 2, error.Line));
         Assert.Contains(errors, error => error.Message.Contains("a computer profile must inherit from a platform profile"));
         Assert.Contains(errors, error => error.Message.Contains("must inherit from 'base'"));
     }
 
     [Fact]
-    public void DuplicateIdIsRejected()
+    public void SameComputerTwiceIsRejected()
     {
         using var db = new TestDatabase()
-            .WriteComputer("computers/a.yaml", "test.same")
-            .WriteComputer("computers/b.yaml", "test.same");
+            .WriteComputer("computers/a.yaml", "Same model")
+            .WriteComputer("computers/b.yaml", " same  MODEL");
 
-        Single(db.LoadErrors(), "computers/b.yaml", 1, "Duplicate id 'test.same', already used in computers/a.yaml");
+        Single(db.LoadErrors(), "computers/b.yaml", 3,
+            $"Duplicate id '{TestDatabase.IdOf("Same model")}' (computed from manufacturer and model), already used in computers/a.yaml");
+    }
+
+    [Fact]
+    public void WrittenComputerIdIsRejected()
+    {
+        using var db = new TestDatabase().Write("computers/c.yaml", """
+            id: my-own-id
+            inherits: test-platform
+            manufacturer: Test
+            model: Test model
+            limits:
+              max_hubs: null
+              max_tiers: null
+              max_hops: null
+            """);
+
+        Single(db.LoadErrors(), "computers/c.yaml", 1, "Computer profiles have no 'id': it is computed from manufacturer and model.");
+    }
+
+    [Fact]
+    public void ComputerWithoutModelTextIsRejected()
+    {
+        using var db = new TestDatabase().WriteComputer("computers/c.yaml", "null");
+
+        Single(db.LoadErrors(), "computers/c.yaml", 3, "'manufacturer' and 'model' must be text: the id is computed from them.");
     }
 
     [Fact]
@@ -119,7 +144,7 @@ public class ValidationTests
             model: Second model
             """);
 
-        Single(db.LoadErrors(), "computers/c.yaml", 9, "Duplicate key model");
+        Single(db.LoadErrors(), "computers/c.yaml", 8, "Duplicate key model");
     }
 
     [Fact]
@@ -136,7 +161,6 @@ public class ValidationTests
     public void ComputerMustSetLimitsExplicitly()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", """
-            id: test.c
             inherits: test-platform
             manufacturer: Test
             model: Test model
@@ -150,15 +174,19 @@ public class ValidationTests
     }
 
     [Fact]
-    public void ComputerMustHaveIdAndInherits()
+    public void ComputerMustHaveInherits()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", "manufacturer: Test\nmodel: M\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n");
 
-        var errors = db.LoadErrors();
+        Single(db.LoadErrors(), "computers/c.yaml", 1, "'inherits' is required");
+    }
 
-        Assert.Equal(2, errors.Count);
-        Assert.Contains(errors, error => error.Message.Contains("'id' is required"));
-        Assert.Contains(errors, error => error.Message.Contains("'inherits' is required"));
+    [Fact]
+    public void PlatformMustHaveId()
+    {
+        using var db = new TestDatabase().Write("platforms/p.yaml", "inherits: base\n");
+
+        Single(db.LoadErrors(), "platforms/p.yaml", 1, "'id' is required");
     }
 
     [Fact]
@@ -172,9 +200,9 @@ public class ValidationTests
     [Fact]
     public void ComputerInheritingBaseIsRejected()
     {
-        using var db = new TestDatabase().Write("computers/c.yaml", "id: test.c\ninherits: base\nmanufacturer: T\nmodel: M\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n");
+        using var db = new TestDatabase().Write("computers/c.yaml", "inherits: base\nmanufacturer: T\nmodel: M\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n");
 
-        Single(db.LoadErrors(), "computers/c.yaml", 2, "'base' is not a platform profile");
+        Single(db.LoadErrors(), "computers/c.yaml", 1, "'base' is not a platform profile");
     }
 
     [Fact]
@@ -220,7 +248,7 @@ public class ValidationTests
         var exception = Assert.Throws<DatabaseException>(db.Load);
 
         Assert.Equal(2, exception.Errors.Count);
-        Assert.Contains("computers/a.yaml:9: Unknown field 'colour'.", exception.Message);
-        Assert.Contains("computers/b.yaml:10:", exception.Message);
+        Assert.Contains("computers/a.yaml:8: Unknown field 'colour'.", exception.Message);
+        Assert.Contains("computers/b.yaml:9:", exception.Message);
     }
 }

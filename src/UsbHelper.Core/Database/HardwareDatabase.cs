@@ -35,7 +35,8 @@ public sealed class HardwareDatabase
         {
             if (!seen.TryAdd(profile.Id, profile.Body.File))
             {
-                errors.Add(new DatabaseError(profile.Body.File, profile.IdLine, $"Duplicate id '{profile.Id}', already used in {seen[profile.Id]}."));
+                var computed = profile.IdComputed ? " (computed from manufacturer and model)" : "";
+                errors.Add(new DatabaseError(profile.Body.File, profile.IdLine, $"Duplicate id '{profile.Id}'{computed}, already used in {seen[profile.Id]}."));
             }
         }
 
@@ -132,7 +133,7 @@ public sealed class HardwareDatabase
                 continue;
             }
 
-            var id = RequiredText(root, "id", errors);
+            var (id, idLine) = isComputer ? ComputedId(root, errors) : (RequiredText(root, "id", errors), root.Fields.GetValueOrDefault("id")?.Line ?? 0);
             var inherits = RequiredText(root, "inherits", errors);
             ProfileSchema.Validate(root, IdentityFields, errors);
             if (isComputer)
@@ -157,9 +158,30 @@ public sealed class HardwareDatabase
             var body = ProfileValue.CreateMapping(
                 root.Fields.Where(field => !IdentityFields.Contains(field.Key)).ToDictionary(),
                 file, root.Line);
-            profiles.Add(new ProfileFile(id, root.Fields["id"].Line, inherits, root.Fields["inherits"].Line, body));
+            profiles.Add(new ProfileFile(id, idLine, isComputer, inherits, root.Fields["inherits"].Line, body));
         }
         return profiles;
+    }
+
+    // A computer profile's id is never written: it is computed from manufacturer and model, so nobody can set it.
+    private static (string? Id, int Line) ComputedId(ProfileValue root, List<DatabaseError> errors)
+    {
+        if (root.Fields.TryGetValue("id", out var written))
+        {
+            errors.Add(new DatabaseError(root.File, written.Line, "Computer profiles have no 'id': it is computed from manufacturer and model."));
+        }
+        var manufacturer = root.Fields.GetValueOrDefault("manufacturer");
+        var model = root.Fields.GetValueOrDefault("model");
+        if (manufacturer?.Scalar is string manufacturerText && model?.Scalar is string modelText
+            && !string.IsNullOrWhiteSpace(manufacturerText) && !string.IsNullOrWhiteSpace(modelText))
+        {
+            return (ComputerProfileId.From(manufacturerText, modelText), model.Line);
+        }
+        if (manufacturer != null && model != null)
+        {
+            errors.Add(new DatabaseError(root.File, model.Line, "'manufacturer' and 'model' must be text: the id is computed from them."));
+        }
+        return (null, 0);
     }
 
     private static string? RequiredText(ProfileValue root, string field, List<DatabaseError> errors)
@@ -172,5 +194,5 @@ public sealed class HardwareDatabase
         return null;
     }
 
-    private sealed record ProfileFile(string Id, int IdLine, string Inherits, int InheritsLine, ProfileValue Body);
+    private sealed record ProfileFile(string Id, int IdLine, bool IdComputed, string Inherits, int InheritsLine, ProfileValue Body);
 }

@@ -15,7 +15,6 @@ public class DiagnosticEvaluatorTests
     {
         using var db = new TestDatabase();
         db.Write("computers/c.yaml", $"""
-            id: test.c
             inherits: test-platform
             manufacturer: Test
             model: Test laptop
@@ -27,7 +26,7 @@ public class DiagnosticEvaluatorTests
               status: {status}
             {extra}
             """);
-        return db.Load().Computers["test.c"];
+        return db.Load().Computers.Values.Single();
     }
 
     // No external displays: these tests are about topology. Display rules are in DisplayEvaluatorTests.
@@ -276,7 +275,6 @@ public class DiagnosticEvaluatorTests
         using var db = new TestDatabase();
         db.Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nexceptions:\n  - \"Platform-wide note.\"\n");
         db.Write("computers/c.yaml", """
-            id: test.c
             inherits: test-platform
             manufacturer: Test
             model: Test laptop
@@ -288,7 +286,7 @@ public class DiagnosticEvaluatorTests
               status: verified
             """);
 
-        var report = Evaluate(Desk, db.Load().Computers["test.c"]);
+        var report = Evaluate(Desk, db.Load().Computers.Values.Single());
 
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("Platform-wide note."));
         Assert.True(report.Hubs.Verified);
