@@ -135,6 +135,7 @@ internal sealed class WindowsUsbWatcher : IDisposable
                 lock (pendingLock)
                 {
                     pending.InsertRange(0, events);
+                    firstPendingAt = DateTime.UtcNow;
                     fullReadDue = true;
                     timer.Change(RetryDelay, Timeout.InfiniteTimeSpan);
                 }
