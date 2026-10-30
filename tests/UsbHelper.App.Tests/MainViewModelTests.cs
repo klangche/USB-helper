@@ -138,43 +138,100 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "MOUSE").Status);
     }
 
-    [Fact]
-    public void ExactlyMatchingProfileIsSelectedAndChangingItReevaluates()
+    private static readonly string Latitude = $"Dell Inc. Latitude 7450 ({ComputerProfileId.From("Dell Inc.", "Latitude 7450")})";
+
+    // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
+    private static MainViewModel TwoProfiles()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
+        return viewModel;
+    }
 
-        Assert.Equal(ComputerProfileId.From("Dell Inc.", "Latitude 7450"), viewModel.SelectedProfile.Profile!.Id);
-        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+    [Fact]
+    public void NothingIsCheckedAtStartEvenForAnExactlyMatchingComputer()
+    {
+        var viewModel = TwoProfiles();
 
-        viewModel.SelectedProfile = viewModel.Profiles[0];
-
-        Assert.Null(viewModel.SelectedProfile.Profile);
+        Assert.Equal(["p"], viewModel.OperatingSystems.Select(option => option.Profile.Id));
+        Assert.Equal([ComputerProfileId.From("Dell Inc.", "Latitude 7450")], viewModel.Computers.Select(option => option.Profile.Id));
+        Assert.All(viewModel.OperatingSystems.Concat(viewModel.Computers), option => Assert.False(option.IsChecked));
+        Assert.Empty(viewModel.StatusRows);
+        Assert.True(viewModel.NothingChecked);
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
     }
 
     [Fact]
-    public void UnknownComputerGetsNoProfile()
+    public void ProfilesAreLabelledByIdOrManufacturerAndModel()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        var viewModel = TwoProfiles();
 
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 9999"));
-
-        Assert.Null(viewModel.SelectedProfile.Profile);
-        Assert.Equal(["(none)", ComputerProfileId.From("Dell Inc.", "Latitude 7450"), "p"], viewModel.Profiles.Select(option => option.Profile?.Id ?? "(none)"));
+        Assert.Equal("p", viewModel.OperatingSystems.Single().Label);
+        Assert.Equal(Latitude, viewModel.Computers.Single().Label);
     }
 
     [Fact]
-    public void PlatformProfilesCanBeSelected()
+    public void CheckingTwoProfilesColoursLinesByTheWorstAndListsBoth()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity(null, null));
+        var viewModel = TwoProfiles();
 
-        var platform = viewModel.Profiles.Single(option => option.Profile?.Id == "p");
+        viewModel.Computers.Single().IsChecked = true;
 
-        Assert.Equal("Platform: p", platform.Label);
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        var computer = Assert.Single(viewModel.StatusRows);
+        Assert.Equal((Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green)), (computer.Label, computer.Word, computer.Color));
+        Assert.False(viewModel.NothingChecked);
+
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status); // In the root hub: no hop.
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), viewModel.OverallColor);
+        Assert.Equal(
+            [("p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
+            viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
+        Assert.Contains("Most hops: 1, limit 0 (exceeded, verified)", viewModel.StatusRows[0].Details);
+        Assert.Contains("Most hops: 1, limit 5 (within limit, verified)", viewModel.StatusRows[1].Details);
     }
+
+    [Fact]
+    public void UncheckingUpdatesLinesAndRows()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.Computers.Single().IsChecked = true;
+
+        viewModel.OperatingSystems.Single().IsChecked = false;
+
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        Assert.Equal([Latitude], viewModel.StatusRows.Select(row => row.Label));
+
+        viewModel.Computers.Single().IsChecked = false;
+
+        Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
+        Assert.Empty(viewModel.StatusRows);
+        Assert.True(viewModel.NothingChecked);
+    }
+
+    [Fact]
+    public void FindingsOfOneProfileNameItAndSharedFindingsAreListedOnce()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 2, Device("MOUSE") with { Problem = "code 43" }))]);
+        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.Computers.Single().IsChecked = true;
+
+        Assert.Single(viewModel.Findings, finding => finding.Message == "code 43" && finding.Header == "Detected · MOUSE");
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "p · Risk · KEYBOARD");
+    }
+
+    [Theory]
+    [InlineData(ConnectionStatus.Green, "stable")]
+    [InlineData(ConnectionStatus.Orange, "potentially unstable")]
+    [InlineData(ConnectionStatus.Purple, "unstable")]
+    [InlineData(ConnectionStatus.Grey, "unknown")]
+    public void EachResultHasItsWord(ConnectionStatus status, string word) => Assert.Equal(word, StatusColors.Word(status));
 
     [Fact]
     public void DisplayCountIsReadOnEveryRefreshAndShown()
@@ -183,22 +240,23 @@ public class MainViewModelTests
         var displays = 1;
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => displays);
         viewModel.Load(Desk);
+        viewModel.Computers.Single().IsChecked = true;
 
-        Assert.Equal("External displays: 1, limit 2 (within limit, verified)", viewModel.DisplaysText);
+        Assert.Contains("External displays: 1, limit 2 (within limit, verified)", viewModel.StatusRows.Single().Details);
 
         displays = 3;
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
 
-        Assert.Equal("External displays: 3, limit 2 (exceeded, verified)", viewModel.DisplaysText);
+        Assert.Contains("External displays: 3, limit 2 (exceeded, verified)", viewModel.StatusRows.Single().Details);
     }
 
     [Fact]
     public void UnknownDisplayCountIsShownAsUnknown()
     {
-        var viewModel = NewViewModel();
-        viewModel.Load(Desk);
+        var viewModel = TwoProfiles();
+        viewModel.OperatingSystems.Single().IsChecked = true;
 
-        Assert.Equal("External displays: unknown, limit unknown (unknown, not verified)", viewModel.DisplaysText);
+        Assert.Contains("External displays: unknown, limit unknown (unknown, not verified)", viewModel.StatusRows.Single().Details);
     }
 
     [Fact]
@@ -223,6 +281,7 @@ public class MainViewModelTests
 
         Assert.True(viewModel.HasDatabaseErrors);
         Assert.Equal(["computers/c.yaml:4: Unknown field 'x'."], viewModel.DatabaseErrors);
-        Assert.Single(viewModel.Profiles);
+        Assert.Empty(viewModel.OperatingSystems);
+        Assert.Empty(viewModel.Computers);
     }
 }

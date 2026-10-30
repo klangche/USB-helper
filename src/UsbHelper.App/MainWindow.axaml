@@ -11,14 +11,37 @@
   <DockPanel Margin="12">
 
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-      <TextBlock Text="{x:Static res:Strings.ComputerProfile}" VerticalAlignment="Center" />
-      <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" MinWidth="360">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ProfileOption">
-            <TextBlock Text="{Binding Label}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+      <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
+      <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
+        <DropDownButton.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft">
+            <ScrollViewer MaxHeight="480">
+              <ItemsControl ItemsSource="{Binding OperatingSystems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileOption">
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Flyout>
+        </DropDownButton.Flyout>
+      </DropDownButton>
+      <DropDownButton Content="{x:Static res:Strings.Computers}">
+        <DropDownButton.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft">
+            <ScrollViewer MaxHeight="480">
+              <ItemsControl ItemsSource="{Binding Computers}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileOption">
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Flyout>
+        </DropDownButton.Flyout>
+      </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
       <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
     </StackPanel>
@@ -71,10 +94,30 @@
             <TextBlock Text="{Binding OverallText}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap" />
           </Border>
 
-          <TextBlock Text="{Binding HubsText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding TiersText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding HopsText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding DisplaysText}" TextWrapping="Wrap" />
+          <!-- Status field: every checked profile with its result word in its colour. -->
+          <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
+          <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding StatusRows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StatusRow">
+                <StackPanel Margin="0,0,0,6">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Background="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}" CornerRadius="4" Padding="6,2">
+                      <TextBlock Text="{Binding Word}" Foreground="White" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Details}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
           <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
           <ItemsControl ItemsSource="{Binding Disconnected}">

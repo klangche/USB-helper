@@ -16,14 +16,35 @@
   <data name="WindowTitle" xml:space="preserve">
     <value>USB-helper</value>
   </data>
-  <data name="ComputerProfile" xml:space="preserve">
-    <value>Computer profile:</value>
+  <data name="OperatingSystems" xml:space="preserve">
+    <value>Operating systems</value>
   </data>
-  <data name="NoProfile" xml:space="preserve">
-    <value>No profile (limits unknown)</value>
+  <data name="Computers" xml:space="preserve">
+    <value>Computers</value>
   </data>
-  <data name="PlatformProfile" xml:space="preserve">
-    <value>Platform: {0}</value>
+  <data name="StatusField" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="NothingChecked" xml:space="preserve">
+    <value>Nothing checked: check one or more operating systems or computers to judge this setup by.</value>
+  </data>
+  <data name="FindingHeaderForProfile" xml:space="preserve">
+    <value>{0} · {1} · {2}</value>
+  </data>
+  <data name="WordStable" xml:space="preserve">
+    <value>stable</value>
+  </data>
+  <data name="WordPotentiallyUnstable" xml:space="preserve">
+    <value>potentially unstable</value>
+  </data>
+  <data name="WordUnstable" xml:space="preserve">
+    <value>unstable</value>
+  </data>
+  <data name="WordUnknown" xml:space="preserve">
+    <value>unknown</value>
+  </data>
+  <data name="WordDisconnected" xml:space="preserve">
+    <value>disconnected device</value>
   </data>
   <data name="ExportProfile" xml:space="preserve">
     <value>Export computer profile</value>
