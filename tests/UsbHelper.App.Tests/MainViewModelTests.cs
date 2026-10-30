@@ -123,6 +123,34 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void TreeLinesFollowARemovedLastChildAndADisconnectedDevice()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        // MOUSE is unplugged and stays at its port; then the dock hub's keyboard goes away and is cleared.
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "HUB", Port("HUB", 1, null))]);
+        viewModel.Disconnected.First(item => item.Text.StartsWith("KEYBOARD", StringComparison.Ordinal)).Clear.Execute(null);
+
+        Assert.Equal(
+            [
+                "C1",
+                "`-ROOT",
+                "  |-ROOT|port1",
+                "  | `-HUB",
+                "  `-ROOT|port2",
+                "    `-MOUSE",
+            ],
+            Drawn(viewModel));
+        Assert.True(Item(viewModel, "MOUSE").IsDisconnected);
+
+        viewModel.Disconnected.Single().Clear.Execute(null);
+
+        Assert.Equal(["C1", "`-ROOT", "  `-ROOT|port1", "    `-HUB"], Drawn(viewModel));
+    }
+
+    [Fact]
     public void PortWithAProblemOrADisconnectedDeviceIsShown()
     {
         var viewModel = NewViewModel();
@@ -190,7 +218,6 @@ public class MainViewModelTests
         var viewModel = NewViewModel();
         viewModel.Load(Desk);
         var before = All(viewModel.Roots).ToDictionary(item => item.Id);
-        Item(viewModel, "HUB").IsExpanded = false;
         viewModel.SelectedNode = Item(viewModel, "MOUSE");
         var notified = new HashSet<string>();
         foreach (var item in before.Values)
@@ -204,7 +231,6 @@ public class MainViewModelTests
         // The new port, and the lines of the sibling branch it now continues past.
         Assert.Equal(["HUB", "HUB|port1", "KEYBOARD"], notified.Order());
         Assert.All(before, entry => Assert.Same(entry.Value, Item(viewModel, entry.Key)));
-        Assert.False(Item(viewModel, "HUB").IsExpanded);
         Assert.Same(before["MOUSE"], viewModel.SelectedNode);
         Assert.Equal("STICK", Item(viewModel, "STICK").Text);
     }

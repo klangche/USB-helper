@@ -9,7 +9,7 @@ namespace UsbHelper.App.ViewModels;
 
 /// <summary>
 /// One item in the tree view. <see cref="Update"/> changes it in place and keeps child items whose id is unchanged,
-/// so expansion and selection survive updates and only changed items notify the view.
+/// so selection survives updates and only changed items notify the view.
 /// Ports with nothing on them are left out. Every item but a controller has an elbow line from its parent; the view
 /// draws one column per <see cref="Guides"/> entry before it.
 /// </summary>
@@ -17,7 +17,6 @@ public sealed class NodeViewModel : ObservableObject
 {
     private string text = "";
     private ConnectionStatus? status;
-    private bool isExpanded = true;
     private IReadOnlyList<bool> guides = [];
     private bool isLast;
     private string? counts;
@@ -104,12 +103,6 @@ public sealed class NodeViewModel : ObservableObject
     public string LineColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
 
     public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
-
-    public bool IsExpanded
-    {
-        get => isExpanded;
-        set => SetField(ref isExpanded, value);
-    }
 
     /// <summary>A top-level item (a controller), without a line.</summary>
     public static NodeViewModel Create(UsbNode node, DiagnosticReport report) =>

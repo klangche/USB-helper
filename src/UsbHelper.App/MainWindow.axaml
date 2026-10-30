@@ -59,8 +59,9 @@
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
-              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               <Setter Property="MinHeight" Value="0" />
+              <!-- A border would add height to the row and break the lines between rows. -->
+              <Setter Property="BorderThickness" Value="0" />
               <Setter Property="Padding" Value="0" />
               <!-- The lines draw the indentation, so the item has none of its own and no expand arrow. -->
               <Setter Property="Template">
@@ -74,8 +75,8 @@
                                         Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
                                         HorizontalContentAlignment="Stretch" />
                     </Border>
-                    <ItemsPresenter Name="PART_ItemsPresenter" IsVisible="{TemplateBinding IsExpanded}"
-                                    ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    <!-- Always visible: every branch stays open, also when a key would collapse it. -->
+                    <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
                   </StackPanel>
                 </ControlTemplate>
               </Setter>
