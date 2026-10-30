@@ -192,9 +192,8 @@ status per checked profile; when several apply, the first in this list wins:
    stays red until it returns or is cleared.
 2. Purple (unstable): the operating system reports an error on the port or the
    device; or the hub or device disconnected and came back since the app
-   started, however long it was gone, until it leaves again or is cleared (a
-   drop shorter than the detection's settle time of 0.5 seconds is not seen
-   yet); or its tier or hop depth is above the profile's `max_tiers` or
+   started, however long or short the drop, until it leaves again or is
+   cleared; or its tier or hop depth is above the profile's `max_tiers` or
    `max_hops`; or it is a hub and the hub count is above `max_hubs`.
 3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
    within `max_hops`.
@@ -308,11 +307,13 @@ administrator rights), waits half a second for related events to settle, then
 reads again only the hub the device is connected to, including everything
 below it. When an event cannot be placed in the known tree (for example a dock
 that brings its own USB controller), the whole tree is read again once and
-only the differences are reported. Connection errors are reported only when
-Windows reports them on the next read; a port error or device problem code that
-Windows sets without any device event (for example more than half a second
-after the device started) is seen at the next event on that hub. If a read
-fails, the whole tree is read again two seconds later.
+only the differences are reported. A hub or device that Windows removes and
+adds again within that wait leaves the tree unchanged; it is reported as
+reconnected. Connection errors are reported only when Windows reports them on
+the next read; a port error or device problem code that Windows sets without
+any device event (for example more than half a second after the device
+started) is seen at the next event on that hub. If a read fails, the whole tree
+is read again two seconds later, with the events of the failed read.
 
 Contributors and AI agents follow AGENTS.md.
 

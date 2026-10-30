@@ -52,4 +52,12 @@ public class UsbTreeTests
 
         Assert.Equal(["C1", "C3"], updated.Select(node => node.Id));
     }
+
+    [Fact]
+    public void ApplyingReconnectLeavesTheTreeAsItIs()
+    {
+        var updated = UsbTree.Apply(Tree, [new UsbChange(UsbChangeKind.Reconnected, "ROOT", UsbTree.PathTo(Tree, "MOUSE")[^2])]);
+
+        Assert.Same(Tree, updated);
+    }
 }

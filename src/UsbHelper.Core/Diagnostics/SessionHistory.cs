@@ -52,14 +52,25 @@ public sealed class SessionHistory
         }
     }
 
+    /// <summary>
+    /// Marks a device in the last recorded tree as reconnected: it dropped and came back so quickly that no
+    /// recorded tree shows it gone (a <see cref="UsbChangeKind.Reconnected"/> change).
+    /// </summary>
+    public void Reconnect(string id)
+    {
+        if (seen.ContainsKey(id) && !gone.Contains(id))
+        {
+            reconnected.Add(id);
+        }
+    }
+
     /// <summary>Everything seen this session that is not in <paramref name="tree"/>.</summary>
     public IReadOnlyList<MissingDevice> Missing(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => UsbTree.Find(tree, device.Node.Id) == null).ToList();
 
     /// <summary>
     /// Everything in <paramref name="tree"/> that disconnected and came back this session, at the port where it is
-    /// now, however long it was gone. Only drops seen in a recorded tree count: one the detection never reported
-    /// (shorter than its settle time) is not seen here.
+    /// now, however long it was gone.
     /// </summary>
     public IReadOnlyList<MissingDevice> Reconnected(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => reconnected.Contains(device.Node.Id) && UsbTree.Find(tree, device.Node.Id) != null).ToList();

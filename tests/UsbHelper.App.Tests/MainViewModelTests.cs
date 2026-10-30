@@ -293,6 +293,25 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ShortDropReportedAsReconnectIsPurpleAndListedUntilCleared()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        // Removed and added again within one batch: the tree is unchanged.
+        viewModel.Apply([new UsbChange(UsbChangeKind.Reconnected, "ROOT", Port("ROOT", 2, Device("MOUSE")))]);
+
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "MOUSE").Status);
+        var reconnected = Assert.Single(viewModel.Disconnected);
+        Assert.Equal("MOUSE, reconnected on Port 2 of ROOT", reconnected.Text);
+
+        reconnected.Clear.Execute(null);
+
+        Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "MOUSE").Status);
+        Assert.Empty(viewModel.Disconnected);
+    }
+
+    [Fact]
     public void ProblemIsShownInTheItemText()
     {
         var viewModel = NewViewModel();
