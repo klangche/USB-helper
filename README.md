@@ -133,7 +133,9 @@ assumed to carry video, and no bandwidth is calculated.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
    and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
    `limits.max_tiers` and `limits.max_hops` in the file, `null` if unknown.
-   Do not add an `id`: it is computed (see below).
+   Do not add an `id`: it is computed (see below). If the model is a technical
+   string (for example `Mac17,5`), add `name` (for example `MacBook Neo`): the
+   app shows it, but only `manufacturer` and `model` are matched.
 3. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.

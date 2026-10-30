@@ -76,6 +76,14 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void FindingsNameTheComputerByItsNameWhenSet()
+    {
+        var report = Evaluate(Desk, Profile(hubs: "null", extra: "name: Neo"));
+
+        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Neo", "limits.max_hubs is unknown (computers/c.yaml)."), report.Findings);
+    }
+
+    [Fact]
     public void UnverifiedLimitsAreJudgedAndSaidToBeUnverified()
     {
         var report = Evaluate(Desk, Profile(status: "unverified"));

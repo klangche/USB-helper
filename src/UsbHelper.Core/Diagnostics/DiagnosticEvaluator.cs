@@ -47,7 +47,7 @@ public static class DiagnosticEvaluator
         IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null)
     {
         var findings = new List<Finding>();
-        var computer = profile?.Find("model")?.Scalar as string ?? "This computer";
+        var computer = profile?.Find("name")?.Scalar as string ?? profile?.Find("model")?.Scalar as string ?? "This computer";
         if (profile == null)
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer, "No computer profile is selected, so no limits are known."));

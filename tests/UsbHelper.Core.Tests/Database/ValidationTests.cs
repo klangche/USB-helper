@@ -198,6 +198,14 @@ public class ValidationTests
     }
 
     [Fact]
+    public void PlatformMustNotDefineName()
+    {
+        using var db = new TestDatabase().Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nname: Some laptop\n");
+
+        Single(db.LoadErrors(), "platforms/test-platform.yaml", 7, "'name' belongs in computer profiles");
+    }
+
+    [Fact]
     public void ComputerInheritingBaseIsRejected()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", "inherits: base\nmanufacturer: T\nmodel: M\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n");

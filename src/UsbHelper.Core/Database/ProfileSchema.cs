@@ -14,6 +14,7 @@ internal static class ProfileSchema
         ["architecture"] = FieldType.String,
         ["manufacturer"] = FieldType.String,
         ["model"] = FieldType.String,
+        ["name"] = FieldType.String, // Human-readable, for example "MacBook Neo" for model "Mac17,5". Shown only.
         ["chip"] = FieldType.String,
         ["limits"] = FieldType.Mapping,
         ["limits.max_hubs"] = FieldType.Integer,
@@ -43,7 +44,7 @@ internal static class ProfileSchema
         ["verification.last_checked"] = FieldType.Date,
     };
 
-    private static readonly string[] ComputerOnlyFields = ["manufacturer", "model", "chip", "ports"];
+    private static readonly string[] ComputerOnlyFields = ["manufacturer", "model", "name", "chip", "ports"];
 
     public static readonly string[] VerificationStatuses = ["verified", "partial", "unverified"];
 

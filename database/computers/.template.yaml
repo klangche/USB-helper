@@ -1,6 +1,7 @@
 inherits: platform-profile
 manufacturer: Manufacturer
 model: Exact model name
+name: Human-readable name
 chip: CPU or SoC variant
 
 limits:
