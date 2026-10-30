@@ -172,4 +172,16 @@
   <data name="KindUnknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
+  <data name="PortMark" xml:space="preserve">
+    <value>{0} (active cable / extender, extra hops: +{1})</value>
+  </data>
+  <data name="MarkLabel" xml:space="preserve">
+    <value>Active cable / extender on the selected port, extra hops:</value>
+  </data>
+  <data name="MarkNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="MarkHops" xml:space="preserve">
+    <value>+{0}</value>
+  </data>
 </root>

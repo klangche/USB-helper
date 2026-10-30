@@ -55,6 +55,11 @@
         <TextBlock DockPanel.Dock="Top" Text="{x:Static res:Strings.ReadingDevices}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
+        <!-- Marks for active cables and extenders the operating system does not show (#45). -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" IsVisible="{Binding CanMark}">
+          <TextBlock Text="{x:Static res:Strings.MarkLabel}" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding MarkChoices}" SelectedIndex="{Binding SelectedExtraHops}" />
+        </StackPanel>
         <!-- Tree style B (#43): every branch open, drawn lines instead of indentation and expand arrows. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
           <TreeView.Styles>
