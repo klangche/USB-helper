@@ -123,10 +123,10 @@ internal sealed class WindowsUsbWatcher : IDisposable
                 return;
             }
 
-            IReadOnlyList<UsbChange> changes;
+            List<UsbChange> changes;
             try
             {
-                changes = full ? ReadAll() : ReadAffected(events);
+                changes = [.. full ? ReadAll() : ReadAffected(events)];
             }
             catch (Win32Exception)
             {
@@ -138,9 +138,11 @@ internal sealed class WindowsUsbWatcher : IDisposable
                 }
                 return;
             }
+            var newTree = UsbTree.Apply(tree, changes);
+            changes.AddRange(ReconnectFinder.Find(tree, newTree, events));
             if (changes.Count > 0)
             {
-                tree = UsbTree.Apply(tree, changes);
+                tree = newTree;
                 onChanges(changes);
             }
         }

@@ -155,6 +155,13 @@ public sealed class MainViewModel : ObservableObject
     {
         tree = UsbTree.Apply(tree, changes);
         history.Record(tree);
+        foreach (var change in changes.Where(change => change.Kind == UsbChangeKind.Reconnected))
+        {
+            foreach (var node in change.Node.Children)
+            {
+                history.Reconnect(node.Id);
+            }
+        }
         Refresh();
     }
 

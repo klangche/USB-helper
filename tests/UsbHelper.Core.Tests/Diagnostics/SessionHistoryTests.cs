@@ -53,6 +53,18 @@ public class SessionHistoryTests
     }
 
     [Fact]
+    public void DropTheDetectionReportsAsReconnectIsReconnected()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+
+        history.Reconnect("KEYBOARD");
+
+        Assert.Equal(["KEYBOARD"], history.Reconnected(WithHub).Select(device => device.Node.Id));
+        Assert.Empty(history.Missing(WithHub));
+    }
+
+    [Fact]
     public void DeviceThatNeverLeftOrIsStillGoneIsNotReconnected()
     {
         var history = new SessionHistory();

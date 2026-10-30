@@ -33,7 +33,7 @@ public static class UsbTree
     /// <summary>Returns the tree with <paramref name="changes"/> applied. Unaffected nodes are kept as they are.</summary>
     public static IReadOnlyList<UsbNode> Apply(IReadOnlyList<UsbNode> roots, IEnumerable<UsbChange> changes)
     {
-        foreach (var change in changes)
+        foreach (var change in changes.Where(change => change.Kind != UsbChangeKind.Reconnected))
         {
             roots = change.ParentId == null
                 ? ApplyToControllers(roots, change)
