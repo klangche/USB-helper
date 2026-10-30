@@ -29,6 +29,7 @@ public sealed class MainViewModel : ObservableObject
     private ProfileOption selectedProfile;
     private NodeViewModel? selectedNode;
     private string? notice;
+    private bool isLoading = true;
     private DiagnosticReport report;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
@@ -75,7 +76,7 @@ public sealed class MainViewModel : ObservableObject
     public string DetectedComputer { get; }
 
     /// <summary>A profile can only be exported when the computer reports manufacturer and model: its id comes from them.</summary>
-    public bool CanExport => !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model);
+    public bool CanExport => !IsLoading && !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model);
 
     public string ExportFileName => ComputerProfileExport.FileName(identity);
 
@@ -90,6 +91,19 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<string> DatabaseErrors { get; }
 
     public bool HasDatabaseErrors => DatabaseErrors.Count > 0;
+
+    /// <summary>True until the first USB tree arrives; the window is shown before detection has run.</summary>
+    public bool IsLoading
+    {
+        get => isLoading;
+        set
+        {
+            if (SetField(ref isLoading, value))
+            {
+                OnPropertyChanged(nameof(CanExport)); // Not before the USB tree is known.
+            }
+        }
+    }
 
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>
     public string? Notice
@@ -129,6 +143,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Load(IReadOnlyList<UsbNode> detected)
     {
+        IsLoading = false;
         tree = detected;
         history.Record(tree);
         Refresh();
