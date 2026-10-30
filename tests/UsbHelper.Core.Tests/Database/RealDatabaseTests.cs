@@ -62,6 +62,7 @@ public class RealDatabaseTests
     {
         var neo = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", "Mac17,5")];
 
+        Assert.Equal("MacBook Neo", neo.Find("name")!.Scalar);
         Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
         Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);

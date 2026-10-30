@@ -61,10 +61,16 @@ public sealed class MainViewModel : ObservableObject
         // Nothing is checked automatically, not even an exact match: the user checks every system to judge by.
         OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)));
         Computers = Options((database?.Computers.Values ?? []).Select(profile =>
-            new ProfileOption($"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar} ({profile.Id})", profile)));
+            new ProfileOption(ComputerLabel(profile), profile)));
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
         report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
+    }
+
+    private static string ComputerLabel(ResolvedProfile profile)
+    {
+        var reported = $"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar}";
+        return profile.Find("name")?.Scalar is string name ? $"{name} ({reported})" : $"{reported} ({profile.Id})";
     }
 
     /// <summary>Platform profiles: generic limits, for computers without a profile of their own.</summary>

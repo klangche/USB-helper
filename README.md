@@ -132,7 +132,9 @@ assumed to carry video, and no bandwidth is calculated.
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
    and `model` exactly as the computer reports them. Do not add an `id`: it is
-   computed (see below).
+   computed (see below). If the model is a technical string (for example
+   `Mac17,5`), add `name` (for example `MacBook Neo`): the app shows it, but
+   only `manufacturer` and `model` are matched.
 3. Limits (`limits.max_hubs`, `max_tiers`, `max_hops`, `recommended_hops`)
    left out inherit the platform profile's values. Set a value only where this
    model differs (for example built-in hubs), or `null` when the platform's

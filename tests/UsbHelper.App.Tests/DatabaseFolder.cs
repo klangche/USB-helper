@@ -9,7 +9,8 @@ namespace UsbHelper.App.Tests;
 internal static class DatabaseFolder
 {
     /// <param name="platformLimits">YAML lines under <c>limits:</c> of platform "p"; none when null.</param>
-    public static HardwareDatabase Load(string manufacturer, string model, string status, string? platformLimits = null)
+    /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
+    public static HardwareDatabase Load(string manufacturer, string model, string status, string? platformLimits = null, string? name = null)
     {
         var folder = Directory.CreateTempSubdirectory("usb-helper-app-").FullName;
         Directory.CreateDirectory(Path.Combine(folder, "platforms"));
@@ -21,6 +22,7 @@ internal static class DatabaseFolder
             inherits: p
             manufacturer: {manufacturer}
             model: {model}
+            {(name == null ? "" : $"name: {name}")}
             limits:
               max_hubs: 5
               max_tiers: 7

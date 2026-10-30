@@ -396,6 +396,15 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ComputerWithNameIsLabelledByNameThenManufacturerAndModel()
+    {
+        var database = DatabaseFolder.Load("Apple Inc.", "Mac17,5", status: "verified", name: "MacBook Neo");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Apple Inc.", "Mac17,5"));
+
+        Assert.Equal("MacBook Neo (Apple Inc. Mac17,5)", viewModel.Computers.Single().Label);
+    }
+
+    [Fact]
     public void CheckingTwoProfilesColoursLinesByTheWorstAndListsBoth()
     {
         var viewModel = TwoProfiles();
