@@ -43,6 +43,8 @@ public sealed class MainViewModel : ObservableObject
     private readonly SessionHistory history = new();
     private readonly Func<int?> readExternalDisplays;
     private readonly ComputerIdentity identity;
+    // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
+    private readonly Dictionary<string, int> extraHops = [];
     private IReadOnlyList<UsbNode> tree = [];
     private NodeViewModel? selectedNode;
     private string? notice;
@@ -128,7 +130,47 @@ public sealed class MainViewModel : ObservableObject
     public NodeViewModel? SelectedNode
     {
         get => selectedNode;
-        set => SetField(ref selectedNode, value);
+        set
+        {
+            if (SetField(ref selectedNode, value))
+            {
+                OnPropertyChanged(nameof(CanMark));
+                OnPropertyChanged(nameof(SelectedExtraHops));
+            }
+        }
+    }
+
+    /// <summary>True when the selected item is a port, which can be marked with extra hops.</summary>
+    public bool CanMark => SelectedNode?.IsPort == true;
+
+    /// <summary>The choices for a mark, by number of extra hops: none, then +1 to +5.</summary>
+    public IReadOnlyList<string> MarkChoices { get; } =
+        [Strings.MarkNone, .. Enumerable.Range(1, 5).Select(hops => string.Format(CultureInfo.CurrentCulture, Strings.MarkHops, hops))];
+
+    /// <summary>
+    /// Extra hops for an active cable or extender the operating system does not show, on the selected port. They count
+    /// in every tier and hop check of everything behind the port. 0 removes the mark.
+    /// </summary>
+    public int SelectedExtraHops
+    {
+        get => CanMark ? extraHops.GetValueOrDefault(SelectedNode!.Id) : 0;
+        set
+        {
+            if (!CanMark || value == SelectedExtraHops || value < 0)
+            {
+                return;
+            }
+            if (value == 0)
+            {
+                extraHops.Remove(SelectedNode!.Id);
+            }
+            else
+            {
+                extraHops[SelectedNode!.Id] = value;
+            }
+            OnPropertyChanged(nameof(SelectedExtraHops));
+            Refresh();
+        }
     }
 
     public string OverallText => string.Format(CultureInfo.CurrentCulture, Strings.Overall, StatusColors.Text(report.Overall));
@@ -163,7 +205,7 @@ public sealed class MainViewModel : ObservableObject
         var options = Checked;
         var reconnected = history.Reconnected(tree);
         report = DiagnosticEvaluator.EvaluateAll(tree, [.. options.Select(option => option.Profile)], history.Missing(tree), readExternalDisplays(),
-            [.. reconnected.Select(device => device.Node.Id)]);
+            [.. reconnected.Select(device => device.Node.Id)], extraHops);
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
         var lines = report.Counts with { Connections = report.Connections };
 
@@ -172,14 +214,14 @@ public sealed class MainViewModel : ObservableObject
             var existing = Roots.FirstOrDefault(item => item.Id == tree[i].Id);
             if (existing == null)
             {
-                Roots.Insert(i, NodeViewModel.Create(tree[i], lines));
+                Roots.Insert(i, NodeViewModel.Create(tree[i], lines, extraHops));
                 continue;
             }
             if (Roots.IndexOf(existing) != i)
             {
                 Roots.Move(Roots.IndexOf(existing), i);
             }
-            existing.Update(tree[i], lines);
+            existing.Update(tree[i], lines, extraHops);
         }
         while (Roots.Count > tree.Count)
         {

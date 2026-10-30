@@ -15,6 +15,8 @@ Status: first version for Windows; computer profiles still to be added.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
+- Active cables and extenders that the operating system does not show can be
+  marked per port ("+N hops"); the marks count in every tier and hop check.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
@@ -176,6 +178,11 @@ Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: laptop port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
 
+Active cables and extenders that Windows shows as a hub count automatically.
+Ones it does not show are marked by the user on the port they are plugged into:
+a mark of +N hops adds N hops and N tiers to everything behind that port, in
+every checked profile. It does not change the hub count.
+
 ## Diagnostic rules
 
 Each connection line (from a hub port to the hub or device on it) gets one
@@ -248,6 +255,11 @@ hop and display checks. A finding that only some checked profiles report names
 its profile. Plug and unplug devices: only the affected part of the tree
 changes. A device that is unplugged stays red at its last port; one that comes
 back is purple (unstable). Click "Clear" next to it to reset it.
+
+Is an active cable or extender plugged in that the tree does not show? Select
+the port it is plugged into and pick its extra hops (+1 to +5) under the tree.
+The port shows the mark, and every tier and hop check counts it. Marks last
+until the app closes.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the

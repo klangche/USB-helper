@@ -12,6 +12,7 @@ namespace UsbHelper.App.ViewModels;
 /// so selection survives updates and only changed items notify the view.
 /// Ports with nothing on them are left out. Every item but a controller has an elbow line from its parent; the view
 /// draws one column per <see cref="Guides"/> entry before it.
+/// A port marked with extra hops for an active cable or extender shows the mark after its name.
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -21,15 +22,19 @@ public sealed class NodeViewModel : ObservableObject
     private bool isLast;
     private string? counts;
 
-    private NodeViewModel(string id, bool isDisconnected, bool hasLine)
+    private NodeViewModel(string id, bool isPort, bool isDisconnected, bool hasLine)
     {
         Id = id;
+        IsPort = isPort;
         IsDisconnected = isDisconnected;
         HasLine = hasLine;
         Children.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasChildren));
     }
 
     public string Id { get; }
+
+    /// <summary>A hub port; only ports can be marked with extra hops.</summary>
+    public bool IsPort { get; }
 
     /// <summary>A device seen earlier, shown at its last port.</summary>
     public bool IsDisconnected { get; }
@@ -105,21 +110,24 @@ public sealed class NodeViewModel : ObservableObject
     public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
 
     /// <summary>A top-level item (a controller), without a line.</summary>
-    public static NodeViewModel Create(UsbNode node, DiagnosticReport report) =>
-        Create(node, report, isDisconnected: false, hasLine: false, [], isLast: true);
+    /// <param name="extraHops">The user's marks: extra hops per port id.</param>
+    public static NodeViewModel Create(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops) =>
+        Create(node, report, extraHops, isDisconnected: false, hasLine: false, [], isLast: true);
 
-    /// <summary>Brings this top-level item and its children up to date with <paramref name="node"/> and <paramref name="report"/>.</summary>
-    public void Update(UsbNode node, DiagnosticReport report) => Update(node, report, [], last: true);
+    /// <summary>Brings this top-level item and its children up to date with <paramref name="node"/>, <paramref name="report"/> and the marks.</summary>
+    public void Update(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops) => Update(node, report, extraHops, [], last: true);
 
-    private void Update(UsbNode node, DiagnosticReport report, IReadOnlyList<bool> lines, bool last)
+    private void Update(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlyList<bool> lines, bool last)
     {
         Guides = lines;
         IsLast = last;
-        Text = Describe(node, IsDisconnected);
+        Text = extraHops.TryGetValue(node.Id, out var hops)
+            ? string.Format(CultureInfo.CurrentCulture, Strings.PortMark, Describe(node, IsDisconnected), hops)
+            : Describe(node, IsDisconnected);
         Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Connections.TryGetValue(node.Id, out var value)
             ? value
             : null;
-        Counts = node.Kind == UsbNodeKind.Controller ? ControllerCounts(node) : null;
+        Counts = node.Kind == UsbNodeKind.Controller ? ControllerCounts(node, extraHops) : null;
 
         var wanted = node.Children
             .Where(child => child.Kind != UsbNodeKind.Port || child.Children.Count > 0 || child.Problem != null
@@ -142,7 +150,7 @@ public sealed class NodeViewModel : ObservableObject
             var existing = Children.FirstOrDefault(item => item.Id == child.Id && item.IsDisconnected == disconnected);
             if (existing == null)
             {
-                Children.Insert(i, Create(child, report, disconnected, hasLine: true, childLines, childIsLast));
+                Children.Insert(i, Create(child, report, extraHops, disconnected, hasLine: true, childLines, childIsLast));
                 continue;
             }
             var at = Children.IndexOf(existing);
@@ -150,7 +158,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 Children.Move(at, i);
             }
-            existing.Update(child, report, childLines, childIsLast);
+            existing.Update(child, report, extraHops, childLines, childIsLast);
         }
         while (Children.Count > wanted.Count)
         {
@@ -159,17 +167,18 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     private static NodeViewModel Create(
-        UsbNode node, DiagnosticReport report, bool isDisconnected, bool hasLine, IReadOnlyList<bool> lines, bool isLast)
+        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, bool isDisconnected, bool hasLine,
+        IReadOnlyList<bool> lines, bool isLast)
     {
-        var item = new NodeViewModel(node.Id, isDisconnected, hasLine);
-        item.Update(node, report, lines, isLast);
+        var item = new NodeViewModel(node.Id, node.Kind == UsbNodeKind.Port, isDisconnected, hasLine);
+        item.Update(node, report, extraHops, lines, isLast);
         return item;
     }
 
-    private static string ControllerCounts(UsbNode controller)
+    private static string ControllerCounts(UsbNode controller, IReadOnlyDictionary<string, int> extraHops)
     {
         IReadOnlyList<UsbNode> tree = [controller];
-        var depths = TopologyCounts.Depths(tree).Values;
+        var depths = TopologyCounts.Depths(tree, extraHops).Values;
         return string.Format(CultureInfo.CurrentCulture,
             TopologyCounts.Unreadable(tree).Any() ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,
             TopologyCounts.HubCount(tree),

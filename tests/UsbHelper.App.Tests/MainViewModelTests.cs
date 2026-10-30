@@ -307,6 +307,45 @@ public class MainViewModelTests
     private static readonly string Latitude = $"Dell Inc. Latitude 7450 ({ComputerProfileId.From("Dell Inc.", "Latitude 7450")})";
 
     // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
+    [Fact]
+    public void MarkingAPortReEvaluates()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true; // max_hops 5; the keyboard has 1 hop.
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+
+        viewModel.SelectedNode = Item(viewModel, "ROOT|port1");
+        Assert.True(viewModel.CanMark);
+        viewModel.SelectedExtraHops = 5;
+
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // 6 hops.
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.PortMark, "Port 1", 5), Item(viewModel, "ROOT|port1").Text);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 8, 6), Item(viewModel, "C1").Counts);
+
+        viewModel.Apply([]); // The mark lasts while the app runs.
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+
+        viewModel.SelectedExtraHops = 0;
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text);
+    }
+
+    [Fact]
+    public void OnlyPortsCanBeMarked()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.SelectedNode = Item(viewModel, "KEYBOARD");
+
+        Assert.False(viewModel.CanMark);
+        Assert.Equal(0, viewModel.SelectedExtraHops);
+        viewModel.SelectedNode = Item(viewModel, "HUB|port1");
+        Assert.True(viewModel.CanMark);
+        Assert.Equal(0, viewModel.SelectedExtraHops);
+    }
+
     private static MainViewModel TwoProfiles()
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
