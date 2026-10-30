@@ -227,9 +227,10 @@ profiles); any mix can be checked. Each line then shows the worst result over
 the checked profiles. The status field has one row per checked profile with
 its result (stable, potentially unstable, unstable or unknown, in its colour)
 and its hub, tier, hop and display checks. A finding that only some checked
-profiles report names its profile. Plug and unplug devices: only the affected part of the tree
-changes. A device that is unplugged stays red at its last port; one that comes
-back is purple (unstable). Click "Clear" next to it to reset it.
+profiles report names its profile. Plug and unplug devices: only the affected
+part of the tree changes. A device that is unplugged stays red at its last
+port; one that comes back is purple (unstable). Click "Clear" next to it to
+reset it.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
