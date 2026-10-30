@@ -13,7 +13,7 @@ public enum UsbChangeKind
 
     /// <summary>
     /// What is on a port disconnected and came back before the detection read it again, so the tree is the same
-    /// (owner decision in #54). <see cref="UsbTree.Apply"/> leaves the tree as it is.
+    /// (owner decisions in #54 and #56). <see cref="UsbTree.Apply"/> leaves the tree as it is.
     /// </summary>
     Reconnected,
 }

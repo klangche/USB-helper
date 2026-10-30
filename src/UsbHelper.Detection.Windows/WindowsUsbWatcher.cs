@@ -131,8 +131,10 @@ internal sealed class WindowsUsbWatcher : IDisposable
             catch (Win32Exception)
             {
                 // Windows could not list the devices right now. Read everything again shortly, so nothing is lost.
+                // The events are kept: a short drop shows only in them.
                 lock (pendingLock)
                 {
+                    pending.InsertRange(0, events);
                     fullReadDue = true;
                     timer.Change(RetryDelay, Timeout.InfiniteTimeSpan);
                 }
