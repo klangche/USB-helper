@@ -59,6 +59,26 @@ status or date, duplicate ids, a missing parent, or a parent of the wrong kind
 (platforms inherit from `base`, computers from a platform, so inheritance
 cannot loop).
 
+### Platform profiles
+
+Each platform profile sets the hop limits from the `platformStability` values in
+the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json)
+(`max` as `max_hops`, `rec` as `recommended_hops`), with status `partial`:
+tested in practice, not a manufacturer specification. Hub count and tier depth
+stay unknown.
+
+| Platform profile | `max_hops` | `recommended_hops` |
+|---|---|---|
+| `windows-intel`, `windows-amd` | 7 | 5 |
+| `windows-arm` | 5 | 3 |
+| `macos-intel` | 7 | 5 |
+| `macos-apple-silicon` | 5 | 3 |
+| `apple-mobile-a-series` (iPhone, iPad) | 4 | 2 |
+| `linux-x64` | 6 | 4 |
+| `linux-arm` | 5 | 3 |
+| `android-phone-qualcomm` | 5 | 3 |
+| `android-tablet-exynos` | 4 | 2 |
+
 ### Ports and displays
 
 Port capabilities are recorded per physical port under `ports:` in a computer
@@ -122,6 +142,9 @@ The three limits in a computer profile are checked independently:
 - **Hub count** (`max_hubs`): all external hubs connected to the computer, root
   hubs excluded.
 
+A profile may also set `recommended_hops`: hop depths above it still work up to
+`max_hops`, but less reliably.
+
 Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: root port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
@@ -134,9 +157,10 @@ status; when several apply, the first in this list wins:
 1. Red: a hub or device seen since the app started is no longer connected. It
    stays red until it returns or is cleared.
 2. Purple: the operating system reports an error on the port or the device.
-3. Yellow: its tier or hop depth is above the profile's limit, or it is a hub
-   and the hub count is above `max_hubs`. This applies to unverified limits too;
-   the finding then says the limit is unverified.
+3. Yellow: its tier or hop depth is above the profile's limit, its hop depth is
+   above `recommended_hops`, or it is a hub and the hub count is above
+   `max_hubs`. This applies to unverified limits too; the finding then says the
+   limit is unverified. An unknown `recommended_hops` has no effect.
 4. Grey: a limit is unknown (`null`, or no computer profile selected) or comes
    from an `unverified` profile.
 5. Green: none of the above, so all three limits are known, verified (or from
@@ -177,8 +201,9 @@ Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
 hub and device, and a summary with the overall result, the hub, tier, hop and
 display checks, disconnected devices and all findings. The computer profile is
 selected automatically when one matches this computer exactly; otherwise pick
-one in the top bar. Plug and unplug devices: only the affected part of the tree
-changes.
+one in the top bar, either a computer or a generic platform ("Platform:
+windows-intel", for example). Plug and unplug devices: only the affected part
+of the tree changes.
 
 ## Development
 

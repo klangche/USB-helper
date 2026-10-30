@@ -19,6 +19,7 @@ internal static class ProfileSchema
         ["limits.max_hubs"] = FieldType.Integer,
         ["limits.max_tiers"] = FieldType.Integer,
         ["limits.max_hops"] = FieldType.Integer,
+        ["limits.recommended_hops"] = FieldType.Integer, // Deeper still works up to max_hops, but less reliably.
         ["displays"] = FieldType.Mapping,
         ["displays.max_external"] = FieldType.Integer,
         ["displays.restrictions"] = FieldType.StringList, // For example ports that cannot drive displays at the same time.
