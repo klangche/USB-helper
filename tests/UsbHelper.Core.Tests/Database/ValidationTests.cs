@@ -89,7 +89,7 @@ public class ValidationTests
     {
         // Computers may only inherit from platforms and platforms only from base, so a cycle cannot resolve.
         using var db = new TestDatabase()
-            .Write("computers/a.yaml", "inherits: base\nmanufacturer: T\nmodel: A\nlimits: {max_hubs: null, max_tiers: null, max_hops: null}\n")
+            .Write("computers/a.yaml", $"inherits: {ComputerProfileId.From("T", "B")}\nmanufacturer: T\nmodel: A\nlimits: {{max_hubs: null, max_tiers: null, max_hops: null}}\n")
             .Write("computers/b.yaml", $"inherits: {ComputerProfileId.From("T", "A")}\nmanufacturer: T\nmodel: B\nlimits: {{max_hubs: null, max_tiers: null, max_hops: null}}\n")
             .Write("platforms/loop.yaml", "id: loop\ninherits: loop\n");
 

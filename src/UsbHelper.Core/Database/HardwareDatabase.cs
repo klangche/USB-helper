@@ -179,7 +179,8 @@ public sealed class HardwareDatabase
         }
         if (manufacturer != null && model != null)
         {
-            errors.Add(new DatabaseError(root.File, model.Line, "'manufacturer' and 'model' must be text: the id is computed from them."));
+            var notText = manufacturer.Scalar is string text && !string.IsNullOrWhiteSpace(text) ? model : manufacturer;
+            errors.Add(new DatabaseError(root.File, notText.Line, "'manufacturer' and 'model' must be text: the id is computed from them."));
         }
         return (null, 0);
     }

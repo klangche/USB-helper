@@ -13,7 +13,7 @@ public static class ComputerProfileId
     private const string Digits = "0123456789abcdefghijklmnopqrstuvwxyz";
     private const int Length = 6;
 
-    /// <summary>6 lowercase letters and digits. Case and extra spaces in the names do not matter.</summary>
+    /// <summary>6 lowercase letters and digits. Case, extra spaces and accent encoding in the names do not matter.</summary>
     public static string From(string manufacturer, string model)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{Normalize(manufacturer)}\n{Normalize(model)}"));
@@ -27,6 +27,7 @@ public static class ComputerProfileId
         return new string(id);
     }
 
+    // NFC first, so a name typed with combined or separate accents gives the same id.
     private static string Normalize(string text) =>
-        string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
+        string.Join(' ', text.Normalize(NormalizationForm.FormC).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
 }

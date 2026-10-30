@@ -12,6 +12,14 @@ public class ComputerProfileIdTests
     }
 
     [Fact]
+    public void AccentsAreNormalized()
+    {
+        // "É" as one character and as "E" + combining accent. Pinned like IdIsFixedForAName.
+        Assert.Equal("xbzsqy", ComputerProfileId.From("Médion AG", "Akoya \u00C914"));
+        Assert.Equal(ComputerProfileId.From("Médion AG", "Akoya \u00C914"), ComputerProfileId.From("Me\u0301dion AG", "Akoya E\u030114"));
+    }
+
+    [Fact]
     public void CaseAndSpacesDoNotMatter()
     {
         Assert.Equal(ComputerProfileId.From("Dell Inc.", "Latitude 7450"), ComputerProfileId.From("  dell   INC. ", "latitude\t7450 "));
