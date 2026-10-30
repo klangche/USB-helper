@@ -42,6 +42,20 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ShowsLoadingUntilTheTreeArrives()
+    {
+        var viewModel = NewViewModel();
+
+        Assert.True(viewModel.IsLoading);
+        Assert.Empty(viewModel.Roots);
+
+        viewModel.Load(Desk);
+
+        Assert.False(viewModel.IsLoading);
+        Assert.NotEmpty(viewModel.Roots);
+    }
+
+    [Fact]
     public void TreeShowsControllersHubsPortsAndDevices()
     {
         var viewModel = NewViewModel();
@@ -193,6 +207,7 @@ public class MainViewModelTests
         Assert.False(NewViewModel().CanExport);
 
         var viewModel = new MainViewModel(null, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", "CPU", "windows-intel"));
+        Assert.False(viewModel.CanExport); // The USB tree is still being read.
         viewModel.Load(Desk);
 
         Assert.True(viewModel.CanExport);
