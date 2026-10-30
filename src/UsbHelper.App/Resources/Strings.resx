@@ -116,16 +116,16 @@
     <value>{0}: {1}</value>
   </data>
   <data name="StatusGreen" xml:space="preserve">
-    <value>OK: present, all limits known and met</value>
+    <value>Stable: within every known limit</value>
   </data>
   <data name="StatusGrey" xml:space="preserve">
-    <value>Unknown: a limit is unknown or unverified</value>
+    <value>Unknown: no profile, or no limit to judge by</value>
   </data>
-  <data name="StatusYellow" xml:space="preserve">
-    <value>Limit exceeded</value>
+  <data name="StatusOrange" xml:space="preserve">
+    <value>Potentially unstable: above a recommendation</value>
   </data>
   <data name="StatusPurple" xml:space="preserve">
-    <value>Connection error reported by the operating system</value>
+    <value>Unstable: a limit is exceeded, or the operating system reports an error</value>
   </data>
   <data name="StatusRed" xml:space="preserve">
     <value>Disconnected</value>

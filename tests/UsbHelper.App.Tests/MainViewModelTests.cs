@@ -32,7 +32,7 @@ public class MainViewModelTests
     [Theory]
     [InlineData(ConnectionStatus.Green, "#2E7D32")]
     [InlineData(ConnectionStatus.Grey, "#9E9E9E")]
-    [InlineData(ConnectionStatus.Yellow, "#F9A825")]
+    [InlineData(ConnectionStatus.Orange, "#EF6C00")]
     [InlineData(ConnectionStatus.Purple, "#8E24AA")]
     [InlineData(ConnectionStatus.Red, "#C62828")]
     public void EachStatusHasItsOwnColour(ConnectionStatus status, string colour)

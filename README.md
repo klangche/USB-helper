@@ -15,15 +15,17 @@ Status: first version for Windows; computer profiles still to be added.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
-- Connection status colours:
-  - Green: connected, no issues, limits satisfied.
-  - Yellow: a topology limit is exceeded or a documented limitation applies.
-  - Purple: a connection error on a connection that is still present.
+- Connection status colours, per checked profile:
+  - Green: stable, within every limit the profile knows.
+  - Orange: potentially unstable, above a recommendation or a documented
+    limitation applies.
+  - Purple: unstable, a limit is exceeded, or the operating system reports an
+    error on a connection that is still present.
   - Red: an expected device or connection is missing.
-  - Grey: unknown, unverified or not yet evaluated.
+  - Grey: unknown, no profile checked or the profile has no limits.
 - Results separate detected hardware facts, verified database facts,
-  predicted risks and unknown information. A setup is never reported as fully
-  compatible while required data is missing.
+  predicted risks and unknown information. Unknown limits are listed as
+  findings.
 - No bandwidth, throughput or speed calculations.
 
 ## Hardware database
@@ -161,22 +163,27 @@ keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
 ## Diagnostic rules
 
 Each connection line (from a hub port to the hub or device on it) gets one
-status; when several apply, the first in this list wins:
+status per checked profile; when several apply, the first in this list wins:
 
 1. Red: a hub or device seen since the app started is no longer connected. It
    stays red until it returns or is cleared.
-2. Purple: the operating system reports an error on the port or the device.
-3. Yellow: its tier or hop depth is above the profile's limit, its hop depth is
-   above `recommended_hops`, or it is a hub and the hub count is above
-   `max_hubs`. This applies to unverified limits too; the finding then says the
-   limit is unverified. An unknown `recommended_hops` has no effect.
-4. Grey: a limit is unknown (`null`, or no computer profile selected) or comes
-   from an `unverified` profile.
-5. Green: none of the above, so all three limits are known, verified (or from
-   a `partial` profile) and met.
+2. Purple (unstable): the operating system reports an error on the port or the
+   device; or its tier or hop depth is above the profile's `max_tiers` or
+   `max_hops`; or it is a hub and the hub count is above `max_hubs`.
+3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
+   within `max_hops`.
+4. Grey (unknown): no profile is checked, or the profile has none of these
+   limits.
+5. Green (stable): none of the above.
 
-The overall result is the highest of all lines and limits, so it is never green
-while required information is missing. Every finding names its device, port or
+Stability is judged on the limits the profile knows: an unknown limit (`null`)
+is listed as a finding and does not turn anything grey. A limit from an
+`unverified` file counts too; its findings say it is unverified. With several
+profiles checked, each line shows the worst result of all of them, and each
+profile gets its own overall result: the highest of its lines, its limits and
+its display check (purple above `displays.max_external`, orange for a
+DisplayLink adapter on a computer without DisplayLink support). Every finding
+names its device, port or
 computer and the reason, and is marked as a detected fact, a verified database
 fact, a predicted risk or unknown. A limit or model exception is a verified
 database fact only when the file that sets it is itself `verified` or
