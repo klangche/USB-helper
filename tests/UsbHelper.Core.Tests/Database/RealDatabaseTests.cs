@@ -56,6 +56,18 @@ public class RealDatabaseTests
         Assert.NotEmpty(platform.Find("sources")!.Items);
     }
 
+    // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.
+    [Fact]
+    public void MacBookNeoHasItsOwnHopLimit()
+    {
+        var neo = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", "Mac17,5")];
+
+        Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
+        Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
+        Assert.NotEmpty(neo.Find("sources")!.Items);
+    }
+
     [Fact]
     public void ComputerTemplateIsValidWhenCopied()
     {
