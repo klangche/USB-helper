@@ -231,6 +231,7 @@ public class MainViewModelTests
     [InlineData(ConnectionStatus.Orange, "potentially unstable")]
     [InlineData(ConnectionStatus.Purple, "unstable")]
     [InlineData(ConnectionStatus.Grey, "unknown")]
+    [InlineData(ConnectionStatus.Red, "disconnected device")]
     public void EachResultHasItsWord(ConnectionStatus status, string word) => Assert.Equal(word, StatusColors.Word(status));
 
     [Fact]
