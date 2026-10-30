@@ -457,6 +457,23 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void MarkedHopsCountInEveryProfilesChecks()
+    {
+        // +2 hops on the hub's port: the hub is tier 4 with 2 hops, the keyboard tier 5 with 3 hops.
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
+
+        var report = DiagnosticEvaluator.EvaluateAll(Desk, [Profile(tiers: "4"), Profile(hops: "2"), Profile(recommendedHops: "2")], [],
+            externalDisplays: 0, extraHops: marks);
+
+        Assert.All(report.Profiles, result => Assert.Equal((5, 3), (result.Report.Tiers.Actual, result.Report.Hops.Actual)));
+        Assert.All(report.Profiles, result => Assert.Equal(1, result.Report.Hubs.Actual));
+        Assert.Equal([ConnectionStatus.Purple, ConnectionStatus.Purple, ConnectionStatus.Orange],
+            report.Profiles.Select(result => result.Report.Connections["KEYBOARD"]));
+        Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
+    }
+
+    [Fact]
     public void OnlyARecommendationKnownIsJudged()
     {
         var report = Evaluate(Desk, Profile("null", "null", "null", recommendedHops: "0"));

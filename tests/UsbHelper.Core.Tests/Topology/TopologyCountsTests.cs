@@ -136,6 +136,61 @@ public class TopologyCountsTests
     }
 
     [Fact]
+    public void MarkAddsHopsAndTiersToEverythingBehindThePort()
+    {
+        // Root port 1: an invisible active cable (+2 hops), then a dock with a keyboard; root port 2: a mouse.
+        var tree = Machine(Hub("DOCK", Device("KEYBOARD")), Device("MOUSE"));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(4, 2), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(5, 3), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["MOUSE"]);
+        Assert.Equal(1, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void MarksAlongThePathAddUp()
+    {
+        var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD")), Device("CAMERA")));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1, ["DOCK|port1"] = 2 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(6, 4), depths["MONITOR"]);
+        Assert.Equal(new ConnectionDepth(7, 5), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(4, 2), depths["CAMERA"]);
+    }
+
+    [Fact]
+    public void MarkOnLaptopSocketBehindBuiltInHubCounts()
+    {
+        var tree = Laptop(Device("MOUSE"), Device("STICK"));
+        var marks = new Dictionary<string, int> { ["INTERNAL|port2"] = 1 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["STICK"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["WEBCAM"]);
+    }
+
+    [Fact]
+    public void MarkBeforeBuiltInHubCountsForEverythingBehindIt()
+    {
+        var tree = Laptop(Device("MOUSE"));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(3, 1), depths["WEBCAM"]);
+        Assert.DoesNotContain("INTERNAL", depths.Keys);
+    }
+
+    [Fact]
     public void UnreadableHubCountsAsOneHubWithNothingBelow()
     {
         var unreadable = new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." };
