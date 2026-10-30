@@ -158,19 +158,15 @@ public class ValidationTests
     }
 
     [Fact]
-    public void ComputerMustSetLimitsExplicitly()
+    public void ComputerMayLeaveOutLimits()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", """
             inherits: test-platform
             manufacturer: Test
             model: Test model
-            limits:
-              max_hubs: 4
             """);
 
-        var errors = db.LoadErrors();
-
-        Assert.Equal(["limits.max_hops", "limits.max_tiers"], errors.Select(error => error.Message.Split('\'')[1]).Order());
+        Assert.Single(db.Load().Computers);
     }
 
     [Fact]

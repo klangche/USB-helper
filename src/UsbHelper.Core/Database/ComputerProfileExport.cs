@@ -6,8 +6,8 @@ using UsbHelper.Core.Topology;
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// Writes this computer as a computer profile for the developers: what was detected, every limit unknown and the
-/// status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
+/// Writes this computer as a computer profile for the developers: what was detected, no limits (it inherits the
+/// platform profile's) and the status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
 /// </summary>
 public static class ComputerProfileExport
 {
@@ -35,10 +35,6 @@ public static class ComputerProfileExport
         yaml.AppendLine($"manufacturer: {Text(computer.Manufacturer)}");
         yaml.AppendLine($"model: {Text(computer.Model)}");
         yaml.AppendLine($"chip: {Text(computer.Chip)}");
-        yaml.AppendLine("limits:");
-        yaml.AppendLine("  max_hubs: null");
-        yaml.AppendLine("  max_tiers: null");
-        yaml.AppendLine("  max_hops: null");
         yaml.AppendLine("displays:");
         yaml.AppendLine("  max_external: null");
         yaml.AppendLine("notes:");

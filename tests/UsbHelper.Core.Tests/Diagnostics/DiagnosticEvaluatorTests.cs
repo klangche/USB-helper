@@ -55,6 +55,57 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Green, Evaluate(Desk, Profile(status: "partial")).Overall);
     }
 
+    // A partially verified platform with hop limits, and a computer of it that sets no limits of its own.
+    private static ResolvedProfile ComputerOfPlatformWithHopLimits(string computerLimits)
+    {
+        using var db = new TestDatabase()
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + """
+
+                limits:
+                  max_hops: 7
+                  recommended_hops: 5
+                verification:
+                  status: partial
+                """)
+            .Write("computers/c.yaml", $"""
+                inherits: test-platform
+                manufacturer: Test
+                model: Test laptop
+                {computerLimits}
+                """);
+        return db.Load().Computers.Values.Single();
+    }
+
+    [Fact]
+    public void ComputerWithoutLimitsUsesThePlatformsHopLimitsAsPartial()
+    {
+        // Unverified like the template and the export: the inherited limits keep the platform's status.
+        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("verification:\n  status: unverified"));
+
+        Assert.Equal(new LimitCheck("limits.max_hops", 1, 7, true, "platforms/test-platform.yaml", LimitState.Within), report.Hops);
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.VerifiedDatabaseFact && finding.Message.StartsWith("limits.max_hops = 7"));
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+    }
+
+    [Fact]
+    public void ComputerWithoutStatusDoesNotTakeThePlatformsStatusForItsOwnLimits()
+    {
+        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("limits:\n  max_hubs: 4"));
+
+        Assert.False(report.Hubs.Verified);
+        Assert.True(report.Hops.Verified);
+    }
+
+    [Fact]
+    public void NullInTheComputerHidesThePlatformsHopLimits()
+    {
+        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("limits:\n  max_hops: null\n  recommended_hops: null"));
+
+        Assert.Null(report.Hops.Limit);
+        Assert.Equal("computers/c.yaml", report.Hops.Source);
+        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Test laptop", "limits.max_hops is unknown (computers/c.yaml)."), report.Findings);
+    }
+
     [Fact]
     public void NoProfileIsGreyAndSaysSo()
     {

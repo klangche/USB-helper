@@ -1,7 +1,7 @@
 namespace UsbHelper.Core.Database;
 
 /// <summary>A platform or computer profile with everything it inherits applied.</summary>
-public sealed class ResolvedProfile(string id, IReadOnlyList<string> files, ProfileValue root)
+public sealed class ResolvedProfile(string id, IReadOnlyList<string> files, ProfileValue root, IReadOnlyDictionary<string, string?> statuses)
 {
     public string Id { get; } = id;
 
@@ -17,4 +17,10 @@ public sealed class ResolvedProfile(string id, IReadOnlyList<string> files, Prof
     /// A defined value of kind <see cref="ValueKind.Null"/> means the value is explicitly unknown.
     /// </summary>
     public ProfileValue? Find(string path) => Root.Find(path);
+
+    /// <summary>
+    /// The verification status that <paramref name="file"/> itself writes, not this profile's: a value inherited
+    /// from a platform keeps the platform's status. Null when the file is not in the chain or writes none.
+    /// </summary>
+    public string? StatusOf(string file) => statuses.GetValueOrDefault(file);
 }

@@ -214,12 +214,11 @@ public static class DiagnosticEvaluator
 
     private static string Unverified(LimitCheck limit) => limit.Verified ? "" : " (unverified limit)";
 
-    // A value is verified when the file that set it is itself verified (or partial). A value inherited from an
-    // unverified platform profile stays unverified even if the computer profile is verified.
+    // A value is verified when the file that set it is itself verified (or partial), whatever the profile's own
+    // status: a value inherited from an unverified platform stays unverified in a verified computer, and one
+    // inherited from a partial platform stays verified in an unverified computer.
     internal static bool IsVerified(ResolvedProfile? profile, ProfileValue value) =>
-        profile?.Find("verification.status") is { Scalar: string status } statusValue
-        && VerifiedStatuses.Contains(status)
-        && statusValue.File == value.File;
+        profile?.StatusOf(value.File) is string status && VerifiedStatuses.Contains(status);
 
     internal static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
         nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));

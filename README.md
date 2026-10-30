@@ -131,14 +131,17 @@ assumed to carry video, and no bandwidth is calculated.
    `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
-   and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
-   `limits.max_tiers` and `limits.max_hops` in the file, `null` if unknown.
-   Do not add an `id`: it is computed (see below).
-3. Fill in only values you can cite. List every source in `sources`, set
+   and `model` exactly as the computer reports them. Do not add an `id`: it is
+   computed (see below).
+3. Limits (`limits.max_hubs`, `max_tiers`, `max_hops`, `recommended_hops`)
+   left out inherit the platform profile's values. Set a value only where this
+   model differs (for example built-in hubs), or `null` when the platform's
+   value does not apply and the right one is unknown.
+4. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
-4. Run `dotnet test`: it loads the whole database and reports any problem.
-5. Open a pull request. Changes to verified values need review; the git history
+5. Run `dotnet test`: it loads the whole database and reports any problem.
+6. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
 
 A computer profile's id is never written in the file. The app computes it from
@@ -212,7 +215,8 @@ names its device, port or
 computer and the reason, and is marked as a detected fact, a verified database
 fact, a predicted risk or unknown. A limit or model exception is a verified
 database fact only when the file that sets it is itself `verified` or
-`partial`.
+`partial`. A limit a computer profile inherits keeps its platform file's
+status.
 
 If a hub, port or controller cannot be read (a hub without ports, a port with an
 error and nothing on it, a controller without a root hub), what is behind it
@@ -265,9 +269,9 @@ No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
 manufacturer and model exactly as Windows reports them, the processor, the
 matching platform profile, the USB controllers with their root hub ports, and
-the number of active external displays. All limits are unknown (`null`) and the status is
-`unverified`. Send the file to the developers; they add the limits from cited
-sources.
+the number of active external displays. It sets no limits, so it uses the
+platform profile's, and the status is `unverified`. Send the file to the
+developers; they add model-specific limits from cited sources.
 
 ## Development
 
