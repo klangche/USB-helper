@@ -80,6 +80,61 @@ public class TopologyCountsTests
         Assert.Equal(new ConnectionDepth(3, 1), TopologyCounts.Depths(tree)["D2"]);
     }
 
+    // A laptop with a built-in hub (webcam, Bluetooth) on root port 1; its own sockets are ports 2 and 3 of that hub.
+    private static IReadOnlyList<UsbNode> Laptop(UsbNode? socket2 = null, UsbNode? socket3 = null) =>
+        [Controller("C1", Hub("ROOT", Hub("INTERNAL", Device("WEBCAM"), socket2, socket3).Connectable(false, true, true)).Connectable(false))];
+
+    [Fact]
+    public void DeviceInLaptopPortBehindBuiltInHubHasNoHops()
+    {
+        var tree = Laptop(Device("MOUSE"));
+
+        var depths = TopologyCounts.Depths(tree);
+
+        Assert.Equal(new ConnectionDepth(2, 0), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["WEBCAM"]);
+        Assert.DoesNotContain("INTERNAL", depths.Keys);
+        Assert.Equal(0, TopologyCounts.HubCount(tree));
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
+    }
+
+    [Fact]
+    public void OwnersExampleCountsFromTheLaptopPort()
+    {
+        var tree = Laptop(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))), Device("STICK"));
+
+        var depths = TopologyCounts.Depths(tree);
+
+        Assert.Equal(new ConnectionDepth(4, 2), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["STICK"]);
+        Assert.Equal(2, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void HubOnFixedPortInsideADockStillCounts()
+    {
+        // Only hubs before the first user-connectable port are built into the computer; a dock's own hubs count.
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("DOCK-USB3", Hub("DOCK-USB2", Device("CAMERA"))).Connectable(false)).Connectable(true))];
+
+        Assert.Equal(new ConnectionDepth(4, 2), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(2, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void HubOnPortWindowsSaysNothingAboutCountsAsBeforeAndIsListed()
+    {
+        // Root port 1: Windows does not say; root port 2: a laptop socket. Hubs behind a counted hub are not listed.
+        var rootHub = Hub("ROOT", Hub("UNSURE", Device("CAMERA")), Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))));
+        IReadOnlyList<UsbNode> unmarked = [Controller("C1", rootHub)];
+        IReadOnlyList<UsbNode> tree = [Controller("C1", rootHub.Connectable(null, true))];
+
+        Assert.Equal(new ConnectionDepth(3, 1), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(3, TopologyCounts.HubCount(tree));
+        Assert.Equal(["UNSURE"], TopologyCounts.PossiblyBuiltIn(tree).Select(hub => hub.Id));
+        Assert.Equal(["UNSURE", "DOCK"], TopologyCounts.PossiblyBuiltIn(unmarked).Select(hub => hub.Id));
+    }
+
     [Fact]
     public void UnreadableHubCountsAsOneHubWithNothingBelow()
     {

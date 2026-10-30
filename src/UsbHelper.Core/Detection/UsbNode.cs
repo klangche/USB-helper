@@ -22,6 +22,12 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     /// <summary>Port number on the parent hub; set for ports only.</summary>
     public int? PortNumber { get; init; }
 
+    /// <summary>
+    /// Set for ports only: true when the user can plug into it, false when it is wired inside the computer (or inside
+    /// a dock or monitor), null when the operating system does not say.
+    /// </summary>
+    public bool? UserConnectable { get; init; }
+
     public ushort? VendorId { get; init; }
 
     public ushort? ProductId { get; init; }

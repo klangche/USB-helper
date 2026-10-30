@@ -58,6 +58,11 @@ public static class DiagnosticEvaluator
             findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name,
                 "What is connected behind it cannot be read, so the hub count and depths are at least what is shown."));
         }
+        foreach (var hub in TopologyCounts.PossiblyBuiltIn(tree))
+        {
+            findings.Add(new Finding(FactKind.Unknown, hub.Id, hub.Name,
+                "The operating system does not say whether this hub's port is built into the computer, so it is counted as an external hub."));
+        }
         var incomplete = unreadable.Count > 0;
         var depths = TopologyCounts.Depths(tree);
         var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(tree), incomplete);
@@ -88,31 +93,33 @@ public static class DiagnosticEvaluator
         {
             foreach (var node in port.Children)
             {
-                var depth = depths[node.Id];
+                // A hub built into the computer has no depth and is not counted, so only its errors are judged.
+                var depth = depths.GetValueOrDefault(node.Id);
+                var countedHub = node.Kind == UsbNodeKind.Hub && depth != null;
                 // A hub cannot be judged against a known hub limit when the hub count could not be read completely.
-                var status = anyLimitKnown && (node.Kind != UsbNodeKind.Hub || hubs.Limit == null || hubs.State != LimitState.Unknown)
+                var status = anyLimitKnown && (!countedHub || hubs.Limit == null || hubs.State != LimitState.Unknown)
                     ? ConnectionStatus.Green
                     : ConnectionStatus.Grey;
-                if (depth.Tier > tiers.Limit)
+                if (depth?.Tier > tiers.Limit)
                 {
                     status = ConnectionStatus.Purple;
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{Unverified(tiers)}."));
                 }
-                if (depth.Hops > hops.Limit)
+                if (depth?.Hops > hops.Limit)
                 {
                     status = ConnectionStatus.Purple;
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{Unverified(hops)}."));
                 }
-                else if (depth.Hops > recommendedHops.Limit)
+                else if (depth?.Hops > recommendedHops.Limit)
                 {
                     status = Max(status, ConnectionStatus.Orange);
                     var maximum = hops.Limit == null ? "unknown" : $"{hops.Limit}{Unverified(hops)}";
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{Unverified(recommendedHops)}; {hops.Field} is {maximum}."));
                 }
-                if (node.Kind == UsbNodeKind.Hub && hubs.State == LimitState.Exceeded)
+                if (countedHub && hubs.State == LimitState.Exceeded)
                 {
                     status = ConnectionStatus.Purple; // Every hub counts toward the exceeded hub count.
                 }

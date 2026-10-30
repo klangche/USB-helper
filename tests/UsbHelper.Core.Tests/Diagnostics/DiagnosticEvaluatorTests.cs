@@ -163,6 +163,31 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void BuiltInHubIsNotCountedAndNotJudgedAsHub()
+    {
+        // Root port 1 holds the laptop's built-in hub; its port 1 is a laptop socket with a mouse.
+        IReadOnlyList<UsbNode> laptop = [Controller("C1", Hub("ROOT", Hub("INTERNAL", Device("MOUSE")).Connectable(true)).Connectable(false))];
+
+        var report = Evaluate(laptop, Profile(hubs: "0", tiers: "2", hops: "0"));
+
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["INTERNAL"]);
+        Assert.Equal((0, 2, 0), (report.Hubs.Actual, report.Tiers.Actual, report.Hops.Actual));
+        Assert.DoesNotContain(report.Findings, finding => finding.SubjectId == "INTERNAL");
+    }
+
+    [Fact]
+    public void HubOnPortWindowsSaysNothingAboutIsCountedAndSaysSo()
+    {
+        var report = Evaluate(Desk, Profile());
+
+        Assert.Equal(1, report.Hubs.Actual);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.Contains(new Finding(FactKind.Unknown, "HUB", "HUB",
+            "The operating system does not say whether this hub's port is built into the computer, so it is counted as an external hub."), report.Findings);
+    }
+
+    [Fact]
     public void ExceededUnverifiedLimitIsUnstableAndSaysUnverified()
     {
         var report = Evaluate(Desk, Profile(tiers: "2", status: "unverified"));

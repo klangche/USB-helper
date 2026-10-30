@@ -48,6 +48,7 @@ internal static class NativeMethods
     public const uint IOCTL_USB_GET_NODE_CONNECTION_NAME = 0x220414;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME = 0x220420;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX = 0x220448;
+    public const uint IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES = 0x220478; // Windows 8 and later
 
     public static readonly IntPtr InvalidHandleValue = new(-1);
 

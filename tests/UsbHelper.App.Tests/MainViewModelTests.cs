@@ -202,6 +202,21 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ControllerCountsLeaveOutTheBuiltInHub()
+    {
+        var viewModel = NewViewModel();
+        // Root port 1 is wired to a built-in hub; its port 1 is the laptop's own socket, with a mouse.
+        var builtIn = Hub("INTERNAL", Device("MOUSE"));
+        builtIn = builtIn with { Children = [builtIn.Children[0] with { UserConnectable = true }] };
+        var root = Hub("ROOT", builtIn);
+        root = root with { Children = [root.Children[0] with { UserConnectable = false }] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
     public void ControllerCountsAreMinimumsWhenAHubCannotBeRead()
     {
         var viewModel = NewViewModel();
