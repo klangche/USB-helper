@@ -226,9 +226,11 @@ sources.
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions: every pull request is built
-and tested on Windows. Merges to `main` are released automatically by
-`.github/workflows/release.yml`: `release/next-version.sh` picks the version
-from the titles of the pull requests merged since the last release (`Fixed:`
+and tested on Windows. Pull requests go to the `dev` branch. When `dev` is
+ready, one pull request from `dev` to `main` is merged, and that merge is
+released automatically by `.github/workflows/release.yml`: `main` only holds
+released versions. `release/next-version.sh` picks the version from the titles
+of all pull requests merged since the last release (`Fixed:`
 and `Security:` bump the patch version, `Added:`, `Changed:` and `Removed:` the
 minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is

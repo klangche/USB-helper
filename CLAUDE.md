@@ -246,3 +246,10 @@ Filled in by the setup pull request. Changed only by the owner.
     comes from the pull request titles since the last release
     (`release/next-version.sh`); titles without a release prefix make no
     release. This replaces the release-start rule in section 8.
+  - 2026-10-30: pull requests target `dev` (branch from the latest `dev`). A
+    pull request from `dev` to `main` makes the release; `main` only holds
+    released versions. The version comes from the titles of all pull requests
+    merged since the last release. In 0.x a `!` bumps MINOR; only a `dev` to
+    `main` pull request titled `Release 1.0.0: ...` leaves 0.x. This replaces
+    "branch from the latest `main`" in section 6 and the 2026-10-29 rule that
+    every merge to `main` is released.
