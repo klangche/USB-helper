@@ -148,7 +148,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 9999"));
 
         Assert.Null(viewModel.SelectedProfile.Profile);
-        Assert.Equal(["(none)", "test.c", "p"], viewModel.Profiles.Select(option => option.Profile?.Id ?? "(none)"));
+        Assert.Equal(["(none)", ComputerProfileId.From("Dell Inc.", "Latitude 7450"), "p"], viewModel.Profiles.Select(option => option.Profile?.Id ?? "(none)"));
     }
 
     [Fact]
