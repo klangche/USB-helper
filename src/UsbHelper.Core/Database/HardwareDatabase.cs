@@ -48,7 +48,9 @@ public sealed class HardwareDatabase
                 errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, $"A platform profile must inherit from 'base', not '{profile.Inherits}'."));
                 continue;
             }
-            platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], ProfileMerger.Merge(defaults, profile.Body)));
+            var root = ProfileMerger.Merge(defaults, profile.Body);
+            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(root) };
+            platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], root, statuses));
         }
 
         var computers = new Dictionary<string, ResolvedProfile>();
@@ -62,7 +64,10 @@ public sealed class HardwareDatabase
                 errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, reason));
                 continue;
             }
-            computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], ProfileMerger.Merge(parent.Root, profile.Body)));
+            var root = ProfileMerger.Merge(parent.Root, profile.Body);
+            var statuses = parent.Files.ToDictionary(file => file, parent.StatusOf);
+            statuses[profile.Body.File] = Status(root);
+            computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], root, statuses));
         }
 
         if (errors.Count > 0)
@@ -71,6 +76,8 @@ public sealed class HardwareDatabase
         }
         return new HardwareDatabase(platforms, computers);
     }
+
+    private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
 
     private static ProfileValue ReadBase(string folder, List<DatabaseError> errors)
     {

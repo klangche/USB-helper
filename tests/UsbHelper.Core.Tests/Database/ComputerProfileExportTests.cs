@@ -1,5 +1,6 @@
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Diagnostics;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Database;
@@ -37,7 +38,7 @@ public class ComputerProfileExportTests
     public void ExportShowsThePlatformsLimits()
     {
         using var db = new TestDatabase()
-            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 7\n  recommended_hops: 5\n")
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 7\n  recommended_hops: 5\nverification:\n  status: partial\n")
             .Write("computers/export.yaml", Export(Computer));
 
         var computer = db.Load().Computers.Values.Single();
@@ -46,6 +47,7 @@ public class ComputerProfileExportTests
         Assert.Equal(7L, computer.Find("limits.max_hops")!.Scalar);
         Assert.Equal(5L, computer.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal("platforms/test-platform.yaml", computer.Find("limits.max_hops")!.File);
+        Assert.True(DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Hops.Verified);
     }
 
     [Fact]

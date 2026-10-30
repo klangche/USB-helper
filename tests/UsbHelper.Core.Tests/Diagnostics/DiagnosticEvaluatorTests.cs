@@ -55,7 +55,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Green, Evaluate(Desk, Profile(status: "partial")).Overall);
     }
 
-    // A partially verified platform with hop limits, and a computer of it that sets no limits or only nulls.
+    // A partially verified platform with hop limits, and a computer of it that sets no limits of its own.
     private static ResolvedProfile ComputerOfPlatformWithHopLimits(string computerLimits)
     {
         using var db = new TestDatabase()
@@ -79,7 +79,8 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void ComputerWithoutLimitsUsesThePlatformsHopLimitsAsPartial()
     {
-        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits(""));
+        // Unverified like the template and the export: the inherited limits keep the platform's status.
+        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("verification:\n  status: unverified"));
 
         Assert.Equal(new LimitCheck("limits.max_hops", 1, 7, true, "platforms/test-platform.yaml", LimitState.Within), report.Hops);
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.VerifiedDatabaseFact && finding.Message.StartsWith("limits.max_hops = 7"));
