@@ -2,5 +2,14 @@ id: macos-intel
 inherits: base
 platform: macos
 architecture: x64
+limits:
+  max_hops: 7
+  recommended_hops: 5
 notes:
   - "Generic Intel Mac platform profile."
+  - "Hop limits from the usb-script config (Mac Intel): max 7, recommended 5. Tested in practice, not a manufacturer specification."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.macIntel; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

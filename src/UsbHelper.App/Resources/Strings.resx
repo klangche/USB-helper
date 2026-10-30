@@ -22,6 +22,9 @@
   <data name="NoProfile" xml:space="preserve">
     <value>No profile (limits unknown)</value>
   </data>
+  <data name="PlatformProfile" xml:space="preserve">
+    <value>Platform: {0}</value>
+  </data>
   <data name="ExportProfile" xml:space="preserve">
     <value>Export computer profile</value>
   </data>

@@ -8,7 +8,7 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.ViewModels;
 
-/// <param name="Profile">The computer profile, or null for "no profile".</param>
+/// <param name="Profile">A computer or platform profile, or null for "no profile".</param>
 public sealed record ProfileOption(string Label, ResolvedProfile? Profile);
 
 /// <param name="Header">Kind (detected, database, risk, unknown) and subject.</param>
@@ -44,6 +44,10 @@ public sealed class MainViewModel : ObservableObject
             none,
             .. (database?.Computers.Values ?? [])
                 .Select(profile => new ProfileOption($"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar} ({profile.Id})", profile))
+                .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase),
+            // Generic platform limits, for computers without a profile of their own.
+            .. (database?.Platforms.Values ?? [])
+                .Select(profile => new ProfileOption(string.Format(CultureInfo.CurrentCulture, Strings.PlatformProfile, profile.Id), profile))
                 .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase),
         ];
         var match = database == null ? null : ProfileMatcher.Match(database, identity);

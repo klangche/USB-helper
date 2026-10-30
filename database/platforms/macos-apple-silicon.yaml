@@ -2,5 +2,14 @@ id: macos-apple-silicon
 inherits: base
 platform: macos
 architecture: arm64
+limits:
+  max_hops: 5
+  recommended_hops: 3
 notes:
   - "Generic profile for Macs with an Apple chip (M-series or A-series)."
+  - "Hop limits from the usb-script config (Mac Apple Silicon): max 5, recommended 3. Tested in practice, not a manufacturer specification."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.macAppleSilicon; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

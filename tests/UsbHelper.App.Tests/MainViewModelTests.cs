@@ -148,7 +148,18 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 9999"));
 
         Assert.Null(viewModel.SelectedProfile.Profile);
-        Assert.Equal(2, viewModel.Profiles.Count);
+        Assert.Equal(["(none)", ComputerProfileId.From("Dell Inc.", "Latitude 7450"), "p"], viewModel.Profiles.Select(option => option.Profile?.Id ?? "(none)"));
+    }
+
+    [Fact]
+    public void PlatformProfilesCanBeSelected()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity(null, null));
+
+        var platform = viewModel.Profiles.Single(option => option.Profile?.Id == "p");
+
+        Assert.Equal("Platform: p", platform.Label);
     }
 
     [Fact]

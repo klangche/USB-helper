@@ -1,0 +1,15 @@
+id: android-tablet-exynos
+inherits: base
+platform: android
+architecture: arm64
+limits:
+  max_hops: 4
+  recommended_hops: 2
+notes:
+  - "Generic Android tablet profile (Exynos)."
+  - "Hop limits from the usb-script config (Android Tablet (Exynos)): max 4, recommended 2. Tested in practice, not a manufacturer specification."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.androidTablet; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

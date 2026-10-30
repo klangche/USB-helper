@@ -2,5 +2,15 @@ id: windows-intel
 inherits: base
 platform: windows
 architecture: x64
+limits:
+  max_hops: 7
+  recommended_hops: 5
 notes:
   - "Generic Windows platform profile for Intel processors."
+  - "Hop limits from the usb-script config (Windows x86): max 7, recommended 5. Tested in practice, not a manufacturer specification."
+  - "The usb-script entry 'windows' is named 'Windows x86' there; it covers Windows on Intel and AMD processors."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windows; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

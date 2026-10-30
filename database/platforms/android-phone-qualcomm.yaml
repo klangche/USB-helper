@@ -1,0 +1,15 @@
+id: android-phone-qualcomm
+inherits: base
+platform: android
+architecture: arm64
+limits:
+  max_hops: 5
+  recommended_hops: 3
+notes:
+  - "Generic Android phone profile (Qualcomm)."
+  - "Hop limits from the usb-script config (Android Phone (Qualcomm)): max 5, recommended 3. Tested in practice, not a manufacturer specification."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.androidPhone; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29
