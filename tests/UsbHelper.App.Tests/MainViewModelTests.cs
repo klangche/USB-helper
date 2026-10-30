@@ -188,6 +188,20 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ExportNeedsManufacturerAndModel()
+    {
+        Assert.False(NewViewModel().CanExport);
+
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", "CPU", "windows-intel"));
+        viewModel.Load(Desk);
+
+        Assert.True(viewModel.CanExport);
+        Assert.Equal("Dell-Inc.-Latitude-7450.yaml", viewModel.ExportFileName);
+        Assert.Contains("manufacturer: \"Dell Inc.\"", viewModel.ExportProfile());
+        Assert.Contains("Detected: USB controllers: 1, external hubs: 1", viewModel.ExportProfile());
+    }
+
+    [Fact]
     public void DatabaseErrorsAreListedWithFileAndLine()
     {
         var viewModel = new MainViewModel(null, [new DatabaseError("computers/c.yaml", 4, "Unknown field 'x'.")], new ComputerIdentity(null, null));

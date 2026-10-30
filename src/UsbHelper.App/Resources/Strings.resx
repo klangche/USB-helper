@@ -25,6 +25,18 @@
   <data name="PlatformProfile" xml:space="preserve">
     <value>Platform: {0}</value>
   </data>
+  <data name="ExportProfile" xml:space="preserve">
+    <value>Export computer profile</value>
+  </data>
+  <data name="ExportTitle" xml:space="preserve">
+    <value>Save this computer as a computer profile</value>
+  </data>
+  <data name="ExportSaved" xml:space="preserve">
+    <value>Saved {0}. Send this file to the USB-helper developers.</value>
+  </data>
+  <data name="ExportFailed" xml:space="preserve">
+    <value>The computer profile could not be saved: {0}</value>
+  </data>
   <data name="DetectedComputer" xml:space="preserve">
     <value>Detected: {0} {1}</value>
   </data>

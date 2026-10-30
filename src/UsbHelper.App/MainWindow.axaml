@@ -20,7 +20,11 @@
         </ComboBox.ItemTemplate>
       </ComboBox>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
+      <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
     </StackPanel>
+
+    <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
+               IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
     <Grid ColumnDefinitions="3*,6,2*">
 

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Reflection;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -23,6 +24,7 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
     private readonly Func<int?> readExternalDisplays;
+    private readonly ComputerIdentity identity;
     private IReadOnlyList<UsbNode> tree = [];
     private ProfileOption selectedProfile;
     private NodeViewModel? selectedNode;
@@ -34,6 +36,7 @@ public sealed class MainViewModel : ObservableObject
         HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null)
     {
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
+        this.identity = identity;
         DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
         var none = new ProfileOption(Strings.NoProfile, null);
         Profiles =
@@ -70,6 +73,19 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public string DetectedComputer { get; }
+
+    /// <summary>A profile can only be exported when the computer reports manufacturer and model: its id comes from them.</summary>
+    public bool CanExport => !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model);
+
+    public string ExportFileName => ComputerProfileExport.FileName(identity);
+
+    /// <summary>This computer as a computer profile YAML, to send to the developers.</summary>
+    public string ExportProfile() =>
+        ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion(), DateOnly.FromDateTime(DateTime.Now));
+
+    // The release build sets the version; "+commit" metadata is left out.
+    private static string AppVersion() =>
+        typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
 
     public IReadOnlyList<string> DatabaseErrors { get; }
 

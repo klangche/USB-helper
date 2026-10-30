@@ -119,7 +119,8 @@ assumed to carry video, and no bandwidth is calculated.
 
 ### Adding or updating a computer profile
 
-1. Copy `database/computers/.template.yaml` to
+1. Start from a file exported by the app ("Export computer profile"), or copy
+   `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
    and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
@@ -212,6 +213,14 @@ selected automatically when one matches this computer exactly; otherwise pick
 one in the top bar, either a computer or a generic platform ("Platform:
 windows-intel", for example). Plug and unplug devices: only the affected part
 of the tree changes.
+
+No profile for your computer yet? Click "Export computer profile" and save the
+file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
+manufacturer and model exactly as Windows reports them, the processor, the
+matching platform profile, the USB controllers with their root hub ports, and
+the number of active external displays. All limits are unknown (`null`) and the status is
+`unverified`. Send the file to the developers; they add the limits from cited
+sources.
 
 ## Development
 
