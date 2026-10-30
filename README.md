@@ -10,8 +10,8 @@ Status: first version for Windows; computer profiles still to be added.
 
 - Live USB tree: controllers, hubs, ports and devices, updated on connect and
   disconnect without rebuilding the whole tree.
-- Hub count, tier depth and hop depth, each checked against the computer
-  model's own limits.
+- Hub count, tier depth and hop depth, counted from the computer's own port
+  and each checked against the computer model's own limits.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
@@ -147,18 +147,26 @@ which computer profiles name in `inherits`.
 
 The three limits in a computer profile are checked independently:
 
-- **Tier depth** (`max_tiers`): the root hub is tier 1, each hub below it adds
-  one, and the device's own tier counts.
-- **Hop depth** (`max_hops`): the number of hubs between the root port and the
-  device, root hub excluded.
+- **Tier depth** (`max_tiers`): the computer's own port is on tier 1, each hub
+  below it adds one, and the device's own tier counts.
+- **Hop depth** (`max_hops`): the number of hubs between the computer's own
+  port and the device.
 - **Hub count** (`max_hubs`): all external hubs connected to the computer, root
-  hubs excluded.
+  hubs and built-in hubs excluded.
 
 A profile may also set `recommended_hops`: hop depths above it still work up to
 `max_hops`, but less reliably.
 
+Counting starts at the computer's own port, the one the user plugs into. Many
+laptops have a hub built in between the root hub and that port (for the webcam,
+Bluetooth or a card reader). On Windows the app asks for each port whether it is
+user-connectable; a hub reached only through ports that are not is built into
+the computer and does not count. A device in the laptop's own port has 0 hops.
+If Windows does not say for a port (older versions, some drivers), a hub on it
+is counted as before, as an external hub, and a finding says so.
+
 Hubs inside docks and monitors count like any other hub, because the operating
-system reports them as hubs. Example: root port, dock hub, monitor hub,
+system reports them as hubs. Example: laptop port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
 
 ## Diagnostic rules

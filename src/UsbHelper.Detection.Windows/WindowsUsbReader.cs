@@ -25,6 +25,7 @@ internal static class WindowsUsbReader
     private const int RootHubNameOffset = 4; // USB_ROOT_HUB_NAME.ActualLength
     private const int ConnectionNameOffset = 8; // ConnectionIndex, ActualLength
     private const int NameBufferSize = 2048;
+    private const int PortConnectorPropertiesSize = 512; // USB_PORT_CONNECTOR_PROPERTIES with room for the companion hub name
 
     private sealed record DevNodeIndex(Dictionary<string, RawDevNode> ByDriverKey, Dictionary<string, RawDevNode> ByInstanceId);
 
@@ -179,7 +180,20 @@ internal static class WindowsUsbReader
             BitConverter.ToUInt16(information, VendorIdOffset),
             BitConverter.ToUInt16(information, ProductIdOffset),
             device,
-            childHub);
+            childHub)
+        {
+            UserConnectable = ReadUserConnectable(hub, port),
+        };
+    }
+
+    // Null when Windows does not say, for example before Windows 8 or when the hub driver does not answer.
+    private static bool? ReadUserConnectable(SafeFileHandle hub, int port)
+    {
+        var buffer = new byte[PortConnectorPropertiesSize];
+        BitConverter.TryWriteBytes(buffer, (uint)port);
+        return DeviceIoControl(hub, IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, buffer, buffer.Length, buffer, buffer.Length, out var returned, IntPtr.Zero)
+            ? PortConnector.IsUserConnectable(buffer, returned)
+            : null;
     }
 
     // All present devices enumerated by the USB bus driver: hubs and the devices on their ports.
