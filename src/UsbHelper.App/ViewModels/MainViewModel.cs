@@ -76,7 +76,7 @@ public sealed class MainViewModel : ObservableObject
     public string DetectedComputer { get; }
 
     /// <summary>A profile can only be exported when the computer reports manufacturer and model: its id comes from them.</summary>
-    public bool CanExport => !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model);
+    public bool CanExport => !IsLoading && !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model);
 
     public string ExportFileName => ComputerProfileExport.FileName(identity);
 
@@ -96,7 +96,13 @@ public sealed class MainViewModel : ObservableObject
     public bool IsLoading
     {
         get => isLoading;
-        set => SetField(ref isLoading, value);
+        set
+        {
+            if (SetField(ref isLoading, value))
+            {
+                OnPropertyChanged(nameof(CanExport)); // Not before the USB tree is known.
+            }
+        }
     }
 
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>

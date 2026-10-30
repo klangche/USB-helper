@@ -64,14 +64,15 @@ public partial class App : Application
         try
         {
             tree = await Task.Run(detector.Enumerate);
+            viewModel.Load(tree);
         }
-        catch (Win32Exception e)
+        catch (Exception e)
         {
+            // Nothing else observes this task: every failure must end the loading state and be shown.
             viewModel.IsLoading = false;
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.DetectionFailed, e.Message);
             return;
         }
-        viewModel.Load(tree);
         try
         {
             var watch = detector.Watch(tree, changes => Dispatcher.UIThread.Post(() => viewModel.Apply(changes)));
