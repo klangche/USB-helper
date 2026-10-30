@@ -306,7 +306,6 @@ public class MainViewModelTests
 
     private static readonly string Latitude = $"Dell Inc. Latitude 7450 ({ComputerProfileId.From("Dell Inc.", "Latitude 7450")})";
 
-    // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
     [Fact]
     public void MarkingAPortReEvaluates()
     {
@@ -346,6 +345,7 @@ public class MainViewModelTests
         Assert.Equal(0, viewModel.SelectedExtraHops);
     }
 
+    // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
     private static MainViewModel TwoProfiles()
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");

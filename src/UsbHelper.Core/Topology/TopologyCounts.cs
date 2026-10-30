@@ -22,7 +22,7 @@ public sealed record ConnectionDepth(int Tier, int Hops);
 public static class TopologyCounts
 {
     /// <summary>Number of external hubs connected to the computer. Root hubs and built-in hubs are not counted.</summary>
-    public static int HubCount(IReadOnlyList<UsbNode> tree) => Counted(tree, new Dictionary<string, int>()).Count(entry => entry.Node.Kind == UsbNodeKind.Hub);
+    public static int HubCount(IReadOnlyList<UsbNode> tree) => Counted(tree, null).Count(entry => entry.Node.Kind == UsbNodeKind.Hub);
 
     /// <summary>
     /// Tier and hop depth of every connected hub and device, by id. Root hubs, built-in hubs and controllers are not
@@ -30,7 +30,7 @@ public static class TopologyCounts
     /// </summary>
     /// <param name="extraHops">Extra hops per port id, for active cables and extenders the operating system does not show.</param>
     public static IReadOnlyDictionary<string, ConnectionDepth> Depths(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops = null) =>
-        Counted(tree, extraHops ?? new Dictionary<string, int>()).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
+        Counted(tree, extraHops).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
 
     /// <summary>Every element of <paramref name="tree"/> for which <see cref="CannotBeRead"/> is true.</summary>
     public static IEnumerable<UsbNode> Unreadable(IReadOnlyList<UsbNode> tree) =>
@@ -53,16 +53,16 @@ public static class TopologyCounts
     public static IEnumerable<UsbNode> PossiblyBuiltIn(IReadOnlyList<UsbNode> tree) =>
         tree.SelectMany(controller => controller.Children).SelectMany(PossiblyBuiltInBelow);
 
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops) =>
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops) =>
         tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, builtIn: true, extraHops));
 
     // hubsAbove counts the hub itself, every counted hub above it, root hub included, and every marked extra hop above
     // it. builtIn: the hub is the root hub or built into the computer, so its ports may be the computer's own.
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Below(UsbNode hub, int hubsAbove, bool builtIn, IReadOnlyDictionary<string, int> extraHops)
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Below(UsbNode hub, int hubsAbove, bool builtIn, IReadOnlyDictionary<string, int>? extraHops)
     {
         foreach (var port in hub.Children)
         {
-            var above = hubsAbove + extraHops.GetValueOrDefault(port.Id);
+            var above = hubsAbove + (extraHops?.GetValueOrDefault(port.Id) ?? 0);
             foreach (var connected in port.Children)
             {
                 if (connected.Kind == UsbNodeKind.Hub && builtIn && port.UserConnectable == false)
