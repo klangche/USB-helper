@@ -138,11 +138,11 @@ public sealed class HardwareDatabase
             ProfileSchema.Validate(root, IdentityFields, errors);
             if (isComputer)
             {
-                foreach (var field in new[] { "manufacturer", "model", "limits.max_hubs", "limits.max_tiers", "limits.max_hops" })
+                foreach (var field in new[] { "manufacturer", "model" })
                 {
                     if (root.Find(field) == null)
                     {
-                        errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly (null if unknown)."));
+                        errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly."));
                     }
                 }
             }

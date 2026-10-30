@@ -34,6 +34,21 @@ public class ComputerProfileExportTests
     }
 
     [Fact]
+    public void ExportShowsThePlatformsLimits()
+    {
+        using var db = new TestDatabase()
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 7\n  recommended_hops: 5\n")
+            .Write("computers/export.yaml", Export(Computer));
+
+        var computer = db.Load().Computers.Values.Single();
+
+        Assert.DoesNotContain("limits:", Export(Computer));
+        Assert.Equal(7L, computer.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(5L, computer.Find("limits.recommended_hops")!.Scalar);
+        Assert.Equal("platforms/test-platform.yaml", computer.Find("limits.max_hops")!.File);
+    }
+
+    [Fact]
     public void NotesSayWhatWasDetected()
     {
         using var db = new TestDatabase().Write("computers/export.yaml", Export(Computer));
