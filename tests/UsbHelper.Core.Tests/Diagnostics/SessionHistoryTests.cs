@@ -41,6 +41,55 @@ public class SessionHistoryTests
     }
 
     [Fact]
+    public void DeviceThatReturnsIsReconnectedWithWhatWasBehindIt()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+        history.Record(WithHub);
+
+        Assert.Equal(["HUB", "KEYBOARD"], history.Reconnected(WithHub).Select(device => device.Node.Id).Order());
+        Assert.Equal("Port 1 of HUB", history.Reconnected(WithHub).Single(device => device.Node.Id == "KEYBOARD").PortName);
+    }
+
+    [Fact]
+    public void DeviceThatNeverLeftOrIsStillGoneIsNotReconnected()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+
+        Assert.Empty(history.Reconnected(HubUnplugged));
+        Assert.Empty(history.Reconnected(WithHub)); // Not recorded as back yet.
+    }
+
+    [Fact]
+    public void ReconnectedDeviceThatLeavesAgainIsMissingNotReconnected()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+
+        Assert.Empty(history.Reconnected(HubUnplugged));
+        Assert.Equal(["HUB", "KEYBOARD"], history.Missing(HubUnplugged).Select(device => device.Node.Id).Order());
+    }
+
+    [Fact]
+    public void ClearedReconnectedDeviceIsNoLongerReported()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+        history.Record(WithHub);
+
+        history.Clear("KEYBOARD");
+
+        Assert.Equal(["HUB"], history.Reconnected(WithHub).Select(device => device.Node.Id));
+    }
+
+    [Fact]
     public void ClearedDeviceIsNoLongerReported()
     {
         var history = new SessionHistory();

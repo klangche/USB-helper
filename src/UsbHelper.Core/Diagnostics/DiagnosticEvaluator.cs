@@ -21,14 +21,15 @@ public static class DiagnosticEvaluator
     /// profile checked, everything is unknown (grey).
     /// </summary>
     public static SystemsReport EvaluateAll(
-        IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null)
+        IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
+        IReadOnlyCollection<string>? reconnected = null)
     {
         if (profiles.Count == 0)
         {
-            var unknown = Evaluate(tree, null, missing, externalDisplays);
+            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected);
             return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
         }
-        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays))).ToList();
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected))).ToList();
         var connections = results
             .SelectMany(result => result.Report.Connections)
             .GroupBy(line => line.Key, line => line.Value)
@@ -39,8 +40,10 @@ public static class DiagnosticEvaluator
     /// <param name="profile">The resolved computer or platform profile, or null when none is selected.</param>
     /// <param name="missing">From <see cref="SessionHistory.Missing"/>.</param>
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
+    /// <param name="reconnected">Ids from <see cref="SessionHistory.Reconnected"/>.</param>
     public static DiagnosticReport Evaluate(
-        IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null)
+        IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
+        IReadOnlyCollection<string>? reconnected = null)
     {
         var findings = new List<Finding>();
         var computer = profile?.Find("model")?.Scalar as string ?? "This computer";
@@ -122,6 +125,12 @@ public static class DiagnosticEvaluator
                 if (node.Problem != null || port.Problem != null)
                 {
                     status = ConnectionStatus.Purple;
+                }
+                // Owner decision in #54: a connection that dropped and came back is unstable, however short the drop.
+                if (reconnected?.Contains(node.Id) == true)
+                {
+                    status = ConnectionStatus.Purple;
+                    findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, "Disconnected and reconnected during this session."));
                 }
                 connections[node.Id] = status;
             }
