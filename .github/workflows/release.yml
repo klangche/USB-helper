@@ -1,12 +1,14 @@
 name: Release
 
 # Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
-# pull requests merged since the last tag ask for one (release/next-version.sh picks the version):
+# pull requests merged since the last release ask for one (release/next-version.sh picks the version):
 # it builds the portable Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
+# Every merge into dev publishes a pre-release vX.Y.Z-beta.N the same way: X.Y.Z is that next version,
+# N counts the earlier betas of it (release/beta-version.sh). Beta tags never count as a release.
 # Pull requests that change the packaging build the zip as an artifact only.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -18,9 +20,10 @@ on:
 permissions:
   contents: read
 
-# Releases run one at a time, so each one sees the tag of the one before.
+# Releases run one at a time per branch, so each one sees the tags of the earlier runs on its branch.
+# A dev run that overlaps a main release does not see that release's tag yet; the next dev run does.
 concurrency:
-  group: release-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -31,13 +34,16 @@ jobs:
       pull-requests: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      last: ${{ steps.version.outputs.last }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Test next-version.sh
-        run: release/next-version.test.sh
+      - name: Test release scripts
+        run: |
+          release/next-version.test.sh
+          release/tags.test.sh
 
       - name: Version
         id: version
@@ -49,7 +55,9 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
             version=0.0.0-pr
           else
-            last=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)
+            # The highest release tag, not git describe: the release tag sits on the merge commit on main,
+            # which dev does not contain.
+            last=$(git tag --list | release/last-release.sh)
             # Every commit since the last release, also those that came in through dev, so every pull request
             # merged into dev counts, not only the dev -> main pull request.
             commits=$(git rev-list "${last:+$last..}HEAD")
@@ -60,9 +68,13 @@ jobs:
                   --jq '.[] | select(.merged_at != null) | "\(.number)\t\(.title)"' || exit 1
               done | sort -u -t$'\t' -k1,1n | cut -f2- | release/next-version.sh "$last"
             )
+            if [ -n "$version" ] && [ "$GITHUB_REF_NAME" = dev ]; then
+              version=$(git tag --list | release/beta-version.sh "$version")
+            fi
             echo "Last release: ${last:-none}. Next: ${version:-no release}."
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "last=$last" >> "$GITHUB_OUTPUT"
 
   windows:
     needs: version
@@ -118,10 +130,21 @@ jobs:
         with:
           name: windows-zip
 
-      # Creates the tag on the built commit.
+      # Creates the tag on the built commit. Notes start at the last release, not the last beta.
+      # A push to dev publishes a pre-release.
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: v${{ needs.version.outputs.version }}
-        run: gh release create "$TAG" usb-helper-*-windows-x64.zip --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+          LAST: ${{ needs.version.outputs.last }}
+        shell: bash
+        run: |
+          args=()
+          if [ -n "$LAST" ]; then
+            args+=(--notes-start-tag "$LAST")
+          fi
+          if [ "$GITHUB_REF_NAME" = dev ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$TAG" usb-helper-*-windows-x64.zip --target "$GITHUB_SHA" --title "$TAG" --generate-notes "${args[@]}"

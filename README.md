@@ -234,7 +234,8 @@ Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder next
 to `USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
 .\USB-helper.exe` in PowerShell), and start it. No installation, no
-administrator rights and no network connection are needed.
+administrator rights and no network connection are needed. Releases marked
+pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
 
@@ -285,7 +286,11 @@ these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip,
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
-request titles.
+request titles since the last release. Every merge into `dev` publishes a
+pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
+the next release would get and `N` counts up from 1 for each beta of it
+(`release/beta-version.sh`). Beta tags never count as a release
+(`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.
