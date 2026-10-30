@@ -170,8 +170,9 @@ status per checked profile; when several apply, the first in this list wins:
    stays red until it returns or is cleared.
 2. Purple (unstable): the operating system reports an error on the port or the
    device; or the hub or device disconnected and came back since the app
-   started, however short or long it was gone, until it leaves again or is
-   cleared; or its tier or hop depth is above the profile's `max_tiers` or
+   started, however long it was gone, until it leaves again or is cleared (a
+   drop shorter than the detection's settle time of 0.5 seconds is not seen
+   yet); or its tier or hop depth is above the profile's `max_tiers` or
    `max_hops`; or it is a hub and the hub count is above `max_hubs`.
 3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
    within `max_hops`.
@@ -220,13 +221,13 @@ Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
 hub and device, and a summary with the overall result, the status field,
 disconnected and reconnected devices and all findings. Nothing is checked at
 start, so every line is grey (unknown). In the top bar, check the systems to
-judge the setup by in the two drop-down lists, "Operating systems" (generic platform profiles
-such as `windows-intel`) and "Computers" (computer profiles); any mix can be
-checked. Each line then shows the worst result over the checked profiles. The
-status field has one row per checked profile with its result (stable,
-potentially unstable, unstable or unknown, in its colour) and its hub, tier,
-hop and display checks. A finding that only some checked profiles report names
-its profile. Plug and unplug devices: only the affected part of the tree
+judge the setup by in the two drop-down lists, "Operating systems" (generic
+platform profiles such as `windows-intel`) and "Computers" (computer
+profiles); any mix can be checked. Each line then shows the worst result over
+the checked profiles. The status field has one row per checked profile with
+its result (stable, potentially unstable, unstable or unknown, in its colour)
+and its hub, tier, hop and display checks. A finding that only some checked
+profiles report names its profile. Plug and unplug devices: only the affected part of the tree
 changes. A device that is unplugged stays red at its last port; one that comes
 back is purple (unstable). Click "Clear" next to it to reset it.
 

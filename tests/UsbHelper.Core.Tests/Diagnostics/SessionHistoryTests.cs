@@ -77,6 +77,19 @@ public class SessionHistoryTests
     }
 
     [Fact]
+    public void DeviceBehindAHubThatCouldNotBeReadForAWhileIsNotReconnected()
+    {
+        var unreadable = new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub: The device is not ready." };
+        IReadOnlyList<UsbNode> hubUnreadable = [Controller("C1", Hub("ROOT", unreadable, Device("MOUSE")))];
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(hubUnreadable);
+        history.Record(WithHub);
+
+        Assert.Empty(history.Reconnected(WithHub));
+    }
+
+    [Fact]
     public void ClearedReconnectedDeviceIsNoLongerReported()
     {
         var history = new SessionHistory();

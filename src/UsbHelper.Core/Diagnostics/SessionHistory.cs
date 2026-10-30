@@ -42,7 +42,8 @@ public sealed class SessionHistory
                     reconnected.Add(id);
                 }
             }
-            else
+            // Out of sight behind something that cannot be read is not a drop: it may still be connected.
+            else if (!seen[id].AncestorIds.Any(ancestor => UsbTree.Find(tree, ancestor) is { } node && DiagnosticEvaluator.CannotBeRead(node)))
             {
                 gone.Add(id);
                 reconnected.Remove(id);
@@ -56,7 +57,8 @@ public sealed class SessionHistory
 
     /// <summary>
     /// Everything in <paramref name="tree"/> that disconnected and came back this session, at the port where it is
-    /// now, however short or long it was gone.
+    /// now, however long it was gone. Only drops seen in a recorded tree count: one the detection never reported
+    /// (shorter than its settle time) is not seen here.
     /// </summary>
     public IReadOnlyList<MissingDevice> Reconnected(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => reconnected.Contains(device.Node.Id) && UsbTree.Find(tree, device.Node.Id) != null).ToList();
