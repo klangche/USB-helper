@@ -1,6 +1,7 @@
 inherits: macos-apple-silicon
 manufacturer: Apple Inc.
 model: Mac17,5
+name: MacBook Neo
 chip: A18 Pro
 
 limits:
