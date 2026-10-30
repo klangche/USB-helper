@@ -30,7 +30,7 @@ check "" "v1.2.3" $'docs only\nfixed: lowercase\n'
 check "" "v1.2.3" ''
 
 # The last release is never a beta tag: refuse one instead of counting from it.
-if printf 'Fixed: a\n' | release/next-version.sh v0.2.0-beta.1 >/dev/null 2>&1; then
+if printf 'Added: a\n' | release/next-version.sh v0.2.0-beta.1 >/dev/null 2>&1; then
   echo "FAIL: last='v0.2.0-beta.1' was accepted"
   failed=1
 fi
