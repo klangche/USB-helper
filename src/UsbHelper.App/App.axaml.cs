@@ -30,8 +30,8 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    // Startup: load and validate the database, enumerate once, then follow changes.
-    // The only place that picks the operating system's detection.
+    // Startup: load and validate the database, show the window, enumerate once in the background, then follow
+    // changes. The only place that picks the operating system's detection.
     private static MainViewModel Start(IClassicDesktopStyleApplicationLifetime desktop)
     {
         HardwareDatabase? database = null;
@@ -47,20 +47,29 @@ public partial class App : Application
 
         if (!OperatingSystem.IsWindows())
         {
-            return new MainViewModel(database, errors, new ComputerIdentity(null, null)) { Notice = Strings.DetectionUnavailable };
+            return new MainViewModel(database, errors, new ComputerIdentity(null, null)) { Notice = Strings.DetectionUnavailable, IsLoading = false };
         }
 
         var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read(), ReadExternalDisplays);
+        _ = LoadInBackground(viewModel, desktop);
+        return viewModel;
+    }
+
+    // Reading every hub takes a while, so it runs off the UI thread; the window shows "Reading USB devices" meanwhile.
+    [SupportedOSPlatform("windows")]
+    private static async Task LoadInBackground(MainViewModel viewModel, IClassicDesktopStyleApplicationLifetime desktop)
+    {
         var detector = new WindowsUsbDetector();
         IReadOnlyList<UsbNode> tree;
         try
         {
-            tree = detector.Enumerate();
+            tree = await Task.Run(detector.Enumerate);
         }
         catch (Win32Exception e)
         {
+            viewModel.IsLoading = false;
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.DetectionFailed, e.Message);
-            return viewModel;
+            return;
         }
         viewModel.Load(tree);
         try
@@ -73,7 +82,6 @@ public partial class App : Application
             // The tree stays visible; it just does not follow changes.
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.LiveUpdatesOff, e.Message);
         }
-        return viewModel;
     }
 
     // Unknown rather than a guess when Windows cannot report the display configuration.

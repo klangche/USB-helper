@@ -42,6 +42,20 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void ShowsLoadingUntilTheTreeArrives()
+    {
+        var viewModel = NewViewModel();
+
+        Assert.True(viewModel.IsLoading);
+        Assert.Empty(viewModel.Roots);
+
+        viewModel.Load(Desk);
+
+        Assert.False(viewModel.IsLoading);
+        Assert.NotEmpty(viewModel.Roots);
+    }
+
+    [Fact]
     public void TreeShowsControllersHubsPortsAndDevices()
     {
         var viewModel = NewViewModel();

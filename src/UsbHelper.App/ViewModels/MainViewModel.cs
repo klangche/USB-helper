@@ -29,6 +29,7 @@ public sealed class MainViewModel : ObservableObject
     private ProfileOption selectedProfile;
     private NodeViewModel? selectedNode;
     private string? notice;
+    private bool isLoading = true;
     private DiagnosticReport report;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
@@ -91,6 +92,13 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasDatabaseErrors => DatabaseErrors.Count > 0;
 
+    /// <summary>True until the first USB tree arrives; the window is shown before detection has run.</summary>
+    public bool IsLoading
+    {
+        get => isLoading;
+        set => SetField(ref isLoading, value);
+    }
+
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>
     public string? Notice
     {
@@ -129,6 +137,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Load(IReadOnlyList<UsbNode> detected)
     {
+        IsLoading = false;
         tree = detected;
         history.Record(tree);
         Refresh();
