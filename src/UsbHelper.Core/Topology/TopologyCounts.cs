@@ -16,18 +16,21 @@ public sealed record ConnectionDepth(int Tier, int Hops);
 /// operating system says nothing about is counted (<see cref="PossiblyBuiltIn"/>).
 /// A hub that could not be read (it has a <see cref="UsbNode.Problem"/> and no ports) counts as one hub with
 /// nothing below it, so the counts are then minimums; the diagnostics must report that case as unknown.
+/// Active cables and extenders the operating system does not show are marked by the user per port (#45): a mark of
+/// N extra hops adds N hops and N tiers to everything behind that port. It does not change the hub count.
 /// </summary>
 public static class TopologyCounts
 {
     /// <summary>Number of external hubs connected to the computer. Root hubs and built-in hubs are not counted.</summary>
-    public static int HubCount(IReadOnlyList<UsbNode> tree) => Counted(tree).Count(entry => entry.Node.Kind == UsbNodeKind.Hub);
+    public static int HubCount(IReadOnlyList<UsbNode> tree) => Counted(tree, new Dictionary<string, int>()).Count(entry => entry.Node.Kind == UsbNodeKind.Hub);
 
     /// <summary>
     /// Tier and hop depth of every connected hub and device, by id. Root hubs, built-in hubs and controllers are not
     /// included.
     /// </summary>
-    public static IReadOnlyDictionary<string, ConnectionDepth> Depths(IReadOnlyList<UsbNode> tree) =>
-        Counted(tree).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
+    /// <param name="extraHops">Extra hops per port id, for active cables and extenders the operating system does not show.</param>
+    public static IReadOnlyDictionary<string, ConnectionDepth> Depths(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops = null) =>
+        Counted(tree, extraHops ?? new Dictionary<string, int>()).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
 
     /// <summary>Every element of <paramref name="tree"/> for which <see cref="CannotBeRead"/> is true.</summary>
     public static IEnumerable<UsbNode> Unreadable(IReadOnlyList<UsbNode> tree) =>
@@ -50,29 +53,30 @@ public static class TopologyCounts
     public static IEnumerable<UsbNode> PossiblyBuiltIn(IReadOnlyList<UsbNode> tree) =>
         tree.SelectMany(controller => controller.Children).SelectMany(PossiblyBuiltInBelow);
 
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree) =>
-        tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, builtIn: true));
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops) =>
+        tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, builtIn: true, extraHops));
 
-    // hubsAbove counts the hub itself and every counted hub above it, root hub included. builtIn: the hub is the root
-    // hub or built into the computer, so its ports may be the computer's own.
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Below(UsbNode hub, int hubsAbove, bool builtIn)
+    // hubsAbove counts the hub itself, every counted hub above it, root hub included, and every marked extra hop above
+    // it. builtIn: the hub is the root hub or built into the computer, so its ports may be the computer's own.
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Below(UsbNode hub, int hubsAbove, bool builtIn, IReadOnlyDictionary<string, int> extraHops)
     {
         foreach (var port in hub.Children)
         {
+            var above = hubsAbove + extraHops.GetValueOrDefault(port.Id);
             foreach (var connected in port.Children)
             {
                 if (connected.Kind == UsbNodeKind.Hub && builtIn && port.UserConnectable == false)
                 {
-                    foreach (var entry in Below(connected, hubsAbove, builtIn: true))
+                    foreach (var entry in Below(connected, above, builtIn: true, extraHops))
                     {
                         yield return entry;
                     }
                     continue;
                 }
-                yield return (connected, new ConnectionDepth(Tier: hubsAbove + 1, Hops: hubsAbove - 1));
+                yield return (connected, new ConnectionDepth(Tier: above + 1, Hops: above - 1));
                 if (connected.Kind == UsbNodeKind.Hub)
                 {
-                    foreach (var entry in Below(connected, hubsAbove + 1, builtIn: false))
+                    foreach (var entry in Below(connected, above + 1, builtIn: false, extraHops))
                     {
                         yield return entry;
                     }
