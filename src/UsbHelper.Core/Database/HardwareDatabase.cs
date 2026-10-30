@@ -49,7 +49,7 @@ public sealed class HardwareDatabase
                 continue;
             }
             var root = ProfileMerger.Merge(defaults, profile.Body);
-            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(root) };
+            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(profile.Body) };
             platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], root, statuses));
         }
 
@@ -66,7 +66,7 @@ public sealed class HardwareDatabase
             }
             var root = ProfileMerger.Merge(parent.Root, profile.Body);
             var statuses = parent.Files.ToDictionary(file => file, parent.StatusOf);
-            statuses[profile.Body.File] = Status(root);
+            statuses[profile.Body.File] = Status(profile.Body);
             computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], root, statuses));
         }
 
@@ -77,6 +77,7 @@ public sealed class HardwareDatabase
         return new HardwareDatabase(platforms, computers);
     }
 
+    // The status a file writes itself; null (unverified) when it writes none, whatever it inherits.
     private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
 
     private static ProfileValue ReadBase(string folder, List<DatabaseError> errors)

@@ -88,6 +88,15 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void ComputerWithoutStatusDoesNotTakeThePlatformsStatusForItsOwnLimits()
+    {
+        var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("limits:\n  max_hubs: 4"));
+
+        Assert.False(report.Hubs.Verified);
+        Assert.True(report.Hops.Verified);
+    }
+
+    [Fact]
     public void NullInTheComputerHidesThePlatformsHopLimits()
     {
         var report = Evaluate(Desk, ComputerOfPlatformWithHopLimits("limits:\n  max_hops: null\n  recommended_hops: null"));

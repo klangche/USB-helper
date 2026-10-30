@@ -19,8 +19,8 @@ public sealed class ResolvedProfile(string id, IReadOnlyList<string> files, Prof
     public ProfileValue? Find(string path) => Root.Find(path);
 
     /// <summary>
-    /// The verification status of <paramref name="file"/> itself (what it sets or inherits), not of this profile:
-    /// a value inherited from a platform keeps the platform's status. Null when the file is not in the chain or has none.
+    /// The verification status that <paramref name="file"/> itself writes, not this profile's: a value inherited
+    /// from a platform keeps the platform's status. Null when the file is not in the chain or writes none.
     /// </summary>
     public string? StatusOf(string file) => statuses.GetValueOrDefault(file);
 }
