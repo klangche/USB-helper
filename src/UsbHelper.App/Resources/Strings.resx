@@ -136,6 +136,12 @@
   <data name="NodeProblem" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
+  <data name="ControllerCounts" xml:space="preserve">
+    <value>Hubs: {0}, deepest tier: {1}, deepest hop: {2}</value>
+  </data>
+  <data name="ControllerCountsAtLeast" xml:space="preserve">
+    <value>Hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} (a hub or port could not be read)</value>
+  </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>
   </data>

@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Globalization;
+using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -55,18 +57,131 @@ public class MainViewModelTests
         Assert.NotEmpty(viewModel.Roots);
     }
 
+    // The tree as text: the guide and elbow columns the view draws, then the id.
+    private static IEnumerable<string> Drawn(MainViewModel viewModel) =>
+        All(viewModel.Roots).Select(item => (item.HasLine
+            ? string.Concat(item.Guides.Select(trunk => trunk ? "| " : "  ")) + (item.IsLast ? "`-" : "|-")
+            : "") + item.Id);
+
     [Fact]
-    public void TreeShowsControllersHubsPortsAndDevices()
+    public void TreeShowsControllersHubsOccupiedPortsAndDevices()
     {
         var viewModel = NewViewModel();
 
         viewModel.Load(Desk);
 
-        Assert.Equal(["C1", "ROOT", "ROOT|port1", "HUB", "HUB|port1", "KEYBOARD", "HUB|port2", "ROOT|port2", "MOUSE"],
-            All(viewModel.Roots).Select(item => item.Id));
+        Assert.Equal(["C1", "ROOT", "ROOT|port1", "HUB", "HUB|port1", "KEYBOARD", "ROOT|port2", "MOUSE"],
+            All(viewModel.Roots).Select(item => item.Id)); // HUB|port2 is empty.
         Assert.Null(Item(viewModel, "ROOT").Status); // Root hubs and ports have no line of their own.
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status); // No profile: limits unknown.
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Grey), Item(viewModel, "KEYBOARD").LineColor);
+    }
+
+    [Fact]
+    public void TreeLinesShowTrunksAndLastChildren()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk);
+
+        Assert.Equal(
+            [
+                "C1",
+                "`-ROOT",
+                "  |-ROOT|port1",
+                "  | `-HUB",
+                "  |   `-HUB|port1",
+                "  |     `-KEYBOARD",
+                "  `-ROOT|port2",
+                "    `-MOUSE",
+            ],
+            Drawn(viewModel));
+    }
+
+    [Fact]
+    public void TreeLinesFollowANewSibling()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, Device("STICK")))]);
+
+        Assert.Equal(
+            [
+                "C1",
+                "`-ROOT",
+                "  |-ROOT|port1",
+                "  | `-HUB",
+                "  |   |-HUB|port1",
+                "  |   | `-KEYBOARD",
+                "  |   `-HUB|port2",
+                "  |     `-STICK",
+                "  `-ROOT|port2",
+                "    `-MOUSE",
+            ],
+            Drawn(viewModel));
+    }
+
+    [Fact]
+    public void PortWithAProblemOrADisconnectedDeviceIsShown()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.Apply(
+            [
+                new UsbChange(UsbChangeKind.Changed, "HUB", Port("HUB", 2, null) with { Problem = "Could not read the port." }),
+                new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null)),
+            ]);
+
+        Assert.NotNull(Find(viewModel.Roots, "HUB|port2"));
+        Assert.NotNull(Find(viewModel.Roots, "ROOT|port2"));
+    }
+
+    [Fact]
+    public void HubsAndDevicesShowTheirResultWordInTheirColour()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk);
+
+        var keyboard = Item(viewModel, "KEYBOARD");
+        Assert.Equal(Strings.WordUnknown, keyboard.StatusWord);
+        Assert.Equal(keyboard.LineColor, keyboard.ElbowColor);
+        Assert.True(keyboard.HasStatus);
+        var port = Item(viewModel, "ROOT|port1");
+        Assert.Null(port.StatusWord);
+        Assert.Equal(StatusColors.Trunk, port.ElbowColor);
+        Assert.False(port.HasStatus);
+    }
+
+    [Fact]
+    public void EachControllerShowsItsHubCountAndDeepestTierAndHop()
+    {
+        var viewModel = NewViewModel();
+        IReadOnlyList<UsbNode> tree =
+        [
+            .. Desk,
+            new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", Device("CAMERA"))]),
+        ];
+
+        viewModel.Load(tree);
+
+        // C1: HUB is tier 2, hop 0; KEYBOARD behind it is tier 3, hop 1.
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C2").Counts);
+        Assert.Null(Item(viewModel, "ROOT").Counts);
+    }
+
+    [Fact]
+    public void ControllerCountsAreMinimumsWhenAHubCannotBeRead()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsAtLeast, 1, 2, 0), Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -86,7 +201,8 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, Device("STICK")))]);
 
-        Assert.Equal(["HUB|port2"], notified);
+        // The new port, and the lines of the sibling branch it now continues past.
+        Assert.Equal(["HUB", "HUB|port1", "KEYBOARD"], notified.Order());
         Assert.All(before, entry => Assert.Same(entry.Value, Item(viewModel, entry.Key)));
         Assert.False(Item(viewModel, "HUB").IsExpanded);
         Assert.Same(before["MOUSE"], viewModel.SelectedNode);

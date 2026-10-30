@@ -8,8 +8,11 @@ Status: first version for Windows; computer profiles still to be added.
 
 ## Features
 
-- Live USB tree: controllers, hubs, ports and devices, updated on connect and
-  disconnect without rebuilding the whole tree.
+- Live USB tree with drawn tree lines: controllers, hubs, occupied ports and
+  devices, every branch open, updated on connect and disconnect without
+  rebuilding the whole tree. Hubs and devices show the product name they
+  report, falling back to the Windows name.
+- Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, each checked against the computer
   model's own limits.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
@@ -213,8 +216,11 @@ administrator rights and no network connection are needed.
 
 ## Usage
 
-Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
-hub and device, and a summary with the overall result, the status field,
+Start `USB-helper.exe`. The window shows the USB tree: thin grey lines join
+the items, and the line to each hub and device is drawn in its status colour,
+with the result word after its name. Empty ports are left out. Each
+controller shows its hub count, deepest tier and deepest hop. Next to the tree
+is a summary with the overall result, the status field,
 disconnected devices and all findings. Nothing is checked at start, so every
 line is grey (unknown). In the top bar, check the systems to judge the setup
 by in the two drop-down lists, "Operating systems" (generic platform profiles

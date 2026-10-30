@@ -9,6 +9,9 @@ public static class StatusColors
     /// <summary>For tree items that have no connection line of their own (controllers, root hubs, ports).</summary>
     public const string None = "#00000000";
 
+    /// <summary>The thin tree lines between items, and the elbow to each port.</summary>
+    public const string Trunk = "#BDBDBD";
+
     public static string Hex(ConnectionStatus status) => status switch
     {
         ConnectionStatus.Green => "#2E7D32",
