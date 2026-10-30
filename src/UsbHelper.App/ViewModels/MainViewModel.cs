@@ -8,10 +8,28 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.ViewModels;
 
-/// <param name="Profile">A computer or platform profile, or null for "no profile".</param>
-public sealed record ProfileOption(string Label, ResolvedProfile? Profile);
+/// <summary>A platform or computer profile in one of the checkbox lists. Unchecked at start.</summary>
+public sealed class ProfileOption(string label, ResolvedProfile profile) : ObservableObject
+{
+    private bool isChecked;
 
-/// <param name="Header">Kind (detected, database, risk, unknown) and subject.</param>
+    public string Label { get; } = label;
+
+    public ResolvedProfile Profile { get; } = profile;
+
+    public bool IsChecked
+    {
+        get => isChecked;
+        set => SetField(ref isChecked, value);
+    }
+}
+
+/// <summary>One checked profile in the status field.</summary>
+/// <param name="Word">Its result: stable, potentially unstable, unstable or unknown.</param>
+/// <param name="Details">Its hub, tier, hop and display checks.</param>
+public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
+
+/// <param name="Header">Profile (when only some checked profiles report it), kind (detected, database, risk, unknown) and subject.</param>
 public sealed record FindingItem(string Header, string Message);
 
 public sealed record DisconnectedItem(string Text, RelayCommand Clear);
@@ -26,11 +44,10 @@ public sealed class MainViewModel : ObservableObject
     private readonly Func<int?> readExternalDisplays;
     private readonly ComputerIdentity identity;
     private IReadOnlyList<UsbNode> tree = [];
-    private ProfileOption selectedProfile;
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
-    private DiagnosticReport report;
+    private SystemsReport report;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
     public MainViewModel(
@@ -39,39 +56,33 @@ public sealed class MainViewModel : ObservableObject
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
         this.identity = identity;
         DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
-        var none = new ProfileOption(Strings.NoProfile, null);
-        Profiles =
-        [
-            none,
-            .. (database?.Computers.Values ?? [])
-                .Select(profile => new ProfileOption($"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar} ({profile.Id})", profile))
-                .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase),
-            // Generic platform limits, for computers without a profile of their own.
-            .. (database?.Platforms.Values ?? [])
-                .Select(profile => new ProfileOption(string.Format(CultureInfo.CurrentCulture, Strings.PlatformProfile, profile.Id), profile))
-                .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase),
-        ];
-        var match = database == null ? null : ProfileMatcher.Match(database, identity);
-        selectedProfile = Profiles.FirstOrDefault(option => option.Profile != null && option.Profile == match) ?? none;
+        // Nothing is checked automatically, not even an exact match: the user checks every system to judge by.
+        OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)));
+        Computers = Options((database?.Computers.Values ?? []).Select(profile =>
+            new ProfileOption($"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar} ({profile.Id})", profile)));
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
-        report = DiagnosticEvaluator.Evaluate(tree, selectedProfile.Profile, []);
+        report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
     }
 
-    public IReadOnlyList<ProfileOption> Profiles { get; }
+    /// <summary>Platform profiles: generic limits, for computers without a profile of their own.</summary>
+    public IReadOnlyList<ProfileOption> OperatingSystems { get; }
 
-    /// <summary>Picked automatically only on an exact manufacturer and model match; otherwise the user picks.</summary>
-    public ProfileOption SelectedProfile
+    public IReadOnlyList<ProfileOption> Computers { get; }
+
+    private IReadOnlyList<ProfileOption> Options(IEnumerable<ProfileOption> options)
     {
-        get => selectedProfile;
-        set
+        var sorted = options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase).ToList();
+        foreach (var option in sorted)
         {
-            if (SetField(ref selectedProfile, value))
-            {
-                Refresh();
-            }
+            option.PropertyChanged += (_, _) => Refresh();
         }
+        return sorted;
     }
+
+    private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
+
+    public bool NothingChecked => StatusRows.Count == 0;
 
     public string DetectedComputer { get; }
 
@@ -124,18 +135,8 @@ public sealed class MainViewModel : ObservableObject
 
     public string OverallColor => StatusColors.Hex(report.Overall);
 
-    public string HubsText => LimitText(Strings.LimitHubs, report.Hubs);
-
-    public string TiersText => LimitText(Strings.LimitTiers, report.Tiers);
-
-    public string HopsText => LimitText(Strings.LimitHops, report.Hops);
-
-    public string DisplaysText =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
-            report.Displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            report.Displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(report.Displays.State),
-            report.Displays.Verified ? Strings.Verified : Strings.Unverified);
+    /// <summary>One row per checked profile: operating systems first, then computers.</summary>
+    public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
 
@@ -158,21 +159,24 @@ public sealed class MainViewModel : ObservableObject
 
     private void Refresh()
     {
-        report = DiagnosticEvaluator.Evaluate(tree, SelectedProfile.Profile, history.Missing(tree), readExternalDisplays());
+        var options = Checked;
+        report = DiagnosticEvaluator.EvaluateAll(tree, [.. options.Select(option => option.Profile)], history.Missing(tree), readExternalDisplays());
+        // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
+        var lines = report.Counts with { Connections = report.Connections };
 
         for (var i = 0; i < tree.Count; i++)
         {
             var existing = Roots.FirstOrDefault(item => item.Id == tree[i].Id);
             if (existing == null)
             {
-                Roots.Insert(i, NodeViewModel.Create(tree[i], report));
+                Roots.Insert(i, NodeViewModel.Create(tree[i], lines));
                 continue;
             }
             if (Roots.IndexOf(existing) != i)
             {
                 Roots.Move(Roots.IndexOf(existing), i);
             }
-            existing.Update(tree[i], report);
+            existing.Update(tree[i], lines);
         }
         while (Roots.Count > tree.Count)
         {
@@ -181,13 +185,23 @@ public sealed class MainViewModel : ObservableObject
 
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
-        OnPropertyChanged(nameof(HubsText));
-        OnPropertyChanged(nameof(TiersText));
-        OnPropertyChanged(nameof(HopsText));
-        OnPropertyChanged(nameof(DisplaysText));
+
+        StatusRows.Clear();
+        for (var i = 0; i < options.Count; i++)
+        {
+            var result = report.Profiles[i].Report;
+            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall),
+                [
+                    LimitText(Strings.LimitHubs, result.Hubs),
+                    LimitText(Strings.LimitTiers, result.Tiers),
+                    LimitText(Strings.LimitHops, result.Hops),
+                    DisplaysText(result.Displays),
+                ]));
+        }
+        OnPropertyChanged(nameof(NothingChecked));
 
         Disconnected.Clear();
-        foreach (var missing in report.Missing)
+        foreach (var missing in report.Counts.Missing)
         {
             var id = missing.Node.Id;
             Disconnected.Add(new DisconnectedItem(
@@ -199,13 +213,44 @@ public sealed class MainViewModel : ObservableObject
                 })));
         }
         Findings.Clear();
-        foreach (var finding in report.Findings)
+        if (options.Count == 0)
         {
-            Findings.Add(new FindingItem(
-                string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName),
-                finding.Message));
+            foreach (var finding in report.Counts.Findings)
+            {
+                Findings.Add(new FindingItem(FindingHeader(finding), finding.Message));
+            }
+            return;
+        }
+        // A finding every checked profile reports (an operating system error, for example) is listed once; the others
+        // name their profile.
+        var shared = report.Profiles
+            .Select(result => (IEnumerable<Finding>)result.Report.Findings)
+            .Aggregate((all, findings) => all.Intersect(findings))
+            .ToHashSet();
+        foreach (var finding in shared)
+        {
+            Findings.Add(new FindingItem(FindingHeader(finding), finding.Message));
+        }
+        for (var i = 0; i < options.Count; i++)
+        {
+            foreach (var finding in report.Profiles[i].Report.Findings.Where(finding => !shared.Contains(finding)))
+            {
+                Findings.Add(new FindingItem(
+                    string.Format(CultureInfo.CurrentCulture, Strings.FindingHeaderForProfile, options[i].Label, KindText(finding.Kind), finding.SubjectName),
+                    finding.Message));
+            }
         }
     }
+
+    private static string FindingHeader(Finding finding) =>
+        string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
+
+    private static string DisplaysText(DisplayCheck displays) =>
+        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
+            displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
+            displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
+            StateText(displays.State),
+            displays.Verified ? Strings.Verified : Strings.Unverified);
 
     private static string LimitText(string label, LimitCheck limit) =>
         string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,

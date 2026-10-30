@@ -214,12 +214,17 @@ administrator rights and no network connection are needed.
 ## Usage
 
 Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
-hub and device, and a summary with the overall result, the hub, tier, hop and
-display checks, disconnected devices and all findings. The computer profile is
-selected automatically when one matches this computer exactly; otherwise pick
-one in the top bar, either a computer or a generic platform ("Platform:
-windows-intel", for example). Plug and unplug devices: only the affected part
-of the tree changes.
+hub and device, and a summary with the overall result, the status field,
+disconnected devices and all findings. Nothing is checked at start, so every
+line is grey (unknown). In the top bar, check the systems to judge the setup
+by in the two drop-down lists, "Operating systems" (generic platform profiles
+such as `windows-intel`) and "Computers" (computer profiles); any mix can be
+checked. Each line then shows the worst result over the checked profiles. The
+status field has one row per checked profile with its result (stable,
+potentially unstable, unstable or unknown, in its colour) and its hub, tier,
+hop and display checks. A finding that only some checked profiles report names
+its profile. Plug and unplug devices: only the affected part of the tree
+changes.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the

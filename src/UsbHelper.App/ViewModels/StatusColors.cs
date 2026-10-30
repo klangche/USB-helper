@@ -19,6 +19,18 @@ public static class StatusColors
         _ => throw new ArgumentOutOfRangeException(nameof(status)),
     };
 
+    /// <summary>The result word in the status field.</summary>
+    public static string Word(ConnectionStatus status) => status switch
+    {
+        ConnectionStatus.Green => Strings.WordStable,
+        ConnectionStatus.Grey => Strings.WordUnknown,
+        ConnectionStatus.Orange => Strings.WordPotentiallyUnstable,
+        ConnectionStatus.Purple => Strings.WordUnstable,
+        ConnectionStatus.Red => Strings.WordDisconnected,
+        _ => throw new ArgumentOutOfRangeException(nameof(status)),
+    };
+
+    /// <summary>The explanation shown as a tool tip.</summary>
     public static string Text(ConnectionStatus status) => status switch
     {
         ConnectionStatus.Green => Strings.StatusGreen,
