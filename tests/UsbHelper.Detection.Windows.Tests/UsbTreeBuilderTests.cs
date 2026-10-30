@@ -55,6 +55,14 @@ public class UsbTreeBuilderTests
     }
 
     [Fact]
+    public void PortKeepsWhetherItIsUserConnectable()
+    {
+        var ports = BuildSingle(EmptyPort(1) with { UserConnectable = true }, EmptyPort(2) with { UserConnectable = false }, EmptyPort(3)).Children[0].Children;
+
+        Assert.Equal([true, false, null], ports.Select(port => port.UserConnectable));
+    }
+
+    [Fact]
     public void ExternalHubBecomesHubNodeWithItsPorts()
     {
         var hubNode = new RawDevNode(@"USB\VID_05E3&PID_0610\6&1&0&2", "Generic USB Hub", null);

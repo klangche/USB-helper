@@ -14,4 +14,8 @@ internal static class TestTree
 
     public static UsbNode Port(string hubId, int number, UsbNode? child) =>
         new($"{hubId}|port{number}", UsbNodeKind.Port, $"Port {number}", child == null ? [] : [child]) { PortNumber = number };
+
+    /// <summary>The hub with its ports marked user-connectable or not, in port order; null leaves a port unknown.</summary>
+    public static UsbNode Connectable(this UsbNode hub, params bool?[] userConnectable) =>
+        hub with { Children = hub.Children.Select((port, index) => port with { UserConnectable = userConnectable[index] }).ToList() };
 }
