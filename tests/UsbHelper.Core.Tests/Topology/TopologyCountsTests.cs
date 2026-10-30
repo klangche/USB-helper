@@ -144,6 +144,21 @@ public class TopologyCountsTests
         Assert.Equal(1, TopologyCounts.HubCount(tree));
         Assert.Equal(["HUB"], TopologyCounts.Depths(tree).Keys);
         Assert.Equal(new ConnectionDepth(2, 0), TopologyCounts.Depths(tree)["HUB"]);
+        Assert.Equal(["HUB"], TopologyCounts.Unreadable(tree).Select(node => node.Id));
+    }
+
+    [Fact]
+    public void ControllerWithoutRootHubAndFailedEmptyPortAreUnreadable()
+    {
+        var failedPort = Port("ROOT", 2, null) with { Problem = "Could not read the port." };
+        IReadOnlyList<UsbNode> tree =
+        [
+            new UsbNode("C1", UsbNodeKind.Controller, "C1", [new UsbNode("ROOT", UsbNodeKind.Hub, "ROOT", [Port("ROOT", 1, Device("MOUSE")), failedPort])]),
+            new UsbNode("C2", UsbNodeKind.Controller, "C2", []),
+        ];
+
+        Assert.Equal(["ROOT|port2", "C2"], TopologyCounts.Unreadable(tree).Select(node => node.Id));
+        Assert.Empty(TopologyCounts.Unreadable(Machine(Device("MOUSE"), null)));
     }
 
     [Fact]

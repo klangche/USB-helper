@@ -19,6 +19,10 @@ internal static class NativeMethods
     public const uint SPDRP_DRIVER = 0x9;
     public const uint SPDRP_FRIENDLYNAME = 0xC;
 
+    // DEVPKEY_Device_BusReportedDeviceDesc from devpkey.h: the product string the device reports.
+    public static readonly DEVPROPKEY DevpkeyDeviceBusReportedDeviceDesc = new(new Guid("540b947e-8b40-45bc-a8a2-6a0b894cbda2"), 4);
+    public const uint DEVPROP_TYPE_STRING = 0x12;
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 
@@ -55,6 +59,13 @@ internal static class NativeMethods
         public Guid ClassGuid;
         public uint DevInst;
         public IntPtr Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly struct DEVPROPKEY(Guid fmtid, uint pid)
+    {
+        public readonly Guid Fmtid = fmtid;
+        public readonly uint Pid = pid;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -97,6 +108,12 @@ internal static class NativeMethods
     public static extern bool SetupDiGetDeviceRegistryProperty(
         IntPtr deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData, uint property, out uint propertyRegDataType,
         byte[] propertyBuffer, uint propertyBufferSize, out uint requiredSize);
+
+    [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDevicePropertyW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetupDiGetDeviceProperty(
+        IntPtr deviceInfoSet, ref SP_DEVINFO_DATA deviceInfoData, in DEVPROPKEY propertyKey, out uint propertyType,
+        byte[] propertyBuffer, uint propertyBufferSize, out uint requiredSize, uint flags);
 
     [DllImport("setupapi.dll", EntryPoint = "SetupDiGetDeviceInstanceIdW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

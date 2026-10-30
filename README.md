@@ -8,8 +8,11 @@ Status: first version for Windows; computer profiles still to be added.
 
 ## Features
 
-- Live USB tree: controllers, hubs, ports and devices, updated on connect and
-  disconnect without rebuilding the whole tree.
+- Live USB tree with drawn tree lines: controllers, hubs, occupied ports and
+  devices, every branch open, updated on connect and disconnect without
+  rebuilding the whole tree. Hubs and devices show the product name they
+  report, falling back to the Windows name.
+- Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
@@ -225,20 +228,22 @@ administrator rights and no network connection are needed.
 
 ## Usage
 
-Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
-hub and device, and a summary with the overall result, the status field,
-disconnected and reconnected devices and all findings. Nothing is checked at
-start, so every line is grey (unknown). In the top bar, check the systems to
-judge the setup by in the two drop-down lists, "Operating systems" (generic
-platform profiles such as `windows-intel`) and "Computers" (computer
-profiles); any mix can be checked. Each line then shows the worst result over
-the checked profiles. The status field has one row per checked profile with
-its result (stable, potentially unstable, unstable or unknown, in its colour)
-and its hub, tier, hop and display checks. A finding that only some checked
-profiles report names its profile. Plug and unplug devices: only the affected
-part of the tree changes. A device that is unplugged stays red at its last
-port; one that comes back is purple (unstable). Click "Clear" next to it to
-reset it.
+Start `USB-helper.exe`. The window shows the USB tree: thin grey lines join
+the items, and the line to each hub and device is drawn in its status colour,
+with the result word after its name. Empty ports are left out. Each
+controller shows its hub count, deepest tier and deepest hop. Next to the tree
+is a summary with the overall result, the status field, disconnected and
+reconnected devices and all findings. Nothing is checked at start, so every
+line is grey (unknown). In the top bar, check the systems to judge the setup
+by in the two drop-down lists, "Operating systems" (generic platform profiles
+such as `windows-intel`) and "Computers" (computer profiles); any mix can be
+checked. Each line then shows the worst result over the checked profiles. The
+status field has one row per checked profile with its result (stable,
+potentially unstable, unstable or unknown, in its colour) and its hub, tier,
+hop and display checks. A finding that only some checked profiles report names
+its profile. Plug and unplug devices: only the affected part of the tree
+changes. A device that is unplugged stays red at its last port; one that comes
+back is purple (unstable). Click "Clear" next to it to reset it.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the

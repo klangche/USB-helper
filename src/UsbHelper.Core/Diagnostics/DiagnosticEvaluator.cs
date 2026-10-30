@@ -52,10 +52,7 @@ public static class DiagnosticEvaluator
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer, "No computer profile is selected, so no limits are known."));
         }
 
-        // A hub without ports, a controller without a root hub, or a port with an error and nothing on it could not
-        // be read: what is behind it is unknown, so the counts are then minimums. A working hub always has at least
-        // one port, and a port with a connection error still shows the device that caused it.
-        var unreadable = AllNodes(tree).Where(CannotBeRead).ToList();
+        var unreadable = TopologyCounts.Unreadable(tree).ToList();
         foreach (var node in unreadable)
         {
             findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name,
@@ -184,11 +181,6 @@ public static class DiagnosticEvaluator
             .Max();
         return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings);
     }
-
-    /// <summary>True when what is behind <paramref name="node"/> could not be read (see <see cref="Evaluate"/>).</summary>
-    internal static bool CannotBeRead(UsbNode node) =>
-        node.Children.Count == 0
-        && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null));
 
     private static LimitCheck Check(ResolvedProfile? profile, string field, int actual, bool incomplete)
     {

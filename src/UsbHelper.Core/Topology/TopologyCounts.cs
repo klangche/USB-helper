@@ -29,6 +29,20 @@ public static class TopologyCounts
     public static IReadOnlyDictionary<string, ConnectionDepth> Depths(IReadOnlyList<UsbNode> tree) =>
         Counted(tree).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
 
+    /// <summary>Every element of <paramref name="tree"/> for which <see cref="CannotBeRead"/> is true.</summary>
+    public static IEnumerable<UsbNode> Unreadable(IReadOnlyList<UsbNode> tree) =>
+        tree.SelectMany(node => Unreadable(node.Children).Prepend(node)).Where(CannotBeRead);
+
+    /// <summary>
+    /// True when what is behind <paramref name="node"/> could not be read: a hub without ports, a controller without a
+    /// root hub, or a port with an error and nothing on it. What is behind it is unknown, so the counts are then
+    /// minimums. A working hub always has at least one port, and a port with a connection error still shows the device
+    /// that caused it.
+    /// </summary>
+    public static bool CannotBeRead(UsbNode node) =>
+        node.Children.Count == 0
+        && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null));
+
     /// <summary>
     /// Hubs counted as external although the operating system does not say whether their port is built into the
     /// computer: hubs on a port of a root hub or built-in hub whose <see cref="UsbNode.UserConnectable"/> is null.

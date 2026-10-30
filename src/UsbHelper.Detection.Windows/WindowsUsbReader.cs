@@ -241,7 +241,8 @@ internal static class WindowsUsbReader
             throw new Win32Exception();
         }
         var instanceId = Decode(buffer, 0).ToUpperInvariant(); // Instance ids are case-insensitive; keep one form.
-        var name = StringProperty(set, ref info, SPDRP_FRIENDLYNAME) ?? StringProperty(set, ref info, SPDRP_DEVICEDESC) ?? instanceId;
+        var name = DeviceName.Choose(BusReportedName(set, ref info),
+            StringProperty(set, ref info, SPDRP_FRIENDLYNAME), StringProperty(set, ref info, SPDRP_DEVICEDESC), instanceId);
         int? problem = CM_Get_DevNode_Status(out var status, out var problemNumber, info.DevInst, 0) == CR_SUCCESS
             && (status & DN_HAS_PROBLEM) != 0 ? (int)problemNumber : null;
         return new RawDevNode(instanceId, name, problem);
@@ -251,6 +252,15 @@ internal static class WindowsUsbReader
     {
         var buffer = new byte[NameBufferSize];
         return SetupDiGetDeviceRegistryProperty(set, ref info, property, out _, buffer, NameBufferSize, out _)
+            ? Decode(buffer, 0)
+            : null;
+    }
+
+    private static string? BusReportedName(IntPtr set, ref SP_DEVINFO_DATA info)
+    {
+        var buffer = new byte[NameBufferSize];
+        return SetupDiGetDeviceProperty(set, ref info, DevpkeyDeviceBusReportedDeviceDesc, out var type, buffer, NameBufferSize, out _, 0)
+            && type == DEVPROP_TYPE_STRING
             ? Decode(buffer, 0)
             : null;
     }

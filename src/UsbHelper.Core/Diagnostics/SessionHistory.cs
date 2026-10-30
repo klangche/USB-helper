@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.Core.Diagnostics;
 
@@ -43,7 +44,7 @@ public sealed class SessionHistory
                 }
             }
             // Out of sight behind something that cannot be read is not a drop: it may still be connected.
-            else if (!seen[id].AncestorIds.Any(ancestor => UsbTree.Find(tree, ancestor) is { } node && DiagnosticEvaluator.CannotBeRead(node)))
+            else if (!seen[id].AncestorIds.Any(ancestor => UsbTree.Find(tree, ancestor) is { } node && TopologyCounts.CannotBeRead(node)))
             {
                 gone.Add(id);
                 reconnected.Remove(id);
