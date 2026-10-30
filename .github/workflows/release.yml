@@ -20,7 +20,8 @@ on:
 permissions:
   contents: read
 
-# Releases run one at a time per branch, so each one sees the tag of the one before.
+# Releases run one at a time per branch, so each one sees the tags of the earlier runs on its branch.
+# A dev run that overlaps a main release does not see that release's tag yet; the next dev run does.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
