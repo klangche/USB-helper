@@ -59,6 +59,8 @@
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+              <!-- Every branch open; arrow keys only move into items the tree view counts as expanded. -->
+              <Setter Property="IsExpanded" Value="True" />
               <Setter Property="MinHeight" Value="0" />
               <!-- A border would add height to the row and break the lines between rows. -->
               <Setter Property="BorderThickness" Value="0" />
