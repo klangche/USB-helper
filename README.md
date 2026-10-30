@@ -168,6 +168,10 @@ the computer and does not count. A device in the laptop's own port has 0 hops.
 If Windows does not say for a port (older versions, some drivers), a hub on it
 is counted as before, as an external hub, and a finding says so.
 
+Hop and tier limits in the database (platform and computer profiles) are
+counted the same way, from the computer's own port. A computer with built-in
+hubs or other quirks sets its own `max_hops` in its computer profile.
+
 Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: laptop port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
