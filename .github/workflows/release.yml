@@ -1,8 +1,8 @@
 name: Release
 
-# Every push to main (a merged pull request) makes a release when the pull request titles since
-# the last tag ask for one (release/next-version.sh picks the version): it builds the portable
-# Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
+# Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
+# pull requests merged since the last tag ask for one (release/next-version.sh picks the version):
+# it builds the portable Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
 # Pull requests that change the packaging build the zip as an artifact only.
 on:
   push:
@@ -41,6 +41,8 @@ jobs:
 
       - name: Version
         id: version
+        # bash -eo pipefail: a failed API call inside the pipeline must fail the step.
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
