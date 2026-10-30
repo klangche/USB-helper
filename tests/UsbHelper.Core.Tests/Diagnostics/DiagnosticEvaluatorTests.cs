@@ -405,6 +405,37 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void OnlyARecommendationKnownIsJudged()
+    {
+        var report = Evaluate(Desk, Profile("null", "null", "null", recommendedHops: "0"));
+
+        Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
+    }
+
+    [Fact]
+    public void HubInIncompleteTreeIsJudgedWhenNoHubLimitIsKnown()
+    {
+        var report = Evaluate([Controller("C1", Hub("ROOT", new UsbNode("HUB", UsbNodeKind.Hub, "HUB", [])))], Profile(hubs: "null"));
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections["HUB"]);
+    }
+
+    [Fact]
+    public void SeveralProfilesKeepErrorsAndDisconnections()
+    {
+        var history = new SessionHistory();
+        history.Record(Desk);
+        IReadOnlyList<UsbNode> now = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD", "code 43")), null))];
+
+        var report = DiagnosticEvaluator.EvaluateAll(now, [Profile(), Profile(hops: "0")], [.. history.Missing(now)], externalDisplays: 0);
+
+        Assert.Equal(ConnectionStatus.Red, report.Connections["MOUSE"]);
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Red, report.Overall);
+    }
+
+    [Fact]
     public void NoSelectedProfileIsUnknown()
     {
         var report = DiagnosticEvaluator.EvaluateAll(Desk, [], [], externalDisplays: 0);

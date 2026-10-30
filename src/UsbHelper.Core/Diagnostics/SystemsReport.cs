@@ -10,8 +10,9 @@ public sealed record ProfileResult(ResolvedProfile Profile, DiagnosticReport Rep
 /// <param name="Connections">Each line's worst status over all checked profiles.</param>
 /// <param name="Profiles">Every checked profile with its own result, in the order given.</param>
 /// <param name="Counts">
-/// A report for the counts, disconnected devices and detected facts, which are the same for every profile: the first
-/// profile's report, or the report without a profile when none is checked.
+/// The first profile's report (or the report without a profile when none is checked). Use it only for what is the
+/// same for every profile: the actual counts (<c>Actual</c>), the missing devices and the displays found. Its limits,
+/// verification and findings belong to that one profile; take those from <see cref="Profiles"/>.
 /// </param>
 public sealed record SystemsReport(
     ConnectionStatus Overall,
