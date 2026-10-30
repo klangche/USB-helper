@@ -44,7 +44,7 @@
     <value>unknown</value>
   </data>
   <data name="WordDisconnected" xml:space="preserve">
-    <value>disconnected device</value>
+    <value>disconnected</value>
   </data>
   <data name="ExportProfile" xml:space="preserve">
     <value>Export computer profile</value>
@@ -116,10 +116,13 @@
     <value>not verified</value>
   </data>
   <data name="Disconnected" xml:space="preserve">
-    <value>Disconnected devices</value>
+    <value>Disconnected and reconnected devices</value>
   </data>
   <data name="DisconnectedFrom" xml:space="preserve">
     <value>{0}, last on {1}</value>
+  </data>
+  <data name="ReconnectedOn" xml:space="preserve">
+    <value>{0}, reconnected on {1}</value>
   </data>
   <data name="Clear" xml:space="preserve">
     <value>Clear</value>

@@ -138,6 +138,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>One row per checked profile: operating systems first, then computers.</summary>
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
+    /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
@@ -160,7 +161,9 @@ public sealed class MainViewModel : ObservableObject
     private void Refresh()
     {
         var options = Checked;
-        report = DiagnosticEvaluator.EvaluateAll(tree, [.. options.Select(option => option.Profile)], history.Missing(tree), readExternalDisplays());
+        var reconnected = history.Reconnected(tree);
+        report = DiagnosticEvaluator.EvaluateAll(tree, [.. options.Select(option => option.Profile)], history.Missing(tree), readExternalDisplays(),
+            [.. reconnected.Select(device => device.Node.Id)]);
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
         var lines = report.Counts with { Connections = report.Connections };
 
@@ -203,14 +206,11 @@ public sealed class MainViewModel : ObservableObject
         Disconnected.Clear();
         foreach (var missing in report.Counts.Missing)
         {
-            var id = missing.Node.Id;
-            Disconnected.Add(new DisconnectedItem(
-                string.Format(CultureInfo.CurrentCulture, Strings.DisconnectedFrom, missing.Node.Name, missing.PortName),
-                new RelayCommand(() =>
-                {
-                    history.Clear(id);
-                    Refresh();
-                })));
+            Disconnected.Add(DisconnectedItem(Strings.DisconnectedFrom, missing));
+        }
+        foreach (var device in reconnected)
+        {
+            Disconnected.Add(DisconnectedItem(Strings.ReconnectedOn, device));
         }
         Findings.Clear();
         if (options.Count == 0)
@@ -240,6 +240,18 @@ public sealed class MainViewModel : ObservableObject
                     finding.Message));
             }
         }
+    }
+
+    private DisconnectedItem DisconnectedItem(string format, MissingDevice device)
+    {
+        var id = device.Node.Id;
+        return new DisconnectedItem(
+            string.Format(CultureInfo.CurrentCulture, format, device.Node.Name, device.PortName),
+            new RelayCommand(() =>
+            {
+                history.Clear(id);
+                Refresh();
+            }));
     }
 
     private static string FindingHeader(Finding finding) =>

@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.Core.Diagnostics;
 
@@ -11,22 +12,42 @@ public sealed record MissingDevice(UsbNode Node, string PortId, string PortName,
 
 /// <summary>
 /// Every hub and device seen since the application started (owner decision in #2). A device that is gone
-/// stays missing until it returns or <see cref="Clear"/> is called. Nothing is saved to disk.
+/// stays missing until it returns or <see cref="Clear"/> is called. A device that returns is reconnected (owner
+/// decision in #54) until it leaves again or is cleared. Nothing is saved to disk.
 /// Placeholders for devices the operating system could not identify are not remembered: once identified, the
 /// same device gets its real id.
 /// </summary>
 public sealed class SessionHistory
 {
     private readonly Dictionary<string, MissingDevice> seen = [];
+    private readonly HashSet<string> gone = [];
+    private readonly HashSet<string> reconnected = [];
 
     /// <summary>Remembers everything in <paramref name="tree"/>. Call after enumerating and after each change.</summary>
     public void Record(IReadOnlyList<UsbNode> tree)
     {
+        var present = new HashSet<string>();
         foreach (var controller in tree)
         {
             foreach (var rootHub in controller.Children)
             {
-                RecordBelow(rootHub, [controller.Id, rootHub.Id]);
+                RecordBelow(rootHub, [controller.Id, rootHub.Id], present);
+            }
+        }
+        foreach (var id in seen.Keys)
+        {
+            if (present.Contains(id))
+            {
+                if (gone.Remove(id))
+                {
+                    reconnected.Add(id);
+                }
+            }
+            // Out of sight behind something that cannot be read is not a drop: it may still be connected.
+            else if (!seen[id].AncestorIds.Any(ancestor => UsbTree.Find(tree, ancestor) is { } node && TopologyCounts.CannotBeRead(node)))
+            {
+                gone.Add(id);
+                reconnected.Remove(id);
             }
         }
     }
@@ -35,10 +56,23 @@ public sealed class SessionHistory
     public IReadOnlyList<MissingDevice> Missing(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => UsbTree.Find(tree, device.Node.Id) == null).ToList();
 
-    /// <summary>Forgets a missing device, so it is no longer reported.</summary>
-    public void Clear(string id) => seen.Remove(id);
+    /// <summary>
+    /// Everything in <paramref name="tree"/> that disconnected and came back this session, at the port where it is
+    /// now, however long it was gone. Only drops seen in a recorded tree count: one the detection never reported
+    /// (shorter than its settle time) is not seen here.
+    /// </summary>
+    public IReadOnlyList<MissingDevice> Reconnected(IReadOnlyList<UsbNode> tree) =>
+        seen.Values.Where(device => reconnected.Contains(device.Node.Id) && UsbTree.Find(tree, device.Node.Id) != null).ToList();
 
-    private void RecordBelow(UsbNode hub, IReadOnlyList<string> ancestors)
+    /// <summary>Forgets a missing or reconnected device, so it is no longer reported.</summary>
+    public void Clear(string id)
+    {
+        seen.Remove(id);
+        gone.Remove(id);
+        reconnected.Remove(id);
+    }
+
+    private void RecordBelow(UsbNode hub, IReadOnlyList<string> ancestors, HashSet<string> present)
     {
         foreach (var port in hub.Children)
         {
@@ -47,10 +81,11 @@ public sealed class SessionHistory
                 if (!node.Id.StartsWith(port.Id + "|", StringComparison.Ordinal))
                 {
                     seen[node.Id] = new MissingDevice(node, port.Id, $"{port.Name} of {hub.Name}", [.. ancestors, port.Id]);
+                    present.Add(node.Id);
                 }
                 if (node.Kind == UsbNodeKind.Hub)
                 {
-                    RecordBelow(node, [.. ancestors, port.Id, node.Id]);
+                    RecordBelow(node, [.. ancestors, port.Id, node.Id], present);
                 }
             }
         }

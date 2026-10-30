@@ -256,7 +256,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void DeviceThatReturnsIsNoLongerDisconnected()
+    public void DeviceThatReturnsIsPurpleAndListedUntilCleared()
     {
         var viewModel = NewViewModel();
         viewModel.Load(Desk);
@@ -264,7 +264,16 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Added, "ROOT", Port("ROOT", 2, Device("MOUSE")))]);
 
-        Assert.False(Item(viewModel, "MOUSE").IsDisconnected);
+        var mouse = Item(viewModel, "MOUSE");
+        Assert.False(mouse.IsDisconnected);
+        Assert.Equal(ConnectionStatus.Purple, mouse.Status);
+        var reconnected = Assert.Single(viewModel.Disconnected);
+        Assert.Equal("MOUSE, reconnected on Port 2 of ROOT", reconnected.Text);
+        Assert.Contains(viewModel.Findings, finding => finding.Message == "Disconnected and reconnected during this session.");
+
+        reconnected.Clear.Execute(null);
+
+        Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "MOUSE").Status); // No profile checked.
         Assert.Empty(viewModel.Disconnected);
     }
 
@@ -373,7 +382,7 @@ public class MainViewModelTests
     [InlineData(ConnectionStatus.Orange, "potentially unstable")]
     [InlineData(ConnectionStatus.Purple, "unstable")]
     [InlineData(ConnectionStatus.Grey, "unknown")]
-    [InlineData(ConnectionStatus.Red, "disconnected device")]
+    [InlineData(ConnectionStatus.Red, "disconnected")]
     public void EachResultHasItsWord(ConnectionStatus status, string word) => Assert.Equal(word, StatusColors.Word(status));
 
     [Fact]

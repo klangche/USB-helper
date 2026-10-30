@@ -337,6 +337,33 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void ReconnectedDeviceIsPurpleWithAFindingEvenWithoutAProfile()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Device("MOUSE"), Device("KEYBOARD")))];
+
+        foreach (var profile in new[] { Profile(), null })
+        {
+            var report = DiagnosticEvaluator.Evaluate(tree, profile, [], externalDisplays: 0, reconnected: ["MOUSE"]);
+
+            Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
+            Assert.NotEqual(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
+            Assert.Equal(ConnectionStatus.Purple, report.Overall);
+            Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Disconnected and reconnected during this session."), report.Findings);
+        }
+    }
+
+    [Fact]
+    public void ReconnectedDeviceIsPurpleInEveryCheckedProfile()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Device("MOUSE")))];
+
+        var report = DiagnosticEvaluator.EvaluateAll(tree, [Profile(), Profile(hops: "9")], [], 0, ["MOUSE"]);
+
+        Assert.All(report.Profiles, result => Assert.Equal(ConnectionStatus.Purple, result.Report.Connections["MOUSE"]));
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
+    }
+
+    [Fact]
     public void RecoveredConnectionIsGreenAgain()
     {
         IReadOnlyList<UsbNode> broken = [Controller("C1", Hub("ROOT", Device("MOUSE", "code 43")))];

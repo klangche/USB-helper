@@ -30,15 +30,19 @@ public static class TopologyCounts
         return depths;
     }
 
-    /// <summary>
-    /// Elements whose contents could not be read: a hub without ports, a controller without a root hub, or a port with
-    /// an error and nothing on it. What is behind them is unknown, so the counts are then minimums. A working hub
-    /// always has at least one port, and a port with a connection error still shows the device that caused it.
-    /// </summary>
+    /// <summary>Every element of <paramref name="tree"/> for which <see cref="CannotBeRead"/> is true.</summary>
     public static IEnumerable<UsbNode> Unreadable(IReadOnlyList<UsbNode> tree) =>
-        tree.SelectMany(node => Unreadable(node.Children).Prepend(node))
-            .Where(node => node.Children.Count == 0
-                && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null)));
+        tree.SelectMany(node => Unreadable(node.Children).Prepend(node)).Where(CannotBeRead);
+
+    /// <summary>
+    /// True when what is behind <paramref name="node"/> could not be read: a hub without ports, a controller without a
+    /// root hub, or a port with an error and nothing on it. What is behind it is unknown, so the counts are then
+    /// minimums. A working hub always has at least one port, and a port with a connection error still shows the device
+    /// that caused it.
+    /// </summary>
+    public static bool CannotBeRead(UsbNode node) =>
+        node.Children.Count == 0
+        && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null));
 
     // hubsAbove counts the hub itself and every hub above it, root hub included.
     private static void AddBelow(UsbNode hub, int hubsAbove, Dictionary<string, ConnectionDepth> depths)
