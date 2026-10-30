@@ -1,0 +1,15 @@
+id: windows-arm
+inherits: base
+platform: windows
+architecture: arm64
+limits:
+  max_hops: 5
+  recommended_hops: 3
+notes:
+  - "Generic Windows platform profile for ARM processors."
+  - "Hop limits from the usb-script config (Windows ARM): max 5, recommended 3. Tested in practice, not a manufacturer specification."
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windowsArm; config version 1.0.0, 2026-02-24)"
+verification:
+  status: partial
+  last_checked: 2026-10-29

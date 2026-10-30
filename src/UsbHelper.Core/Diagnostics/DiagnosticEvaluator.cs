@@ -45,10 +45,17 @@ public static class DiagnosticEvaluator
         var depths = TopologyCounts.Depths(tree);
         var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(tree), incomplete);
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
-        var hops = Check(profile, "limits.max_hops", depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max(), incomplete);
+        var maxHops = depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max();
+        var hops = Check(profile, "limits.max_hops", maxHops, incomplete);
         foreach (var limit in new[] { hubs, tiers, hops })
         {
             findings.Add(LimitFinding(limit, computer));
+        }
+        // Optional: an unknown recommended depth is not reported and never makes anything grey.
+        var recommendedHops = Check(profile, "limits.recommended_hops", maxHops, incomplete);
+        if (recommendedHops.Limit != null)
+        {
+            findings.Add(LimitFinding(recommendedHops, computer));
         }
         if (hubs.State == LimitState.Exceeded)
         {
@@ -77,6 +84,13 @@ public static class DiagnosticEvaluator
                     status = ConnectionStatus.Yellow;
                     findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
                         $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{Unverified(hops)}."));
+                }
+                else if (depth.Hops > recommendedHops.Limit)
+                {
+                    status = ConnectionStatus.Yellow;
+                    var maximum = hops.Limit == null ? "unknown" : $"{hops.Limit}{Unverified(hops)}";
+                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
+                        $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{Unverified(recommendedHops)}; {hops.Field} is {maximum}."));
                 }
                 if (node.Kind == UsbNodeKind.Hub && hubs.State == LimitState.Exceeded)
                 {
