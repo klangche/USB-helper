@@ -230,9 +230,10 @@ and tested on Windows. Pull requests go to the `dev` branch. When `dev` is
 ready, one pull request from `dev` to `main` is merged with a merge commit
 (not squash or rebase, so every pull request since the last release stays
 visible; `dev` is kept), and that merge is released automatically by
-`.github/workflows/release.yml`: `main` only holds released versions. `release/next-version.sh` picks the version from the titles
-of all pull requests merged since the last release (`Fixed:`
-and `Security:` bump the patch version, `Added:`, `Changed:` and `Removed:` the
+`.github/workflows/release.yml`: `main` only holds released versions.
+`release/next-version.sh` picks the version from the titles of all pull
+requests merged since the last release (`Fixed:` and `Security:` bump the patch
+version, `Added:`, `Changed:` and `Removed:` the
 minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
