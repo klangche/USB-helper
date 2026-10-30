@@ -41,9 +41,9 @@ public class ComputerProfileExportTests
         var notes = db.Load().Computers.Values.Single().Find("notes")!.Items.Select(item => (string)item.Scalar!).ToList();
 
         Assert.Contains("Exported by USB-helper 1.2.3 on 2026-10-30.", notes);
-        Assert.Contains("Detected: 2 USB controllers, 1 external hubs, active external displays: 2.", notes);
-        Assert.Contains("USB controller C1: 3 root hub ports.", notes);
-        Assert.Contains("USB controller C2: 1 root hub ports.", notes);
+        Assert.Contains("Detected: USB controllers: 2, external hubs: 1, active external displays: 2.", notes);
+        Assert.Contains("USB controller C1: root hub ports: 3.", notes);
+        Assert.Contains("USB controller C2: root hub ports: 1.", notes);
     }
 
     [Fact]
@@ -62,12 +62,35 @@ public class ComputerProfileExportTests
 
         Assert.Contains("inherits: null", yaml);
         Assert.Contains("# Choose 'inherits' from database/platforms/.", yaml);
+        using var db = new TestDatabase().Write("computers/export.yaml", yaml);
+        Assert.Contains("'inherits' is required", Assert.Single(db.LoadErrors()).Message);
+    }
+
+    // Reported names come from firmware and drivers: any character must still give a file that loads unchanged.
+    [Theory]
+    [InlineData("a\nb")]
+    [InlineData("a\r\nb")]
+    [InlineData("a\0b")]
+    [InlineData("a\u0085b")]
+    [InlineData("a\u2028b\u2029c")]
+    [InlineData("\uFEFFa\tb\u007F")]
+    [InlineData("C:\\path\\ \"quoted\" # not a comment: 'x'")]
+    [InlineData(" spaces  around ")]
+    public void AnyReportedTextLoadsUnchanged(string text)
+    {
+        using var db = new TestDatabase().Write("computers/export.yaml", Export(Computer with { Model = text, Chip = text }));
+
+        var computer = db.Load().Computers.Values.Single();
+
+        Assert.Equal(text, computer.Find("model")!.Scalar);
+        Assert.Equal(text, computer.Find("chip")!.Scalar);
     }
 
     [Theory]
     [InlineData("Dell Inc.", "Latitude 7450", "Dell-Inc.-Latitude-7450.yaml")]
     [InlineData("LENOVO", "21ML/0035:MX", "LENOVO-21ML-0035-MX.yaml")]
     [InlineData("Apple Inc.", "MacBookPro18,2", "Apple-Inc.-MacBookPro18-2.yaml")]
+    [InlineData("!!", "??", "computer.yaml")]
     public void FileNameIsManufacturerAndModel(string manufacturer, string model, string fileName)
     {
         Assert.Equal(fileName, ComputerProfileExport.FileName(new ComputerIdentity(manufacturer, model)));

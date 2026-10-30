@@ -198,7 +198,7 @@ public class MainViewModelTests
         Assert.True(viewModel.CanExport);
         Assert.Equal("Dell-Inc.-Latitude-7450.yaml", viewModel.ExportFileName);
         Assert.Contains("manufacturer: \"Dell Inc.\"", viewModel.ExportProfile());
-        Assert.Contains("Detected: 1 USB controllers, 1 external hubs", viewModel.ExportProfile());
+        Assert.Contains("Detected: USB controllers: 1, external hubs: 1", viewModel.ExportProfile());
     }
 
     [Fact]

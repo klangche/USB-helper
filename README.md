@@ -218,7 +218,7 @@ No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
 manufacturer and model exactly as Windows reports them, the processor, the
 matching platform profile, the USB controllers with their root hub ports, and
-the active external displays. All limits are unknown (`null`) and the status is
+the number of active external displays. All limits are unknown (`null`) and the status is
 `unverified`. Send the file to the developers; they add the limits from cited
 sources.
 

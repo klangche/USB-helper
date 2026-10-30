@@ -20,10 +20,10 @@ public static class ComputerProfileExport
         var notes = new List<string>
         {
             $"Exported by USB-helper {appVersion} on {day}.",
-            $"Detected: {tree.Count} USB controllers, {TopologyCounts.HubCount(tree)} external hubs, active external displays: {displays}.",
+            $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.HubCount(tree)}, active external displays: {displays}.",
         };
         notes.AddRange(tree.Select(controller =>
-            $"USB controller {controller.Name}: {controller.Children.Sum(rootHub => rootHub.Children.Count)} root hub ports."));
+            $"USB controller {controller.Name}: root hub ports: {controller.Children.Sum(rootHub => rootHub.Children.Count)}."));
 
         var yaml = new StringBuilder();
         yaml.AppendLine("# Computer profile exported by USB-helper. Send this file to the USB-helper developers.");
@@ -53,7 +53,10 @@ public static class ComputerProfileExport
         return yaml.ToString();
     }
 
-    /// <summary><c>&lt;manufacturer&gt;-&lt;model&gt;.yaml</c>, with every character a file name cannot hold replaced by a dash.</summary>
+    /// <summary>
+    /// <c>&lt;manufacturer&gt;-&lt;model&gt;.yaml</c>, with every character a file name cannot hold replaced by a dash;
+    /// <c>computer.yaml</c> when nothing is left. The save dialog lets the user change it.
+    /// </summary>
     public static string FileName(ComputerIdentity computer)
     {
         var name = new StringBuilder();
@@ -62,10 +65,28 @@ public static class ComputerProfileExport
             name.Append(char.IsLetterOrDigit(c) || c is '.' or '_' ? c : '-');
         }
         var collapsed = string.Join('-', name.ToString().Split('-', StringSplitOptions.RemoveEmptyEntries));
-        return $"{collapsed}.yaml";
+        return collapsed.Trim('.').Length == 0 ? "computer.yaml" : $"{collapsed}.yaml";
     }
 
-    // Double-quoted YAML text, or null.
-    private static string Text(string? value) =>
-        value == null ? "null" : $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
+    // Double-quoted YAML text, or null. Control characters, line separators and the byte order mark are written as
+    // \uXXXX escapes: written as is, they would break the line structure or be dropped by the parser.
+    private static string Text(string? value)
+    {
+        if (value == null)
+        {
+            return "null";
+        }
+        var text = new StringBuilder("\"");
+        foreach (var c in value)
+        {
+            text.Append(c switch
+            {
+                '\\' => "\\\\",
+                '"' => "\\\"",
+                _ when char.IsControl(c) || c is '\u2028' or '\u2029' or '\uFEFF' => $"\\u{(int)c:X4}",
+                _ => c.ToString(),
+            });
+        }
+        return text.Append('"').ToString();
+    }
 }
