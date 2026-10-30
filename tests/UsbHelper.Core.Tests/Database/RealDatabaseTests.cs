@@ -62,6 +62,6 @@ public class RealDatabaseTests
         var template = File.ReadAllText(Path.Combine(DatabaseFolder(), "computers", ".template.yaml"));
         using var db = new TestDatabase().Write("computers/copy.yaml", template.Replace("inherits: platform-profile", "inherits: test-platform"));
 
-        Assert.Equal(["manufacturer.model-variant"], db.Load().Computers.Keys);
+        Assert.Equal([ComputerProfileId.From("Manufacturer", "Exact model name")], db.Load().Computers.Keys);
     }
 }

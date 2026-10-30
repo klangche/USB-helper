@@ -9,7 +9,7 @@ public class InheritanceTests
     {
         using var db = new TestDatabase().WriteComputer("computers/test/c.yaml", "test.c");
 
-        var computer = db.Load().Computers["test.c"];
+        var computer = db.Load().Computers[TestDatabase.IdOf("test.c")];
 
         Assert.Equal("x64", computer.Find("architecture")!.Scalar);
         Assert.Equal("platforms/test-platform.yaml", computer.Find("architecture")!.File);
@@ -24,11 +24,11 @@ public class InheritanceTests
             architecture: arm64
             """);
 
-        var architecture = db.Load().Computers["test.c"].Find("architecture")!;
+        var architecture = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("architecture")!;
 
         Assert.Equal("arm64", architecture.Scalar);
         Assert.Equal("computers/c.yaml", architecture.File);
-        Assert.Equal(9, architecture.Line);
+        Assert.Equal(8, architecture.Line);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class InheritanceTests
                   max_external: null
                 """);
 
-        var maxExternal = db.Load().Computers["test.c"].Find("displays.max_external")!;
+        var maxExternal = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.max_external")!;
 
         Assert.Equal(ValueKind.Null, maxExternal.Kind);
         Assert.Equal("computers/c.yaml", maxExternal.File);
@@ -52,7 +52,7 @@ public class InheritanceTests
     {
         using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c");
 
-        Assert.Null(db.Load().Computers["test.c"].Find("displays.max_external"));
+        Assert.Null(db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.max_external"));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class InheritanceTests
             notes: []
             """);
 
-        var notes = db.Load().Computers["test.c"].Find("notes")!;
+        var notes = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("notes")!;
 
         Assert.Equal(["Platform note."], notes.Items.Select(item => item.Scalar));
     }
@@ -75,7 +75,7 @@ public class InheritanceTests
               - "Computer note."
             """);
 
-        var notes = db.Load().Computers["test.c"].Find("notes")!;
+        var notes = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("notes")!;
 
         Assert.Equal(["Platform note.", "Computer note."], notes.Items.Select(item => item.Scalar));
         Assert.Equal(["platforms/test-platform.yaml", "computers/c.yaml"], notes.Items.Select(item => item.File));
@@ -90,7 +90,7 @@ public class InheritanceTests
                 displays: {}
                 """);
 
-        Assert.Equal(2L, db.Load().Computers["test.c"].Find("displays.max_external")!.Scalar);
+        Assert.Equal(2L, db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.max_external")!.Scalar);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class InheritanceTests
               last_checked: 2026-10-29
             """);
 
-        var computer = db.Load().Computers["test.c"];
+        var computer = db.Load().Computers[TestDatabase.IdOf("test.c")];
 
         Assert.Equal("unverified", computer.Find("verification.status")!.Scalar);
         Assert.Equal("2026-10-29", computer.Find("verification.last_checked")!.Scalar);
@@ -115,7 +115,7 @@ public class InheritanceTests
         var loaded = db.Load();
 
         Assert.Equal(["base.yaml", "platforms/test-platform.yaml"], loaded.Platforms["test-platform"].Files);
-        Assert.Equal(["base.yaml", "platforms/test-platform.yaml", "computers/c.yaml"], loaded.Computers["test.c"].Files);
+        Assert.Equal(["base.yaml", "platforms/test-platform.yaml", "computers/c.yaml"], loaded.Computers[TestDatabase.IdOf("test.c")].Files);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class InheritanceTests
     {
         using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c");
 
-        var computer = db.Load().Computers["test.c"];
+        var computer = db.Load().Computers[TestDatabase.IdOf("test.c")];
 
         Assert.Null(computer.Find("id"));
         Assert.Null(computer.Find("inherits"));

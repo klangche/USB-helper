@@ -1,4 +1,3 @@
-id: manufacturer.model-variant
 inherits: platform-profile
 manufacturer: Manufacturer
 model: Exact model name

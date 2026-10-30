@@ -1,0 +1,45 @@
+using UsbHelper.Core.Database;
+
+namespace UsbHelper.Core.Tests.Database;
+
+public class ComputerProfileIdTests
+{
+    [Fact]
+    public void IdIsFixedForAName()
+    {
+        // Pinned: a change here changes the id of every existing computer profile.
+        Assert.Equal("y98inr", ComputerProfileId.From("Dell Inc.", "Latitude 7450"));
+    }
+
+    [Fact]
+    public void AccentsAreNormalized()
+    {
+        // "É" as one character and as "E" + combining accent. Pinned like IdIsFixedForAName.
+        Assert.Equal("xbzsqy", ComputerProfileId.From("Médion AG", "Akoya \u00C914"));
+        Assert.Equal(ComputerProfileId.From("Médion AG", "Akoya \u00C914"), ComputerProfileId.From("Me\u0301dion AG", "Akoya E\u030114"));
+    }
+
+    [Fact]
+    public void CaseAndSpacesDoNotMatter()
+    {
+        Assert.Equal(ComputerProfileId.From("Dell Inc.", "Latitude 7450"), ComputerProfileId.From("  dell   INC. ", "latitude\t7450 "));
+    }
+
+    [Fact]
+    public void DifferentModelsGetDifferentIds()
+    {
+        Assert.NotEqual(ComputerProfileId.From("Dell Inc.", "Latitude 7450"), ComputerProfileId.From("Dell Inc.", "Latitude 7440"));
+        // The separator keeps "A" + "B C" apart from "A B" + "C".
+        Assert.NotEqual(ComputerProfileId.From("A", "B C"), ComputerProfileId.From("A B", "C"));
+    }
+
+    [Theory]
+    [InlineData("Dell Inc.", "Latitude 7450")]
+    [InlineData("LENOVO", "21ML0035MX")]
+    [InlineData("Apple Inc.", "MacBookPro18,2")]
+    [InlineData("x", "y")]
+    public void IdIsSixLowercaseLettersOrDigits(string manufacturer, string model)
+    {
+        Assert.Matches("^[0-9a-z]{6}$", ComputerProfileId.From(manufacturer, model));
+    }
+}

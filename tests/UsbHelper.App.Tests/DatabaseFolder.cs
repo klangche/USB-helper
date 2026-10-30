@@ -13,7 +13,6 @@ internal static class DatabaseFolder
         File.WriteAllText(Path.Combine(folder, "base.yaml"), "schema_version: 1\n");
         File.WriteAllText(Path.Combine(folder, "platforms", "p.yaml"), "id: p\ninherits: base\n");
         File.WriteAllText(Path.Combine(folder, "computers", "c.yaml"), $"""
-            id: test.c
             inherits: p
             manufacturer: {manufacturer}
             model: {model}

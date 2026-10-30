@@ -14,7 +14,6 @@ public class DisplayEvaluatorTests
     {
         using var db = new TestDatabase();
         db.Write("computers/c.yaml", $"""
-            id: test.c
             inherits: test-platform
             manufacturer: Test
             model: Test laptop
@@ -29,7 +28,7 @@ public class DisplayEvaluatorTests
               status: {status}
             {extra}
             """);
-        return db.Load().Computers["test.c"];
+        return db.Load().Computers.Values.Single();
     }
 
     private static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? displays) =>
