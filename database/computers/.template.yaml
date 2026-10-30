@@ -4,10 +4,9 @@ model: Exact model name
 name: Human-readable name
 chip: CPU or SoC variant
 
-limits:
-  max_hubs: null
-  max_tiers: null
-  max_hops: null
+# Limits inherit from the platform profile. Set a value only for this model
+# (for example built-in hubs), or null when the platform's value does not apply.
+limits: {}
 
 displays:
   max_external: null

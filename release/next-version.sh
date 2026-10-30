@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints the next release version X.Y.Z.
-# Argument: the last release tag (vX.Y.Z), or empty when there is none.
+# Argument: the last release tag (vX.Y.Z, never a beta tag), or empty when there is none.
 # Stdin: the titles of the pull requests merged since that tag, one per line.
 # "Fixed:" and "Security:" bump PATCH, "Added:", "Changed:" and "Removed:" bump MINOR,
 # a "!" before the colon bumps MAJOR, but only from 1.0.0 on: in 0.x (initial development)
@@ -9,6 +9,10 @@
 set -euo pipefail
 
 last="${1:-}"
+if [[ -n $last && ! $last =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "next-version.sh: '$last' is not a release tag vX.Y.Z" >&2
+  exit 1
+fi
 bump=0
 first_major=0
 while IFS= read -r title || [[ -n $title ]]; do

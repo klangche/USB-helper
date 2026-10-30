@@ -131,16 +131,19 @@ assumed to carry video, and no bandwidth is calculated.
    `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
-   and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
-   `limits.max_tiers` and `limits.max_hops` in the file, `null` if unknown.
-   Do not add an `id`: it is computed (see below). If the model is a technical
-   string (for example `Mac17,5`), add `name` (for example `MacBook Neo`): the
-   app shows it, but only `manufacturer` and `model` are matched.
-3. Fill in only values you can cite. List every source in `sources`, set
+   and `model` exactly as the computer reports them. Do not add an `id`: it is
+   computed (see below). If the model is a technical string (for example
+   `Mac17,5`), add `name` (for example `MacBook Neo`): the app shows it, but
+   only `manufacturer` and `model` are matched.
+3. Limits (`limits.max_hubs`, `max_tiers`, `max_hops`, `recommended_hops`)
+   left out inherit the platform profile's values. Set a value only where this
+   model differs (for example built-in hubs), or `null` when the platform's
+   value does not apply and the right one is unknown.
+4. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
-4. Run `dotnet test`: it loads the whole database and reports any problem.
-5. Open a pull request. Changes to verified values need review; the git history
+5. Run `dotnet test`: it loads the whole database and reports any problem.
+6. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
 
 A computer profile's id is never written in the file. The app computes it from
@@ -214,7 +217,8 @@ names its device, port or
 computer and the reason, and is marked as a detected fact, a verified database
 fact, a predicted risk or unknown. A limit or model exception is a verified
 database fact only when the file that sets it is itself `verified` or
-`partial`.
+`partial`. A limit a computer profile inherits keeps its platform file's
+status.
 
 If a hub, port or controller cannot be read (a hub without ports, a port with an
 error and nothing on it, a controller without a root hub), what is behind it
@@ -236,7 +240,8 @@ Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder next
 to `USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
 .\USB-helper.exe` in PowerShell), and start it. No installation, no
-administrator rights and no network connection are needed.
+administrator rights and no network connection are needed. Releases marked
+pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
 
@@ -266,9 +271,9 @@ No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
 manufacturer and model exactly as Windows reports them, the processor, the
 matching platform profile, the USB controllers with their root hub ports, and
-the number of active external displays. All limits are unknown (`null`) and the status is
-`unverified`. Send the file to the developers; they add the limits from cited
-sources.
+the number of active external displays. It sets no limits, so it uses the
+platform profile's, and the status is `unverified`. Send the file to the
+developers; they add model-specific limits from cited sources.
 
 ## Development
 
@@ -287,7 +292,11 @@ these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip,
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
-request titles.
+request titles since the last release. Every merge into `dev` publishes a
+pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
+the next release would get and `N` counts up from 1 for each beta of it
+(`release/beta-version.sh`). Beta tags never count as a release
+(`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.

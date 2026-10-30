@@ -1,0 +1,33 @@
+inherits: macos-apple-silicon
+manufacturer: Apple Inc.
+model: Mac17,5
+chip: A18 Pro
+
+limits:
+  max_hubs: null
+  max_tiers: null
+  max_hops: 4
+
+ports:
+  usb3:
+    usb: usb-c
+    displayport_alt_mode: true
+    limitations:
+      - "USB 3 data and DisplayPort video; supports charging."
+  usb2:
+    usb: usb-c
+    displayport_alt_mode: false
+    limitations:
+      - "USB 2 data only, no DisplayPort video; supports charging."
+
+notes:
+  - "MacBook Neo (model A3404). Model identifier Mac17,5."
+  - "Lightware: the MacBook Neo uses three USB tiers by itself out of the USB specification's seven; typical M-series MacBooks use two. Both USB-C ports use three tiers."
+  - "max_hops 4: the three tiers are the root hub, one internal hub and the device in the port, which leaves four external hubs within seven tiers (owner decision 2026-10-30, #11). The same reading gives five for typical M-series Macs, matching macos-apple-silicon. recommended_hops is inherited."
+
+sources:
+  - "Lightware press article 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15 (tiers used, port capabilities)"
+
+verification:
+  status: unverified
+  last_checked: null
