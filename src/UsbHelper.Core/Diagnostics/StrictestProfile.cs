@@ -3,8 +3,8 @@ using UsbHelper.Core.Database;
 namespace UsbHelper.Core.Diagnostics;
 
 /// <summary>
-/// Owner decision in #68: with several profiles checked, the findings come from the strictest one only. Strictest is
-/// the lowest <c>max_hops</c>; on a tie the lowest <c>recommended_hops</c>, then <c>max_tiers</c>, then
+/// Owner decision in #68: with several profiles checked, the findings come from the strictest one only. The rule is
+/// from #72: the lowest <c>max_hops</c>; on a tie the lowest <c>recommended_hops</c>, then <c>max_tiers</c>, then
 /// <c>max_hubs</c>. An unknown limit counts as higher than any known one. Still tied: the first.
 /// </summary>
 public static class StrictestProfile

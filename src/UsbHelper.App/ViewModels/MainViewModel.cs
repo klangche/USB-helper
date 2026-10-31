@@ -292,8 +292,8 @@ public sealed class MainViewModel : ObservableObject
             }
             return;
         }
-        // Owner decision in #68: only the strictest checked profile's findings are listed, named after it when several
-        // are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
+        // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
+        // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
         var strictest = StrictestProfile.Of([.. options.Select(option => option.Profile)]);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
