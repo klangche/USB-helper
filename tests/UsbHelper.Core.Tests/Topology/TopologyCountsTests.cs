@@ -96,6 +96,7 @@ public class TopologyCountsTests
         Assert.DoesNotContain("INTERNAL", depths.Keys);
         Assert.Equal(0, TopologyCounts.HubCount(tree));
         Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
+        Assert.Equal(["INTERNAL"], TopologyCounts.BuiltIn(tree).Select(hub => hub.Id));
     }
 
     [Fact]
@@ -119,6 +120,7 @@ public class TopologyCountsTests
 
         Assert.Equal(new ConnectionDepth(4, 2), TopologyCounts.Depths(tree)["CAMERA"]);
         Assert.Equal(2, TopologyCounts.HubCount(tree));
+        Assert.Empty(TopologyCounts.BuiltIn(tree));
     }
 
     [Fact]
@@ -133,6 +135,16 @@ public class TopologyCountsTests
         Assert.Equal(3, TopologyCounts.HubCount(tree));
         Assert.Equal(["UNSURE"], TopologyCounts.PossiblyBuiltIn(tree).Select(hub => hub.Id));
         Assert.Equal(["UNSURE", "DOCK"], TopologyCounts.PossiblyBuiltIn(unmarked).Select(hub => hub.Id));
+        Assert.Empty(TopologyCounts.BuiltIn(tree));
+    }
+
+    [Fact]
+    public void HubBehindABuiltInHubOnAFixedPortIsBuiltInToo()
+    {
+        IReadOnlyList<UsbNode> tree =
+            [Controller("C1", Hub("ROOT", Hub("INTERNAL", Hub("INNER", Device("WEBCAM")), Hub("DOCK", Device("STICK"))).Connectable(false, true)).Connectable(false))];
+
+        Assert.Equal(["INTERNAL", "INNER"], TopologyCounts.BuiltIn(tree).Select(hub => hub.Id));
     }
 
     [Fact]

@@ -61,6 +61,9 @@
   <data name="DetectedComputer" xml:space="preserve">
     <value>Detected: {0} {1}</value>
   </data>
+  <data name="CollapsedHint" xml:space="preserve">
+    <value>(collapsed, double-click to show)</value>
+  </data>
   <data name="ThisComputer" xml:space="preserve">
     <value>This computer</value>
   </data>

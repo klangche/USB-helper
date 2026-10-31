@@ -9,7 +9,7 @@ namespace UsbHelper.App;
 /// <summary>
 /// The tree lines left of one tree item (tree style B, owner decision in #43): a column per ancestor whose grey trunk
 /// continues past this row, then the rounded elbow to this item, then a node column with a dot and, when the item
-/// has children, the start of its own trunk. Thin grey trunks; the elbow to a hub or device is in its status colour.
+/// shows its children, the start of its own trunk. Thin grey trunks; the elbow to a hub or device is in its status colour.
 /// </summary>
 public sealed class TreeLines : Control
 {

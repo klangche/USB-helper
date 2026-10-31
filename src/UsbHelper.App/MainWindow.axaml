@@ -60,12 +60,12 @@
           <TextBlock Text="{x:Static res:Strings.MarkLabel}" VerticalAlignment="Center" />
           <ComboBox ItemsSource="{Binding MarkChoices}" SelectedIndex="{Binding SelectedExtraHops}" />
         </StackPanel>
-        <!-- Tree style B (#43): every branch open, drawn lines instead of indentation and expand arrows. -->
+        <!-- Tree style B (#43): drawn lines instead of indentation and expand arrows. Built-in hubs start collapsed (#68),
+             every other branch open; a double-click or the arrow keys expand and collapse. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
           <TreeView.Styles>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
-              <!-- Every branch open; arrow keys only move into items the tree view counts as expanded. -->
-              <Setter Property="IsExpanded" Value="True" />
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               <Setter Property="MinHeight" Value="0" />
               <!-- A border would add height to the row and break the lines between rows. -->
               <Setter Property="BorderThickness" Value="0" />
@@ -82,8 +82,8 @@
                                         Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
                                         HorizontalContentAlignment="Stretch" />
                     </Border>
-                    <!-- Always visible: every branch stays open, also when a key would collapse it. -->
-                    <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+                    <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"
+                                    IsVisible="{TemplateBinding IsExpanded}" />
                   </StackPanel>
                 </ControlTemplate>
               </Setter>
@@ -93,7 +93,7 @@
             <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
               <DockPanel Height="24" ToolTip.Tip="{Binding StatusText}">
                 <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
-                               HasChildren="{Binding HasChildren}" HasStatus="{Binding HasStatus}"
+                               HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}"
                                ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
                   <TextBlock Text="{Binding Text}" />
@@ -102,6 +102,8 @@
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding Counts}" Opacity="0.7"
                              IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  <TextBlock Text="{Binding CollapsedHint}" Opacity="0.7"
+                             IsVisible="{Binding CollapsedHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>
               </DockPanel>
             </TreeDataTemplate>

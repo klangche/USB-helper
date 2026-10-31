@@ -53,6 +53,13 @@ public static class TopologyCounts
     public static IEnumerable<UsbNode> PossiblyBuiltIn(IReadOnlyList<UsbNode> tree) =>
         tree.SelectMany(controller => controller.Children).SelectMany(PossiblyBuiltInBelow);
 
+    /// <summary>
+    /// Hubs built into the computer: reached from the root hub only through ports that are not user-connectable. They
+    /// are not counted. A hub on a port the operating system says nothing about is not built in.
+    /// </summary>
+    public static IEnumerable<UsbNode> BuiltIn(IReadOnlyList<UsbNode> tree) =>
+        tree.SelectMany(controller => controller.Children).SelectMany(BuiltInBelow);
+
     private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops) =>
         tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, builtIn: true, extraHops));
 
@@ -84,6 +91,11 @@ public static class TopologyCounts
             }
         }
     }
+
+    private static IEnumerable<UsbNode> BuiltInBelow(UsbNode builtInHub) =>
+        builtInHub.Children.Where(port => port.UserConnectable == false)
+            .SelectMany(port => port.Children.Where(node => node.Kind == UsbNodeKind.Hub))
+            .SelectMany(hub => BuiltInBelow(hub).Prepend(hub));
 
     private static IEnumerable<UsbNode> PossiblyBuiltInBelow(UsbNode builtInHub) =>
         builtInHub.Children.SelectMany(port => port.Children.Where(node => node.Kind == UsbNodeKind.Hub).SelectMany(hub =>
