@@ -257,7 +257,8 @@ platform profile matches, nothing is checked and every line is grey
 (unknown). Computer profiles are never checked automatically. In the top bar,
 check the systems to judge the setup by in the two drop-down lists,
 "Operating systems" (generic platform profiles such as `windows-intel`) and
-"Computers" (computer profiles); any mix can be checked. Each line then shows the worst result over the checked profiles. The
+"Computers" (computer profiles); any mix can be checked. Each line then shows
+the worst result over the checked profiles. The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour) and its hub, tier,
 hop and display checks. A finding that only some checked profiles report names

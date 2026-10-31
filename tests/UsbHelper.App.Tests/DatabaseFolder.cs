@@ -3,12 +3,12 @@ using UsbHelper.Core.Database;
 namespace UsbHelper.App.Tests;
 
 /// <summary>
-/// A minimal valid database with one platform profile ("p" unless named) and one computer profile, loaded from a temporary folder that is
-/// then deleted.
+/// A minimal valid database with one platform profile ("p" unless named) and one computer profile, loaded from a
+/// temporary folder that is then deleted.
 /// </summary>
 internal static class DatabaseFolder
 {
-    /// <param name="platformLimits">YAML lines under <c>limits:</c> of platform "p"; none when null.</param>
+    /// <param name="platformLimits">YAML lines under <c>limits:</c> of the platform profile; none when null.</param>
     /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
     /// <param name="platform">The platform profile's id.</param>
     public static HardwareDatabase Load(
