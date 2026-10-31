@@ -618,6 +618,50 @@ public class MainViewModelTests
         Assert.Contains("External displays: unknown, limit unknown (unknown, not verified)", viewModel.StatusRows.Single().Details);
     }
 
+    // Laptop: root port 1 is fixed, with a built-in hub (webcam on a fixed port, a dock on a laptop socket); Windows
+    // says nothing about root port 2, which has a hub.
+    private static IReadOnlyList<UsbNode> Laptop()
+    {
+        var builtIn = Hub("INTERNAL", Device("WEBCAM"), Hub("DOCK", Device("KEYBOARD")));
+        builtIn = builtIn with { Children = [builtIn.Children[0] with { UserConnectable = false }, builtIn.Children[1] with { UserConnectable = true }] };
+        var root = Hub("ROOT", builtIn, Hub("UNSURE", Device("MOUSE")));
+        root = root with { Children = [root.Children[0] with { UserConnectable = false }, root.Children[1]] };
+        return [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])];
+    }
+
+    [Fact]
+    public void BuiltInHubStartsCollapsedAndEverythingElseOpen()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Laptop());
+
+        Assert.False(Item(viewModel, "INTERNAL").IsExpanded);
+        Assert.False(Item(viewModel, "INTERNAL").ShowsChildren); // No trunk below a collapsed item.
+        Assert.NotNull(Item(viewModel, "INTERNAL").CollapsedHint);
+        Assert.True(Item(viewModel, "DOCK").IsExpanded); // External, although it is behind the built-in hub.
+        Assert.True(Item(viewModel, "UNSURE").IsExpanded); // Windows does not say: open, as it is counted.
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.True(item.IsExpanded));
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.Null(item.CollapsedHint));
+    }
+
+    [Fact]
+    public void LiveUpdateKeepsTheUsersExpandAndCollapse()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Laptop());
+
+        Item(viewModel, "INTERNAL").IsExpanded = true;
+        Item(viewModel, "UNSURE").IsExpanded = false;
+        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "DOCK", Port("DOCK", 2, Device("STICK")))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "UNSURE", Port("UNSURE", 1, null))]);
+
+        Assert.True(Item(viewModel, "INTERNAL").IsExpanded);
+        Assert.True(Item(viewModel, "INTERNAL").ShowsChildren);
+        Assert.False(Item(viewModel, "UNSURE").IsExpanded);
+        Assert.NotNull(Item(viewModel, "UNSURE").CollapsedHint);
+    }
+
     [Fact]
     public void ExportNeedsManufacturerAndModel()
     {

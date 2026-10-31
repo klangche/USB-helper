@@ -9,10 +9,10 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices, every branch open,
-  updated on connect and disconnect without rebuilding the whole tree. Hubs
-  and devices show the product name they report, falling back to the Windows
-  name.
+  host): controllers, hubs, occupied ports and devices. Hubs built into the
+  computer start collapsed, every other branch open. Updated on connect and
+  disconnect without rebuilding the whole tree. Hubs and devices show the
+  product name they report, falling back to the Windows name.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -251,9 +251,12 @@ computer, named after its computer profile when one matches, else by the
 manufacturer and model Windows reports, else by its machine name; the USB
 controllers are its children. Thin grey lines join the items, starting at the
 computer, and the line to each hub and device is drawn in its status colour,
-with the result word after its name. Empty ports are left out. Each
-controller shows its hub count, deepest tier and deepest hop. Next to the tree
-is a summary with the overall result, the status field, disconnected and
+with the result word after its name. Empty ports are left out. Hubs built
+into the computer (for the webcam or Bluetooth, reached only through ports
+that are not user-connectable) start collapsed; everything else is open.
+Double-click an item, or use the arrow keys, to expand or collapse it; the
+choice is kept while the app runs. Each controller shows its hub count,
+deepest tier and deepest hop. Next to the tree is a summary with the overall result, the status field, disconnected and
 reconnected devices and all findings. At start, the platform profile for the
 detected operating system and processor (for example `windows-amd` on Windows
 with an AMD processor) is checked; uncheck it to judge by others. When no
