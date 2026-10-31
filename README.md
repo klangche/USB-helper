@@ -221,9 +221,9 @@ one; when still tied, the first in the menus wins. Detected facts (operating
 system errors, disconnected and reconnected devices) are always listed. Every
 finding names its device, port or computer and the reason, and is marked as a
 detected fact, a verified database fact, a predicted risk or unknown. A limit
-or model exception is a verified database fact only when the file that sets it is itself `verified` or
-`partial`. A limit a computer profile inherits keeps its platform file's
-status.
+or model exception is a verified database fact only when the file that sets it
+is itself `verified` or `partial`. A limit a computer profile inherits keeps
+its platform file's status.
 
 If a hub, port or controller cannot be read (a hub without ports, a port with an
 error and nothing on it, a controller without a root hub), what is behind it
@@ -272,7 +272,8 @@ potentially unstable, unstable or unknown, in its colour) and its hub, tier,
 hop and display checks. With several profiles checked, the findings come from
 the strictest one only and name it (see the diagnostic rules). Plug and unplug
 devices: only the affected part of the tree changes. A device that is
-unplugged stays red at its last port; one that comes back is purple (unstable). Click "Clear" next to it to reset it.
+unplugged stays red at its last port; one that comes back is purple
+(unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Select
 the port it is plugged into and pick its extra hops (+1 to +5) under the tree.
