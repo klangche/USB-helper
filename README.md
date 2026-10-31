@@ -8,10 +8,11 @@ Status: first version for Windows; computer profiles still to be added.
 
 ## Features
 
-- Live USB tree with drawn tree lines: controllers, hubs, occupied ports and
-  devices, every branch open, updated on connect and disconnect without
-  rebuilding the whole tree. Hubs and devices show the product name they
-  report, falling back to the Windows name.
+- Live USB tree with drawn tree lines from one root for the computer (the
+  host): controllers, hubs, occupied ports and devices, every branch open,
+  updated on connect and disconnect without rebuilding the whole tree. Hubs
+  and devices show the product name they report, falling back to the Windows
+  name.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -245,8 +246,11 @@ pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
 
-Start `USB-helper.exe`. The window shows the USB tree: thin grey lines join
-the items, and the line to each hub and device is drawn in its status colour,
+Start `USB-helper.exe`. The window shows the USB tree. Its root is this
+computer, named after its computer profile when one matches, else by the
+manufacturer and model Windows reports, else by its machine name; the USB
+controllers are its children. Thin grey lines join the items, starting at the
+computer, and the line to each hub and device is drawn in its status colour,
 with the result word after its name. Empty ports are left out. Each
 controller shows its hub count, deepest tier and deepest hop. Next to the tree
 is a summary with the overall result, the status field, disconnected and

@@ -62,6 +62,7 @@ public sealed class MainViewModel : ObservableObject
         OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)));
         Computers = Options((database?.Computers.Values ?? []).Select(profile =>
             new ProfileOption(ComputerLabel(profile), profile)));
+        HostName = HostNameFor(database, identity);
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
         report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
@@ -72,6 +73,22 @@ public sealed class MainViewModel : ObservableObject
         var reported = $"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar}";
         return profile.Find("name")?.Scalar is string name ? $"{name} ({reported})" : $"{reported} ({profile.Id})";
     }
+
+    // The matching computer profile's readable name, else manufacturer and model as reported, else the machine name.
+    private static string HostNameFor(HardwareDatabase? database, ComputerIdentity identity)
+    {
+        var reported = string.Join(' ', new[] { identity.Manufacturer, identity.Model }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        if (database != null && !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model)
+            && database.Computers.TryGetValue(ComputerProfileId.From(identity.Manufacturer, identity.Model), out var profile)
+            && profile.Find("name")?.Scalar is string name)
+        {
+            return name;
+        }
+        return reported.Length > 0 ? reported : identity.MachineName ?? Strings.ThisComputer;
+    }
+
+    /// <summary>The name of the tree's top item, this computer.</summary>
+    public string HostName { get; }
 
     /// <summary>Platform profiles: generic limits, for computers without a profile of their own.</summary>
     public IReadOnlyList<ProfileOption> OperatingSystems { get; }
@@ -131,6 +148,7 @@ public sealed class MainViewModel : ObservableObject
         set => SetField(ref notice, value);
     }
 
+    /// <summary>The tree: one item, the host, with the controllers as its children. Empty until the first refresh.</summary>
     public ObservableCollection<NodeViewModel> Roots { get; } = [];
 
     public NodeViewModel? SelectedNode
@@ -222,23 +240,13 @@ public sealed class MainViewModel : ObservableObject
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
         var lines = report.Counts with { Connections = report.Connections };
 
-        for (var i = 0; i < tree.Count; i++)
+        if (Roots.Count == 0)
         {
-            var existing = Roots.FirstOrDefault(item => item.Id == tree[i].Id);
-            if (existing == null)
-            {
-                Roots.Insert(i, NodeViewModel.Create(tree[i], lines, extraHops));
-                continue;
-            }
-            if (Roots.IndexOf(existing) != i)
-            {
-                Roots.Move(Roots.IndexOf(existing), i);
-            }
-            existing.Update(tree[i], lines, extraHops);
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops));
         }
-        while (Roots.Count > tree.Count)
+        else
         {
-            Roots.RemoveAt(Roots.Count - 1);
+            Roots[0].UpdateHost(HostName, tree, lines, extraHops);
         }
 
         OnPropertyChanged(nameof(OverallText));
