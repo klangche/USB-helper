@@ -255,8 +255,8 @@ with the result word after its name. Empty ports are left out. Hubs built
 into the computer (for the webcam or Bluetooth, reached only through ports
 that are not user-connectable) start collapsed; everything else is open.
 Double-click an item, or use the arrow keys, to expand or collapse it; the
-choice is kept while the app runs. Each controller shows its hub count, deepest tier and deepest hop. Next to the tree
-is a summary with the overall result, the status field, disconnected and
+choice is kept while the app runs. Each controller shows its hub count,
+deepest tier and deepest hop. Next to the tree is a summary with the overall result, the status field, disconnected and
 reconnected devices and all findings. At start, the platform profile for the
 detected operating system and processor (for example `windows-amd` on Windows
 with an AMD processor) is checked; uncheck it to judge by others. When no
