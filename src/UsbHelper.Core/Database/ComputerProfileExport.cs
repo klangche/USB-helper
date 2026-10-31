@@ -22,8 +22,9 @@ public static class ComputerProfileExport
             $"Exported by USB-helper {appVersion} on {day}.",
             $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.HubCount(tree)}, active external displays: {displays}.",
         };
-        notes.AddRange(tree.Select(controller =>
-            $"USB controller {controller.Name}: root hub ports: {controller.Children.Sum(rootHub => rootHub.Children.Count)}."));
+        // Numbered, not named: Windows names controllers in the user's language, the notes are in English.
+        notes.AddRange(tree.Select((controller, index) =>
+            $"USB controller {index + 1}: root hub ports: {controller.Children.Sum(rootHub => rootHub.Children.Count)}."));
 
         var yaml = new StringBuilder();
         yaml.AppendLine("# Computer profile exported by USB-helper. Send this file to the USB-helper developers.");

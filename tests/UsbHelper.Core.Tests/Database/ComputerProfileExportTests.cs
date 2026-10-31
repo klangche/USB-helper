@@ -59,8 +59,20 @@ public class ComputerProfileExportTests
 
         Assert.Contains("Exported by USB-helper 1.2.3 on 2026-10-30.", notes);
         Assert.Contains("Detected: USB controllers: 2, external hubs: 1, active external displays: 2.", notes);
-        Assert.Contains("USB controller C1: root hub ports: 3.", notes);
-        Assert.Contains("USB controller C2: root hub ports: 1.", notes);
+        Assert.Contains("USB controller 1: root hub ports: 3.", notes);
+        Assert.Contains("USB controller 2: root hub ports: 1.", notes);
+    }
+
+    // Windows names controllers in the user's language; the notes are for the developers and stay in English.
+    [Fact]
+    public void ControllersAreLabelledInEnglishNotByTheirWindowsName()
+    {
+        var swedish = new UsbNode("C1", UsbNodeKind.Controller, "USB-styrenhet (Universal Serial Bus)", [Hub("ROOT1", null, null)]);
+
+        var yaml = ComputerProfileExport.ToYaml(Computer, [swedish], 0, "1.2.3", new DateOnly(2026, 10, 31));
+
+        Assert.Contains("USB controller 1: root hub ports: 2.", yaml);
+        Assert.DoesNotContain("styrenhet", yaml);
     }
 
     [Fact]
