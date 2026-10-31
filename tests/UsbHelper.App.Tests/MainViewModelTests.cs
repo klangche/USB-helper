@@ -573,15 +573,29 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void FindingsOfOneProfileNameItAndSharedFindingsAreListedOnce()
+    public void WithSeveralProfilesCheckedOnlyTheStrictestListsFindingsAndDetectedFactsAreListedOnce()
     {
-        var viewModel = TwoProfiles();
+        var viewModel = TwoProfiles(); // "p" (max_hops 0) is stricter than the computer (max_hops 5).
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 2, Device("MOUSE") with { Problem = "code 43" }))]);
         viewModel.OperatingSystems.Single().IsChecked = true;
         viewModel.Computers.Single().IsChecked = true;
 
         Assert.Single(viewModel.Findings, finding => finding.Message == "code 43" && finding.Header == "Detected · MOUSE");
         Assert.Contains(viewModel.Findings, finding => finding.Header == "p · Risk · KEYBOARD");
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith(Latitude, StringComparison.Ordinal));
+        Assert.Equal(["p", Latitude], viewModel.StatusRows.Select(row => row.Label)); // The status field still lists both.
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+    }
+
+    [Fact]
+    public void WithOneProfileCheckedItsFindingsDoNotNameIt()
+    {
+        var viewModel = TwoProfiles();
+
+        viewModel.Computers.Single().IsChecked = true;
+
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Database (verified) · Latitude 7450");
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith(Latitude, StringComparison.Ordinal));
     }
 
     [Theory]

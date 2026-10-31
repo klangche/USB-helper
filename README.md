@@ -213,11 +213,15 @@ is listed as a finding and does not turn anything grey. A limit from an
 profiles checked, each line shows the worst result of all of them, and each
 profile gets its own overall result: the highest of its lines, its limits and
 its display check (purple above `displays.max_external`, orange for a
-DisplayLink adapter on a computer without DisplayLink support). Every finding
-names its device, port or
-computer and the reason, and is marked as a detected fact, a verified database
-fact, a predicted risk or unknown. A limit or model exception is a verified
-database fact only when the file that sets it is itself `verified` or
+DisplayLink adapter on a computer without DisplayLink support). The findings
+list then shows only the findings of the strictest checked profile: the one
+with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
+`max_tiers`, then `max_hubs`. An unknown limit counts as higher than any known
+one; when still tied, the first in the menus wins. Detected facts (operating
+system errors, disconnected and reconnected devices) are always listed. Every
+finding names its device, port or computer and the reason, and is marked as a
+detected fact, a verified database fact, a predicted risk or unknown. A limit
+or model exception is a verified database fact only when the file that sets it is itself `verified` or
 `partial`. A limit a computer profile inherits keeps its platform file's
 status.
 
@@ -265,10 +269,10 @@ check the systems to judge the setup by in the two drop-down lists,
 the worst result over the checked profiles. The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour) and its hub, tier,
-hop and display checks. A finding that only some checked profiles report names
-its profile. Plug and unplug devices: only the affected part of the tree
-changes. A device that is unplugged stays red at its last port; one that comes
-back is purple (unstable). Click "Clear" next to it to reset it.
+hop and display checks. With several profiles checked, the findings come from
+the strictest one only and name it (see the diagnostic rules). Plug and unplug
+devices: only the affected part of the tree changes. A device that is
+unplugged stays red at its last port; one that comes back is purple (unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Select
 the port it is plugged into and pick its extra hops (+1 to +5) under the tree.
