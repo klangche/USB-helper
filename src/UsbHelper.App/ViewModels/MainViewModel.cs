@@ -32,7 +32,10 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 /// <param name="Details">Its hub, tier, hop and display checks.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
 
-/// <param name="Header">Profile (when only some checked profiles report it), kind (detected, database, risk, unknown) and subject.</param>
+/// <param name="Header">
+/// Profile (the strictest, when several are checked; never for a detected fact), kind (detected, database, risk, unknown)
+/// and subject.
+/// </param>
 public sealed record FindingItem(string Header, string Message);
 
 public sealed record DisconnectedItem(string Text, RelayCommand Clear);
@@ -289,24 +292,18 @@ public sealed class MainViewModel : ObservableObject
             }
             return;
         }
-        // A finding every checked profile reports (an operating system error, for example) is listed once; the others
-        // name their profile.
-        var shared = report.Profiles
-            .Select(result => (IEnumerable<Finding>)result.Report.Findings)
-            .Aggregate((all, findings) => all.Intersect(findings))
-            .ToHashSet();
-        foreach (var finding in shared)
+        // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
+        // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
+        var strictest = StrictestProfile.Of([.. options.Select(option => option.Profile)]);
+        var findings = report.Profiles[strictest].Report.Findings
+            .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
+            .Distinct();
+        foreach (var finding in findings)
         {
-            Findings.Add(new FindingItem(FindingHeader(finding), finding.Message));
-        }
-        for (var i = 0; i < options.Count; i++)
-        {
-            foreach (var finding in report.Profiles[i].Report.Findings.Where(finding => !shared.Contains(finding)))
-            {
-                Findings.Add(new FindingItem(
-                    string.Format(CultureInfo.CurrentCulture, Strings.FindingHeaderForProfile, options[i].Label, KindText(finding.Kind), finding.SubjectName),
-                    finding.Message));
-            }
+            Findings.Add(new FindingItem(options.Count == 1 || finding.Kind == FactKind.DetectedFact
+                ? FindingHeader(finding)
+                : string.Format(CultureInfo.CurrentCulture, Strings.FindingHeaderForProfile, options[strictest].Label, KindText(finding.Kind), finding.SubjectName),
+                finding.Message));
         }
     }
 
