@@ -8,7 +8,7 @@ using UsbHelper.Core.Topology;
 namespace UsbHelper.App.ViewModels;
 
 /// <summary>
-/// One item in the tree view. <see cref="Update"/> changes it in place and keeps child items whose id is unchanged,
+/// One item in the tree view. <see cref="UpdateHost"/> changes the tree in place and keeps child items whose id is unchanged,
 /// so selection survives updates and only changed items notify the view.
 /// The top item is the host, this computer; the controllers are its children.
 /// Ports with nothing on them are left out. Every item but the host has an elbow line from its parent; the view

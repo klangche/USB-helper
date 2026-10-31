@@ -144,6 +144,17 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void HostOfAMatchingProfileWithoutANameIsManufacturerAndModel()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", "verified");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-1"));
+
+        viewModel.Load(Desk);
+
+        Assert.Equal("Dell Inc. Latitude 7450", Assert.Single(viewModel.Roots).Text);
+    }
+
+    [Fact]
     public void HostWithoutAnyNameIsThisComputer()
     {
         var viewModel = NewViewModel();
