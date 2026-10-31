@@ -250,11 +250,15 @@ the items, and the line to each hub and device is drawn in its status colour,
 with the result word after its name. Empty ports are left out. Each
 controller shows its hub count, deepest tier and deepest hop. Next to the tree
 is a summary with the overall result, the status field, disconnected and
-reconnected devices and all findings. Nothing is checked at start, so every
-line is grey (unknown). In the top bar, check the systems to judge the setup
-by in the two drop-down lists, "Operating systems" (generic platform profiles
-such as `windows-intel`) and "Computers" (computer profiles); any mix can be
-checked. Each line then shows the worst result over the checked profiles. The
+reconnected devices and all findings. At start, the platform profile for the
+detected operating system and processor (for example `windows-amd` on Windows
+with an AMD processor) is checked; uncheck it to judge by others. When no
+platform profile matches, nothing is checked and every line is grey
+(unknown). Computer profiles are never checked automatically. In the top bar,
+check the systems to judge the setup by in the two drop-down lists,
+"Operating systems" (generic platform profiles such as `windows-intel`) and
+"Computers" (computer profiles); any mix can be checked. Each line then shows
+the worst result over the checked profiles. The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour) and its hub, tier,
 hop and display checks. A finding that only some checked profiles report names

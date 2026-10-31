@@ -374,7 +374,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void NothingIsCheckedAtStartEvenForAnExactlyMatchingComputer()
+    public void NoComputerIsCheckedAtStartEvenForAnExactMatch()
     {
         var viewModel = TwoProfiles();
 
@@ -382,6 +382,49 @@ public class MainViewModelTests
         Assert.Equal([ComputerProfileId.From("Dell Inc.", "Latitude 7450")], viewModel.Computers.Select(option => option.Profile.Id));
         Assert.All(viewModel.OperatingSystems.Concat(viewModel.Computers), option => Assert.False(option.IsChecked));
         Assert.Empty(viewModel.StatusRows);
+        Assert.True(viewModel.NothingChecked);
+        Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
+    }
+
+    // An AMD Windows computer whose platform profile allows no hub (max_hops: 0): the keyboard behind HUB is unstable.
+    private static MainViewModel OnWindowsAmd(string? detectedPlatform)
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0", platform: "windows-amd");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: detectedPlatform));
+        viewModel.Load(Desk);
+        return viewModel;
+    }
+
+    [Fact]
+    public void TheDetectedOperatingSystemIsCheckedAtStartAndJudgesTheLines()
+    {
+        var viewModel = OnWindowsAmd("windows-amd");
+
+        Assert.True(viewModel.OperatingSystems.Single().IsChecked);
+        Assert.False(viewModel.Computers.Single().IsChecked); // Computer profiles are never checked automatically.
+        Assert.Equal(["windows-amd"], viewModel.StatusRows.Select(row => row.Label));
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+    }
+
+    [Fact]
+    public void UncheckingTheDetectedOperatingSystemTurnsTheLinesGrey()
+    {
+        var viewModel = OnWindowsAmd("windows-amd");
+
+        viewModel.OperatingSystems.Single().IsChecked = false;
+
+        Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
+        Assert.True(viewModel.NothingChecked);
+    }
+
+    [Theory]
+    [InlineData("windows-intel")]
+    [InlineData(null)]
+    public void NothingIsCheckedAtStartWhenNoPlatformProfileMatches(string? detectedPlatform)
+    {
+        var viewModel = OnWindowsAmd(detectedPlatform);
+
+        Assert.All(viewModel.OperatingSystems.Concat(viewModel.Computers), option => Assert.False(option.IsChecked));
         Assert.True(viewModel.NothingChecked);
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
     }

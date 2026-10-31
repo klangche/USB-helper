@@ -3,23 +3,25 @@ using UsbHelper.Core.Database;
 namespace UsbHelper.App.Tests;
 
 /// <summary>
-/// A minimal valid database with platform profile "p" and one computer profile, loaded from a temporary folder that is
-/// then deleted.
+/// A minimal valid database with one platform profile ("p" unless named) and one computer profile, loaded from a
+/// temporary folder that is then deleted.
 /// </summary>
 internal static class DatabaseFolder
 {
-    /// <param name="platformLimits">YAML lines under <c>limits:</c> of platform "p"; none when null.</param>
+    /// <param name="platformLimits">YAML lines under <c>limits:</c> of the platform profile; none when null.</param>
     /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
-    public static HardwareDatabase Load(string manufacturer, string model, string status, string? platformLimits = null, string? name = null)
+    /// <param name="platform">The platform profile's id.</param>
+    public static HardwareDatabase Load(
+        string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "p")
     {
         var folder = Directory.CreateTempSubdirectory("usb-helper-app-").FullName;
         Directory.CreateDirectory(Path.Combine(folder, "platforms"));
         Directory.CreateDirectory(Path.Combine(folder, "computers"));
         File.WriteAllText(Path.Combine(folder, "base.yaml"), "schema_version: 1\n");
-        File.WriteAllText(Path.Combine(folder, "platforms", "p.yaml"),
-            "id: p\ninherits: base\n" + (platformLimits == null ? "" : $"limits:\n  {platformLimits}\nverification:\n  status: verified\n"));
+        File.WriteAllText(Path.Combine(folder, "platforms", $"{platform}.yaml"),
+            $"id: {platform}\ninherits: base\n" + (platformLimits == null ? "" : $"limits:\n  {platformLimits}\nverification:\n  status: verified\n"));
         File.WriteAllText(Path.Combine(folder, "computers", "c.yaml"), $"""
-            inherits: p
+            inherits: {platform}
             manufacturer: {manufacturer}
             model: {model}
             {(name == null ? "" : $"name: {name}")}
