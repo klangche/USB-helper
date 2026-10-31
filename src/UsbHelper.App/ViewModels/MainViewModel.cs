@@ -8,7 +8,10 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.ViewModels;
 
-/// <summary>A platform or computer profile in one of the checkbox lists. Unchecked at start.</summary>
+/// <summary>
+/// A platform or computer profile in one of the checkbox lists. Unchecked at start, except the platform profile of the
+/// detected operating system and processor.
+/// </summary>
 public sealed class ProfileOption(string label, ResolvedProfile profile) : ObservableObject
 {
     private bool isChecked;
@@ -58,8 +61,10 @@ public sealed class MainViewModel : ObservableObject
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
         this.identity = identity;
         DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
-        // Nothing is checked automatically, not even an exact match: the user checks every system to judge by.
-        OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)));
+        // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
+        // match, are checked by the user.
+        OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile =>
+            new ProfileOption(profile.Id, profile) { IsChecked = profile.Id == identity.Platform }));
         Computers = Options((database?.Computers.Values ?? []).Select(profile =>
             new ProfileOption(ComputerLabel(profile), profile)));
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
