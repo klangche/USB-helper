@@ -47,7 +47,7 @@ public partial class App : Application
 
         if (!OperatingSystem.IsWindows())
         {
-            return new MainViewModel(database, errors, new ComputerIdentity(null, null)) { Notice = Strings.DetectionUnavailable, IsLoading = false };
+            return new MainViewModel(database, errors, new ComputerIdentity(null, null, MachineName: Environment.MachineName)) { Notice = Strings.DetectionUnavailable, IsLoading = false };
         }
 
         var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read(), ReadExternalDisplays);

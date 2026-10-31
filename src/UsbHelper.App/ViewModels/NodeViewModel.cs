@@ -8,9 +8,10 @@ using UsbHelper.Core.Topology;
 namespace UsbHelper.App.ViewModels;
 
 /// <summary>
-/// One item in the tree view. <see cref="Update"/> changes it in place and keeps child items whose id is unchanged,
+/// One item in the tree view. <see cref="UpdateHost"/> changes the tree in place and keeps child items whose id is unchanged,
 /// so selection survives updates and only changed items notify the view.
-/// Ports with nothing on them are left out. Every item but a controller has an elbow line from its parent; the view
+/// The top item is the host, this computer; the controllers are its children.
+/// Ports with nothing on them are left out. Every item but the host has an elbow line from its parent; the view
 /// draws one column per <see cref="Guides"/> entry before it.
 /// A port marked with extra hops for an active cable or extender shows the mark after its name.
 /// </summary>
@@ -30,6 +31,9 @@ public sealed class NodeViewModel : ObservableObject
         HasLine = hasLine;
         Children.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasChildren));
     }
+
+    /// <summary>The id of the host item. Never a USB id: those are the operating system's device paths.</summary>
+    public const string HostId = "host";
 
     public string Id { get; }
 
@@ -74,7 +78,7 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>The elbow from the parent: the status colour for a hub or device, the trunk colour otherwise.</summary>
     public string ElbowColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.Trunk;
 
-    /// <summary>False for controllers, the top of the tree.</summary>
+    /// <summary>False for the host, the top of the tree.</summary>
     public bool HasLine { get; }
 
     /// <summary>One entry per ancestor column left of the elbow: true where that ancestor's trunk continues past this row.</summary>
@@ -109,13 +113,23 @@ public sealed class NodeViewModel : ObservableObject
 
     public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
 
-    /// <summary>A top-level item (a controller), without a line.</summary>
+    /// <summary>The host item, the top of the tree without a line, with <paramref name="controllers"/> as its children.</summary>
     /// <param name="extraHops">The user's marks: extra hops per port id.</param>
-    public static NodeViewModel Create(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops) =>
-        Create(node, report, extraHops, isDisconnected: false, hasLine: false, [], isLast: true);
+    public static NodeViewModel Host(
+        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops)
+    {
+        var host = new NodeViewModel(HostId, isPort: false, isDisconnected: false, hasLine: false);
+        host.UpdateHost(name, controllers, report, extraHops);
+        return host;
+    }
 
-    /// <summary>Brings this top-level item and its children up to date with <paramref name="node"/>, <paramref name="report"/> and the marks.</summary>
-    public void Update(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops) => Update(node, report, extraHops, [], last: true);
+    /// <summary>Brings the host item and its children up to date with <paramref name="controllers"/>, <paramref name="report"/> and the marks.</summary>
+    public void UpdateHost(string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops)
+    {
+        Text = name;
+        IsLast = true;
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, []);
+    }
 
     private void Update(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlyList<bool> lines, bool last)
     {
@@ -142,7 +156,13 @@ public sealed class NodeViewModel : ObservableObject
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
         // Below this item, its own trunk continues past every child but the last.
-        IReadOnlyList<bool> childLines = HasLine ? [.. lines, !last] : [];
+        UpdateChildren(wanted, report, extraHops, [.. lines, !last]);
+    }
+
+    private void UpdateChildren(
+        IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
+        IReadOnlyList<bool> childLines)
+    {
         for (var i = 0; i < wanted.Count; i++)
         {
             var (child, disconnected) = wanted[i];

@@ -70,7 +70,7 @@ public class MainViewModelTests
 
         viewModel.Load(Desk);
 
-        Assert.Equal(["C1", "ROOT", "ROOT|port1", "HUB", "HUB|port1", "KEYBOARD", "ROOT|port2", "MOUSE"],
+        Assert.Equal(["host", "C1", "ROOT", "ROOT|port1", "HUB", "HUB|port1", "KEYBOARD", "ROOT|port2", "MOUSE"],
             All(viewModel.Roots).Select(item => item.Id)); // HUB|port2 is empty.
         Assert.Null(Item(viewModel, "ROOT").Status); // Root hubs and ports have no line of their own.
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status); // No profile: limits unknown.
@@ -86,16 +86,96 @@ public class MainViewModelTests
 
         Assert.Equal(
             [
-                "C1",
-                "`-ROOT",
-                "  |-ROOT|port1",
-                "  | `-HUB",
-                "  |   `-HUB|port1",
-                "  |     `-KEYBOARD",
-                "  `-ROOT|port2",
-                "    `-MOUSE",
+                "host",
+                "`-C1",
+                "  `-ROOT",
+                "    |-ROOT|port1",
+                "    | `-HUB",
+                "    |   `-HUB|port1",
+                "    |     `-KEYBOARD",
+                "    `-ROOT|port2",
+                "      `-MOUSE",
             ],
             Drawn(viewModel));
+    }
+
+    [Fact]
+    public void HostIsTheOnlyRootAndEveryControllerIsItsChild()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load([.. Desk, new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", Device("STICK"))])]);
+
+        var host = Assert.Single(viewModel.Roots);
+        Assert.Equal(NodeViewModel.HostId, host.Id);
+        Assert.False(host.HasLine);
+        Assert.Null(host.Status);
+        Assert.Null(host.Counts);
+        Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
+        Assert.All(host.Children, controller => Assert.True(controller.HasLine));
+        // The lines start at the host: its trunk runs down to the last controller.
+        Assert.Equal(["host", "|-C1", "| `-ROOT", "|   |-ROOT|port1"], Drawn(viewModel).Take(4));
+        Assert.Equal(["`-C2", "  `-ROOT2", "    `-ROOT2|port1", "      `-STICK"], Drawn(viewModel).Skip(9));
+    }
+
+    [Fact]
+    public void HostIsNamedAfterTheMatchingComputerProfile()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", "verified", name: "Dell Latitude 14 7450");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-1"));
+
+        viewModel.Load(Desk);
+
+        Assert.Equal("Dell Latitude 14 7450", Assert.Single(viewModel.Roots).Text);
+    }
+
+    [Theory]
+    [InlineData("Dell Inc.", "Latitude 7450", "DESK-1", "Dell Inc. Latitude 7450")] // No profile matches.
+    [InlineData(null, null, "DESK-1", "DESK-1")]
+    [InlineData(" ", "", "DESK-1", "DESK-1")]
+    public void HostNameFallsBackToManufacturerAndModelThenTheMachineName(string? manufacturer, string? model, string machine, string expected)
+    {
+        var database = DatabaseFolder.Load("Apple Inc.", "Mac17,5", "verified", name: "MacBook Neo");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity(manufacturer, model, MachineName: machine));
+
+        viewModel.Load(Desk);
+
+        Assert.Equal(expected, Assert.Single(viewModel.Roots).Text);
+    }
+
+    [Fact]
+    public void HostOfAMatchingProfileWithoutANameIsManufacturerAndModel()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", "verified");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-1"));
+
+        viewModel.Load(Desk);
+
+        Assert.Equal("Dell Inc. Latitude 7450", Assert.Single(viewModel.Roots).Text);
+    }
+
+    [Fact]
+    public void HostWithoutAnyNameIsThisComputer()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk);
+
+        Assert.Equal(Strings.ThisComputer, Assert.Single(viewModel.Roots).Text);
+    }
+
+    [Fact]
+    public void HostItemSurvivesUpdates()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+        var host = viewModel.Roots.Single();
+        var controller = Item(viewModel, "C1");
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, Device("STICK")))]);
+
+        Assert.Same(host, viewModel.Roots.Single());
+        Assert.Same(controller, Item(viewModel, "C1"));
     }
 
     [Fact]
@@ -108,16 +188,17 @@ public class MainViewModelTests
 
         Assert.Equal(
             [
-                "C1",
-                "`-ROOT",
-                "  |-ROOT|port1",
-                "  | `-HUB",
-                "  |   |-HUB|port1",
-                "  |   | `-KEYBOARD",
-                "  |   `-HUB|port2",
-                "  |     `-STICK",
-                "  `-ROOT|port2",
-                "    `-MOUSE",
+                "host",
+                "`-C1",
+                "  `-ROOT",
+                "    |-ROOT|port1",
+                "    | `-HUB",
+                "    |   |-HUB|port1",
+                "    |   | `-KEYBOARD",
+                "    |   `-HUB|port2",
+                "    |     `-STICK",
+                "    `-ROOT|port2",
+                "      `-MOUSE",
             ],
             Drawn(viewModel));
     }
@@ -135,19 +216,20 @@ public class MainViewModelTests
 
         Assert.Equal(
             [
-                "C1",
-                "`-ROOT",
-                "  |-ROOT|port1",
-                "  | `-HUB",
-                "  `-ROOT|port2",
-                "    `-MOUSE",
+                "host",
+                "`-C1",
+                "  `-ROOT",
+                "    |-ROOT|port1",
+                "    | `-HUB",
+                "    `-ROOT|port2",
+                "      `-MOUSE",
             ],
             Drawn(viewModel));
         Assert.True(Item(viewModel, "MOUSE").IsDisconnected);
 
         viewModel.Disconnected.Single().Clear.Execute(null);
 
-        Assert.Equal(["C1", "`-ROOT", "  `-ROOT|port1", "    `-HUB"], Drawn(viewModel));
+        Assert.Equal(["host", "`-C1", "  `-ROOT", "    `-ROOT|port1", "      `-HUB"], Drawn(viewModel));
     }
 
     [Fact]
