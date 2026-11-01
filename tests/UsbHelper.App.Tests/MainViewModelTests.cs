@@ -408,42 +408,50 @@ public class MainViewModelTests
     private static readonly string Latitude = $"Dell Inc. Latitude 7450 ({ComputerProfileId.From("Dell Inc.", "Latitude 7450")})";
 
     [Fact]
-    public void MarkingAPortReEvaluates()
+    public void MarkingAConnectionAddsHopsBehindItAndReEvaluates()
     {
         var viewModel = TwoProfiles();
         viewModel.Computers.Single().IsChecked = true; // max_hops 5; the keyboard has 1 hop.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        var hub = Item(viewModel, "HUB"); // The line from ROOT|port1 to HUB.
+        Assert.True(hub.CanMark);
+        Assert.False(hub.IsUserMarked);
+        Assert.Null(hub.MarkBadge);
 
-        viewModel.SelectedNode = Item(viewModel, "ROOT|port1");
-        Assert.True(viewModel.CanMark);
-        viewModel.SelectedExtraHops = 5;
+        hub.ExtraHops = 5;
 
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // 6 hops.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.PortMark, "Port 1", 5), Item(viewModel, "ROOT|port1").Text);
+        Assert.Equal(5, Item(viewModel, "HUB").ExtraHops);
+        Assert.True(Item(viewModel, "HUB").IsUserMarked);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), Item(viewModel, "HUB").MarkBadge);
+        Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
+        Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 8, 6), Item(viewModel, "C1").Counts);
 
         viewModel.Apply([]); // The mark lasts while the app runs.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+        Assert.True(Item(viewModel, "HUB").IsUserMarked);
 
-        viewModel.SelectedExtraHops = 0;
+        Item(viewModel, "HUB").ExtraHops = 0;
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
-        Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text);
+        Assert.False(Item(viewModel, "HUB").IsUserMarked);
+        Assert.Null(Item(viewModel, "HUB").MarkBadge);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
     }
 
     [Fact]
-    public void OnlyPortsCanBeMarked()
+    public void OnlyConnectionsFromAPortCanBeMarked()
     {
         var viewModel = NewViewModel();
         viewModel.Load(Desk);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]); // MOUSE is disconnected.
 
-        viewModel.SelectedNode = Item(viewModel, "KEYBOARD");
-
-        Assert.False(viewModel.CanMark);
-        Assert.Equal(0, viewModel.SelectedExtraHops);
-        viewModel.SelectedNode = Item(viewModel, "HUB|port1");
-        Assert.True(viewModel.CanMark);
-        Assert.Equal(0, viewModel.SelectedExtraHops);
+        Assert.Equal(["HUB", "KEYBOARD"], All(viewModel.Roots).Where(item => item.CanMark).Select(item => item.Id));
+        var mouse = Item(viewModel, "MOUSE");
+        mouse.ExtraHops = 2; // Ignored: nothing is behind a disconnected device's port now.
+        Assert.Equal(0, mouse.ExtraHops);
+        Assert.False(mouse.IsUserMarked);
     }
 
     // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
