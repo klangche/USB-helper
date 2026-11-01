@@ -13,7 +13,8 @@ namespace UsbHelper.App.ViewModels;
 /// The top item is the host, this computer; the controllers are its children.
 /// Ports with nothing on them are left out. Every item but the host has an elbow line from its parent; the view
 /// draws one column per <see cref="Guides"/> entry before it.
-/// A port marked with extra hops for an active cable or extender shows the mark after its name.
+/// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
+/// system does not show (#76): its extra hops count for everything behind that port.
 /// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
 /// across updates.
 /// </summary>
@@ -25,12 +26,15 @@ public sealed class NodeViewModel : ObservableObject
     private bool isLast;
     private string? counts;
     private bool isExpanded;
+    private int markedHops;
+    private readonly Action<string, int> mark;
 
-    private NodeViewModel(string id, bool isPort, bool isDisconnected, bool hasLine, bool isExpanded)
+    private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, bool isExpanded, Action<string, int> mark)
     {
         Id = id;
-        IsPort = isPort;
+        PortId = portId;
         IsDisconnected = isDisconnected;
+        this.mark = mark;
         HasLine = hasLine;
         this.isExpanded = isExpanded;
         Children.CollectionChanged += (_, _) =>
@@ -46,8 +50,37 @@ public sealed class NodeViewModel : ObservableObject
 
     public string Id { get; }
 
-    /// <summary>A hub port; only ports can be marked with extra hops.</summary>
-    public bool IsPort { get; }
+    /// <summary>The choices for a mark, by number of extra hops: none, then +1 to +5.</summary>
+    public static IReadOnlyList<string> MarkChoices { get; } =
+        [Strings.MarkNone, .. Enumerable.Range(1, 5).Select(hops => string.Format(CultureInfo.CurrentCulture, Strings.MarkHops, hops))];
+
+    /// <summary>For a connected hub or device: the port its line comes from, where a mark is kept. Null otherwise.</summary>
+    public string? PortId { get; }
+
+    /// <summary>True when the line to this item can be marked as an active cable or extender.</summary>
+    public bool CanMark => PortId != null;
+
+    /// <summary>
+    /// The user's mark on the line to this item: extra hops for an active cable or extender, 0 for none. Setting it
+    /// re-evaluates everything; it is ignored when the line cannot be marked.
+    /// </summary>
+    public int ExtraHops
+    {
+        get => markedHops;
+        set
+        {
+            if (PortId != null && value >= 0 && value != markedHops)
+            {
+                mark(PortId, value);
+            }
+        }
+    }
+
+    /// <summary>The user marked this line; the view draws it dashed with <see cref="MarkBadge"/>.</summary>
+    public bool IsUserMarked => ExtraHops > 0;
+
+    /// <summary>"+N hops" on a marked line, null otherwise.</summary>
+    public string? MarkBadge => IsUserMarked ? string.Format(CultureInfo.CurrentCulture, Strings.CableMark, ExtraHops) : null;
 
     /// <summary>A device seen earlier, shown at its last port.</summary>
     public bool IsDisconnected { get; }
@@ -144,10 +177,12 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>The host item, the top of the tree without a line, with <paramref name="controllers"/> as its children.</summary>
     /// <param name="extraHops">The user's marks: extra hops per port id.</param>
+    /// <param name="mark">Sets the mark (extra hops, 0 for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
-        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops)
+        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
+        Action<string, int> mark)
     {
-        var host = new NodeViewModel(HostId, isPort: false, isDisconnected: false, hasLine: false, isExpanded: true);
+        var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, isExpanded: true, mark);
         host.UpdateHost(name, controllers, report, extraHops);
         return host;
     }
@@ -158,7 +193,7 @@ public sealed class NodeViewModel : ObservableObject
         Text = name;
         IsLast = true;
         var builtIn = TopologyCounts.BuiltIn(controllers).Select(hub => hub.Id).ToHashSet();
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, []);
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, [], portId: null);
     }
 
     private void Update(
@@ -167,9 +202,12 @@ public sealed class NodeViewModel : ObservableObject
     {
         Guides = lines;
         IsLast = last;
-        Text = extraHops.TryGetValue(node.Id, out var hops)
-            ? string.Format(CultureInfo.CurrentCulture, Strings.PortMark, Describe(node, IsDisconnected), hops)
-            : Describe(node, IsDisconnected);
+        Text = Describe(node, IsDisconnected);
+        if (SetField(ref markedHops, PortId == null ? 0 : extraHops.GetValueOrDefault(PortId), nameof(ExtraHops)))
+        {
+            OnPropertyChanged(nameof(IsUserMarked));
+            OnPropertyChanged(nameof(MarkBadge));
+        }
         Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Connections.TryGetValue(node.Id, out var value)
             ? value
             : null;
@@ -188,12 +226,12 @@ public sealed class NodeViewModel : ObservableObject
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
         // Below this item, its own trunk continues past every child but the last.
-        UpdateChildren(wanted, report, extraHops, builtIn, [.. lines, !last]);
+        UpdateChildren(wanted, report, extraHops, builtIn, [.. lines, !last], node.Kind == UsbNodeKind.Port ? node.Id : null);
     }
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        IReadOnlySet<string> builtIn, IReadOnlyList<bool> childLines)
+        IReadOnlySet<string> builtIn, IReadOnlyList<bool> childLines, string? portId)
     {
         for (var i = 0; i < wanted.Count; i++)
         {
@@ -202,7 +240,10 @@ public sealed class NodeViewModel : ObservableObject
             var existing = Children.FirstOrDefault(item => item.Id == child.Id && item.IsDisconnected == disconnected);
             if (existing == null)
             {
-                Children.Insert(i, Create(child, report, extraHops, builtIn, disconnected, childLines, childIsLast));
+                // A disconnected device has nothing behind it now, so its line cannot be marked.
+                var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, isExpanded: !builtIn.Contains(child.Id), mark);
+                item.Update(child, report, extraHops, builtIn, childLines, childIsLast);
+                Children.Insert(i, item);
                 continue;
             }
             var at = Children.IndexOf(existing);
@@ -216,15 +257,6 @@ public sealed class NodeViewModel : ObservableObject
         {
             Children.RemoveAt(Children.Count - 1);
         }
-    }
-
-    private static NodeViewModel Create(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlySet<string> builtIn, bool isDisconnected,
-        IReadOnlyList<bool> lines, bool isLast)
-    {
-        var item = new NodeViewModel(node.Id, node.Kind == UsbNodeKind.Port, isDisconnected, hasLine: true, isExpanded: !builtIn.Contains(node.Id));
-        item.Update(node, report, extraHops, builtIn, lines, isLast);
-        return item;
     }
 
     private static string ControllerCounts(UsbNode controller, IReadOnlyDictionary<string, int> extraHops)

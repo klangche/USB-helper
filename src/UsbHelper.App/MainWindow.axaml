@@ -55,15 +55,23 @@
         <TextBlock DockPanel.Dock="Top" Text="{x:Static res:Strings.ReadingDevices}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
-        <!-- Marks for active cables and extenders the operating system does not show (#45). -->
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" IsVisible="{Binding CanMark}">
-          <TextBlock Text="{x:Static res:Strings.MarkLabel}" VerticalAlignment="Center" />
-          <ComboBox ItemsSource="{Binding MarkChoices}" SelectedIndex="{Binding SelectedExtraHops}" />
-        </StackPanel>
         <!-- Tree style B (#43): drawn lines instead of indentation and expand arrows. Built-in hubs start collapsed (#68),
              every other branch open; a double-click or the arrow keys expand and collapse. -->
-        <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
+        <!-- Active cables and extenders the operating system does not show (#76): click the line to a hub or device, or
+             press the context menu key on it, to mark its extra hops. -->
+        <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" ContextRequested="OpenCableMark">
           <TreeView.Styles>
+            <!-- The line is a button without a look of its own: only the lines show. -->
+            <Style Selector="Button.line">
+              <Setter Property="Padding" Value="0" />
+              <!-- Full row height, so the lines join the rows above and below. -->
+              <Setter Property="VerticalAlignment" Value="Stretch" />
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <ContentPresenter Content="{TemplateBinding Content}" VerticalContentAlignment="Stretch" Cursor="Hand" />
+                </ControlTemplate>
+              </Setter>
+            </Style>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               <Setter Property="MinHeight" Value="0" />
@@ -92,10 +100,27 @@
           <TreeView.ItemTemplate>
             <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
               <DockPanel Height="24" ToolTip.Tip="{Binding StatusText}">
-                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
-                               HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}"
-                               ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                <Button Name="CableLine" Classes="line" DockPanel.Dock="Left" Focusable="False" IsHitTestVisible="{Binding CanMark}"
+                        ToolTip.Tip="{x:Static res:Strings.CableMarkTip}">
+                  <app:TreeLines Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
+                                 HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
+                                 ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                  <Button.Flyout>
+                    <Flyout Placement="BottomEdgeAlignedLeft">
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" />
+                        <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}" />
+                      </StackPanel>
+                    </Flyout>
+                  </Button.Flyout>
+                </Button>
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
+                  <!-- A marked line's "+N hops" badge, in the line's colour, so it is clear the user added it. -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsUserMarked}"
+                          BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
+                    <TextBlock Text="{Binding MarkBadge}" FontWeight="SemiBold"
+                               Foreground="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                  </Border>
                   <TextBlock Text="{Binding Text}" />
                   <!-- The result word on the right, in the same colour as the elbow. -->
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"

@@ -159,50 +159,26 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The tree: one item, the host, with the controllers as its children. Empty until the first refresh.</summary>
     public ObservableCollection<NodeViewModel> Roots { get; } = [];
 
+    /// <summary>The selected tree item; the context menu key opens the mark of its line.</summary>
     public NodeViewModel? SelectedNode
     {
         get => selectedNode;
-        set
-        {
-            if (SetField(ref selectedNode, value))
-            {
-                OnPropertyChanged(nameof(CanMark));
-                OnPropertyChanged(nameof(SelectedExtraHops));
-            }
-        }
+        set => SetField(ref selectedNode, value);
     }
 
-    /// <summary>True when the selected item is a port, which can be marked with extra hops.</summary>
-    public bool CanMark => SelectedNode?.IsPort == true;
-
-    /// <summary>The choices for a mark, by number of extra hops: none, then +1 to +5.</summary>
-    public IReadOnlyList<string> MarkChoices { get; } =
-        [Strings.MarkNone, .. Enumerable.Range(1, 5).Select(hops => string.Format(CultureInfo.CurrentCulture, Strings.MarkHops, hops))];
-
-    /// <summary>
-    /// Extra hops for an active cable or extender the operating system does not show, on the selected port. They count
-    /// in every tier and hop check of everything behind the port. 0 removes the mark.
-    /// </summary>
-    public int SelectedExtraHops
+    // A mark for an active cable or extender the operating system does not show, on the line from a port: the extra
+    // hops count in every tier and hop check of everything behind the port. 0 removes the mark.
+    private void Mark(string portId, int hops)
     {
-        get => CanMark ? extraHops.GetValueOrDefault(SelectedNode!.Id) : 0;
-        set
+        if (hops == 0)
         {
-            if (!CanMark || value == SelectedExtraHops || value < 0)
-            {
-                return;
-            }
-            if (value == 0)
-            {
-                extraHops.Remove(SelectedNode!.Id);
-            }
-            else
-            {
-                extraHops[SelectedNode!.Id] = value;
-            }
-            OnPropertyChanged(nameof(SelectedExtraHops));
-            Refresh();
+            extraHops.Remove(portId);
         }
+        else
+        {
+            extraHops[portId] = hops;
+        }
+        Refresh();
     }
 
     public string OverallText => string.Format(CultureInfo.CurrentCulture, Strings.Overall, StatusColors.Text(report.Overall));
@@ -250,7 +226,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark));
         }
         else
         {
