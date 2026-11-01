@@ -20,16 +20,17 @@ public static class DiagnosticEvaluator
     /// Evaluates the tree against every checked profile. Each line shows the worst result over the profiles; with no
     /// profile checked, everything is unknown (grey).
     /// </summary>
+    /// <param name="wholeTree">See <see cref="Evaluate"/>.</param>
     public static SystemsReport EvaluateAll(
         IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null)
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
     {
         if (profiles.Count == 0)
         {
-            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops);
+            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops, wholeTree);
             return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
         }
-        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops))).ToList();
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops, wholeTree))).ToList();
         var connections = results
             .SelectMany(result => result.Report.Connections)
             .GroupBy(line => line.Key, line => line.Value)
@@ -42,9 +43,13 @@ public static class DiagnosticEvaluator
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
     /// <param name="reconnected">Ids from <see cref="SessionHistory.Reconnected"/>.</param>
     /// <param name="extraHops">The user's marks for active cables and extenders: extra hops per port id.</param>
+    /// <param name="wholeTree">
+    /// All controllers, when <paramref name="tree"/> is only some of them: the hub count is the whole computer's (owner
+    /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
+    /// </param>
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null)
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
     {
         var findings = new List<Finding>();
         var computer = profile?.Find("name")?.Scalar as string ?? profile?.Find("model")?.Scalar as string ?? "This computer";
@@ -66,7 +71,8 @@ public static class DiagnosticEvaluator
         }
         var incomplete = unreadable.Count > 0;
         var depths = TopologyCounts.Depths(tree, extraHops);
-        var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(tree), incomplete);
+        var computerTree = wholeTree ?? tree;
+        var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(computerTree), TopologyCounts.Unreadable(computerTree).Any());
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
         var maxHops = depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max();
         var hops = Check(profile, "limits.max_hops", maxHops, incomplete);

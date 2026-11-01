@@ -261,13 +261,21 @@ into the computer (for the webcam or Bluetooth, reached only through ports
 that are not user-connectable) start collapsed; everything else is open.
 Double-click an item, or use the arrow keys, to expand or collapse it; the
 choice is kept while the app runs. Each controller shows its hub count,
-deepest tier and deepest hop. Next to the tree is a summary with the overall result, the status field, disconnected and
-reconnected devices and all findings. At start, the platform profile for the
-detected operating system and processor (for example `windows-amd` on Windows
-with an AMD processor) is checked; uncheck it to judge by others. When no
-platform profile matches, nothing is checked and every line is grey
-(unknown). Computer profiles are never checked automatically. In the top bar,
-check the systems to judge the setup by in the two drop-down lists,
+deepest tier and deepest hop. Next to the tree is a summary with the overall
+result, the status field, disconnected and reconnected devices and the
+findings. The overall result, the status field and the findings cover one USB
+controller's tree, named under "Status". At start, and when that controller
+disappears, the controller with the most connected hubs and devices (built-in
+hubs not counted) is selected; on a tie the first in the tree. Click another
+controller, or anything under it, to switch; click the computer at the top to
+cover all controllers. The hub count is always the whole computer's. The tree
+and the disconnected list always show everything. At start, the platform
+profile for the detected operating system and processor (for example
+`windows-amd` on Windows with an AMD processor) is checked; uncheck it to
+judge by others. When no platform profile matches, nothing is checked and
+every line is grey (unknown). Computer profiles are never checked
+automatically. In the top bar, check the systems to judge the setup by in
+the two drop-down lists,
 "Operating systems" (generic platform profiles such as `windows-intel`) and
 "Computers" (computer profiles); any mix can be checked. Each line then shows
 the worst result over the checked profiles. The
