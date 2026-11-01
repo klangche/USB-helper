@@ -737,6 +737,7 @@ public class MainViewModelTests
 
         Assert.Equal("C2", viewModel.SelectedControllerId);
         Assert.Equal("stable", Word(viewModel));
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Green), viewModel.OverallColor); // The overall result follows it.
         Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.EndsWith("KEYBOARD", StringComparison.Ordinal));
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "KEYBOARD").LineColor); // The tree is unchanged.
 
