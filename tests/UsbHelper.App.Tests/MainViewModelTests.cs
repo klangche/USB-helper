@@ -807,4 +807,19 @@ public class MainViewModelTests
 
         Assert.Equal("For: all controllers", viewModel.StatusScope);
     }
+
+    [Fact]
+    public void TheSelectedControllersStatusUsesTheWholeComputersHubCount()
+    {
+        // One hub on each controller; platform "p" allows one hub, so each hub is above the computer's maximum.
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hubs: 1");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"));
+        var dock = new UsbNode("C6", UsbNodeKind.Controller, "Dock controller", [Hub("ROOT6", Hub("DOCK", Device("D")))]);
+        viewModel.Load([.. Desk, dock]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.Equal("unstable", Word(viewModel));
+        Assert.Contains("External hubs: 2, limit 1 (exceeded, verified)", viewModel.StatusRows[0].Details);
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "HUB").LineColor);
+    }
 }

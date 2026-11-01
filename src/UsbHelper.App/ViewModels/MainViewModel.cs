@@ -284,7 +284,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops);
+                reconnectedIds, extraHops, tree);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
 

@@ -267,8 +267,8 @@ controller's tree, named under "Status". At start, and when that controller
 disappears, the controller with the most connected hubs and devices (built-in
 hubs not counted) is selected; on a tie the first in the tree. Click another
 controller, or anything under it, to switch; click the computer at the top to
-cover all controllers. The tree and the disconnected list always show
-everything. At start, the platform profile for the
+cover all controllers. The hub count is always the whole computer's. The tree
+and the disconnected list always show everything. At start, the platform profile for the
 detected operating system and processor (for example `windows-amd` on Windows
 with an AMD processor) is checked; uncheck it to judge by others. When no
 platform profile matches, nothing is checked and every line is grey

@@ -222,6 +222,31 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
+    public void OneControllersTreeIsJudgedOnTheWholeComputersHubCount()
+    {
+        // Owner decision on #73: the status for one controller uses the hub count of all controllers.
+        IReadOnlyList<UsbNode> computer = [.. Desk, Controller("C2", Hub("ROOT2", Hub("DOCK", Device("PHONE"))))];
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, Profile(hubs: "1"), [], externalDisplays: 0, wholeTree: computer);
+
+        Assert.Equal((2, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["HUB"]);
+        Assert.False(report.Connections.ContainsKey("DOCK")); // Only this controller's lines.
+        Assert.Equal(3, report.Tiers.Actual); // Tiers and hops are this controller's.
+    }
+
+    [Fact]
+    public void AHubThatCannotBeReadOnAnotherControllerMakesTheHubCountAMinimum()
+    {
+        IReadOnlyList<UsbNode> computer = [.. Desk, Controller("C2", Hub("ROOT2", Hub("BROKEN") with { Problem = "code 43" }))];
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, Profile(hubs: "5"), [], externalDisplays: 0, wholeTree: computer);
+
+        Assert.Equal((2, LimitState.Unknown), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Equal(LimitState.Within, report.Hops.State);
+    }
+
+    [Fact]
     public void BuiltInHubIsNotCountedAndNotJudgedAsHub()
     {
         // Root port 1 holds the laptop's built-in hub; its port 1 is a laptop socket with a mouse.
