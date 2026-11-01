@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Rendering;
 using UsbHelper.App.ViewModels;
 
 namespace UsbHelper.App;
@@ -9,9 +10,10 @@ namespace UsbHelper.App;
 /// <summary>
 /// The tree lines left of one tree item (tree style B, owner decision in #43): a column per ancestor whose grey trunk
 /// continues past this row, then the rounded elbow to this item, then a node column with a dot and, when the item
-/// shows its children, the start of its own trunk. Thin grey trunks; the elbow to a hub or device is in its status colour.
+/// shows its children, the start of its own trunk. Thin grey trunks; the elbow to a hub or device is in its status colour,
+/// dashed when the user marked it as an active cable or extender (#76).
 /// </summary>
-public sealed class TreeLines : Control
+public sealed class TreeLines : Control, ICustomHitTest
 {
     public const double ColumnWidth = 16;
     private const double Radius = 6;
@@ -31,12 +33,15 @@ public sealed class TreeLines : Control
     /// <summary>Status lines are drawn a little thicker than the trunks.</summary>
     public static readonly StyledProperty<bool> HasStatusProperty = AvaloniaProperty.Register<TreeLines, bool>(nameof(HasStatus));
 
+    /// <summary>The user marked the elbow as an active cable or extender: it is drawn dashed.</summary>
+    public static readonly StyledProperty<bool> IsDashedProperty = AvaloniaProperty.Register<TreeLines, bool>(nameof(IsDashed));
+
     public static readonly StyledProperty<IBrush?> ElbowBrushProperty = AvaloniaProperty.Register<TreeLines, IBrush?>(nameof(ElbowBrush));
 
     static TreeLines()
     {
         AffectsMeasure<TreeLines>(GuidesProperty, HasLineProperty);
-        AffectsRender<TreeLines>(GuidesProperty, HasLineProperty, IsLastProperty, HasChildrenProperty, HasStatusProperty, ElbowBrushProperty);
+        AffectsRender<TreeLines>(GuidesProperty, HasLineProperty, IsLastProperty, HasChildrenProperty, HasStatusProperty, IsDashedProperty, ElbowBrushProperty);
     }
 
     public IReadOnlyList<bool>? Guides
@@ -69,6 +74,12 @@ public sealed class TreeLines : Control
         set => SetValue(HasStatusProperty, value);
     }
 
+    public bool IsDashed
+    {
+        get => GetValue(IsDashedProperty);
+        set => SetValue(IsDashedProperty, value);
+    }
+
     public IBrush? ElbowBrush
     {
         get => GetValue(ElbowBrushProperty);
@@ -80,12 +91,17 @@ public sealed class TreeLines : Control
 
     protected override Size MeasureOverride(Size availableSize) => new(Columns * ColumnWidth, 0);
 
+    /// <summary>Only the elbow and the node column take clicks: the guide columns belong to the rows above.</summary>
+    public bool HitTest(Point point) =>
+        HasLine && point.X >= (Guides?.Count ?? 0) * ColumnWidth && point.X < Columns * ColumnWidth && point.Y >= 0 && point.Y < Bounds.Height;
+
     public override void Render(DrawingContext context)
     {
         var height = Bounds.Height;
         var middle = Math.Round(height / 2) + 0.5;
         var brush = ElbowBrush ?? TrunkPen.Brush;
-        var statusPen = new Pen(brush, HasStatus ? 1.5 : 1);
+        // A marked line is thicker and dashed, so it is clearly the user's and not detected.
+        var statusPen = IsDashed ? new Pen(brush, 2, new DashStyle([1, 1], 0)) : new Pen(brush, HasStatus ? 1.5 : 1);
         var column = 0;
 
         if (HasLine)

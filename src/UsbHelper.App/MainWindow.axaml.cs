@@ -1,7 +1,10 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 
@@ -12,6 +15,18 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    // The context menu key (or a right-click) on a tree item opens the mark of its line, the same as clicking the line.
+    private void OpenCableMark(object? sender, ContextRequestedEventArgs e)
+    {
+        var item = (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+        if (item?.DataContext is NodeViewModel { CanMark: true } node
+            && item.GetVisualDescendants().OfType<Button>().FirstOrDefault(button => button.Name == "CableLine" && button.DataContext == node) is { } line)
+        {
+            line.Flyout?.ShowAt(line);
+            e.Handled = true;
+        }
     }
 
     // Asks where to save, then writes this computer as a computer profile. An event handler: any failure (no

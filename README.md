@@ -17,7 +17,8 @@ Status: first version for Windows; computer profiles still to be added.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
 - Active cables and extenders that the operating system does not show can be
-  marked per port ("+N hops"); the marks count in every tier and hop check.
+  marked on their connection line ("+N hops"); the marks count in every tier
+  and hop check.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
@@ -269,8 +270,8 @@ hubs not counted) is selected; on a tie the first in the tree. Click another
 controller, or anything under it, to switch; click the computer at the top to
 cover all controllers. The hub count is always the whole computer's. The tree
 and the disconnected list always show everything. At start, the platform
-profile for the detected operating system and processor (for example `windows-amd` on Windows
-with an AMD processor) is checked; uncheck it to judge by others. When no
+profile for the detected operating system and processor (for example
+`windows-amd` on Windows with an AMD processor) is checked; uncheck it to judge by others. When no
 platform profile matches, nothing is checked and every line is grey
 (unknown). Computer profiles are never checked automatically. In the top bar,
 check the systems to judge the setup by in the two drop-down lists,
@@ -285,10 +286,13 @@ devices: only the affected part of the tree changes. A device that is
 unplugged stays red at its last port; one that comes back is purple
 (unstable). Click "Clear" next to it to reset it.
 
-Is an active cable or extender plugged in that the tree does not show? Select
-the port it is plugged into and pick its extra hops (+1 to +5) under the tree.
-The port shows the mark, and every tier and hop check counts it. Marks last
-until the app closes.
+Is an active cable or extender plugged in that the tree does not show? Click
+the line from the port to the hub or device behind the cable (or select that
+item and press the context menu key) and pick its extra hops (+1 to +5). The
+marked line is drawn dashed with a "+N hops" badge, so it is clear that you
+added it and Windows did not detect it. Every tier and hop check counts the
+extra hops for everything behind that line. Pick "None" to remove the mark.
+Marks last until the app closes.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the

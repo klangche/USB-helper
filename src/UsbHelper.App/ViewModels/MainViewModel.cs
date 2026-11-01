@@ -169,17 +169,12 @@ public sealed class MainViewModel : ObservableObject
         get => selectedNode;
         set
         {
-            if (SetField(ref selectedNode, value))
+            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0)
             {
-                OnPropertyChanged(nameof(CanMark));
-                OnPropertyChanged(nameof(SelectedExtraHops));
-                if (value != null && Roots.Count > 0)
-                {
-                    // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
-                    allControllers = value == Roots[0];
-                    selectedControllerId = Roots[0].Children.FirstOrDefault(controller => Contains(controller, value))?.Id;
-                    Refresh();
-                }
+                // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
+                allControllers = value == Roots[0];
+                selectedControllerId = Roots[0].Children.FirstOrDefault(controller => Contains(controller, value))?.Id;
+                Refresh();
             }
         }
     }
@@ -194,37 +189,19 @@ public sealed class MainViewModel : ObservableObject
     public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
         tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
-    /// <summary>True when the selected item is a port, which can be marked with extra hops.</summary>
-    public bool CanMark => SelectedNode?.IsPort == true;
-
-    /// <summary>The choices for a mark, by number of extra hops: none, then +1 to +5.</summary>
-    public IReadOnlyList<string> MarkChoices { get; } =
-        [Strings.MarkNone, .. Enumerable.Range(1, 5).Select(hops => string.Format(CultureInfo.CurrentCulture, Strings.MarkHops, hops))];
-
-    /// <summary>
-    /// Extra hops for an active cable or extender the operating system does not show, on the selected port. They count
-    /// in every tier and hop check of everything behind the port. 0 removes the mark.
-    /// </summary>
-    public int SelectedExtraHops
+    // A mark for an active cable or extender the operating system does not show, on the line from a port: the extra
+    // hops count in every tier and hop check of everything behind the port. 0 removes the mark.
+    private void Mark(string portId, int hops)
     {
-        get => CanMark ? extraHops.GetValueOrDefault(SelectedNode!.Id) : 0;
-        set
+        if (hops == 0)
         {
-            if (!CanMark || value == SelectedExtraHops || value < 0)
-            {
-                return;
-            }
-            if (value == 0)
-            {
-                extraHops.Remove(SelectedNode!.Id);
-            }
-            else
-            {
-                extraHops[SelectedNode!.Id] = value;
-            }
-            OnPropertyChanged(nameof(SelectedExtraHops));
-            Refresh();
+            extraHops.Remove(portId);
         }
+        else
+        {
+            extraHops[portId] = hops;
+        }
+        Refresh();
     }
 
     public string OverallText => string.Format(CultureInfo.CurrentCulture, Strings.Overall, StatusColors.Text(report.Overall));
@@ -290,7 +267,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark));
         }
         else
         {
