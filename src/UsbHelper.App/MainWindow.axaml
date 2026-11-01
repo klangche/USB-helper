@@ -109,7 +109,8 @@
                     <Flyout Placement="BottomEdgeAlignedLeft">
                       <StackPanel Spacing="6">
                         <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" />
-                        <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}" />
+                        <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}"
+                                 SelectionMode="AlwaysSelected" />
                       </StackPanel>
                     </Flyout>
                   </Button.Flyout>

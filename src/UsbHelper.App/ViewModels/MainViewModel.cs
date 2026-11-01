@@ -159,7 +159,6 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The tree: one item, the host, with the controllers as its children. Empty until the first refresh.</summary>
     public ObservableCollection<NodeViewModel> Roots { get; } = [];
 
-    /// <summary>The selected tree item; the context menu key opens the mark of its line.</summary>
     public NodeViewModel? SelectedNode
     {
         get => selectedNode;
