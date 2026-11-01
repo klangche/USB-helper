@@ -787,7 +787,7 @@ public class MainViewModelTests
     [Fact]
     public void BuiltInHubsDoNotCountAsDevicesWhenSelecting()
     {
-        // C4: a built-in hub (on a port that is not user-connectable) with a camera: 1 device. C2: the phone: 1 device.
+        // C4: a built-in hub (on a port that is not user-connectable) with a camera: 1 device. C5: a dock with a device: 2.
         var root = Hub("ROOT4", Hub("BUILTIN", Device("CAMERA")));
         root = root with { Children = [root.Children[0] with { UserConnectable = false }] };
         var builtIn = new UsbNode("C4", UsbNodeKind.Controller, "Built-in controller", [root]);

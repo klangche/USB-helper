@@ -255,33 +255,35 @@ computer, named after its computer profile when one matches, else by the
 manufacturer and model Windows reports, else by its machine name; the USB
 controllers are its children. Thin grey lines join the items, starting at the
 computer, and the line to each hub and device is drawn in its status colour,
-with the result word after its name. Empty ports are left out. Hubs built into
-the computer (for the webcam or Bluetooth, reached only through ports that are
-not user-connectable) start collapsed; everything else is open. Double-click an
-item, or use the arrow keys, to expand or collapse it; the choice is kept while
-the app runs. Each controller shows its hub count, deepest tier and deepest
-hop. Next to the tree is a summary with the overall result, the status field,
-disconnected and reconnected devices and the findings. The overall result, the
-status field and the findings cover one USB controller's tree, named under
-"Status". At start, and when that controller disappears, the controller with
-the most connected hubs and devices (built-in hubs not counted) is selected; on
-a tie the first in the tree. Click another controller, or anything under it, to
-switch; click the computer at the top to cover all controllers. The tree and
-the disconnected list always show everything. At start, the platform profile
-for the detected operating system and processor (for example `windows-amd` on
-Windows with an AMD processor) is checked; uncheck it to judge by others. When
-no platform profile matches, nothing is checked and every line is grey
+with the result word after its name. Empty ports are left out. Hubs built
+into the computer (for the webcam or Bluetooth, reached only through ports
+that are not user-connectable) start collapsed; everything else is open.
+Double-click an item, or use the arrow keys, to expand or collapse it; the
+choice is kept while the app runs. Each controller shows its hub count,
+deepest tier and deepest hop. Next to the tree is a summary with the overall
+result, the status field, disconnected and reconnected devices and the
+findings. The overall result, the status field and the findings cover one USB
+controller's tree, named under "Status". At start, and when that controller
+disappears, the controller with the most connected hubs and devices (built-in
+hubs not counted) is selected; on a tie the first in the tree. Click another
+controller, or anything under it, to switch; click the computer at the top to
+cover all controllers. The tree and the disconnected list always show
+everything. At start, the platform profile for the
+detected operating system and processor (for example `windows-amd` on Windows
+with an AMD processor) is checked; uncheck it to judge by others. When no
+platform profile matches, nothing is checked and every line is grey
 (unknown). Computer profiles are never checked automatically. In the top bar,
-check the systems to judge the setup by in the two drop-down lists, "Operating
-systems" (generic platform profiles such as `windows-intel`) and "Computers"
-(computer profiles); any mix can be checked. Each line then shows the worst
-result over the checked profiles. The status field has one row per checked
-profile with its result (stable, potentially unstable, unstable or unknown, in
-its colour) and its hub, tier, hop and display checks. With several profiles
-checked, the findings come from the strictest one only and name it (see the
-diagnostic rules). Plug and unplug devices: only the affected part of the tree
-changes. A device that is unplugged stays red at its last port; one that comes
-back is purple (unstable). Click "Clear" next to it to reset it.
+check the systems to judge the setup by in the two drop-down lists,
+"Operating systems" (generic platform profiles such as `windows-intel`) and
+"Computers" (computer profiles); any mix can be checked. Each line then shows
+the worst result over the checked profiles. The
+status field has one row per checked profile with its result (stable,
+potentially unstable, unstable or unknown, in its colour) and its hub, tier,
+hop and display checks. With several profiles checked, the findings come from
+the strictest one only and name it (see the diagnostic rules). Plug and unplug
+devices: only the affected part of the tree changes. A device that is
+unplugged stays red at its last port; one that comes back is purple
+(unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Select
 the port it is plugged into and pick its extra hops (+1 to +5) under the tree.
