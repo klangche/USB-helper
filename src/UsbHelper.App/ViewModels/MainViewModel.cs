@@ -5,6 +5,7 @@ using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.App.ViewModels;
 
@@ -55,7 +56,11 @@ public sealed class MainViewModel : ObservableObject
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
+    // The result for the selected controller's tree, or for all controllers; shown in the status field and findings.
     private SystemsReport report;
+    private string? selectedControllerId;
+    // The host is selected: the status covers all controllers.
+    private bool allControllers;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
     public MainViewModel(
@@ -168,9 +173,26 @@ public sealed class MainViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(CanMark));
                 OnPropertyChanged(nameof(SelectedExtraHops));
+                if (value != null && Roots.Count > 0)
+                {
+                    // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
+                    allControllers = value == Roots[0];
+                    selectedControllerId = Roots[0].Children.FirstOrDefault(controller => Contains(controller, value))?.Id;
+                    Refresh();
+                }
             }
         }
     }
+
+    private static bool Contains(NodeViewModel item, NodeViewModel wanted) =>
+        item == wanted || item.Children.Any(child => Contains(child, wanted));
+
+    /// <summary>The controller whose tree the status field and findings cover; null when they cover all controllers.</summary>
+    public string? SelectedControllerId => allControllers ? null : selectedControllerId;
+
+    /// <summary>What the status field covers: the selected controller, or all controllers.</summary>
+    public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
+        tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
     /// <summary>True when the selected item is a port, which can be marked with extra hops.</summary>
     public bool CanMark => SelectedNode?.IsPort == true;
@@ -242,11 +264,29 @@ public sealed class MainViewModel : ObservableObject
     private void Refresh()
     {
         var options = Checked;
+        var profiles = options.Select(option => option.Profile).ToList();
         var reconnected = history.Reconnected(tree);
-        report = DiagnosticEvaluator.EvaluateAll(tree, [.. options.Select(option => option.Profile)], history.Missing(tree), readExternalDisplays(),
-            [.. reconnected.Select(device => device.Node.Id)], extraHops);
+        var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
+        var missing = history.Missing(tree);
+        var displays = readExternalDisplays();
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
-        var lines = report.Counts with { Connections = report.Connections };
+        var lines = all.Counts with { Connections = all.Connections };
+
+        // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
+        // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a
+        // tie the first.
+        if (!allControllers && tree.All(controller => controller.Id != selectedControllerId))
+        {
+            selectedControllerId = tree.MaxBy(controller => TopologyCounts.Depths([controller]).Count)?.Id;
+        }
+        var selected = tree.FirstOrDefault(controller => controller.Id == SelectedControllerId);
+        report = selected == null
+            ? all
+            : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
+                reconnectedIds, extraHops);
+        OnPropertyChanged(nameof(SelectedControllerId));
+        OnPropertyChanged(nameof(StatusScope));
 
         if (Roots.Count == 0)
         {
@@ -275,9 +315,9 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(NothingChecked));
 
         Disconnected.Clear();
-        foreach (var missing in report.Counts.Missing)
+        foreach (var device in all.Counts.Missing)
         {
-            Disconnected.Add(DisconnectedItem(Strings.DisconnectedFrom, missing));
+            Disconnected.Add(DisconnectedItem(Strings.DisconnectedFrom, device));
         }
         foreach (var device in reconnected)
         {
@@ -294,7 +334,7 @@ public sealed class MainViewModel : ObservableObject
         }
         // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
         // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
-        var strictest = StrictestProfile.Of([.. options.Select(option => option.Profile)]);
+        var strictest = StrictestProfile.Of(profiles);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
             .Distinct();

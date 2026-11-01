@@ -131,8 +131,9 @@
             <TextBlock Text="{Binding OverallText}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap" />
           </Border>
 
-          <!-- Status field: every checked profile with its result word in its colour. -->
+          <!-- Status field: every checked profile with its result word in its colour, for the selected controller. -->
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
+          <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">
             <ItemsControl.ItemTemplate>

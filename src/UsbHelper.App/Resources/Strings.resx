@@ -25,6 +25,12 @@
   <data name="StatusField" xml:space="preserve">
     <value>Status</value>
   </data>
+  <data name="StatusFor" xml:space="preserve">
+    <value>For: {0}</value>
+  </data>
+  <data name="AllControllers" xml:space="preserve">
+    <value>all controllers</value>
+  </data>
   <data name="NothingChecked" xml:space="preserve">
     <value>Nothing checked: check one or more operating systems or computers to judge this setup by.</value>
   </data>

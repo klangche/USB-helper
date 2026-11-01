@@ -701,4 +701,110 @@ public class MainViewModelTests
         Assert.Empty(viewModel.OperatingSystems);
         Assert.Empty(viewModel.Computers);
     }
+
+    // C1 is the desk (hub, keyboard, mouse: 3 connected); C2 has a phone in its root hub (1). Platform "p" allows no hub
+    // (max_hops 0), so C1 is unstable and C2 stable. "p" is the detected platform, so it is checked at start.
+    private static readonly UsbNode Phone =
+        new("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("PHONE"))]);
+
+    private static MainViewModel TwoControllers(params UsbNode[] controllers)
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"));
+        viewModel.Load(controllers.Length == 0 ? [.. Desk, Phone] : controllers);
+        return viewModel;
+    }
+
+    private static string Word(MainViewModel viewModel) => Assert.Single(viewModel.StatusRows).Word;
+
+    [Fact]
+    public void AtStartTheControllerWithMostDevicesIsSelectedAndTheStatusFollowsIt()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.Equal("unstable", Word(viewModel));
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Risk · KEYBOARD");
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), viewModel.OverallColor);
+    }
+
+    [Fact]
+    public void ClickingAnotherControllerOrADeviceUnderItSwitches()
+    {
+        var viewModel = TwoControllers();
+
+        viewModel.SelectedNode = Item(viewModel, "C2");
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+        Assert.Equal("stable", Word(viewModel));
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.EndsWith("KEYBOARD", StringComparison.Ordinal));
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "KEYBOARD").LineColor); // The tree is unchanged.
+
+        viewModel.SelectedNode = Item(viewModel, "KEYBOARD");
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.Equal("unstable", Word(viewModel));
+
+        viewModel.SelectedNode = Item(viewModel, "PHONE");
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
+    public void ClickingTheHostCoversAllControllers()
+    {
+        var viewModel = TwoControllers();
+        viewModel.SelectedNode = Item(viewModel, "C2");
+
+        viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
+
+        Assert.Null(viewModel.SelectedControllerId);
+        Assert.Equal("unstable", Word(viewModel));
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Risk · KEYBOARD");
+    }
+
+    [Fact]
+    public void WhenTheSelectedControllerIsRemovedTheOneWithMostDevicesIsSelected()
+    {
+        var other = new UsbNode("C3", UsbNodeKind.Controller, "Third controller", [Hub("ROOT3", Device("A"), Device("B"))]);
+        var viewModel = TwoControllers([.. Desk, Phone, other]);
+        viewModel.SelectedNode = Item(viewModel, "C1");
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, null, Desk[0])]);
+
+        Assert.Equal("C3", viewModel.SelectedControllerId);
+        Assert.Equal("stable", Word(viewModel));
+    }
+
+    [Fact]
+    public void OnATieTheFirstControllerInTheTreeIsSelected()
+    {
+        var other = new UsbNode("C3", UsbNodeKind.Controller, "Third controller", [Hub("ROOT3", Device("A"))]);
+
+        Assert.Equal("C3", TwoControllers(other, Phone).SelectedControllerId);
+    }
+
+    [Fact]
+    public void BuiltInHubsDoNotCountAsDevicesWhenSelecting()
+    {
+        // C4: a built-in hub (on a port that is not user-connectable) with a camera: 1 device. C2: the phone: 1 device.
+        var root = Hub("ROOT4", Hub("BUILTIN", Device("CAMERA")));
+        root = root with { Children = [root.Children[0] with { UserConnectable = false }] };
+        var builtIn = new UsbNode("C4", UsbNodeKind.Controller, "Built-in controller", [root]);
+        var external = new UsbNode("C5", UsbNodeKind.Controller, "Fifth controller", [Hub("ROOT5", Hub("DOCK", Device("D")))]);
+
+        Assert.Equal("C5", TwoControllers(builtIn, external).SelectedControllerId);
+    }
+
+    [Fact]
+    public void TheStatusFieldNamesWhatItCovers()
+    {
+        var viewModel = TwoControllers();
+
+        Assert.Equal("For: Controller", viewModel.StatusScope);
+
+        viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
+
+        Assert.Equal("For: all controllers", viewModel.StatusScope);
+    }
 }
