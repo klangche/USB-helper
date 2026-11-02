@@ -67,8 +67,11 @@
   <data name="DetectedComputer" xml:space="preserve">
     <value>Detected: {0} {1}</value>
   </data>
+  <data name="ExpandTip" xml:space="preserve">
+    <value>Show or hide the items below</value>
+  </data>
   <data name="CollapsedHint" xml:space="preserve">
-    <value>(collapsed, double-click to show)</value>
+    <value>{0} hidden</value>
   </data>
   <data name="ThisComputer" xml:space="preserve">
     <value>This computer</value>

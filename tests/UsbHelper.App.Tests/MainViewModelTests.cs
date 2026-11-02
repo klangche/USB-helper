@@ -821,6 +821,48 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void CollapsedItemReportsHowManyItemsAreHidden()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Laptop());
+        var builtIn = Item(viewModel, "INTERNAL");
+
+        // Its two ports, WEBCAM, DOCK, DOCK's port and KEYBOARD.
+        Assert.Equal(6, builtIn.HiddenCount);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CollapsedHint, 6), builtIn.CollapsedHint);
+
+        builtIn.IsExpanded = true;
+
+        Assert.Equal(0, builtIn.HiddenCount);
+        Assert.Null(builtIn.CollapsedHint);
+
+        builtIn.IsExpanded = false;
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "INTERNAL", Port("INTERNAL", 2, null))]);
+
+        Assert.Equal(4, Item(viewModel, "INTERNAL").HiddenCount); // DOCK stays, disconnected, without what was behind it.
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.Equal(0, item.HiddenCount));
+    }
+
+    [Fact]
+    public void EveryItemWithChildrenCanBeExpandedAndCollapsed()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Laptop());
+
+        // Devices have nothing below them. Everything else can be collapsed, ports too, so each shows the control.
+        Assert.All(All(viewModel.Roots), item => Assert.Equal(item.Children.Count > 0, item.CanExpand));
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.Id is "WEBCAM" or "KEYBOARD" or "MOUSE" && item.CanExpand);
+        var port = Item(viewModel, "ROOT|port2");
+        Assert.True(port.CanExpand);
+
+        port.IsExpanded = false;
+
+        Assert.Equal(3, port.HiddenCount); // UNSURE, its port and MOUSE.
+        Assert.NotNull(port.CollapsedHint);
+    }
+
+    [Fact]
     public void LiveUpdateKeepsTheUsersExpandAndCollapse()
     {
         var viewModel = NewViewModel();
