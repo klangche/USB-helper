@@ -58,7 +58,8 @@ public partial class App : Application
         log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
     }
 
-    // HardwareDatabase.Load reports every problem as a DatabaseException; the window lists them.
+    // Every problem, a file that cannot be read included, ends up in the window's database error list, so the window
+    // never stays on "Loading database...".
     private static async Task LoadDatabase(MainViewModel viewModel, EventLog log)
     {
         log.Add("Loading database");
@@ -72,6 +73,10 @@ public partial class App : Application
             {
                 return ((HardwareDatabase?)null, e.Errors);
             }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return ((HardwareDatabase?)null, [new DatabaseError("database", 0, e.Message)]);
+            }
         });
         viewModel.LoadDatabase(database, errors);
     }
@@ -80,11 +85,11 @@ public partial class App : Application
     [SupportedOSPlatform("windows")]
     private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop)
     {
+        await LoadDatabase(viewModel, log);
         var detector = new WindowsUsbDetector();
         IReadOnlyList<UsbNode> tree;
         try
         {
-            await LoadDatabase(viewModel, log);
             log.Add("Reading USB devices");
             tree = await Task.Run(detector.Enumerate);
             log.Add("Reading displays");
