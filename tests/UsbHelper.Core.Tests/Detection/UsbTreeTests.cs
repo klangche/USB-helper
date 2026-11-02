@@ -11,6 +11,16 @@ public class UsbTreeTests
         Controller("C2", Hub("ROOT2", (UsbNode?)null)),
     ];
 
+    [Theory]
+    [InlineData(UsbNodeKind.Device, (ushort)0x17E9, true)]
+    [InlineData(UsbNodeKind.Device, (ushort)0x046D, false)]
+    [InlineData(UsbNodeKind.Device, null, false)]
+    [InlineData(UsbNodeKind.Hub, (ushort)0x17E9, false)] // Only the adapter itself is a display, not a hub.
+    public void OnlyADeviceWithTheDisplayLinkVendorIdIsDisplayLink(UsbNodeKind kind, ushort? vendorId, bool expected)
+    {
+        Assert.Equal(expected, new UsbNode("X", kind, "X", []) { VendorId = vendorId }.IsDisplayLink);
+    }
+
     [Fact]
     public void PathToListsNodesFromController()
     {
@@ -51,5 +61,13 @@ public class UsbTreeTests
         var updated = UsbTree.Apply(Tree, [new UsbChange(UsbChangeKind.Removed, null, Tree[1]), new UsbChange(UsbChangeKind.Added, null, added)]);
 
         Assert.Equal(["C1", "C3"], updated.Select(node => node.Id));
+    }
+
+    [Fact]
+    public void ApplyingReconnectLeavesTheTreeAsItIs()
+    {
+        var updated = UsbTree.Apply(Tree, [new UsbChange(UsbChangeKind.Reconnected, "ROOT", UsbTree.PathTo(Tree, "MOUSE")[^2])]);
+
+        Assert.Same(Tree, updated);
     }
 }

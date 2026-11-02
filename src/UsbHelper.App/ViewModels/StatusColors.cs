@@ -9,21 +9,36 @@ public static class StatusColors
     /// <summary>For tree items that have no connection line of their own (controllers, root hubs, ports).</summary>
     public const string None = "#00000000";
 
+    /// <summary>Tree lines with nothing below them that has a status.</summary>
+    public const string Trunk = "#BDBDBD";
+
     public static string Hex(ConnectionStatus status) => status switch
     {
         ConnectionStatus.Green => "#2E7D32",
         ConnectionStatus.Grey => "#9E9E9E",
-        ConnectionStatus.Yellow => "#F9A825",
+        ConnectionStatus.Orange => "#EF6C00",
         ConnectionStatus.Purple => "#8E24AA",
         ConnectionStatus.Red => "#C62828",
         _ => throw new ArgumentOutOfRangeException(nameof(status)),
     };
 
+    /// <summary>The result word in the status field.</summary>
+    public static string Word(ConnectionStatus status) => status switch
+    {
+        ConnectionStatus.Green => Strings.WordStable,
+        ConnectionStatus.Grey => Strings.WordUnknown,
+        ConnectionStatus.Orange => Strings.WordPotentiallyUnstable,
+        ConnectionStatus.Purple => Strings.WordUnstable,
+        ConnectionStatus.Red => Strings.WordDisconnected,
+        _ => throw new ArgumentOutOfRangeException(nameof(status)),
+    };
+
+    /// <summary>The explanation shown as a tool tip.</summary>
     public static string Text(ConnectionStatus status) => status switch
     {
         ConnectionStatus.Green => Strings.StatusGreen,
         ConnectionStatus.Grey => Strings.StatusGrey,
-        ConnectionStatus.Yellow => Strings.StatusYellow,
+        ConnectionStatus.Orange => Strings.StatusOrange,
         ConnectionStatus.Purple => Strings.StatusPurple,
         ConnectionStatus.Red => Strings.StatusRed,
         _ => throw new ArgumentOutOfRangeException(nameof(status)),

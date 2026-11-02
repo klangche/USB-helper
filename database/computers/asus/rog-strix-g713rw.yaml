@@ -1,0 +1,15 @@
+inherits: "windows-amd"
+manufacturer: "ASUSTeK COMPUTER INC."
+model: "ROG Strix G713RW_G713RW"
+name: "ROG Strix G713RW"
+chip: "AMD Ryzen 7 6800H with Radeon Graphics"
+displays:
+  max_external: null
+notes:
+  - "Exported by USB-helper 0.5.0-beta.4 on 2026-10-31."
+  - "Detected: USB controllers: 5, external hubs: 0, active external displays: 0."
+  - "Root hub ports per USB controller: 2, 5, 2, 1, 6."
+sources: []
+verification:
+  status: unverified
+  last_checked: null

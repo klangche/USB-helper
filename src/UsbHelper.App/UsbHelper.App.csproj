@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The exe icon. Avalonia also makes it every window's icon. Assets/make-icon.sh generates it from the SVG. -->
+    <ApplicationIcon>Assets\usb-helper.ico</ApplicationIcon>
+    <!-- Published builds are compiled ahead of time, so the app starts without waiting for the JIT compiler. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,9 +34,9 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- The hardware database ships next to the executable, read-only. -->
+  <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
   <ItemGroup>
-    <None Include="..\..\database\**\*" LinkBase="database" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

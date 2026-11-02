@@ -1,26 +1,31 @@
 name: Release
 
-# Every push to main (a merged pull request) makes a release when the pull request titles since
-# the last tag ask for one (release/next-version.sh picks the version): it builds the portable
-# Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
+# Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
+# pull requests merged since the last release ask for one (release/next-version.sh picks the version):
+# it builds the portable Windows zip (one launcher exe that carries the app, #110), creates the tag vX.Y.Z and
+# publishes a GitHub release.
+# Every merge into dev publishes a pre-release vX.Y.Z-beta.N the same way: X.Y.Z is that next version,
+# N counts the earlier betas of it (release/beta-version.sh). Beta tags never count as a release.
 # Pull requests that change the packaging build the zip as an artifact only.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     paths:
       - .github/workflows/release.yml
       - release/**
       - src/UsbHelper.App/**
+      - src/UsbHelper.Launcher/**
       - Directory.Build.props
       - "**/packages.lock.json"
 
 permissions:
   contents: read
 
-# Releases run one at a time, so each one sees the tag of the one before.
+# Releases run one at a time per branch, so each one sees the tags of the earlier runs on its branch.
+# A dev run that overlaps a main release does not see that release's tag yet; the next dev run does.
 concurrency:
-  group: release-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -31,33 +36,49 @@ jobs:
       pull-requests: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      last: ${{ steps.version.outputs.last }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Test next-version.sh
-        run: release/next-version.test.sh
+      - name: Test release scripts
+        run: |
+          release/next-version.test.sh
+          release/tags.test.sh
 
       - name: Version
         id: version
+        # bash -eo pipefail: a failed API call inside the pipeline must fail the step.
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            version=0.0.0-pr
+            # One version per pull request build, so each one unpacks to its own %LOCALAPPDATA% folder (#110).
+            version="0.0.0-pr.$PR_NUMBER.$GITHUB_RUN_NUMBER"
           else
-            last=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)
-            commits=$(git rev-list --first-parent "${last:+$last..}HEAD")
+            # The highest release tag, not git describe: the release tag sits on the merge commit on main,
+            # which dev does not contain.
+            last=$(git tag --list | release/last-release.sh)
+            # Every commit since the last release, also those that came in through dev, so every pull request
+            # merged into dev counts, not only the dev -> main pull request.
+            commits=$(git rev-list "${last:+$last..}HEAD")
             # exit 1: a failed API call must stop the release, not drop a title.
             version=$(
               for sha in $commits; do
-                gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq '.[0].title // empty' || exit 1
-              done | release/next-version.sh "$last"
+                gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" \
+                  --jq '.[] | select(.merged_at != null) | "\(.number)\t\(.title)"' || exit 1
+              done | sort -u -t$'\t' -k1,1n | cut -f2- | release/next-version.sh "$last"
             )
+            if [ -n "$version" ] && [ "$GITHUB_REF_NAME" = dev ]; then
+              version=$(git tag --list | release/beta-version.sh "$version")
+            fi
             echo "Last release: ${last:-none}. Next: ${version:-no release}."
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "last=$last" >> "$GITHUB_OUTPUT"
 
   windows:
     needs: version
@@ -76,11 +97,35 @@ jobs:
 
       - run: dotnet restore src/UsbHelper.App -r win-x64 --locked-mode
 
-      - name: Publish
+      # Single file with composite ReadyToRun, not trimmed. The native DLLs stay next to the exe instead of being
+      # extracted to %TEMP% at the first start of every version (#86).
+      - name: Publish app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
+          -p:PublishSingleFile=true -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
+
+      # Signing (#112) adds one step here, before packing, and one after "Publish launcher", before zipping: the app exe
+      # is signed first, then the launcher that carries it.
+
+      # The app (exe and native DLLs, no .pdb files) goes into the launcher as app.zip; the launcher unpacks it to
+      # %LOCALAPPDATA%\USB-helper\<version> on the first start of the version.
+      - name: Pack app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory app | Out-Null
+          Copy-Item publish/UsbHelper.App.exe, publish/*.dll app
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/app", "$PWD/app.zip")
+
+      - run: dotnet restore src/UsbHelper.Launcher -r win-x64 --locked-mode
+
+      # NativeAOT: a small native exe that shows its splash at once.
+      - name: Publish launcher
+        run: >-
+          dotnet publish src/UsbHelper.Launcher --no-restore -c Release -r win-x64
+          -p:AppPayload=${{ github.workspace }}/app.zip -p:DebugType=none
+          -p:Version=${{ needs.version.outputs.version }} -o launcher
 
       - name: Zip
         shell: pwsh
@@ -88,18 +133,24 @@ jobs:
           $version = '${{ needs.version.outputs.version }}'
           $name = "usb-helper-$version-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
-          Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
-          Copy-Item -Recurse publish/database "$name/database"
+          Copy-Item launcher/UsbHelper.Launcher.exe "$name/USB-helper.exe"
           # CRLF, so older Notepad versions show the lines.
           (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$name/READ_ME_FIRST.txt"
           Copy-Item LICENSE "$name/LICENSE.txt"
+          Get-ChildItem $name | Format-Table Name, Length -AutoSize | Out-String | Write-Host
           Compress-Archive -Path $name -DestinationPath "$name.zip"
+          # The launcher's update check (#111) verifies a download against this file (sha256sum format, LF).
+          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -NoNewline -Path "$name.zip.sha256" -Value "$hash  $name.zip`n"
+          Get-Content "$name.zip.sha256"
           "ZIP=$name.zip" >> $env:GITHUB_ENV
 
       - uses: actions/upload-artifact@v7
         with:
           name: windows-zip
-          path: ${{ env.ZIP }}
+          path: |
+            ${{ env.ZIP }}
+            ${{ env.ZIP }}.sha256
 
   # Only this job can write to the repository, and never for pull requests.
   github-release:
@@ -113,10 +164,21 @@ jobs:
         with:
           name: windows-zip
 
-      # Creates the tag on the built commit.
+      # Creates the tag on the built commit. Notes start at the last release, not the last beta.
+      # A push to dev publishes a pre-release.
       - name: GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: v${{ needs.version.outputs.version }}
-        run: gh release create "$TAG" usb-helper-*-windows-x64.zip --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+          LAST: ${{ needs.version.outputs.last }}
+        shell: bash
+        run: |
+          args=()
+          if [ -n "$LAST" ]; then
+            args+=(--notes-start-tag "$LAST")
+          fi
+          if [ "$GITHUB_REF_NAME" = dev ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$TAG" usb-helper-*-windows-x64.zip usb-helper-*-windows-x64.zip.sha256 --target "$GITHUB_SHA" --title "$TAG" --generate-notes "${args[@]}"

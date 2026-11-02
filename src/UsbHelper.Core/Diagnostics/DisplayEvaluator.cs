@@ -9,9 +9,6 @@ namespace UsbHelper.Core.Diagnostics;
 /// </summary>
 internal static class DisplayEvaluator
 {
-    // DisplayLink's USB vendor id. Its adapters are ordinary USB devices, so they appear in the tree.
-    private const ushort DisplayLinkVendorId = 0x17E9;
-
     private static readonly (string Field, string Label)[] Capabilities =
     [
         ("displayport_alt_mode", "DisplayPort Alt Mode"),
@@ -22,7 +19,11 @@ internal static class DisplayEvaluator
         ("displaylink", "DisplayLink"),
     ];
 
-    /// <summary>Adds the display findings and returns the check and its share of the overall status.</summary>
+    /// <summary>
+    /// Adds the display findings and returns the check and its share of the overall status: unstable above
+    /// <c>displays.max_external</c>, potentially unstable for a documented DisplayLink limitation. Unknown values are
+    /// findings only (owner decision in #39).
+    /// </summary>
     public static (DisplayCheck Check, ConnectionStatus Contribution) Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? externalDisplays, string computer, List<Finding> findings)
     {
@@ -40,7 +41,6 @@ internal static class DisplayEvaluator
         {
             findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
                 "The number of external displays is not known."));
-            contribution = ConnectionStatus.Grey;
         }
         else
         {
@@ -63,12 +63,11 @@ internal static class DisplayEvaluator
             if (state == LimitState.Exceeded)
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
-                    $"{externalDisplays} external displays are active; displays.max_external is {max}{(verified ? "" : " (unverified limit)")}."));
-                contribution = ConnectionStatus.Yellow;
-            }
-            else if (state == LimitState.Unknown || !verified)
-            {
-                contribution = Max(contribution, ConnectionStatus.Grey);
+                    $"{externalDisplays} external displays are active; displays.max_external is {max}{(verified ? "" : " (unverified limit)")}.")
+                {
+                    Brief = $"{externalDisplays} external displays are active; displays.max_external is {max}.",
+                });
+                contribution = ConnectionStatus.Purple;
             }
         }
 
@@ -99,7 +98,7 @@ internal static class DisplayEvaluator
                 DiagnosticEvaluator.ComputerId, computer, (string)restriction.Scalar!));
         }
 
-        var adapters = DiagnosticEvaluator.AllNodes(tree).Where(node => node.Kind == UsbNodeKind.Device && node.VendorId == DisplayLinkVendorId).ToList();
+        var adapters = DiagnosticEvaluator.AllNodes(tree).Where(node => node.IsDisplayLink).ToList();
         foreach (var adapter in adapters)
         {
             findings.Add(new Finding(FactKind.DetectedFact, adapter.Id, adapter.Name,
@@ -113,13 +112,12 @@ internal static class DisplayEvaluator
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
                     "A DisplayLink adapter is connected, but the computer profile marks no port as supporting DisplayLink."));
-                contribution = ConnectionStatus.Yellow;
+                contribution = Max(contribution, ConnectionStatus.Orange);
             }
             else
             {
                 findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
                     "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."));
-                contribution = Max(contribution, ConnectionStatus.Grey);
             }
         }
 

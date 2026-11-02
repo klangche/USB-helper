@@ -80,6 +80,128 @@ public class TopologyCountsTests
         Assert.Equal(new ConnectionDepth(3, 1), TopologyCounts.Depths(tree)["D2"]);
     }
 
+    // A laptop with a built-in hub (webcam, Bluetooth) on root port 1; its own sockets are ports 2 and 3 of that hub.
+    private static IReadOnlyList<UsbNode> Laptop(UsbNode? socket2 = null, UsbNode? socket3 = null) =>
+        [Controller("C1", Hub("ROOT", Hub("INTERNAL", Device("WEBCAM"), socket2, socket3).Connectable(false, true, true)).Connectable(false))];
+
+    [Fact]
+    public void DeviceInLaptopPortBehindBuiltInHubHasNoHops()
+    {
+        var tree = Laptop(Device("MOUSE"));
+
+        var depths = TopologyCounts.Depths(tree);
+
+        Assert.Equal(new ConnectionDepth(2, 0), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["WEBCAM"]);
+        Assert.DoesNotContain("INTERNAL", depths.Keys);
+        Assert.Equal(0, TopologyCounts.HubCount(tree));
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
+        Assert.Equal(["INTERNAL"], TopologyCounts.BuiltIn(tree).Select(hub => hub.Id));
+    }
+
+    [Fact]
+    public void OwnersExampleCountsFromTheLaptopPort()
+    {
+        var tree = Laptop(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))), Device("STICK"));
+
+        var depths = TopologyCounts.Depths(tree);
+
+        Assert.Equal(new ConnectionDepth(4, 2), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["STICK"]);
+        Assert.Equal(2, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void HubOnFixedPortInsideADockStillCounts()
+    {
+        // Only hubs before the first user-connectable port are built into the computer; a dock's own hubs count.
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("DOCK-USB3", Hub("DOCK-USB2", Device("CAMERA"))).Connectable(false)).Connectable(true))];
+
+        Assert.Equal(new ConnectionDepth(4, 2), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(2, TopologyCounts.HubCount(tree));
+        Assert.Empty(TopologyCounts.BuiltIn(tree));
+    }
+
+    [Fact]
+    public void HubOnPortWindowsSaysNothingAboutCountsAsBeforeAndIsListed()
+    {
+        // Root port 1: Windows does not say; root port 2: a laptop socket. Hubs behind a counted hub are not listed.
+        var rootHub = Hub("ROOT", Hub("UNSURE", Device("CAMERA")), Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))));
+        IReadOnlyList<UsbNode> unmarked = [Controller("C1", rootHub)];
+        IReadOnlyList<UsbNode> tree = [Controller("C1", rootHub.Connectable(null, true))];
+
+        Assert.Equal(new ConnectionDepth(3, 1), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(3, TopologyCounts.HubCount(tree));
+        Assert.Equal(["UNSURE"], TopologyCounts.PossiblyBuiltIn(tree).Select(hub => hub.Id));
+        Assert.Equal(["UNSURE", "DOCK"], TopologyCounts.PossiblyBuiltIn(unmarked).Select(hub => hub.Id));
+        Assert.Empty(TopologyCounts.BuiltIn(tree));
+    }
+
+    [Fact]
+    public void HubBehindABuiltInHubOnAFixedPortIsBuiltInToo()
+    {
+        IReadOnlyList<UsbNode> tree =
+            [Controller("C1", Hub("ROOT", Hub("INTERNAL", Hub("INNER", Device("WEBCAM")), Hub("DOCK", Device("STICK"))).Connectable(false, true)).Connectable(false))];
+
+        Assert.Equal(["INTERNAL", "INNER"], TopologyCounts.BuiltIn(tree).Select(hub => hub.Id));
+    }
+
+    [Fact]
+    public void MarkAddsHopsAndTiersToEverythingBehindThePort()
+    {
+        // Root port 1: an invisible active cable (+2 hops), then a dock with a keyboard; root port 2: a mouse.
+        var tree = Machine(Hub("DOCK", Device("KEYBOARD")), Device("MOUSE"));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(4, 2), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(5, 3), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["MOUSE"]);
+        Assert.Equal(1, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void MarksAlongThePathAddUp()
+    {
+        var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD")), Device("CAMERA")));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1, ["DOCK|port1"] = 2 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["DOCK"]);
+        Assert.Equal(new ConnectionDepth(6, 4), depths["MONITOR"]);
+        Assert.Equal(new ConnectionDepth(7, 5), depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(4, 2), depths["CAMERA"]);
+    }
+
+    [Fact]
+    public void MarkOnLaptopSocketBehindBuiltInHubCounts()
+    {
+        var tree = Laptop(Device("MOUSE"), Device("STICK"));
+        var marks = new Dictionary<string, int> { ["INTERNAL|port2"] = 1 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["STICK"]);
+        Assert.Equal(new ConnectionDepth(2, 0), depths["WEBCAM"]);
+    }
+
+    [Fact]
+    public void MarkBeforeBuiltInHubCountsForEverythingBehindIt()
+    {
+        var tree = Laptop(Device("MOUSE"));
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1 };
+
+        var depths = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal(new ConnectionDepth(3, 1), depths["MOUSE"]);
+        Assert.Equal(new ConnectionDepth(3, 1), depths["WEBCAM"]);
+        Assert.DoesNotContain("INTERNAL", depths.Keys);
+    }
+
     [Fact]
     public void UnreadableHubCountsAsOneHubWithNothingBelow()
     {
@@ -89,6 +211,21 @@ public class TopologyCountsTests
         Assert.Equal(1, TopologyCounts.HubCount(tree));
         Assert.Equal(["HUB"], TopologyCounts.Depths(tree).Keys);
         Assert.Equal(new ConnectionDepth(2, 0), TopologyCounts.Depths(tree)["HUB"]);
+        Assert.Equal(["HUB"], TopologyCounts.Unreadable(tree).Select(node => node.Id));
+    }
+
+    [Fact]
+    public void ControllerWithoutRootHubAndFailedEmptyPortAreUnreadable()
+    {
+        var failedPort = Port("ROOT", 2, null) with { Problem = "Could not read the port." };
+        IReadOnlyList<UsbNode> tree =
+        [
+            new UsbNode("C1", UsbNodeKind.Controller, "C1", [new UsbNode("ROOT", UsbNodeKind.Hub, "ROOT", [Port("ROOT", 1, Device("MOUSE")), failedPort])]),
+            new UsbNode("C2", UsbNodeKind.Controller, "C2", []),
+        ];
+
+        Assert.Equal(["ROOT|port2", "C2"], TopologyCounts.Unreadable(tree).Select(node => node.Id));
+        Assert.Empty(TopologyCounts.Unreadable(Machine(Device("MOUSE"), null)));
     }
 
     [Fact]

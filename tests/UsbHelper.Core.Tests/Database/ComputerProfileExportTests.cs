@@ -1,5 +1,6 @@
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Diagnostics;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Database;
@@ -34,6 +35,22 @@ public class ComputerProfileExportTests
     }
 
     [Fact]
+    public void ExportShowsThePlatformsLimits()
+    {
+        using var db = new TestDatabase()
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 7\n  recommended_hops: 5\nverification:\n  status: partial\n")
+            .Write("computers/export.yaml", Export(Computer));
+
+        var computer = db.Load().Computers.Values.Single();
+
+        Assert.DoesNotContain("limits:", Export(Computer));
+        Assert.Equal(7L, computer.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(5L, computer.Find("limits.recommended_hops")!.Scalar);
+        Assert.Equal("platforms/test-platform.yaml", computer.Find("limits.max_hops")!.File);
+        Assert.True(DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Hops.Verified);
+    }
+
+    [Fact]
     public void NotesSayWhatWasDetected()
     {
         using var db = new TestDatabase().Write("computers/export.yaml", Export(Computer));
@@ -42,8 +59,20 @@ public class ComputerProfileExportTests
 
         Assert.Contains("Exported by USB-helper 1.2.3 on 2026-10-30.", notes);
         Assert.Contains("Detected: USB controllers: 2, external hubs: 1, active external displays: 2.", notes);
-        Assert.Contains("USB controller C1: root hub ports: 3.", notes);
-        Assert.Contains("USB controller C2: root hub ports: 1.", notes);
+        Assert.Contains("USB controller 1: root hub ports: 3.", notes);
+        Assert.Contains("USB controller 2: root hub ports: 1.", notes);
+    }
+
+    // Windows names controllers in the user's language; the notes are for the developers and stay in English.
+    [Fact]
+    public void ControllersAreLabelledInEnglishNotByTheirWindowsName()
+    {
+        var swedish = new UsbNode("C1", UsbNodeKind.Controller, "USB-styrenhet (Universal Serial Bus)", [Hub("ROOT1", null, null)]);
+
+        var yaml = ComputerProfileExport.ToYaml(Computer, [swedish], 0, "1.2.3", new DateOnly(2026, 10, 31));
+
+        Assert.Contains("USB controller 1: root hub ports: 2.", yaml);
+        Assert.DoesNotContain("styrenhet", yaml);
     }
 
     [Fact]

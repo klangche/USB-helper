@@ -26,4 +26,10 @@ internal sealed record RawPort(
 {
     /// <summary>Why the port could not be read, or null.</summary>
     public string? Error { get; init; }
+
+    /// <summary>From IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, or null when Windows does not say.</summary>
+    public bool? UserConnectable { get; init; }
+
+    /// <summary>Whether the port is USB-C, from IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, or null when Windows does not say.</summary>
+    public bool? UsbC { get; init; }
 }

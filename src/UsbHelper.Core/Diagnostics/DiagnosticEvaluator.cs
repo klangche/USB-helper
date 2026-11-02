@@ -16,34 +16,63 @@ public static class DiagnosticEvaluator
     // A value set in a partially verified profile is verified; its unknown values are null.
     private static readonly string[] VerifiedStatuses = ["verified", "partial"];
 
-    /// <param name="profile">The resolved computer profile, or null when none is selected.</param>
+    /// <summary>
+    /// Evaluates the tree against every checked profile. Each line shows the worst result over the profiles; with no
+    /// profile checked, everything is unknown (grey).
+    /// </summary>
+    /// <param name="wholeTree">See <see cref="Evaluate"/>.</param>
+    public static SystemsReport EvaluateAll(
+        IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
+    {
+        if (profiles.Count == 0)
+        {
+            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops, wholeTree);
+            return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
+        }
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops, wholeTree))).ToList();
+        var connections = results
+            .SelectMany(result => result.Report.Connections)
+            .GroupBy(line => line.Key, line => line.Value)
+            .ToDictionary(group => group.Key, group => group.Max());
+        return new SystemsReport(results.Max(result => result.Report.Overall), connections, results, results[0].Report);
+    }
+
+    /// <param name="profile">The resolved computer or platform profile, or null when none is selected.</param>
     /// <param name="missing">From <see cref="SessionHistory.Missing"/>.</param>
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
+    /// <param name="reconnected">Ids from <see cref="SessionHistory.Reconnected"/>.</param>
+    /// <param name="extraHops">The user's marks for active cables and extenders: extra hops per port id.</param>
+    /// <param name="wholeTree">
+    /// All controllers, when <paramref name="tree"/> is only some of them: the hub count is the whole computer's (owner
+    /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
+    /// </param>
     public static DiagnosticReport Evaluate(
-        IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null)
+        IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
     {
         var findings = new List<Finding>();
-        var computer = profile?.Find("model")?.Scalar as string ?? "This computer";
+        var computer = profile?.Find("name")?.Scalar as string ?? profile?.Find("model")?.Scalar as string ?? "This computer";
         if (profile == null)
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer, "No computer profile is selected, so no limits are known."));
         }
 
-        // A hub without ports, a controller without a root hub, or a port with an error and nothing on it could not
-        // be read: what is behind it is unknown, so the counts are then minimums. A working hub always has at least
-        // one port, and a port with a connection error still shows the device that caused it.
-        var unreadable = AllNodes(tree)
-            .Where(node => node.Children.Count == 0
-                && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null)))
-            .ToList();
+        var unreadable = TopologyCounts.Unreadable(tree).ToList();
         foreach (var node in unreadable)
         {
             findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name,
                 "What is connected behind it cannot be read, so the hub count and depths are at least what is shown."));
         }
+        foreach (var hub in TopologyCounts.PossiblyBuiltIn(tree))
+        {
+            findings.Add(new Finding(FactKind.Unknown, hub.Id, hub.Name,
+                "The operating system does not say whether this hub's port is built into the computer, so it is counted as an external hub."));
+        }
         var incomplete = unreadable.Count > 0;
-        var depths = TopologyCounts.Depths(tree);
-        var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(tree), incomplete);
+        var depths = TopologyCounts.Depths(tree, extraHops);
+        var computerTree = wholeTree ?? tree;
+        var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(computerTree), TopologyCounts.Unreadable(computerTree).Any());
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
         var maxHops = depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max();
         var hops = Check(profile, "limits.max_hops", maxHops, incomplete);
@@ -59,46 +88,54 @@ public static class DiagnosticEvaluator
         }
         if (hubs.State == LimitState.Exceeded)
         {
-            findings.Add(new Finding(FactKind.PredictedRisk, ComputerId, computer,
-                $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{Unverified(hubs)}."));
+            findings.Add(Risk(ComputerId, computer, unverified => $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{unverified(hubs)}."));
         }
 
-        var limitsKnown = new[] { hubs, tiers, hops }.All(limit => limit.Limit != null && limit.Verified);
+        // Owner decision in #39: stability is judged on the limits the profile knows; an unknown limit is a finding,
+        // and only a profile without any limit leaves the lines unknown.
+        var anyLimitKnown = new[] { hubs, tiers, hops, recommendedHops }.Any(limit => limit.Limit != null);
         var connections = new Dictionary<string, ConnectionStatus>();
         foreach (var (_, port) in Ports(tree))
         {
             foreach (var node in port.Children)
             {
-                var depth = depths[node.Id];
-                var status = limitsKnown && (node.Kind != UsbNodeKind.Hub || hubs.State != LimitState.Unknown)
+                // A hub built into the computer has no depth and is not counted, so only its errors are judged.
+                var depth = depths.GetValueOrDefault(node.Id);
+                var countedHub = node.Kind == UsbNodeKind.Hub && depth != null;
+                // A hub cannot be judged against a known hub limit when the hub count could not be read completely.
+                var status = anyLimitKnown && (!countedHub || hubs.Limit == null || hubs.State != LimitState.Unknown)
                     ? ConnectionStatus.Green
                     : ConnectionStatus.Grey;
-                if (depth.Tier > tiers.Limit)
+                if (depth?.Tier > tiers.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{Unverified(tiers)}."));
+                    status = ConnectionStatus.Purple;
+                    findings.Add(Risk(node.Id, node.Name, unverified => $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{unverified(tiers)}."));
                 }
-                if (depth.Hops > hops.Limit)
+                if (depth?.Hops > hops.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{Unverified(hops)}."));
+                    status = ConnectionStatus.Purple;
+                    findings.Add(Risk(node.Id, node.Name, unverified => $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{unverified(hops)}."));
                 }
-                else if (depth.Hops > recommendedHops.Limit)
+                else if (depth?.Hops > recommendedHops.Limit)
                 {
-                    status = ConnectionStatus.Yellow;
-                    var maximum = hops.Limit == null ? "unknown" : $"{hops.Limit}{Unverified(hops)}";
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{Unverified(recommendedHops)}; {hops.Field} is {maximum}."));
+                    status = Max(status, ConnectionStatus.Orange);
+                    findings.Add(Risk(node.Id, node.Name, unverified =>
+                        $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{unverified(recommendedHops)}; "
+                        + $"{hops.Field} is {(hops.Limit == null ? "unknown" : $"{hops.Limit}{unverified(hops)}")}."));
                 }
-                if (node.Kind == UsbNodeKind.Hub && hubs.State == LimitState.Exceeded)
+                if (countedHub && hubs.State == LimitState.Exceeded)
                 {
-                    status = ConnectionStatus.Yellow; // Every hub counts toward the exceeded hub count.
+                    status = ConnectionStatus.Purple; // Every hub counts toward the exceeded hub count.
                 }
                 if (node.Problem != null || port.Problem != null)
                 {
                     status = ConnectionStatus.Purple;
+                }
+                // Owner decision in #54: a connection that dropped and came back is unstable, however short the drop.
+                if (reconnected?.Contains(node.Id) == true)
+                {
+                    status = ConnectionStatus.Purple;
+                    findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, "Disconnected and reconnected during this session.") { IsProblem = true });
                 }
                 connections[node.Id] = status;
             }
@@ -119,16 +156,17 @@ public static class DiagnosticEvaluator
             disconnected.Add(device);
             connections[device.Node.Id] = ConnectionStatus.Red;
             findings.Add(new Finding(FactKind.DetectedFact, device.Node.Id, device.Node.Name,
-                $"Disconnected: it was connected to {device.PortName} and is no longer present."));
+                $"Disconnected: it was connected to {device.PortName} and is no longer present.")
+            { IsProblem = true });
         }
 
         foreach (var (hub, port) in Ports(tree).Where(pair => pair.Port.Problem != null))
         {
-            findings.Add(new Finding(FactKind.DetectedFact, port.Id, $"{port.Name} of {hub.Name}", port.Problem!));
+            findings.Add(new Finding(FactKind.DetectedFact, port.Id, $"{port.Name} of {hub.Name}", port.Problem!) { IsProblem = true });
         }
         foreach (var node in AllNodes(tree).Where(node => node.Kind != UsbNodeKind.Port && node.Problem != null))
         {
-            findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, node.Problem!));
+            findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, node.Problem!) { IsProblem = true });
         }
 
         foreach (var exception in profile?.Find("exceptions")?.Items ?? [])
@@ -142,6 +180,7 @@ public static class DiagnosticEvaluator
 
         var overall = connections.Values
             .Concat(new[] { hubs, tiers, hops }.Select(Contribution))
+            .Append(anyLimitKnown ? ConnectionStatus.Green : ConnectionStatus.Grey)
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
@@ -168,19 +207,26 @@ public static class DiagnosticEvaluator
             : new Finding(FactKind.VerifiedDatabaseFact, ComputerId, computer, $"{limit.Field} = {limit.Limit}{source}.");
     }
 
+    // An unknown limit adds nothing; a known one that cannot be checked completely (a hub could not be read) is unknown.
     private static ConnectionStatus Contribution(LimitCheck limit) =>
-        limit.State == LimitState.Exceeded ? ConnectionStatus.Yellow
-        : limit.State == LimitState.Unknown || !limit.Verified ? ConnectionStatus.Grey
+        limit.Limit == null ? ConnectionStatus.Green
+        : limit.State == LimitState.Exceeded ? ConnectionStatus.Purple
+        : limit.State == LimitState.Unknown ? ConnectionStatus.Grey
         : ConnectionStatus.Green;
+
+    private static ConnectionStatus Max(ConnectionStatus a, ConnectionStatus b) => a > b ? a : b;
 
     private static string Unverified(LimitCheck limit) => limit.Verified ? "" : " (unverified limit)";
 
-    // A value is verified when the file that set it is itself verified (or partial). A value inherited from an
-    // unverified platform profile stays unverified even if the computer profile is verified.
+    // A risk whose text names limits: the message says which are unverified, the brief does not (owner decision in #100).
+    private static Finding Risk(string subjectId, string subjectName, Func<Func<LimitCheck, string>, string> text) =>
+        new(FactKind.PredictedRisk, subjectId, subjectName, text(Unverified)) { Brief = text(_ => "") };
+
+    // A value is verified when the file that set it is itself verified (or partial), whatever the profile's own
+    // status: a value inherited from an unverified platform stays unverified in a verified computer, and one
+    // inherited from a partial platform stays verified in an unverified computer.
     internal static bool IsVerified(ResolvedProfile? profile, ProfileValue value) =>
-        profile?.Find("verification.status") is { Scalar: string status } statusValue
-        && VerifiedStatuses.Contains(status)
-        && statusValue.File == value.File;
+        profile?.StatusOf(value.File) is string status && VerifiedStatuses.Contains(status);
 
     internal static IEnumerable<UsbNode> AllNodes(IReadOnlyList<UsbNode> nodes) =>
         nodes.SelectMany(node => AllNodes(node.Children).Prepend(node));

@@ -20,7 +20,8 @@ public static class WindowsComputerIdentity
             bios?.GetValue("SystemManufacturer") as string,
             bios?.GetValue("SystemProductName") as string,
             (processor?.GetValue("ProcessorNameString") as string)?.Trim(),
-            PlatformFor(RuntimeInformation.OSArchitecture, processor?.GetValue("VendorIdentifier") as string));
+            PlatformFor(RuntimeInformation.OSArchitecture, processor?.GetValue("VendorIdentifier") as string),
+            Environment.MachineName);
     }
 
     /// <summary>The Windows platform profile id; null when none fits (no guessing).</summary>

@@ -4,6 +4,7 @@ namespace UsbHelper.Core.Database;
 /// The hardware database: <c>base.yaml</c>, <c>platforms/*.yaml</c> and <c>computers/**/*.yaml</c>.
 /// A platform inherits from <c>base</c>; a computer inherits from a platform.
 /// Files whose name starts with a dot, such as <c>.template.yaml</c>, are not loaded. Files are only read.
+/// The files come from a folder (the repository's <c>database/</c>) or from resources built into the app (#102).
 /// </summary>
 public sealed class HardwareDatabase
 {
@@ -23,12 +24,21 @@ public sealed class HardwareDatabase
 
     /// <summary>Loads and validates the database in <paramref name="folder"/>.</summary>
     /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
-    public static HardwareDatabase Load(string folder)
+    public static HardwareDatabase Load(string folder) =>
+        Load(Directory.Exists(folder)
+            ? Directory.GetFiles(folder, "*.yaml", SearchOption.AllDirectories).ToDictionary(
+                path => Path.GetRelativePath(folder, path).Replace('\\', '/'), File.ReadAllText)
+            : []);
+
+    /// <summary>Loads and validates the database from its files' contents.</summary>
+    /// <param name="files">Each YAML file's content, by its path relative to the database folder, with '/' between folders.</param>
+    /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
+    public static HardwareDatabase Load(IReadOnlyDictionary<string, string> files)
     {
         var errors = new List<DatabaseError>();
-        var defaults = ReadBase(folder, errors);
-        var platformFiles = ReadProfiles(folder, "platforms", SearchOption.TopDirectoryOnly, isComputer: false, errors);
-        var computerFiles = ReadProfiles(folder, "computers", SearchOption.AllDirectories, isComputer: true, errors);
+        var defaults = ReadBase(files, errors);
+        var platformFiles = ReadProfiles(files, "platforms", subfolders: false, isComputer: false, errors);
+        var computerFiles = ReadProfiles(files, "computers", subfolders: true, isComputer: true, errors);
 
         var seen = new Dictionary<string, string>();
         foreach (var profile in platformFiles.Concat(computerFiles))
@@ -48,7 +58,9 @@ public sealed class HardwareDatabase
                 errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, $"A platform profile must inherit from 'base', not '{profile.Inherits}'."));
                 continue;
             }
-            platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], ProfileMerger.Merge(defaults, profile.Body)));
+            var root = ProfileMerger.Merge(defaults, profile.Body);
+            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(profile.Body) };
+            platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], root, statuses));
         }
 
         var computers = new Dictionary<string, ResolvedProfile>();
@@ -62,7 +74,10 @@ public sealed class HardwareDatabase
                 errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, reason));
                 continue;
             }
-            computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], ProfileMerger.Merge(parent.Root, profile.Body)));
+            var root = ProfileMerger.Merge(parent.Root, profile.Body);
+            var statuses = parent.Files.ToDictionary(file => file, parent.StatusOf);
+            statuses[profile.Body.File] = Status(profile.Body);
+            computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], root, statuses));
         }
 
         if (errors.Count > 0)
@@ -72,16 +87,18 @@ public sealed class HardwareDatabase
         return new HardwareDatabase(platforms, computers);
     }
 
-    private static ProfileValue ReadBase(string folder, List<DatabaseError> errors)
+    // The status a file writes itself; null (unverified) when it writes none, whatever it inherits.
+    private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
+
+    private static ProfileValue ReadBase(IReadOnlyDictionary<string, string> files, List<DatabaseError> errors)
     {
         var empty = ProfileValue.CreateMapping(new Dictionary<string, ProfileValue>(), BaseFile, 0);
-        var path = Path.Combine(folder, BaseFile);
-        if (!File.Exists(path))
+        if (!files.TryGetValue(BaseFile, out var yaml))
         {
             errors.Add(new DatabaseError(BaseFile, 0, "File not found."));
             return empty;
         }
-        var root = ProfileFileReader.Read(path, BaseFile, errors);
+        var root = ProfileFileReader.Read(yaml, BaseFile, errors);
         if (root == null)
         {
             return empty;
@@ -112,22 +129,18 @@ public sealed class HardwareDatabase
         return defaults;
     }
 
-    private static List<ProfileFile> ReadProfiles(string folder, string subfolder, SearchOption search, bool isComputer, List<DatabaseError> errors)
+    private static List<ProfileFile> ReadProfiles(
+        IReadOnlyDictionary<string, string> files, string subfolder, bool subfolders, bool isComputer, List<DatabaseError> errors)
     {
         var profiles = new List<ProfileFile>();
-        var directory = Path.Combine(folder, subfolder);
-        if (!Directory.Exists(directory))
-        {
-            return profiles;
-        }
-
-        var paths = Directory.GetFiles(directory, "*.yaml", search)
-            .Where(path => !Path.GetFileName(path).StartsWith('.'))
+        var inFolder = files.Keys
+            .Where(file => file.StartsWith($"{subfolder}/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
+                && (subfolders || file.LastIndexOf('/') == subfolder.Length)
+                && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.'))
             .Order(StringComparer.Ordinal);
-        foreach (var path in paths)
+        foreach (var file in inFolder)
         {
-            var file = Path.GetRelativePath(folder, path).Replace('\\', '/');
-            var root = ProfileFileReader.Read(path, file, errors);
+            var root = ProfileFileReader.Read(files[file], file, errors);
             if (root == null)
             {
                 continue;
@@ -138,11 +151,11 @@ public sealed class HardwareDatabase
             ProfileSchema.Validate(root, IdentityFields, errors);
             if (isComputer)
             {
-                foreach (var field in new[] { "manufacturer", "model", "limits.max_hubs", "limits.max_tiers", "limits.max_hops" })
+                foreach (var field in new[] { "manufacturer", "model" })
                 {
                     if (root.Find(field) == null)
                     {
-                        errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly (null if unknown)."));
+                        errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly."));
                     }
                 }
             }

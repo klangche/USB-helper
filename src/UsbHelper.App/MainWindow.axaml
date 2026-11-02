@@ -11,16 +11,40 @@
   <DockPanel Margin="12">
 
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-      <TextBlock Text="{x:Static res:Strings.ComputerProfile}" VerticalAlignment="Center" />
-      <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" MinWidth="360">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ProfileOption">
-            <TextBlock Text="{Binding Label}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+      <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
+      <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
+        <DropDownButton.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft">
+            <ScrollViewer MaxHeight="480">
+              <ItemsControl ItemsSource="{Binding OperatingSystems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileOption">
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Flyout>
+        </DropDownButton.Flyout>
+      </DropDownButton>
+      <DropDownButton Content="{x:Static res:Strings.Computers}">
+        <DropDownButton.Flyout>
+          <Flyout Placement="BottomEdgeAlignedLeft">
+            <ScrollViewer MaxHeight="480">
+              <ItemsControl ItemsSource="{Binding Computers}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProfileOption">
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Flyout>
+        </DropDownButton.Flyout>
+      </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
       <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
+      <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
@@ -29,22 +53,142 @@
     <Grid ColumnDefinitions="3*,6,2*">
 
       <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="{Binding LoadingStage}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
-        <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}">
+        <!-- Tree style B (#43): drawn lines instead of indentation. Built-in hubs start collapsed (#68), every other branch
+             open. The chevron before the name (#91), a double-click or the arrow keys expand and collapse. -->
+        <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
+             or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
+        <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">
           <TreeView.Styles>
+            <!-- The "+" on a connection line: a small ring and cross in the line's own colour, so the colour stays visible. -->
+            <Style Selector="Button.cable">
+              <Setter Property="Width" Value="10" />
+              <Setter Property="Height" Value="10" />
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Cursor" Value="Hand" />
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <Border Name="ring" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                          BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="5">
+                    <ContentPresenter Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                </ControlTemplate>
+              </Setter>
+            </Style>
+            <Style Selector="Button.cable:pointerover /template/ Border#ring">
+              <Setter Property="BorderThickness" Value="2" />
+            </Style>
+            <Style Selector="Button.cable:focus-visible /template/ Border#ring">
+              <Setter Property="BorderThickness" Value="2" />
+            </Style>
+            <!-- Expand/collapse (#91): a boxed chevron, right when collapsed and down when open. Not a "+", so it is not
+                 taken for the active-cable "+" on the lines. -->
+            <Style Selector="ToggleButton.expander">
+              <Setter Property="Width" Value="16" />
+              <Setter Property="Height" Value="16" />
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Cursor" Value="Hand" />
+              <Setter Property="Focusable" Value="False" />
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <Border Name="box" Background="Transparent" BorderBrush="#9E9E9E" BorderThickness="1" CornerRadius="3">
+                    <Path Name="chevron" Data="M0,0 L3,3 L0,6" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                          StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                </ControlTemplate>
+              </Setter>
+            </Style>
+            <Style Selector="ToggleButton.expander:checked /template/ Path#chevron">
+              <Setter Property="Data" Value="M0,0 L3,3 L6,0" />
+            </Style>
+            <Style Selector="ToggleButton.expander:pointerover /template/ Border#box">
+              <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            </Style>
+            <Style Selector="TextBlock.collapsed">
+              <Setter Property="FontWeight" Value="Bold" />
+            </Style>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              <Setter Property="MinHeight" Value="0" />
+              <!-- A border would add height to the row and break the lines between rows. -->
+              <Setter Property="BorderThickness" Value="0" />
+              <Setter Property="Padding" Value="0" />
+              <!-- The lines draw the indentation, so the item has none of its own and no expand arrow. -->
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <StackPanel>
+                    <Border Name="PART_LayoutRoot" Classes="TreeViewItemLayoutRoot" Focusable="True"
+                            Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                            TemplatedControl.IsTemplateFocusTarget="True">
+                      <ContentPresenter Name="PART_HeaderPresenter" Focusable="False" Background="Transparent"
+                                        Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                        HorizontalContentAlignment="Stretch" />
+                    </Border>
+                    <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"
+                                    IsVisible="{TemplateBinding IsExpanded}" />
+                  </StackPanel>
+                </ControlTemplate>
+              </Setter>
             </Style>
           </TreeView.Styles>
           <TreeView.ItemTemplate>
             <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-              <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding StatusText}">
-                <!-- The connection line from the port to this hub or device, in its status colour. -->
-                <Rectangle Width="28" Height="4" VerticalAlignment="Center"
-                           Fill="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
-                <TextBlock Text="{Binding Text}" />
-              </StackPanel>
+              <DockPanel Height="24" ToolTip.Tip="{Binding StatusText}">
+                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
+                               HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
+                               TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"
+                               ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
+                  <Button Name="CableMark" Classes="cable" IsVisible="{Binding CanMark}" ToolTip.Tip="{x:Static res:Strings.CableMarkTip}"
+                          AutomationProperties.Name="{x:Static res:Strings.CableMarkTitle}"
+                          BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
+                    <Path Data="M0,2.5 H5 M2.5,0 V5" StrokeThickness="1.2"
+                          Stroke="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                    <Button.Flyout>
+                      <Flyout Placement="BottomEdgeAlignedLeft">
+                        <StackPanel Spacing="6">
+                          <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" />
+                          <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}"
+                                   SelectionMode="AlwaysSelected" />
+                        </StackPanel>
+                      </Flyout>
+                    </Button.Flyout>
+                  </Button>
+                </app:TreeLines>
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
+                  <ToggleButton Classes="expander" IsVisible="{Binding CanExpand}" IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                ToolTip.Tip="{x:Static res:Strings.ExpandTip}" AutomationProperties.Name="{x:Static res:Strings.ExpandTip}" />
+                  <!-- A marked line's "+N hops" badge, in the line's colour, so it is clear the user added it. -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsUserMarked}"
+                          BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
+                    <TextBlock Text="{Binding MarkBadge}" FontWeight="SemiBold"
+                               Foreground="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                  </Border>
+                  <!-- A DisplayLink device is a display (#92): a badge and its message before its name, so a long row never
+                       cuts the message off. -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsDisplay}"
+                          BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                    <TextBlock Text="{x:Static res:Strings.DisplayBadge}" FontWeight="SemiBold" />
+                  </Border>
+                  <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
+                  <!-- A collapsed item's name is bold (#100). -->
+                  <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
+                  <!-- A port Windows reports as USB-C (#114). -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center"
+                          IsVisible="{Binding PortType, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                    <TextBlock Text="{Binding PortType}" />
+                  </Border>
+                  <!-- The result word on the right, in the same colour as the elbow. -->
+                  <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
+                             Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                  <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
+                  <TextBlock Text="{Binding Counts}" Opacity="0.7"
+                             IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+              </DockPanel>
             </TreeDataTemplate>
           </TreeView.ItemTemplate>
         </TreeView>
@@ -70,10 +214,31 @@
             <TextBlock Text="{Binding OverallText}" Foreground="White" FontWeight="Bold" TextWrapping="Wrap" />
           </Border>
 
-          <TextBlock Text="{Binding HubsText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding TiersText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding HopsText}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding DisplaysText}" TextWrapping="Wrap" />
+          <!-- Status field: every checked profile with its result word in its colour, for the selected controller. -->
+          <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
+          <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+          <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
+          <ItemsControl ItemsSource="{Binding StatusRows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:StatusRow">
+                <StackPanel Margin="0,0,0,6">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Background="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}" CornerRadius="4" Padding="6,2">
+                      <TextBlock Text="{Binding Word}" Foreground="White" FontWeight="Bold" />
+                    </Border>
+                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding Details}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
 
           <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
           <ItemsControl ItemsSource="{Binding Disconnected}">

@@ -56,6 +56,31 @@ public class RealDatabaseTests
         Assert.NotEmpty(platform.Find("sources")!.Items);
     }
 
+    // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.
+    [Fact]
+    public void MacBookNeoHasItsOwnHopLimit()
+    {
+        var neo = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", "Mac17,5")];
+
+        Assert.Equal("MacBook Neo", neo.Find("name")!.Scalar);
+        Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
+        Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
+        Assert.NotEmpty(neo.Find("sources")!.Items);
+    }
+
+    // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd until researched (#75).
+    [Fact]
+    public void AsusRogStrixG713RWInheritsWindowsAmd()
+    {
+        var asus = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("ASUSTeK COMPUTER INC.", "ROG Strix G713RW_G713RW")];
+
+        Assert.Equal("ROG Strix G713RW", asus.Find("name")!.Scalar);
+        Assert.Equal("unverified", asus.Find("verification.status")!.Scalar);
+        Assert.Equal(7L, asus.Find("limits.max_hops")!.Scalar);
+        Assert.Equal("platforms/windows-amd.yaml", asus.Find("limits.max_hops")!.File);
+    }
+
     [Fact]
     public void ComputerTemplateIsValidWhenCopied()
     {

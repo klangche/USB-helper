@@ -6,8 +6,8 @@ using UsbHelper.Core.Topology;
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// Writes this computer as a computer profile for the developers: what was detected, every limit unknown and the
-/// status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
+/// Writes this computer as a computer profile for the developers: what was detected, no limits (it inherits the
+/// platform profile's) and the status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
 /// </summary>
 public static class ComputerProfileExport
 {
@@ -22,8 +22,9 @@ public static class ComputerProfileExport
             $"Exported by USB-helper {appVersion} on {day}.",
             $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.HubCount(tree)}, active external displays: {displays}.",
         };
-        notes.AddRange(tree.Select(controller =>
-            $"USB controller {controller.Name}: root hub ports: {controller.Children.Sum(rootHub => rootHub.Children.Count)}."));
+        // Numbered, not named: Windows names controllers in the user's language, the notes are in English.
+        notes.AddRange(tree.Select((controller, index) =>
+            $"USB controller {index + 1}: root hub ports: {controller.Children.Sum(rootHub => rootHub.Children.Count)}."));
 
         var yaml = new StringBuilder();
         yaml.AppendLine("# Computer profile exported by USB-helper. Send this file to the USB-helper developers.");
@@ -35,10 +36,6 @@ public static class ComputerProfileExport
         yaml.AppendLine($"manufacturer: {Text(computer.Manufacturer)}");
         yaml.AppendLine($"model: {Text(computer.Model)}");
         yaml.AppendLine($"chip: {Text(computer.Chip)}");
-        yaml.AppendLine("limits:");
-        yaml.AppendLine("  max_hubs: null");
-        yaml.AppendLine("  max_tiers: null");
-        yaml.AppendLine("  max_hops: null");
         yaml.AppendLine("displays:");
         yaml.AppendLine("  max_external: null");
         yaml.AppendLine("notes:");

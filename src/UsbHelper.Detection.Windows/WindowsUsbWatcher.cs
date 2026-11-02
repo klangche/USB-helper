@@ -123,24 +123,29 @@ internal sealed class WindowsUsbWatcher : IDisposable
                 return;
             }
 
-            IReadOnlyList<UsbChange> changes;
+            List<UsbChange> changes;
             try
             {
-                changes = full ? ReadAll() : ReadAffected(events);
+                changes = [.. full ? ReadAll() : ReadAffected(events)];
             }
             catch (Win32Exception)
             {
                 // Windows could not list the devices right now. Read everything again shortly, so nothing is lost.
+                // The events are kept: a short drop shows only in them.
                 lock (pendingLock)
                 {
+                    pending.InsertRange(0, events);
+                    firstPendingAt = DateTime.UtcNow;
                     fullReadDue = true;
                     timer.Change(RetryDelay, Timeout.InfiniteTimeSpan);
                 }
                 return;
             }
+            var newTree = UsbTree.Apply(tree, changes);
+            changes.AddRange(ReconnectFinder.Find(tree, newTree, events));
             if (changes.Count > 0)
             {
-                tree = UsbTree.Apply(tree, changes);
+                tree = newTree;
                 onChanges(changes);
             }
         }

@@ -8,22 +8,46 @@ Status: first version for Windows; computer profiles still to be added.
 
 ## Features
 
-- Live USB tree: controllers, hubs, ports and devices, updated on connect and
-  disconnect without rebuilding the whole tree.
-- Hub count, tier depth and hop depth, each checked against the computer
-  model's own limits.
+- Live USB tree with drawn tree lines from one root for the computer (the
+  host): controllers, hubs, occupied ports and devices. At start only the
+  busiest controller is open; hubs built into the computer start collapsed; a
+  chevron before each item with items below it expands or collapses it, and a
+  collapsed item's name is bold. Updated on connect and
+  disconnect without rebuilding the whole tree. Hubs and devices show the
+  product name they report, falling back to the Windows name. Every line, from
+  the computer down, takes the worst status of everything below it, so one
+  unstable device colours its whole path up to the computer. DisplayLink
+  devices are shown as displays ("Extended display: DisplayLink driver
+  required"), and the hubs above them say they have a display. A port in the
+  tree (one with something on it) that Windows reports as USB-C shows a
+  "USB-C" badge; other ports, and ports Windows says nothing about, show none.
+  The log lists the flag of every port Windows reports it for.
+- Per controller: its hub count, deepest tier and deepest hop.
+- Hub count, tier depth and hop depth, counted from the computer's own port
+  and each checked against the computer model's own limits.
+- Active cables and extenders that the operating system does not show can be
+  marked with the "+" on their connection line ("+N hops"); the marks count in
+  every tier and hop check.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
-- Connection status colours:
-  - Green: connected, no issues, limits satisfied.
-  - Yellow: a topology limit is exceeded or a documented limitation applies.
-  - Purple: a connection error on a connection that is still present.
+- Connection status colours, per checked profile:
+  - Green: stable, within every limit the profile knows.
+  - Orange: potentially unstable, above a recommendation or a documented
+    limitation applies.
+  - Purple: unstable, a limit is exceeded, the operating system reports an
+    error on a connection that is still present, or the device disconnected
+    and came back.
   - Red: an expected device or connection is missing.
-  - Grey: unknown, unverified or not yet evaluated.
+  - Grey: unknown, no profile checked or the profile has no limits.
 - Results separate detected hardware facts, verified database facts,
-  predicted risks and unknown information. A setup is never reported as fully
-  compatible while required data is missing.
+  predicted risks and unknown information. The findings list shows only real
+  findings (a limit or recommendation exceeded, display problems, errors,
+  disconnects and reconnects); unknown limits and database facts are in the
+  log.
+- A log of every event in the session (start, database, connects,
+  disconnects, reconnects, errors, profile checks, cable marks and every
+  finding), with time, exportable as a text file.
 - No bandwidth, throughput or speed calculations.
 
 ## Hardware database
@@ -36,6 +60,9 @@ database/
 ├── platforms/         operating system and architecture profiles
 └── computers/         one file per computer model, by manufacturer
 ```
+
+The build puts these files into the app, so the download has no database
+folder.
 
 A computer profile inherits from a platform profile, which inherits from
 `base.yaml`. Every profile records its sources, a verification status
@@ -109,11 +136,12 @@ Display checks are separate from the topology limits. The app counts the active
 external displays that use the computer's own outputs (HDMI, DisplayPort,
 DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 `displays.max_external`; DisplayLink and wireless displays are not counted.
-DisplayLink adapters are found in the USB tree and checked against the ports'
-`displaylink` values. Which physical port a monitor uses cannot be detected, so
-the port capabilities and restrictions are listed, not matched to monitors. The
-GUI reads the display count again at every USB change and profile change; a
-monitor plugged in without any USB change shows up at the next one. A
+DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
+0x17E9) and checked against the ports' `displaylink` values. Which physical
+port a monitor uses cannot be detected, so the port capabilities and
+restrictions are listed, not matched to monitors. The GUI reads the display
+count again at every USB change and profile change; a monitor plugged in
+without any USB change shows up at the next one. A
 display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
@@ -123,15 +151,22 @@ assumed to carry video, and no bandwidth is calculated.
    `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
-   and `model` exactly as the computer reports them. Keep `limits.max_hubs`,
-   `limits.max_tiers` and `limits.max_hops` in the file, `null` if unknown.
-   Do not add an `id`: it is computed (see below).
-3. Fill in only values you can cite. List every source in `sources`, set
+   and `model` exactly as the computer reports them. Do not add an `id`: it is
+   computed (see below). If the model is a technical string (for example
+   `Mac17,5`), add `name` (for example `MacBook Neo`): the app shows it, but
+   only `manufacturer` and `model` are matched.
+3. Limits (`limits.max_hubs`, `max_tiers`, `max_hops`, `recommended_hops`)
+   left out inherit the platform profile's values. Set a value only where this
+   model differs (for example built-in hubs), or `null` when the platform's
+   value does not apply and the right one is unknown.
+4. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
-4. Run `dotnet test`: it loads the whole database and reports any problem.
-5. Open a pull request. Changes to verified values need review; the git history
+5. Run `dotnet test`: it loads the whole database and reports any problem.
+6. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
+7. The database is built into the app, so users get the change with the next
+   release or beta build; an existing download keeps its own database.
 
 A computer profile's id is never written in the file. The app computes it from
 `manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters
@@ -144,43 +179,84 @@ which computer profiles name in `inherits`.
 
 The three limits in a computer profile are checked independently:
 
-- **Tier depth** (`max_tiers`): the root hub is tier 1, each hub below it adds
-  one, and the device's own tier counts.
-- **Hop depth** (`max_hops`): the number of hubs between the root port and the
-  device, root hub excluded.
+- **Tier depth** (`max_tiers`): the computer's own port is on tier 1, each hub
+  below it adds one, and the device's own tier counts.
+- **Hop depth** (`max_hops`): the number of hubs between the computer's own
+  port and the device.
 - **Hub count** (`max_hubs`): all external hubs connected to the computer, root
-  hubs excluded.
+  hubs and built-in hubs excluded.
 
 A profile may also set `recommended_hops`: hop depths above it still work up to
 `max_hops`, but less reliably.
 
+Counting starts at the computer's own port, the one the user plugs into. Many
+laptops have a hub built in between the root hub and that port (for the webcam,
+Bluetooth or a card reader). On Windows the app asks for each port whether it is
+user-connectable; a hub reached only through ports that are not is built into
+the computer and does not count. A device in the laptop's own port has 0 hops.
+If Windows does not say for a port (older versions, some drivers), a hub on it
+is counted as before, as an external hub, and the log says so.
+
+Hop and tier limits in the database (platform and computer profiles) are
+counted the same way, from the computer's own port. A computer with built-in
+hubs or other quirks sets its own `max_hops` in its computer profile.
+
 Hubs inside docks and monitors count like any other hub, because the operating
-system reports them as hubs. Example: root port, dock hub, monitor hub,
+system reports them as hubs. Example: laptop port, dock hub, monitor hub,
 keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
+
+Active cables and extenders that Windows shows as a hub count automatically.
+Ones it does not show are marked by the user on the port they are plugged into:
+a mark of +N hops adds N hops and N tiers to everything behind that port, in
+every checked profile. It does not change the hub count.
 
 ## Diagnostic rules
 
 Each connection line (from a hub port to the hub or device on it) gets one
-status; when several apply, the first in this list wins:
+status per checked profile; when several apply, the first in this list wins:
 
 1. Red: a hub or device seen since the app started is no longer connected. It
    stays red until it returns or is cleared.
-2. Purple: the operating system reports an error on the port or the device.
-3. Yellow: its tier or hop depth is above the profile's limit, its hop depth is
-   above `recommended_hops`, or it is a hub and the hub count is above
-   `max_hubs`. This applies to unverified limits too; the finding then says the
-   limit is unverified. An unknown `recommended_hops` has no effect.
-4. Grey: a limit is unknown (`null`, or no computer profile selected) or comes
-   from an `unverified` profile.
-5. Green: none of the above, so all three limits are known, verified (or from
-   a `partial` profile) and met.
+2. Purple (unstable): the operating system reports an error on the port or the
+   device; or the hub or device disconnected and came back since the app
+   started, however long or short the drop, until it leaves again or is
+   cleared; or its tier or hop depth is above the profile's `max_tiers` or
+   `max_hops`; or it is a hub and the hub count is above `max_hubs`.
+3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
+   within `max_hops`.
+4. Grey (unknown): no profile is checked, or the profile has none of these
+   limits.
+5. Green (stable): none of the above.
 
-The overall result is the highest of all lines and limits, so it is never green
-while required information is missing. Every finding names its device, port or
-computer and the reason, and is marked as a detected fact, a verified database
-fact, a predicted risk or unknown. A limit or model exception is a verified
-database fact only when the file that sets it is itself `verified` or
-`partial`.
+Stability is judged on the limits the profile knows: an unknown limit (`null`)
+does not turn anything grey and is reported in the log, not in the findings
+list. A limit from an `unverified` file counts too; the log says it is
+unverified, the window does not. With several
+profiles checked, each line shows the worst result of all of them, and each
+profile gets its own overall result: the highest of its lines, its limits and
+its display check (purple above `displays.max_external`, orange for a
+DisplayLink adapter on a computer without DisplayLink support). The findings
+list then shows only the findings of the strictest checked profile: the one
+with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
+`max_tiers`, then `max_hubs`. An unknown limit counts as higher than any known
+one; when still tied, the first in the menus wins. Detected facts (operating
+system errors, disconnected and reconnected devices) are always listed. Every
+finding names its device, port or computer and the reason, and is marked as a
+detected fact, a verified database fact, a predicted risk or unknown.
+
+The findings list shows only real findings: a limit or recommendation
+exceeded, a display problem (more external displays than
+`displays.max_external`, a DisplayLink adapter on a computer without
+DisplayLink support), an operating system error, a disconnected device and a
+reconnected one. Everything else is a note and goes to the log only (see
+Usage): unknown limits and values, unverified limits, limits and port
+capabilities from the database, documented limitations and restrictions, the
+active display count, a connected DisplayLink adapter, hubs that cannot be
+read and hubs that may be built in. So a profile with unknown limits shows no
+findings while everything is within the limits it knows. A limit
+or model exception is a verified database fact only when the file that sets it
+is itself `verified` or `partial`. A limit a computer profile inherits keeps
+its platform file's status.
 
 If a hub, port or controller cannot be read (a hub without ports, a port with an
 error and nothing on it, a controller without a root hub), what is behind it
@@ -192,61 +268,181 @@ findings; they have no connection line of their own.
 ## Platforms
 
 - Windows x64: first target. Portable, no installation, no administrator
-  rights, no network connection needed.
+  rights. The network is used only for the optional update check at start;
+  without it, the app works as normal.
 - macOS and Linux: planned, with the same GUI and diagnostics.
 
 ## Install
 
 Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 [releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder next
-to `USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
-.\USB-helper.exe` in PowerShell), and start it. No installation, no
-administrator rights and no network connection are needed.
+follow `READ_ME_FIRST.txt` in the zip. In short: the zip holds one exe,
+`USB-helper.exe`; unblock it once (`Unblock-File -Path .\USB-helper.exe` in
+PowerShell, as it is not signed), and start it. No installation and no
+administrator rights are needed, and no network connection either (it is
+used only for the update check below).
+`USB-helper.exe` is a small launcher that carries the app. It shows a splash
+with the version at once. On the first start of a version it unpacks the app
+to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
+launcher's copy (SHA-256), and starts it from there; later starts skip the
+unpack, and an incomplete unpack is done again. The splash closes when the
+app's window is up. After a successful start, the other versions in
+`%LOCALAPPDATA%\USB-helper` (older or newer) are removed. To remove USB-helper completely,
+delete `USB-helper.exe` and that folder.
+Releases marked pre-release (`-beta.N`) are test builds of the next version.
+
+Updates: on every start, while the splash shows, the launcher asks GitHub
+Releases (no account or token) for the newest stable release and the newest
+beta. Only releases with a published SHA-256 file
+(`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
+download can be verified. If either is newer than the running version, the
+splash shows "Update to stable X", "Update to beta Y" (whichever are newer)
+and "Skip" (also Esc); otherwise nothing is shown. The app starts once the
+check has an answer, at most 2 seconds after the start; with no network, no
+answer in time, a GitHub error or its rate limit, the check is skipped
+silently. On a choice, the launcher downloads that release's zip and its
+SHA-256 file, verifies the zip, writes the new launcher next to the running
+one as `<name>.new`, renames the running one to `<name>.old` and the new one
+to the running one's name, and starts it; the next start removes
+`<name>.old`. A download that fails verification is deleted, never run, and
+the current version starts after a message. The folder of `USB-helper.exe`
+must be writable (no administrator rights are used). The log (#87) lists
+the check's result after "USB-helper started", for example "Update check:
+beta 0.7.0-beta.2 is newer than 0.6.0; skipped" or "Update check skipped:
+no answer within 2 s". A download that stalls is given up after 10 minutes.
 
 ## Usage
 
-Start `USB-helper.exe`. The window shows the USB tree with a coloured line per
-hub and device, and a summary with the overall result, the hub, tier, hop and
-display checks, disconnected devices and all findings. The computer profile is
-selected automatically when one matches this computer exactly; otherwise pick
-one in the top bar, either a computer or a generic platform ("Platform:
-windows-intel", for example). Plug and unplug devices: only the affected part
-of the tree changes.
+Start `USB-helper.exe`. Its splash shows at once (see Install); then the
+window opens and shows what it is reading
+("Loading database...", "Reading USB devices...", "Reading displays..."); the
+profiles and the tree fill in as they arrive. The window shows the USB tree.
+Its root is this computer, named after its computer profile when one matches,
+else by the manufacturer and model Windows reports, else by its machine name;
+the USB controllers are its children. Thin lines join the items, starting at the
+computer. Each line is drawn in the worst status of everything it leads to: a
+stable tree is green all the way, and one unstable (purple) or disconnected
+(red) device colours its path up to the computer while its stable neighbours
+stay green. The short line into each hub and device keeps that item's own
+status colour, with the result word after its name. Empty ports are left
+out. At start every USB controller is collapsed except the selected one (see
+below), the one with the most connected hubs and devices. Hubs built into the
+computer (for the webcam or Bluetooth, reached only through ports that are not
+user-connectable) start collapsed; everything else is open. A collapsed item's
+name is bold.
+Click the chevron before an item, double-click the item, or use
+the left and right arrow keys, to expand or collapse it; the choice is kept
+while the app runs. A DisplayLink device is shown as a display: a "Display"
+badge and "Extended display: DisplayLink driver required" before its name;
+every hub above it says it "has a display". A port in the tree that Windows
+reports as a USB-C connector (from its port connector properties) has a "USB-C"
+badge after its name; this changes no result. Empty ports are not in the tree;
+the log lists the flag of every port Windows reports it for. Each controller
+shows its hub count, deepest tier and deepest hop. Next to the tree is a
+summary with the overall result, the status field, disconnected and
+reconnected devices and the findings. The overall result, the status field
+and the findings cover one USB
+controller's tree, named under "Status". At start, and when that controller
+disappears, the controller with the most connected hubs and devices (built-in
+hubs not counted) is selected; on a tie the first in the tree. Click another
+controller, or anything under it, to switch; click the computer at the top to
+cover all controllers. The hub count is always the whole computer's. The tree
+and the disconnected list always show everything. At start, the platform
+profile for the detected operating system and processor (for example
+`windows-amd` on Windows with an AMD processor) is checked; uncheck it to
+judge by others. When no platform profile matches, nothing is checked and
+every line is grey (unknown). Computer profiles are never checked
+automatically. In the top bar, check the systems to judge the setup by in
+the two drop-down lists,
+"Operating systems" (generic platform profiles such as `windows-intel`) and
+"Computers" (computer profiles); any mix can be checked. Each line then shows
+the worst result over the checked profiles. The
+status field has one row per checked profile with its result (stable,
+potentially unstable, unstable or unknown, in its colour) and its hub, tier,
+hop and display checks. With several profiles checked, the findings come from
+the strictest one only and name it (see the diagnostic rules). Plug and unplug
+devices: only the affected part of the tree changes. A device that is
+unplugged stays red at its last port; one that comes back is purple
+(unstable). Click "Clear" next to it to reset it.
+
+Is an active cable or extender plugged in that the tree does not show? Click
+the small "+" in the middle of the line from the port to the hub or device
+behind the cable (or select that item and press Enter or the context menu
+key) and pick its extra hops (+1 to +5). The marked line is
+drawn dashed with a "+N hops" badge, so it is clear that you added it and
+Windows did not detect it. Every tier and hop check counts the extra hops for
+everything behind that line. Click the "+" again to change the mark, or pick
+"None" to remove it. Marks last until the app closes.
+
+Click "Log" in the top bar to open the log: every event of this session with
+its time, newest at the bottom. It lists the start and loading stages, the
+database load result, per hub which ports Windows reports as USB-C or not
+(ports it says nothing about are left out), every connect, disconnect,
+reconnect and error the operating system reports, every profile you check or
+uncheck, every cable mark, and every finding when it appears, including the
+ones about unknown limits. Click "Export" in the log window to save it as a
+text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
+bug report. The log is kept in memory only and starts empty each time the
+app starts.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
 manufacturer and model exactly as Windows reports them, the processor, the
 matching platform profile, the USB controllers with their root hub ports, and
-the number of active external displays. All limits are unknown (`null`) and the status is
-`unverified`. Send the file to the developers; they add the limits from cited
-sources.
+the number of active external displays. It sets no limits, so it uses the
+platform profile's, and the status is `unverified`. Send the file to the
+developers; they add model-specific limits from cited sources.
 
 ## Development
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions: every pull request is built
-and tested on Windows. Merges to `main` are released automatically by
-`.github/workflows/release.yml`: `release/next-version.sh` picks the version
-from the titles of the pull requests merged since the last release (`Fixed:`
-and `Security:` bump the patch version, `Added:`, `Changed:` and `Removed:` the
+and tested on Windows. Pull requests go to the `dev` branch. When `dev` is
+ready, one pull request from `dev` to `main` is merged with a merge commit
+(not squash or rebase, so every pull request since the last release stays
+visible; `dev` is kept), and that merge is released automatically by
+`.github/workflows/release.yml`: `main` only holds released versions.
+`release/next-version.sh` picks the version from the titles of all pull
+requests merged since the last release (`Fixed:` and `Security:` bump the patch
+version, `Added:`, `Changed:` and `Removed:` the
 minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
-`Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip,
+`Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
+(the app is published, zipped and built into the launcher, see below),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
-request titles.
+request titles since the last release. Every merge into `dev` publishes a
+pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
+the next release would get and `N` counts up from 1 for each beta of it
+(`release/beta-version.sh`). Beta tags never count as a release
+(`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.
 - `src/UsbHelper.Detection.Windows`: Windows USB detection (SetupAPI and the USB
   hub IOCTLs).
 - `src/UsbHelper.App`: the GUI. Run it from source on Windows with
-  `dotnet run --project src/UsbHelper.App`. It reads `database/` next to the
-  executable (copied there by the build), picks the computer profile only when
-  the manufacturer and model reported by Windows match a profile exactly, and
-  otherwise lets the user choose. All texts it shows are in
+  `dotnet run --project src/UsbHelper.App`. It reads the database built into
+  it from `database/` (rebuild after a database change), picks the computer
+  profile only when the manufacturer and model reported by Windows match a
+  profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`.
+- `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
+  `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon
+  (`ApplicationIcon`), which Avalonia also uses for every window. After changing
+  the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
+  librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
+  both files.
+- `src/UsbHelper.Launcher`: `USB-helper.exe` in the download, compiled with
+  NativeAOT so it starts without loading .NET. It carries the published app
+  as the embedded resource `app.zip`, given with `-p:AppPayload=<zip>` (see
+  `release.yml`); a build without it reports that it holds no app. It draws
+  its splash with plain Win32 calls and uses the texts in the app's
+  `Strings.resx`. The unpack logic (`AppFolder`), the update check
+  (`UpdateCheck`, `ReleaseVersion`) and the update download and swap
+  (`UpdateInstaller`) are tested in `tests/UsbHelper.Launcher.Tests`, the
+  update check against a fake release feed. `release.yml` publishes
+  `<zip>.sha256` with every release and beta for the update check.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running
@@ -257,14 +453,23 @@ administrator rights), waits half a second for related events to settle, then
 reads again only the hub the device is connected to, including everything
 below it. When an event cannot be placed in the known tree (for example a dock
 that brings its own USB controller), the whole tree is read again once and
-only the differences are reported. Connection errors are reported only when
-Windows reports them on the next read; a port error or device problem code that
-Windows sets without any device event (for example more than half a second
-after the device started) is seen at the next event on that hub. If a read
-fails, the whole tree is read again two seconds later.
+only the differences are reported. A hub or device that Windows removes and
+adds again within that wait leaves the tree unchanged; it is reported as
+reconnected. Connection errors are reported only when Windows reports them on
+the next read; a port error or device problem code that Windows sets without
+any device event (for example more than half a second after the device
+started) is seen at the next event on that hub. If a read fails, the whole tree
+is read again two seconds later, with the events of the failed read.
 
 Contributors and AI agents follow AGENTS.md.
 
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The app icon is the "usb" icon from [Font Awesome Free](https://fontawesome.com)
+by Fonticons, Inc., licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+([Font Awesome Free license](https://fontawesome.com/license/free)). Changed:
+square view box and drawn white. USB is a trademark of its owner; the icon
+stands for USB connections, and no endorsement is implied.

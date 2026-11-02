@@ -25,6 +25,7 @@ internal static class WindowsUsbReader
     private const int RootHubNameOffset = 4; // USB_ROOT_HUB_NAME.ActualLength
     private const int ConnectionNameOffset = 8; // ConnectionIndex, ActualLength
     private const int NameBufferSize = 2048;
+    private const int PortConnectorPropertiesSize = 512; // USB_PORT_CONNECTOR_PROPERTIES with room for the companion hub name
 
     private sealed record DevNodeIndex(Dictionary<string, RawDevNode> ByDriverKey, Dictionary<string, RawDevNode> ByInstanceId);
 
@@ -172,6 +173,7 @@ internal static class WindowsUsbReader
                 childHub = ReadHub(hubName, devNodes);
             }
         }
+        var (userConnectable, usbC) = ReadConnector(hub, port);
         return new RawPort(
             port,
             status,
@@ -179,7 +181,21 @@ internal static class WindowsUsbReader
             BitConverter.ToUInt16(information, VendorIdOffset),
             BitConverter.ToUInt16(information, ProductIdOffset),
             device,
-            childHub);
+            childHub)
+        {
+            UserConnectable = userConnectable,
+            UsbC = usbC,
+        };
+    }
+
+    // Nulls when Windows does not say, for example before Windows 8 or when the hub driver does not answer.
+    private static (bool? UserConnectable, bool? UsbC) ReadConnector(SafeFileHandle hub, int port)
+    {
+        var buffer = new byte[PortConnectorPropertiesSize];
+        BitConverter.TryWriteBytes(buffer, (uint)port);
+        return DeviceIoControl(hub, IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, buffer, buffer.Length, buffer, buffer.Length, out var returned, IntPtr.Zero)
+            ? (PortConnector.IsUserConnectable(buffer, returned), PortConnector.IsTypeC(buffer, returned))
+            : (null, null);
     }
 
     // All present devices enumerated by the USB bus driver: hubs and the devices on their ports.
@@ -227,7 +243,8 @@ internal static class WindowsUsbReader
             throw new Win32Exception();
         }
         var instanceId = Decode(buffer, 0).ToUpperInvariant(); // Instance ids are case-insensitive; keep one form.
-        var name = StringProperty(set, ref info, SPDRP_FRIENDLYNAME) ?? StringProperty(set, ref info, SPDRP_DEVICEDESC) ?? instanceId;
+        var name = DeviceName.Choose(BusReportedName(set, ref info),
+            StringProperty(set, ref info, SPDRP_FRIENDLYNAME), StringProperty(set, ref info, SPDRP_DEVICEDESC), instanceId);
         int? problem = CM_Get_DevNode_Status(out var status, out var problemNumber, info.DevInst, 0) == CR_SUCCESS
             && (status & DN_HAS_PROBLEM) != 0 ? (int)problemNumber : null;
         return new RawDevNode(instanceId, name, problem);
@@ -237,6 +254,15 @@ internal static class WindowsUsbReader
     {
         var buffer = new byte[NameBufferSize];
         return SetupDiGetDeviceRegistryProperty(set, ref info, property, out _, buffer, NameBufferSize, out _)
+            ? Decode(buffer, 0)
+            : null;
+    }
+
+    private static string? BusReportedName(IntPtr set, ref SP_DEVINFO_DATA info)
+    {
+        var buffer = new byte[NameBufferSize];
+        return SetupDiGetDeviceProperty(set, ref info, DevpkeyDeviceBusReportedDeviceDesc, out var type, buffer, NameBufferSize, out _, 0)
+            && type == DEVPROP_TYPE_STRING
             ? Decode(buffer, 0)
             : null;
     }

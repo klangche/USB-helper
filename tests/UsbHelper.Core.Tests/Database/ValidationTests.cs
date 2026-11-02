@@ -158,19 +158,15 @@ public class ValidationTests
     }
 
     [Fact]
-    public void ComputerMustSetLimitsExplicitly()
+    public void ComputerMayLeaveOutLimits()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", """
             inherits: test-platform
             manufacturer: Test
             model: Test model
-            limits:
-              max_hubs: 4
             """);
 
-        var errors = db.LoadErrors();
-
-        Assert.Equal(["limits.max_hops", "limits.max_tiers"], errors.Select(error => error.Message.Split('\'')[1]).Order());
+        Assert.Single(db.Load().Computers);
     }
 
     [Fact]
@@ -195,6 +191,14 @@ public class ValidationTests
         using var db = new TestDatabase().Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nports:\n  left:\n    usb: usb-3\n");
 
         Single(db.LoadErrors(), "platforms/test-platform.yaml", 7, "'ports' belongs in computer profiles");
+    }
+
+    [Fact]
+    public void PlatformMustNotDefineName()
+    {
+        using var db = new TestDatabase().Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nname: Some laptop\n");
+
+        Single(db.LoadErrors(), "platforms/test-platform.yaml", 7, "'name' belongs in computer profiles");
     }
 
     [Fact]
