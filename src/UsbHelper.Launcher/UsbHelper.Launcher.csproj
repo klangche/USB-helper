@@ -12,7 +12,13 @@
     <PublishAot>true</PublishAot>
   </PropertyGroup>
 
-  <!-- Pinned, so the lock file does not change with the SDK version that builds it. -->
+  <!-- Pinned: the SDK would add these at its own runtime version, so the lock file (restored with locked mode) would
+       change with every SDK patch that CI installs. Both packages bring their own compiler and runtime, so a pin is
+       consistent; update both together. -->
+  <PropertyGroup>
+    <SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
+    <SuppressILLinkExplicitPackageReferenceWarning>true</SuppressILLinkExplicitPackageReferenceWarning>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.14" />
     <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.14" />

@@ -2,7 +2,8 @@ name: Release
 
 # Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
 # pull requests merged since the last release ask for one (release/next-version.sh picks the version):
-# it builds the portable Windows zip, creates the tag vX.Y.Z and publishes a GitHub release.
+# it builds the portable Windows zip (one launcher exe that carries the app, #110), creates the tag vX.Y.Z and
+# publishes a GitHub release.
 # Every merge into dev publishes a pre-release vX.Y.Z-beta.N the same way: X.Y.Z is that next version,
 # N counts the earlier betas of it (release/beta-version.sh). Beta tags never count as a release.
 # Pull requests that change the packaging build the zip as an artifact only.
@@ -14,6 +15,7 @@ on:
       - .github/workflows/release.yml
       - release/**
       - src/UsbHelper.App/**
+      - src/UsbHelper.Launcher/**
       - Directory.Build.props
       - "**/packages.lock.json"
 
@@ -95,11 +97,33 @@ jobs:
 
       # Single file with composite ReadyToRun, not trimmed. The native DLLs stay next to the exe instead of being
       # extracted to %TEMP% at the first start of every version (#86).
-      - name: Publish
+      - name: Publish app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
           -p:PublishSingleFile=true -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
+
+      # Signing (#112) adds one step here, before packing, and one after "Publish launcher", before zipping: the app exe
+      # is signed first, then the launcher that carries it.
+
+      # The app (exe and native DLLs, no .pdb files) goes into the launcher as app.zip; the launcher unpacks it to
+      # %LOCALAPPDATA%\USB-helper\<version> on the first start of the version.
+      - name: Pack app
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory app | Out-Null
+          Copy-Item publish/UsbHelper.App.exe, publish/*.dll app
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/app", "$PWD/app.zip")
+
+      - run: dotnet restore src/UsbHelper.Launcher -r win-x64 --locked-mode
+
+      # NativeAOT: a small native exe that shows its splash at once.
+      - name: Publish launcher
+        run: >-
+          dotnet publish src/UsbHelper.Launcher --no-restore -c Release -r win-x64
+          -p:AppPayload=${{ github.workspace }}/app.zip -p:DebugType=none
+          -p:Version=${{ needs.version.outputs.version }} -o launcher
 
       - name: Zip
         shell: pwsh
@@ -107,12 +131,11 @@ jobs:
           $version = '${{ needs.version.outputs.version }}'
           $name = "usb-helper-$version-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
-          Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
-          # The native libraries (SkiaSharp, HarfBuzzSharp, ANGLE); their .pdb files stay out.
-          Copy-Item publish/*.dll $name
+          Copy-Item launcher/UsbHelper.Launcher.exe "$name/USB-helper.exe"
           # CRLF, so older Notepad versions show the lines.
           (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$name/READ_ME_FIRST.txt"
           Copy-Item LICENSE "$name/LICENSE.txt"
+          Get-ChildItem $name | Format-Table Name, Length -AutoSize | Out-String | Write-Host
           Compress-Archive -Path $name -DestinationPath "$name.zip"
           "ZIP=$name.zip" >> $env:GITHUB_ENV
 

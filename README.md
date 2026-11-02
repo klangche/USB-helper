@@ -272,15 +272,24 @@ findings; they have no connection line of their own.
 
 Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 [releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: keep the `.dll` files next to
-`USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
-.\USB-helper.exe` in PowerShell), and start it. No installation, no
+follow `READ_ME_FIRST.txt` in the zip. In short: the zip holds one exe,
+`USB-helper.exe`; unblock it once (`Unblock-File -Path .\USB-helper.exe` in
+PowerShell, as it is not signed), and start it. No installation, no
 administrator rights and no network connection are needed.
+`USB-helper.exe` is a small launcher that carries the app. It shows a splash
+with the version at once. On the first start of a version it unpacks the app
+to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
+launcher's copy (SHA-256), and starts it from there; later starts skip the
+unpack, and an incomplete unpack is done again. The splash closes when the
+app's window is up. After a successful start, older versions in
+`%LOCALAPPDATA%\USB-helper` are removed. To remove USB-helper completely,
+delete `USB-helper.exe` and that folder.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
 
-Start `USB-helper.exe`. The window opens at once and shows what it is reading
+Start `USB-helper.exe`. Its splash shows at once (see Install); then the
+window opens and shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
 profiles and the tree fill in as they arrive. The window shows the USB tree.
 Its root is this computer, named after its computer profile when one matches,
@@ -368,7 +377,8 @@ version, `Added:`, `Changed:` and `Removed:` the
 minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
-`Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip,
+`Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
+(the app is published, zipped and built into the launcher, see below),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -392,6 +402,13 @@ the next release would get and `N` counts up from 1 for each beta of it
   the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
   librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
   both files.
+- `src/UsbHelper.Launcher`: `USB-helper.exe` in the download, compiled with
+  NativeAOT so it starts without loading .NET. It carries the published app
+  as the embedded resource `app.zip`, given with `-p:AppPayload=<zip>` (see
+  `release.yml`); a build without it reports that it holds no app. It draws
+  its splash with plain Win32 calls and uses the texts in the app's
+  `Strings.resx`. The unpack logic (`AppFolder`) is tested in
+  `tests/UsbHelper.Launcher.Tests`.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running
