@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using Avalonia.Rendering;
 using UsbHelper.App.ViewModels;
 
 namespace UsbHelper.App;
@@ -12,11 +11,12 @@ namespace UsbHelper.App;
 /// continues past this row, then the rounded elbow to this item, then a node column with a dot and, when the item
 /// shows its children, the start of its own trunk. Every trunk segment is in the worst status of what it leads to (#89);
 /// the elbow to a hub or device is in its own status colour, dashed when the user marked it as an active cable or
-/// extender (#76).
+/// extender (#76). The child, the "+" that adds an active cable (#90), sits in the middle of the elbow's horizontal line.
 /// </summary>
-public sealed class TreeLines : Control, ICustomHitTest
+public sealed class TreeLines : Decorator
 {
-    public const double ColumnWidth = 16;
+    /// <summary>Wide enough for the "+" on the elbow's horizontal line between the curve and the dot.</summary>
+    public const double ColumnWidth = 20;
     private const double Radius = 6;
     private const double DotRadius = 2.5;
 
@@ -119,11 +119,24 @@ public sealed class TreeLines : Control, ICustomHitTest
     // Guides, elbow (only with a line), node.
     private int Columns => (HasLine ? (Guides?.Count ?? 0) + 1 : 0) + 1;
 
-    protected override Size MeasureOverride(Size availableSize) => new(Columns * ColumnWidth, 0);
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        Child?.Measure(availableSize);
+        return new(Columns * ColumnWidth, 0);
+    }
 
-    /// <summary>Only the elbow and the node column take clicks: the guide columns belong to the rows above.</summary>
-    public bool HitTest(Point point) =>
-        HasLine && point.X >= (Guides?.Count ?? 0) * ColumnWidth && point.X < Columns * ColumnWidth && point.Y >= 0 && point.Y < Bounds.Height;
+    // The child is centred on the elbow's horizontal line, between the end of the curve and the dot.
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        if (Child is { } child)
+        {
+            var elbow = Center(Guides?.Count ?? 0);
+            var x = (elbow + Radius + Center((Guides?.Count ?? 0) + 1)) / 2;
+            var size = child.DesiredSize;
+            child.Arrange(new Rect(x - (size.Width / 2), Math.Round(finalSize.Height / 2) + 0.5 - (size.Height / 2), size.Width, size.Height));
+        }
+        return finalSize;
+    }
 
     public override void Render(DrawingContext context)
     {
