@@ -85,6 +85,16 @@ public class DisplayEvaluatorTests
     }
 
     [Fact]
+    public void TooManyDisplaysOnAnUnverifiedLimitHasABriefWithoutUnverified()
+    {
+        var report = Evaluate(Desk, Profile(status: "unverified"), 3);
+
+        var finding = Assert.Single(report.Findings, finding => finding.Kind == FactKind.PredictedRisk);
+        Assert.Equal("3 external displays are active; displays.max_external is 2 (unverified limit).", finding.Message);
+        Assert.Equal("3 external displays are active; displays.max_external is 2.", finding.Brief);
+    }
+
+    [Fact]
     public void UnverifiedDisplayLimitIsJudged()
     {
         var report = Evaluate(Desk, Profile(status: "unverified"), 1);

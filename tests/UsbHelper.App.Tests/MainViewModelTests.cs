@@ -685,8 +685,8 @@ public class MainViewModelTests
         Assert.Equal(
             [("p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
             viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
-        Assert.Contains("Most hops: 1, limit 0 (exceeded, verified)", viewModel.StatusRows[0].Details);
-        Assert.Contains("Most hops: 1, limit 5 (within limit, verified)", viewModel.StatusRows[1].Details);
+        Assert.Contains("Most hops: 1, limit 0 (exceeded)", viewModel.StatusRows[0].Details);
+        Assert.Contains("Most hops: 1, limit 5 (within limit)", viewModel.StatusRows[1].Details);
     }
 
     [Fact]
@@ -807,12 +807,12 @@ public class MainViewModelTests
         viewModel.Load(Desk);
         viewModel.Computers.Single().IsChecked = true;
 
-        Assert.Contains("External displays: 1, limit 2 (within limit, verified)", viewModel.StatusRows.Single().Details);
+        Assert.Contains("External displays: 1, limit 2 (within limit)", viewModel.StatusRows.Single().Details);
 
         displays = 3;
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
 
-        Assert.Contains("External displays: 3, limit 2 (exceeded, verified)", viewModel.StatusRows.Single().Details);
+        Assert.Contains("External displays: 3, limit 2 (exceeded)", viewModel.StatusRows.Single().Details);
     }
 
     [Fact]
@@ -821,7 +821,7 @@ public class MainViewModelTests
         var viewModel = TwoProfiles();
         viewModel.OperatingSystems.Single().IsChecked = true;
 
-        Assert.Contains("External displays: unknown, limit unknown (unknown, not verified)", viewModel.StatusRows.Single().Details);
+        Assert.Contains("External displays: unknown, limit unknown (unknown)", viewModel.StatusRows.Single().Details);
     }
 
     // Laptop: root port 1 is fixed, with a built-in hub (webcam on a fixed port, a dock on a laptop socket); Windows
@@ -844,34 +844,33 @@ public class MainViewModelTests
 
         Assert.False(Item(viewModel, "INTERNAL").IsExpanded);
         Assert.False(Item(viewModel, "INTERNAL").ShowsChildren); // No trunk below a collapsed item.
-        Assert.NotNull(Item(viewModel, "INTERNAL").CollapsedHint);
+        Assert.True(Item(viewModel, "INTERNAL").IsCollapsed);
         Assert.True(Item(viewModel, "DOCK").IsExpanded); // External, although it is behind the built-in hub.
         Assert.True(Item(viewModel, "UNSURE").IsExpanded); // Windows does not say: open, as it is counted.
         Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.True(item.IsExpanded));
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.Null(item.CollapsedHint));
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.False(item.IsCollapsed));
     }
 
+    // Owner decision in #100: a collapsed item's name is bold, with no hidden count after it; an expanded one is not bold.
     [Fact]
-    public void CollapsedItemReportsHowManyItemsAreHidden()
+    public void CollapsedItemIsBoldWithoutAHiddenCount()
     {
         var viewModel = NewViewModel();
         viewModel.Load(Laptop());
         var builtIn = Item(viewModel, "INTERNAL");
+        var changed = new List<string?>();
+        builtIn.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
 
-        // Its two ports, WEBCAM, DOCK, DOCK's port and KEYBOARD.
-        Assert.Equal(6, builtIn.HiddenCount);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CollapsedHint, 6), builtIn.CollapsedHint);
+        Assert.True(builtIn.IsCollapsed);
+        Assert.Equal("INTERNAL", builtIn.Text);
 
         builtIn.IsExpanded = true;
 
-        Assert.Equal(0, builtIn.HiddenCount);
-        Assert.Null(builtIn.CollapsedHint);
-
-        builtIn.IsExpanded = false;
-        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "INTERNAL", Port("INTERNAL", 2, null))]);
-
-        Assert.Equal(4, Item(viewModel, "INTERNAL").HiddenCount); // DOCK stays, disconnected, without what was behind it.
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.Equal(0, item.HiddenCount));
+        Assert.False(builtIn.IsCollapsed);
+        Assert.Contains(nameof(NodeViewModel.IsCollapsed), changed);
+        Assert.Equal("INTERNAL", builtIn.Text);
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.IsCollapsed);
+        Assert.False(Item(viewModel, "WEBCAM").IsCollapsed); // Nothing below it: never bold.
     }
 
     [Fact]
@@ -889,8 +888,7 @@ public class MainViewModelTests
 
         port.IsExpanded = false;
 
-        Assert.Equal(3, port.HiddenCount); // UNSURE, its port and MOUSE.
-        Assert.NotNull(port.CollapsedHint);
+        Assert.True(port.IsCollapsed);
     }
 
     [Fact]
@@ -907,7 +905,7 @@ public class MainViewModelTests
         Assert.True(Item(viewModel, "INTERNAL").IsExpanded);
         Assert.True(Item(viewModel, "INTERNAL").ShowsChildren);
         Assert.False(Item(viewModel, "UNSURE").IsExpanded);
-        Assert.NotNull(Item(viewModel, "UNSURE").CollapsedHint);
+        Assert.True(Item(viewModel, "UNSURE").IsCollapsed);
     }
 
     [Fact]
@@ -1054,8 +1052,74 @@ public class MainViewModelTests
 
         Assert.Equal("C1", viewModel.SelectedControllerId);
         Assert.Equal("unstable", Word(viewModel));
-        Assert.Contains("External hubs: 2, limit 1 (exceeded, verified)", viewModel.StatusRows[0].Details);
+        Assert.Contains("External hubs: 2, limit 1 (exceeded)", viewModel.StatusRows[0].Details);
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "HUB").LineColor);
+    }
+
+    // Owner decision in #100: at start every controller is collapsed except the selected one, the one with most devices.
+    [Fact]
+    public void AtStartOnlyTheBusiestControllerIsExpanded()
+    {
+        var other = new UsbNode("C3", UsbNodeKind.Controller, "Third controller", [Hub("ROOT3", Device("A"))]);
+
+        var viewModel = TwoControllers(Phone, Desk[0], other);
+
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.False(Item(viewModel, "C2").IsExpanded);
+        Assert.False(Item(viewModel, "C3").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+        Assert.True(Item(viewModel, NodeViewModel.HostId).IsExpanded);
+        Assert.True(Item(viewModel, "ROOT2").IsExpanded); // Only the controller is collapsed; what is below keeps its default.
+    }
+
+    [Fact]
+    public void ControllersAreCollapsedWhenTheTreeArrivesAfterAProfileWasChecked()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Computers.Single().IsChecked = true; // While the tree is still being read.
+
+        viewModel.Load([Phone, .. Desk]);
+
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.False(Item(viewModel, "C2").IsExpanded);
+    }
+
+    [Fact]
+    public void LiveUpdatesAndSelectionKeepTheUsersControllerChoice()
+    {
+        var viewModel = TwoControllers();
+        Item(viewModel, "C1").IsExpanded = false;
+        Item(viewModel, "C2").IsExpanded = true;
+
+        viewModel.SelectedNode = Item(viewModel, "PHONE");
+        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "ROOT2", Port("ROOT2", 2, Device("STICK")))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        Assert.False(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+    }
+
+    // Owner decision in #100: the window never says a limit is unverified or not verified; the log keeps it.
+    [Fact]
+    public void TheWindowNeverSaysUnverifiedButTheLogDoes()
+    {
+        var log = new EventLog();
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "unverified");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => 3, log);
+        viewModel.Load(Desk);
+
+        viewModel.Computers.Single().IsChecked = true;
+
+        var finding = Assert.Single(viewModel.Findings);
+        Assert.Equal("3 external displays are active; displays.max_external is 2.", finding.Message);
+        Assert.Contains("External displays: 3, limit 2 (exceeded)", viewModel.StatusRows.Single().Details);
+        var shown = viewModel.Findings.SelectMany(item => new[] { item.Header, item.Message })
+            .Concat(viewModel.StatusRows.SelectMany(row => row.Details.Prepend(row.Word).Prepend(row.Label)))
+            .Concat(All(viewModel.Roots).Select(item => item.Text));
+        Assert.DoesNotContain(shown, text => text.Contains("verified", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(log.Entries, entry => entry.Text.EndsWith("displays.max_external is 2 (unverified limit).", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.Contains("comes from an unverified profile", StringComparison.Ordinal));
     }
 }
 

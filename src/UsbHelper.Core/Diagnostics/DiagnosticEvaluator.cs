@@ -88,8 +88,7 @@ public static class DiagnosticEvaluator
         }
         if (hubs.State == LimitState.Exceeded)
         {
-            findings.Add(new Finding(FactKind.PredictedRisk, ComputerId, computer,
-                $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{Unverified(hubs)}."));
+            findings.Add(Risk(ComputerId, computer, unverified => $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{unverified(hubs)}."));
         }
 
         // Owner decision in #39: stability is judged on the limits the profile knows; an unknown limit is a finding,
@@ -110,21 +109,19 @@ public static class DiagnosticEvaluator
                 if (depth?.Tier > tiers.Limit)
                 {
                     status = ConnectionStatus.Purple;
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{Unverified(tiers)}."));
+                    findings.Add(Risk(node.Id, node.Name, unverified => $"Tier depth {depth.Tier} exceeds {tiers.Field} {tiers.Limit}{unverified(tiers)}."));
                 }
                 if (depth?.Hops > hops.Limit)
                 {
                     status = ConnectionStatus.Purple;
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{Unverified(hops)}."));
+                    findings.Add(Risk(node.Id, node.Name, unverified => $"Hop depth {depth.Hops} exceeds {hops.Field} {hops.Limit}{unverified(hops)}."));
                 }
                 else if (depth?.Hops > recommendedHops.Limit)
                 {
                     status = Max(status, ConnectionStatus.Orange);
-                    var maximum = hops.Limit == null ? "unknown" : $"{hops.Limit}{Unverified(hops)}";
-                    findings.Add(new Finding(FactKind.PredictedRisk, node.Id, node.Name,
-                        $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{Unverified(recommendedHops)}; {hops.Field} is {maximum}."));
+                    findings.Add(Risk(node.Id, node.Name, unverified =>
+                        $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{unverified(recommendedHops)}; "
+                        + $"{hops.Field} is {(hops.Limit == null ? "unknown" : $"{hops.Limit}{unverified(hops)}")}."));
                 }
                 if (countedHub && hubs.State == LimitState.Exceeded)
                 {
@@ -220,6 +217,10 @@ public static class DiagnosticEvaluator
     private static ConnectionStatus Max(ConnectionStatus a, ConnectionStatus b) => a > b ? a : b;
 
     private static string Unverified(LimitCheck limit) => limit.Verified ? "" : " (unverified limit)";
+
+    // A risk whose text names limits: the message says which are unverified, the brief does not (owner decision in #100).
+    private static Finding Risk(string subjectId, string subjectName, Func<Func<LimitCheck, string>, string> text) =>
+        new(FactKind.PredictedRisk, subjectId, subjectName, text(Unverified)) { Brief = text(_ => "") };
 
     // A value is verified when the file that set it is itself verified (or partial), whatever the profile's own
     // status: a value inherited from an unverified platform stays unverified in a verified computer, and one

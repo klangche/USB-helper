@@ -26,6 +26,12 @@ public sealed record Finding(FactKind Kind, string SubjectId, string SubjectName
     public bool IsProblem { get; init; }
 
     /// <summary>
+    /// The message without saying that a limit is unverified, for the window (owner decision in #100); the log keeps
+    /// <see cref="Message"/>. The message itself when it says nothing about verification.
+    /// </summary>
+    public string Brief { get; init; } = Message;
+
+    /// <summary>
     /// A real finding (owner decision in #85): a limit or recommendation exceeded, a display problem, or a detected
     /// problem. Unknowns and database facts are not real findings; they belong in the log only.
     /// </summary>

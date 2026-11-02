@@ -62,6 +62,7 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
+    private bool controllersShown;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
@@ -300,6 +301,16 @@ public sealed class MainViewModel : ObservableObject
         {
             Roots[0].UpdateHost(HostName, tree, lines, extraHops);
         }
+        // Owner decision in #100: when the controllers first arrive, only the selected one, the one with most devices, is
+        // open. After that the user's choices are kept.
+        if (!controllersShown && tree.Count > 0)
+        {
+            controllersShown = true;
+            foreach (var controller in Roots[0].Children)
+            {
+                controller.IsExpanded = controller.Id == selectedControllerId;
+            }
+        }
 
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
@@ -332,7 +343,7 @@ public sealed class MainViewModel : ObservableObject
         {
             foreach (var finding in report.Counts.Findings.Where(finding => finding.IsReal))
             {
-                Findings.Add(new FindingItem(FindingHeader(finding), finding.Message));
+                Findings.Add(new FindingItem(FindingHeader(finding), finding.Brief));
             }
             return;
         }
@@ -349,7 +360,7 @@ public sealed class MainViewModel : ObservableObject
             Findings.Add(new FindingItem(options.Count == 1 || finding.Kind == FactKind.DetectedFact
                 ? FindingHeader(finding)
                 : string.Format(CultureInfo.CurrentCulture, Strings.FindingHeaderForProfile, options[strictest].Label, KindText(finding.Kind), finding.SubjectName),
-                finding.Message));
+                finding.Brief));
         }
     }
 
@@ -372,14 +383,12 @@ public sealed class MainViewModel : ObservableObject
         string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
             displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
             displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(displays.State),
-            displays.Verified ? Strings.Verified : Strings.Unverified);
+            StateText(displays.State));
 
     private static string LimitText(string label, LimitCheck limit) =>
         string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,
             limit.Limit?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(limit.State),
-            limit.Verified ? Strings.Verified : Strings.Unverified);
+            StateText(limit.State));
 
     private static string StateText(LimitState state) => state switch
     {

@@ -106,6 +106,9 @@
             <Style Selector="ToggleButton.expander:pointerover /template/ Border#box">
               <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
             </Style>
+            <Style Selector="TextBlock.collapsed">
+              <Setter Property="FontWeight" Value="Bold" />
+            </Style>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               <Setter Property="MinHeight" Value="0" />
@@ -170,15 +173,14 @@
                     <TextBlock Text="{x:Static res:Strings.DisplayBadge}" FontWeight="SemiBold" />
                   </Border>
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
-                  <TextBlock Text="{Binding Text}" />
+                  <!-- A collapsed item's name is bold (#100). -->
+                  <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
                   <!-- The result word on the right, in the same colour as the elbow. -->
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
                   <TextBlock Text="{Binding Counts}" Opacity="0.7"
                              IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                  <TextBlock Text="{Binding CollapsedHint}" Opacity="0.7"
-                             IsVisible="{Binding CollapsedHint, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 </StackPanel>
               </DockPanel>
             </TreeDataTemplate>

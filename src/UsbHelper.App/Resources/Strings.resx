@@ -79,9 +79,6 @@
   <data name="ExpandTip" xml:space="preserve">
     <value>Show or hide the items below</value>
   </data>
-  <data name="CollapsedHint" xml:space="preserve">
-    <value>{0} hidden</value>
-  </data>
   <data name="ThisComputer" xml:space="preserve">
     <value>This computer</value>
   </data>
@@ -110,7 +107,7 @@
     <value>Overall: {0}</value>
   </data>
   <data name="LimitLine" xml:space="preserve">
-    <value>{0}: {1}, limit {2} ({3}, {4})</value>
+    <value>{0}: {1}, limit {2} ({3})</value>
   </data>
   <data name="LimitHubs" xml:space="preserve">
     <value>External hubs</value>
@@ -132,12 +129,6 @@
   </data>
   <data name="LimitUnknown" xml:space="preserve">
     <value>unknown</value>
-  </data>
-  <data name="Verified" xml:space="preserve">
-    <value>verified</value>
-  </data>
-  <data name="Unverified" xml:space="preserve">
-    <value>not verified</value>
   </data>
   <data name="Disconnected" xml:space="preserve">
     <value>Disconnected and reconnected devices</value>
