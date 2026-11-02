@@ -17,6 +17,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- A broken database, embedded the way the app embeds database/, for the error tests. -->
+  <ItemGroup>
+    <EmbeddedResource Include="BrokenDatabase\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\UsbHelper.App\UsbHelper.App.csproj" />
     <ProjectReference Include="..\..\src\UsbHelper.Core\UsbHelper.Core.csproj" />
