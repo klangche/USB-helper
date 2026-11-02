@@ -199,4 +199,25 @@
   <data name="MarkHops" xml:space="preserve">
     <value>+{0}</value>
   </data>
+  <data name="LogButton" xml:space="preserve">
+    <value>Log</value>
+  </data>
+  <data name="LogTitle" xml:space="preserve">
+    <value>USB-helper log</value>
+  </data>
+  <data name="LogExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="LogExportTitle" xml:space="preserve">
+    <value>Save the log</value>
+  </data>
+  <data name="LogFileType" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="LogExportSaved" xml:space="preserve">
+    <value>Saved {0}.</value>
+  </data>
+  <data name="LogExportFailed" xml:space="preserve">
+    <value>The log could not be saved: {0}</value>
+  </data>
 </root>

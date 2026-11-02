@@ -34,6 +34,9 @@ Status: first version for Windows; computer profiles still to be added.
 - Results separate detected hardware facts, verified database facts,
   predicted risks and unknown information. Unknown limits are listed as
   findings.
+- A log of every event in the session (start, database, connects,
+  disconnects, reconnects, errors, profile checks, cable marks and every
+  finding), with time, exportable as a text file.
 - No bandwidth, throughput or speed calculations.
 
 ## Hardware database
@@ -294,6 +297,15 @@ marked line is drawn dashed with a "+N hops" badge, so it is clear that you
 added it and Windows did not detect it. Every tier and hop check counts the
 extra hops for everything behind that line. Pick "None" to remove the mark.
 Marks last until the app closes.
+
+Click "Log" in the top bar to open the log: every event of this session with
+its time, newest at the bottom. It lists the start and loading stages, the
+database load result, every connect, disconnect, reconnect and error the
+operating system reports, every profile you check or uncheck, every cable
+mark, and every finding when it appears, including the ones about unknown
+limits. Click "Export" in the log window to save it as a text file
+(`usb-helper-log-<date>-<time>.txt`), for example to send with a bug report.
+The log is kept in memory only and starts empty each time the app starts.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the

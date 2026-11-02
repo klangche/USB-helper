@@ -12,9 +12,27 @@ namespace UsbHelper.App;
 
 public partial class MainWindow : Window
 {
+    private LogWindow? logWindow;
+
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    // One log window at a time: a second click brings the open one to the front.
+    private void OpenLog(object? sender, RoutedEventArgs e)
+    {
+        if (logWindow != null)
+        {
+            logWindow.Activate();
+            return;
+        }
+        if (DataContext is MainViewModel viewModel)
+        {
+            logWindow = new LogWindow(viewModel.Log);
+            logWindow.Closed += (_, _) => logWindow = null;
+            logWindow.Show(this);
+        }
     }
 
     // The context menu key (or a right-click) on a tree item opens the mark of its line, the same as clicking the line.
