@@ -9,10 +9,10 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices. Hubs built into the
-  computer start collapsed, every other branch open; a chevron before each
-  item with items below it expands or collapses it, and a collapsed one says how
-  many items it hides. Updated on connect and
+  host): controllers, hubs, occupied ports and devices. At start only the
+  busiest controller is open; hubs built into the computer start collapsed; a
+  chevron before each item with items below it expands or collapses it, and a
+  collapsed item's name is bold. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -222,8 +222,8 @@ status per checked profile; when several apply, the first in this list wins:
 
 Stability is judged on the limits the profile knows: an unknown limit (`null`)
 does not turn anything grey and is reported in the log, not in the findings
-list. A limit from an `unverified` file counts too; its findings say it is
-unverified. With several
+list. A limit from an `unverified` file counts too; the log says it is
+unverified, the window does not. With several
 profiles checked, each line shows the worst result of all of them, and each
 profile gets its own overall result: the highest of its lines, its limits and
 its display check (purple above `displays.max_external`, orange for a
@@ -284,9 +284,11 @@ stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
-out. Hubs built into the computer (for the webcam or Bluetooth, reached only
-through ports that are not user-connectable) start collapsed; everything
-else is open. A collapsed item says how many items it hides ("6 hidden").
+out. At start every USB controller is collapsed except the selected one (see
+below), the one with the most connected hubs and devices. Hubs built into the
+computer (for the webcam or Bluetooth, reached only through ports that are not
+user-connectable) start collapsed; everything else is open. A collapsed item's
+name is bold.
 Click the chevron before an item, double-click the item, or use
 the left and right arrow keys, to expand or collapse it; the choice is kept
 while the app runs. A DisplayLink device is shown as a display: a "Display"

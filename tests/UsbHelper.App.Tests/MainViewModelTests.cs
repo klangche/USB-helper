@@ -685,8 +685,8 @@ public class MainViewModelTests
         Assert.Equal(
             [("p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
             viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
-        Assert.Contains("Most hops: 1, limit 0 (exceeded, verified)", viewModel.StatusRows[0].Details);
-        Assert.Contains("Most hops: 1, limit 5 (within limit, verified)", viewModel.StatusRows[1].Details);
+        Assert.Contains("Most hops: 1, limit 0 (exceeded)", viewModel.StatusRows[0].Details);
+        Assert.Contains("Most hops: 1, limit 5 (within limit)", viewModel.StatusRows[1].Details);
     }
 
     [Fact]

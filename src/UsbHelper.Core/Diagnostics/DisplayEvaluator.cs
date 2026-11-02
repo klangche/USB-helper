@@ -63,7 +63,10 @@ internal static class DisplayEvaluator
             if (state == LimitState.Exceeded)
             {
                 findings.Add(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, computer,
-                    $"{externalDisplays} external displays are active; displays.max_external is {max}{(verified ? "" : " (unverified limit)")}."));
+                    $"{externalDisplays} external displays are active; displays.max_external is {max}{(verified ? "" : " (unverified limit)")}.")
+                {
+                    Brief = $"{externalDisplays} external displays are active; displays.max_external is {max}.",
+                });
                 contribution = ConnectionStatus.Purple;
             }
         }

@@ -18,7 +18,7 @@ namespace UsbHelper.App.ViewModels;
 /// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
 /// system does not show (#76): its extra hops count for everything behind that port.
 /// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
-/// across updates. A collapsed item says how many items it hides (#91).
+/// across updates. A collapsed item's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
@@ -33,7 +33,6 @@ public sealed class NodeViewModel : ObservableObject
     private string trunkColor = StatusColors.Trunk;
     private string? counts;
     private bool isExpanded;
-    private int itemsBelow;
     private bool isDisplay;
     private bool displayBelow;
     private bool isHub;
@@ -53,6 +52,7 @@ public sealed class NodeViewModel : ObservableObject
             OnPropertyChanged(nameof(HasChildren));
             OnPropertyChanged(nameof(CanExpand));
             OnPropertyChanged(nameof(ShowsChildren));
+            OnPropertyChanged(nameof(IsCollapsed));
         };
     }
 
@@ -109,8 +109,7 @@ public sealed class NodeViewModel : ObservableObject
             if (SetField(ref isExpanded, value))
             {
                 OnPropertyChanged(nameof(ShowsChildren));
-                OnPropertyChanged(nameof(HiddenCount));
-                OnPropertyChanged(nameof(CollapsedHint));
+                OnPropertyChanged(nameof(IsCollapsed));
             }
         }
     }
@@ -118,14 +117,11 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>An item with children: the view shows its expand/collapse control.</summary>
     public bool CanExpand => HasChildren;
 
-    /// <summary>How many items a collapsed item hides: everything below it. 0 when it is expanded.</summary>
-    public int HiddenCount => IsExpanded ? 0 : itemsBelow;
+    /// <summary>An item with children that is not expanded: the view shows its name in bold.</summary>
+    public bool IsCollapsed => HasChildren && !IsExpanded;
 
     /// <summary>The children are visible, so the item's own trunk is drawn below it.</summary>
     public bool ShowsChildren => HasChildren && IsExpanded;
-
-    /// <summary>After the name of a collapsed item: how many items it hides. Null otherwise.</summary>
-    public string? CollapsedHint => HiddenCount > 0 ? string.Format(CultureInfo.CurrentCulture, Strings.CollapsedHint, HiddenCount) : null;
 
     /// <summary>A connected DisplayLink device: the view shows it as a display.</summary>
     public bool IsDisplay
@@ -275,7 +271,6 @@ public sealed class NodeViewModel : ObservableObject
         var builtIn = TopologyCounts.BuiltIn(controllers).Select(hub => hub.Id).ToHashSet();
         UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, portId: null);
         PathStatus = Worst(Children.Select(child => child.PathStatus));
-        CountItemsBelow();
         PaintChildren([]);
     }
 
@@ -329,25 +324,9 @@ public sealed class NodeViewModel : ObservableObject
         }
         UpdateChildren(wanted, report, extraHops, builtIn, node.Kind == UsbNodeKind.Port ? node.Id : null);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
-        CountItemsBelow();
         if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
         {
             OnPropertyChanged(nameof(HasDisplayBelow));
-        }
-    }
-
-    // Only a collapsed item shows the count, so only a collapsed item notifies when it changes.
-    private void CountItemsBelow()
-    {
-        var count = Children.Sum(child => 1 + child.itemsBelow);
-        if (count != itemsBelow)
-        {
-            itemsBelow = count;
-            if (!IsExpanded)
-            {
-                OnPropertyChanged(nameof(HiddenCount));
-                OnPropertyChanged(nameof(CollapsedHint));
-            }
         }
     }
 
