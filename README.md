@@ -12,7 +12,9 @@ Status: first version for Windows; computer profiles still to be added.
   host): controllers, hubs, occupied ports and devices. Hubs built into the
   computer start collapsed, every other branch open. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
-  product name they report, falling back to the Windows name.
+  product name they report, falling back to the Windows name. Every line, from
+  the computer down, takes the worst status of everything below it, so one
+  unstable device colours its whole path up to the computer.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -254,9 +256,12 @@ pre-release (`-beta.N`) are test builds of the next version.
 Start `USB-helper.exe`. The window shows the USB tree. Its root is this
 computer, named after its computer profile when one matches, else by the
 manufacturer and model Windows reports, else by its machine name; the USB
-controllers are its children. Thin grey lines join the items, starting at the
-computer, and the line to each hub and device is drawn in its status colour,
-with the result word after its name. Empty ports are left out. Hubs built
+controllers are its children. Thin lines join the items, starting at the
+computer. Each line is drawn in the worst status of everything it leads to: a
+stable tree is green all the way, and one unstable (purple) or disconnected
+(red) device colours its path up to the computer while its stable neighbours
+stay green. The short line into each hub and device keeps that item's own
+status colour, with the result word after its name. Empty ports are left out. Hubs built
 into the computer (for the webcam or Bluetooth, reached only through ports
 that are not user-connectable) start collapsed; everything else is open.
 Double-click an item, or use the arrow keys, to expand or collapse it; the

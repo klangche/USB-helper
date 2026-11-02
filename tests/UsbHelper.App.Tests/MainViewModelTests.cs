@@ -60,7 +60,7 @@ public class MainViewModelTests
     // The tree as text: the guide and elbow columns the view draws, then the id.
     private static IEnumerable<string> Drawn(MainViewModel viewModel) =>
         All(viewModel.Roots).Select(item => (item.HasLine
-            ? string.Concat(item.Guides.Select(trunk => trunk ? "| " : "  ")) + (item.IsLast ? "`-" : "|-")
+            ? string.Concat(item.Guides.Select(trunk => trunk != null ? "| " : "  ")) + (item.IsLast ? "`-" : "|-")
             : "") + item.Id);
 
     [Fact]
@@ -97,6 +97,103 @@ public class MainViewModelTests
                 "      `-MOUSE",
             ],
             Drawn(viewModel));
+    }
+
+    // Each item's line colours, as status letters (G green, U grey, P purple, R red; "-" for a line with nothing below
+    // it that has a status): guides, the parent's trunk above and below the elbow, the elbow, then the item's own trunk.
+    private static string Painted(NodeViewModel item)
+    {
+        static string Letter(string? hex) => hex switch
+        {
+            null => " ",
+            StatusColors.Trunk => "-",
+            _ when hex == StatusColors.Hex(ConnectionStatus.Green) => "G",
+            _ when hex == StatusColors.Hex(ConnectionStatus.Grey) => "U",
+            _ when hex == StatusColors.Hex(ConnectionStatus.Purple) => "P",
+            _ when hex == StatusColors.Hex(ConnectionStatus.Red) => "R",
+            _ => "?",
+        };
+        var line = item.HasLine ? $"{Letter(item.TrunkAboveColor)}{Letter(item.TrunkBelowColor)}{Letter(item.ElbowColor)}" : "";
+        return $"{string.Concat(item.Guides.Select(Letter))}|{line}|{(item.ShowsChildren ? Letter(item.TrunkColor) : " ")} {item.Id}";
+    }
+
+    [Fact]
+    public void AllGreenTreeIsGreenUpToTheHost()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true;
+
+        Assert.Equal(
+            [
+                "||G host",
+                "|G G|G C1",
+                " |G G|G ROOT",
+                "  |GGG|G ROOT|port1",
+                "  G|G G|G HUB",
+                "  G |G G|G HUB|port1",
+                "  G  |G G|  KEYBOARD",
+                "  |G G|G ROOT|port2",
+                "   |G G|  MOUSE",
+            ],
+            All(viewModel.Roots).Select(Painted));
+    }
+
+    [Fact]
+    public void UnstableDeviceColoursItsPathToTheHostAndLeavesItsSiblingsGreen()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true;
+
+        Item(viewModel, "HUB").ExtraHops = 5; // KEYBOARD: 6 hops, purple; HUB itself: 5 hops, green.
+
+        Assert.Equal(
+            [
+                "||P host",
+                "|P P|P C1",
+                " |P P|P ROOT",
+                "  |PGP|P ROOT|port1", // The trunk below goes on to the green mouse.
+                "  G|P G|P HUB", // The elbow keeps the hub's own status.
+                "  G |P P|P HUB|port1",
+                "  G  |P P|  KEYBOARD",
+                "  |G G|G ROOT|port2",
+                "   |G G|  MOUSE",
+            ],
+            All(viewModel.Roots).Select(Painted));
+    }
+
+    [Fact]
+    public void DisconnectedDeviceColoursItsPathRed()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true;
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "HUB", Port("HUB", 1, null))]);
+
+        Assert.Equal(
+            [
+                "||R host",
+                "|R R|R C1",
+                " |R R|R ROOT",
+                "  |RGR|R ROOT|port1",
+                "  G|R G|R HUB",
+                "  G |R R|R HUB|port1",
+                "  G  |R R|  KEYBOARD",
+                "  |G G|G ROOT|port2",
+                "   |G G|  MOUSE",
+            ],
+            All(viewModel.Roots).Select(Painted));
+    }
+
+    [Fact]
+    public void LinesWithNoStatusBelowThemKeepTheTrunkColour()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", (UsbNode?)null))])]);
+
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Grey), Item(viewModel, "HUB").ElbowColor); // No profile: unknown.
+        Assert.Equal(StatusColors.Trunk, Item(viewModel, "HUB").TrunkColor); // HUB shows no children.
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Grey), Item(viewModel, "ROOT|port1").ElbowColor);
     }
 
     [Fact]
@@ -261,7 +358,7 @@ public class MainViewModelTests
         Assert.True(keyboard.HasStatus);
         var port = Item(viewModel, "ROOT|port1");
         Assert.Null(port.StatusWord);
-        Assert.Equal(StatusColors.Trunk, port.ElbowColor);
+        Assert.Equal(keyboard.LineColor, port.ElbowColor); // A port's elbow takes the worst status below it.
         Assert.False(port.HasStatus);
     }
 

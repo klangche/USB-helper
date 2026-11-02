@@ -8,10 +8,11 @@ using UsbHelper.App.ViewModels;
 namespace UsbHelper.App;
 
 /// <summary>
-/// The tree lines left of one tree item (tree style B, owner decision in #43): a column per ancestor whose grey trunk
+/// The tree lines left of one tree item (tree style B, owner decision in #43): a column per ancestor whose trunk
 /// continues past this row, then the rounded elbow to this item, then a node column with a dot and, when the item
-/// shows its children, the start of its own trunk. Thin grey trunks; the elbow to a hub or device is in its status colour,
-/// dashed when the user marked it as an active cable or extender (#76).
+/// shows its children, the start of its own trunk. Every trunk segment is in the worst status of what it leads to (#89);
+/// the elbow to a hub or device is in its own status colour, dashed when the user marked it as an active cable or
+/// extender (#76).
 /// </summary>
 public sealed class TreeLines : Control, ICustomHitTest
 {
@@ -19,10 +20,11 @@ public sealed class TreeLines : Control, ICustomHitTest
     private const double Radius = 6;
     private const double DotRadius = 2.5;
 
-    private static readonly IPen TrunkPen = new ImmutablePen(Color.Parse(StatusColors.Trunk).ToUInt32(), 1);
+    private static readonly Dictionary<string, IPen> TrunkPens = [];
 
-    public static readonly StyledProperty<IReadOnlyList<bool>?> GuidesProperty =
-        AvaloniaProperty.Register<TreeLines, IReadOnlyList<bool>?>(nameof(Guides));
+    /// <summary>One colour per ancestor column, null where that ancestor's trunk does not continue past this row.</summary>
+    public static readonly StyledProperty<IReadOnlyList<string?>?> GuidesProperty =
+        AvaloniaProperty.Register<TreeLines, IReadOnlyList<string?>?>(nameof(Guides));
 
     public static readonly StyledProperty<bool> HasLineProperty = AvaloniaProperty.Register<TreeLines, bool>(nameof(HasLine));
 
@@ -38,13 +40,23 @@ public sealed class TreeLines : Control, ICustomHitTest
 
     public static readonly StyledProperty<IBrush?> ElbowBrushProperty = AvaloniaProperty.Register<TreeLines, IBrush?>(nameof(ElbowBrush));
 
+    /// <summary>The parent's trunk down to the elbow.</summary>
+    public static readonly StyledProperty<string?> TrunkAboveProperty = AvaloniaProperty.Register<TreeLines, string?>(nameof(TrunkAbove));
+
+    /// <summary>The parent's trunk on past the elbow, unless this is the last child.</summary>
+    public static readonly StyledProperty<string?> TrunkBelowProperty = AvaloniaProperty.Register<TreeLines, string?>(nameof(TrunkBelow));
+
+    /// <summary>The item's own trunk, from its dot down.</summary>
+    public static readonly StyledProperty<string?> TrunkProperty = AvaloniaProperty.Register<TreeLines, string?>(nameof(Trunk));
+
     static TreeLines()
     {
         AffectsMeasure<TreeLines>(GuidesProperty, HasLineProperty);
-        AffectsRender<TreeLines>(GuidesProperty, HasLineProperty, IsLastProperty, HasChildrenProperty, HasStatusProperty, IsDashedProperty, ElbowBrushProperty);
+        AffectsRender<TreeLines>(GuidesProperty, HasLineProperty, IsLastProperty, HasChildrenProperty, HasStatusProperty, IsDashedProperty, ElbowBrushProperty,
+            TrunkAboveProperty, TrunkBelowProperty, TrunkProperty);
     }
 
-    public IReadOnlyList<bool>? Guides
+    public IReadOnlyList<string?>? Guides
     {
         get => GetValue(GuidesProperty);
         set => SetValue(GuidesProperty, value);
@@ -86,6 +98,24 @@ public sealed class TreeLines : Control, ICustomHitTest
         set => SetValue(ElbowBrushProperty, value);
     }
 
+    public string? TrunkAbove
+    {
+        get => GetValue(TrunkAboveProperty);
+        set => SetValue(TrunkAboveProperty, value);
+    }
+
+    public string? TrunkBelow
+    {
+        get => GetValue(TrunkBelowProperty);
+        set => SetValue(TrunkBelowProperty, value);
+    }
+
+    public string? Trunk
+    {
+        get => GetValue(TrunkProperty);
+        set => SetValue(TrunkProperty, value);
+    }
+
     // Guides, elbow (only with a line), node.
     private int Columns => (HasLine ? (Guides?.Count ?? 0) + 1 : 0) + 1;
 
@@ -99,7 +129,7 @@ public sealed class TreeLines : Control, ICustomHitTest
     {
         var height = Bounds.Height;
         var middle = Math.Round(height / 2) + 0.5;
-        var brush = ElbowBrush ?? TrunkPen.Brush;
+        var brush = ElbowBrush ?? TrunkPen(StatusColors.Trunk).Brush;
         // A marked line is thicker and dashed, so it is clearly the user's and not detected.
         var statusPen = IsDashed ? new Pen(brush, 2, new DashStyle([1, 1], 0)) : new Pen(brush, HasStatus ? 1.5 : 1);
         var column = 0;
@@ -108,16 +138,20 @@ public sealed class TreeLines : Control, ICustomHitTest
         {
             foreach (var trunk in Guides ?? [])
             {
-                if (trunk)
+                if (trunk != null)
                 {
                     var x = Center(column);
-                    context.DrawLine(TrunkPen, new Point(x, 0), new Point(x, height));
+                    context.DrawLine(TrunkPen(trunk), new Point(x, 0), new Point(x, height));
                 }
                 column++;
             }
             var elbow = Center(column);
             // The parent's trunk down to the curve, and on past this row unless this is the last child.
-            context.DrawLine(TrunkPen, new Point(elbow, 0), new Point(elbow, IsLast ? middle - Radius : height));
+            context.DrawLine(TrunkPen(TrunkAbove), new Point(elbow, 0), new Point(elbow, middle - Radius));
+            if (!IsLast)
+            {
+                context.DrawLine(TrunkPen(TrunkBelow), new Point(elbow, middle - Radius), new Point(elbow, height));
+            }
             var curve = new StreamGeometry();
             using (var draw = curve.Open())
             {
@@ -133,9 +167,21 @@ public sealed class TreeLines : Control, ICustomHitTest
         var node = Center(column);
         if (HasChildren)
         {
-            context.DrawLine(TrunkPen, new Point(node, middle), new Point(node, height));
+            context.DrawLine(TrunkPen(Trunk), new Point(node, middle), new Point(node, height));
         }
         context.DrawEllipse(brush, null, new Point(node, middle), DotRadius, DotRadius);
+    }
+
+    // One shared pen per colour; the colours are the few status colours.
+    private static IPen TrunkPen(string? hex)
+    {
+        hex ??= StatusColors.Trunk;
+        if (!TrunkPens.TryGetValue(hex, out var pen))
+        {
+            pen = new ImmutablePen(Color.Parse(hex).ToUInt32(), 1);
+            TrunkPens[hex] = pen;
+        }
+        return pen;
     }
 
     // Half a pixel off the column centre keeps one-pixel lines sharp.

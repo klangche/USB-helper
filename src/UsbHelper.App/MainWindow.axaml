@@ -104,6 +104,7 @@
                         ToolTip.Tip="{x:Static res:Strings.CableMarkTip}">
                   <app:TreeLines Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
                                  HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
+                                 TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"
                                  ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <Button.Flyout>
                     <Flyout Placement="BottomEdgeAlignedLeft">
