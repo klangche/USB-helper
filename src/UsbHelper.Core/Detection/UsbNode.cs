@@ -28,6 +28,9 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     /// </summary>
     public bool? UserConnectable { get; init; }
 
+    /// <summary>Set for ports only: true when the operating system calls it a USB-C connector, false when not, null when it does not say.</summary>
+    public bool? UsbC { get; init; }
+
     public ushort? VendorId { get; init; }
 
     public ushort? ProductId { get; init; }

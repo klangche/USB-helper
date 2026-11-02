@@ -48,12 +48,21 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
     }
 
-    /// <summary>The first full read of the USB tree, with every error the operating system reports in it.</summary>
+    /// <summary>The first full read of the USB tree: per hub, which ports the operating system calls USB-C or not, and every error it reports.</summary>
     public void TreeRead(IReadOnlyList<UsbNode> tree)
     {
         Add($"USB devices read: {tree.Count} controllers");
         foreach (var controller in tree)
         {
+            // So the owner can check that the firmware reports its USB-C ports (#114).
+            foreach (var hub in Below(controller, location: null).Select(item => item.Node).Where(node => node.Kind == UsbNodeKind.Hub))
+            {
+                var ports = hub.Children.Where(port => port.UsbC != null).Select(port => $"{port.Name} {(port.UsbC == true ? "yes" : "no")}").ToList();
+                if (ports.Count > 0)
+                {
+                    Add($"USB-C ports of {hub.Name}: {string.Join(", ", ports)}");
+                }
+            }
             foreach (var (text, problem) in Problems(controller, location: null))
             {
                 Add($"Error on {text}: {problem}");

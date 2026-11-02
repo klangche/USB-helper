@@ -78,6 +78,23 @@ public class EventLogTests
     }
 
     [Fact]
+    public void ReadingTheTreeLogsPerHubWhichPortsWindowsCallsUsbC()
+    {
+        var log = NewLog();
+        var root = Hub("ROOT", Hub("DOCK", null, null), null, null);
+        var dock = root.Children[0].Children[0];
+        dock = dock with { Children = [dock.Children[0] with { UsbC = true }, dock.Children[1]] };
+        root = root with { Children = [root.Children[0] with { UsbC = false, Children = [dock] }, root.Children[1] with { UsbC = true }, root.Children[2]] };
+
+        log.TreeRead([Controller("C1", root), Controller("C2", Hub("ROOT2", null, null))]);
+
+        // Ports Windows says nothing about are left out; a hub with none it says anything about has no line.
+        Assert.Equal(
+            ["USB devices read: 2 controllers", "USB-C ports of ROOT: Port 1 no, Port 2 yes", "USB-C ports of DOCK: Port 1 yes"],
+            Texts(log));
+    }
+
+    [Fact]
     public void AConnectIsOneEntry()
     {
         var log = NewLog();

@@ -471,6 +471,22 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void OnlyAPortWindowsCallsUsbCIsLabelledUsbC()
+    {
+        var viewModel = NewViewModel();
+        var root = Hub("ROOT", Device("PHONE"), Device("MOUSE"), Device("STICK"));
+        root = root with { Children = [root.Children[0] with { UsbC = true }, root.Children[1] with { UsbC = false }, root.Children[2]] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal(Strings.UsbCPort, Item(viewModel, "ROOT|port1").PortType);
+        Assert.Null(Item(viewModel, "ROOT|port2").PortType);
+        Assert.Null(Item(viewModel, "ROOT|port3").PortType); // Unknown shows nothing.
+        Assert.Null(Item(viewModel, "PHONE").PortType);
+        Assert.Null(Item(viewModel, "ROOT").PortType);
+    }
+
+    [Fact]
     public void ControllerCountsLeaveOutTheBuiltInHub()
     {
         var viewModel = NewViewModel();

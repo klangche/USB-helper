@@ -18,7 +18,9 @@ Status: first version for Windows; computer profiles still to be added.
   the computer down, takes the worst status of everything below it, so one
   unstable device colours its whole path up to the computer. DisplayLink
   devices are shown as displays ("Extended display: DisplayLink driver
-  required"), and the hubs above them say they have a display.
+  required"), and the hubs above them say they have a display. A port that
+  Windows reports as USB-C shows a "USB-C" badge; other ports, and ports
+  Windows says nothing about, show none.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -300,7 +302,9 @@ Click the chevron before an item, double-click the item, or use
 the left and right arrow keys, to expand or collapse it; the choice is kept
 while the app runs. A DisplayLink device is shown as a display: a "Display"
 badge and "Extended display: DisplayLink driver required" before its name;
-every hub above it says it "has a display". Each controller shows its hub count,
+every hub above it says it "has a display". A port that Windows reports as a
+USB-C connector (from its port connector properties) has a "USB-C" badge after
+its name; this changes no result. Each controller shows its hub count,
 deepest tier and deepest hop. Next to the tree is a summary with the overall
 result, the status field, disconnected and reconnected devices and the
 findings. The overall result, the status field and the findings cover one USB
@@ -338,7 +342,8 @@ everything behind that line. Click the "+" again to change the mark, or pick
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
-database load result, every connect, disconnect, reconnect and error the
+database load result, per hub which ports Windows reports as USB-C or not
+(ports it says nothing about are left out), every connect, disconnect, reconnect and error the
 operating system reports, every profile you check or uncheck, every cable
 mark, and every finding when it appears, including the ones about unknown
 limits. Click "Export" in the log window to save it as a text file
