@@ -129,7 +129,7 @@ internal static partial class Program
             Process.Start(start)!.Dispose();
             return (true, "");
         }
-        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException
+        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or OperationCanceledException
             or InvalidDataException or System.ComponentModel.Win32Exception)
         {
             MessageBoxW(0, string.Format(CultureInfo.CurrentCulture, Strings.UpdateFailed, e.Message), Strings.WindowTitle, 0x30); // MB_ICONWARNING
