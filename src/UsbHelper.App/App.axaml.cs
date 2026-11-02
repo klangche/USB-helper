@@ -51,9 +51,10 @@ public partial class App : Application
 
         if (!OperatingSystem.IsWindows())
         {
-            log.Add("USB detection is not available on this operating system");
-            return new MainViewModel(database, errors, new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log)
+            var unavailable = new MainViewModel(database, errors, new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log)
             { Notice = Strings.DetectionUnavailable, IsLoading = false };
+            log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
+            return unavailable;
         }
 
         var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read(), ReadExternalDisplays, log);
