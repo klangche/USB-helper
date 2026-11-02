@@ -31,48 +31,66 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    // Startup: load and validate the database, show the window, enumerate once in the background, then follow
-    // changes. The only place that picks the operating system's detection.
+    // Startup (#86): the window shows at once; the database, the USB tree and the displays are read after it, off the UI
+    // thread, each with its stage in the window. Then the app follows changes. The only place that picks the operating
+    // system's detection.
     private static MainViewModel Start(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var log = new EventLog();
         log.Add("USB-helper started");
-        log.Add("Loading database");
-        HardwareDatabase? database = null;
-        IReadOnlyList<DatabaseError> errors = [];
-        try
-        {
-            database = HardwareDatabase.Load(Path.Combine(AppContext.BaseDirectory, "database"));
-        }
-        catch (DatabaseException e)
-        {
-            errors = e.Errors;
-        }
-
         if (!OperatingSystem.IsWindows())
         {
-            var unavailable = new MainViewModel(database, errors, new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log)
-            { Notice = Strings.DetectionUnavailable, IsLoading = false };
-            log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
+            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log);
+            _ = LoadUnavailable(unavailable, log);
             return unavailable;
         }
 
-        var viewModel = new MainViewModel(database, errors, WindowsComputerIdentity.Read(), ReadExternalDisplays, log);
+        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log);
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
     }
 
-    // Reading every hub takes a while, so it runs off the UI thread; the window shows "Reading USB devices" meanwhile.
+    private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log)
+    {
+        await LoadDatabase(viewModel, log);
+        viewModel.IsLoading = false;
+        viewModel.Notice = Strings.DetectionUnavailable;
+        log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
+    }
+
+    // HardwareDatabase.Load reports every problem as a DatabaseException; the window lists them.
+    private static async Task LoadDatabase(MainViewModel viewModel, EventLog log)
+    {
+        log.Add("Loading database");
+        var (database, errors) = await Task.Run(() =>
+        {
+            try
+            {
+                return (HardwareDatabase.Load(Path.Combine(AppContext.BaseDirectory, "database")), (IReadOnlyList<DatabaseError>)[]);
+            }
+            catch (DatabaseException e)
+            {
+                return ((HardwareDatabase?)null, e.Errors);
+            }
+        });
+        viewModel.LoadDatabase(database, errors);
+    }
+
+    // Each stage runs off the UI thread, so the window stays responsive and shows what it is reading.
     [SupportedOSPlatform("windows")]
     private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        log.Add("Reading USB devices");
         var detector = new WindowsUsbDetector();
         IReadOnlyList<UsbNode> tree;
         try
         {
+            await LoadDatabase(viewModel, log);
+            log.Add("Reading USB devices");
             tree = await Task.Run(detector.Enumerate);
-            viewModel.Load(tree);
+            log.Add("Reading displays");
+            viewModel.ReadingDisplays();
+            var displays = await Task.Run(ReadExternalDisplays);
+            viewModel.Load(tree, displays);
         }
         catch (Exception e)
         {

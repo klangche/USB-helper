@@ -57,6 +57,65 @@ public class MainViewModelTests
         Assert.NotEmpty(viewModel.Roots);
     }
 
+    // #86: the window opens before anything is read; each stage is shown before its data arrives.
+    [Fact]
+    public void ShowsEachLoadingStageBeforeItsData()
+    {
+        var log = new EventLog();
+        var displaysRead = 0;
+        var viewModel = new MainViewModel(new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-1"), () =>
+        {
+            displaysRead++;
+            return 2;
+        }, log);
+
+        Assert.True(viewModel.IsLoading);
+        Assert.Equal(Strings.LoadingDatabase, viewModel.LoadingStage);
+        Assert.Empty(viewModel.OperatingSystems);
+        Assert.Empty(viewModel.Computers);
+        Assert.Equal("Dell Inc. Latitude 7450", viewModel.HostName);
+
+        var changed = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        viewModel.LoadDatabase(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", "verified", name: "Dell Latitude 14 7450"), []);
+
+        Assert.Equal(Strings.ReadingDevices, viewModel.LoadingStage);
+        Assert.Single(viewModel.OperatingSystems);
+        Assert.Single(viewModel.Computers);
+        Assert.Equal("Dell Latitude 14 7450", viewModel.HostName);
+        Assert.Contains(nameof(MainViewModel.HostName), changed);
+        Assert.Empty(viewModel.Roots);
+
+        viewModel.ReadingDisplays();
+
+        Assert.Equal(Strings.ReadingDisplays, viewModel.LoadingStage);
+        Assert.Empty(viewModel.Roots);
+        Assert.Equal(0, displaysRead);
+
+        viewModel.Load(Desk, displays: 2);
+
+        Assert.False(viewModel.IsLoading);
+        Assert.NotEmpty(viewModel.Roots);
+        Assert.Equal(0, displaysRead); // The first refresh uses the count read off the UI thread.
+        Assert.Contains("Database loaded: 1 platform profiles, 1 computer profiles", log.Entries.Select(entry => entry.Text));
+    }
+
+    [Fact]
+    public void DatabaseErrorsArriveWithTheirStage()
+    {
+        var viewModel = new MainViewModel(new ComputerIdentity(null, null));
+
+        Assert.False(viewModel.HasDatabaseErrors);
+        var changed = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        viewModel.LoadDatabase(null, [new DatabaseError("base.yaml", 2, "bad")]);
+
+        Assert.True(viewModel.HasDatabaseErrors);
+        Assert.Equal(["base.yaml:2: bad"], viewModel.DatabaseErrors);
+        Assert.Contains(nameof(MainViewModel.HasDatabaseErrors), changed);
+        Assert.Equal(Strings.ReadingDevices, viewModel.LoadingStage);
+    }
+
     // The tree as text: the guide and elbow columns the view draws, then the id.
     private static IEnumerable<string> Drawn(MainViewModel viewModel) =>
         All(viewModel.Roots).Select(item => (item.HasLine

@@ -91,8 +91,14 @@
   <data name="DatabaseErrors" xml:space="preserve">
     <value>The hardware database has errors, so no computer profile can be used:</value>
   </data>
+  <data name="LoadingDatabase" xml:space="preserve">
+    <value>Loading database...</value>
+  </data>
   <data name="ReadingDevices" xml:space="preserve">
     <value>Reading USB devices...</value>
+  </data>
+  <data name="ReadingDisplays" xml:space="preserve">
+    <value>Reading displays...</value>
   </data>
   <data name="DetectionUnavailable" xml:space="preserve">
     <value>USB detection is not available on this operating system yet.</value>

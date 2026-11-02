@@ -53,7 +53,7 @@
     <Grid ColumnDefinitions="3*,6,2*">
 
       <DockPanel Grid.Column="0">
-        <TextBlock DockPanel.Dock="Top" Text="{x:Static res:Strings.ReadingDevices}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
+        <TextBlock DockPanel.Dock="Top" Text="{Binding LoadingStage}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
         <!-- Tree style B (#43): drawn lines instead of indentation. Built-in hubs start collapsed (#68), every other branch

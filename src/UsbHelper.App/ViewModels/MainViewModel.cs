@@ -43,7 +43,9 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 
 /// <summary>
 /// The main window's state. Uses only Core types, so it is the same on every operating system.
-/// Call <see cref="Load"/> once, then <see cref="Apply"/> for every batch of changes, on the UI thread.
+/// The window shows before anything is read (#86): call <see cref="LoadDatabase"/>, <see cref="ReadingDisplays"/> and
+/// <see cref="Load(IReadOnlyList{UsbNode}, int?)"/> once each, in that order, then <see cref="Apply"/> for every batch of
+/// changes, on the UI thread.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
@@ -57,41 +59,69 @@ public sealed class MainViewModel : ObservableObject
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
+    private string loadingStage = Strings.LoadingDatabase;
     // The result for the selected controller's tree, or for all controllers; shown in the status field and findings.
     private SystemsReport report;
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
 
-    /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
-    /// <param name="log">The session's event log; a new one when null.</param>
+    /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
         HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null,
         EventLog? log = null)
+        : this(identity, readExternalDisplays, log)
+    {
+        LoadDatabase(database, databaseErrors);
+    }
+
+    /// <summary>A model for the window before anything is read: it shows "Loading database..." first.</summary>
+    /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
+    /// <param name="log">The session's event log; a new one when null.</param>
+    public MainViewModel(ComputerIdentity identity, Func<int?>? readExternalDisplays = null, EventLog? log = null)
     {
         this.log = log ?? new EventLog();
         Log = new LogViewModel(this.log);
-        if (database != null)
-        {
-            this.log.DatabaseLoaded(database);
-        }
-        else if (databaseErrors.Count > 0)
-        {
-            this.log.DatabaseFailed(databaseErrors);
-        }
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
         this.identity = identity;
-        DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
-        // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
-        // match, are checked by the user.
-        OperatingSystems = Options((database?.Platforms.Values ?? []).Select(profile =>
-            new ProfileOption(profile.Id, profile) { IsChecked = profile.Id == identity.Platform }));
-        Computers = Options((database?.Computers.Values ?? []).Select(profile =>
-            new ProfileOption(ComputerLabel(profile), profile)));
-        HostName = HostNameFor(database, identity);
+        HostName = HostNameFor(null, identity);
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
         report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
+    }
+
+    /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
+    public void LoadDatabase(HardwareDatabase? loaded, IReadOnlyList<DatabaseError> errors)
+    {
+        if (loaded != null)
+        {
+            log.DatabaseLoaded(loaded);
+        }
+        else if (errors.Count > 0)
+        {
+            log.DatabaseFailed(errors);
+        }
+        DatabaseErrors = errors.Select(error => error.ToString()).ToList();
+        OnPropertyChanged(nameof(DatabaseErrors));
+        OnPropertyChanged(nameof(HasDatabaseErrors));
+        // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
+        // match, are checked by the user.
+        AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile =>
+            new ProfileOption(profile.Id, profile) { IsChecked = profile.Id == identity.Platform }));
+        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile =>
+            new ProfileOption(ComputerLabel(profile), profile)));
+        HostName = HostNameFor(loaded, identity);
+        LoadingStage = Strings.ReadingDevices;
+    }
+
+    /// <summary>The USB tree is read; the display count is read next, off the UI thread.</summary>
+    public void ReadingDisplays() => LoadingStage = Strings.ReadingDisplays;
+
+    /// <summary>What the window is reading while <see cref="IsLoading"/>.</summary>
+    public string LoadingStage
+    {
+        get => loadingStage;
+        private set => SetField(ref loadingStage, value);
     }
 
     private static string ComputerLabel(ResolvedProfile profile)
@@ -114,25 +144,28 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>The name of the tree's top item, this computer.</summary>
-    public string HostName { get; }
-
-    /// <summary>Platform profiles: generic limits, for computers without a profile of their own.</summary>
-    public IReadOnlyList<ProfileOption> OperatingSystems { get; }
-
-    public IReadOnlyList<ProfileOption> Computers { get; }
-
-    private IReadOnlyList<ProfileOption> Options(IEnumerable<ProfileOption> options)
+    public string HostName
     {
-        var sorted = options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase).ToList();
-        foreach (var option in sorted)
+        get;
+        private set => SetField(ref field, value);
+    }
+
+    /// <summary>Platform profiles: generic limits, for computers without a profile of their own. Empty until the database is loaded.</summary>
+    public ObservableCollection<ProfileOption> OperatingSystems { get; } = [];
+
+    public ObservableCollection<ProfileOption> Computers { get; } = [];
+
+    private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
+    {
+        foreach (var option in options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase))
         {
             option.PropertyChanged += (_, _) =>
             {
                 log.ProfileChecked(option.Label, option.IsChecked);
                 Refresh();
             };
+            list.Add(option);
         }
-        return sorted;
     }
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
@@ -154,14 +187,14 @@ public sealed class MainViewModel : ObservableObject
     private static string AppVersion() =>
         typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
 
-    public IReadOnlyList<string> DatabaseErrors { get; }
+    public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 
     /// <summary>The log window's content.</summary>
     public LogViewModel Log { get; }
 
     public bool HasDatabaseErrors => DatabaseErrors.Count > 0;
 
-    /// <summary>True until the first USB tree arrives; the window is shown before detection has run.</summary>
+    /// <summary>True until the first USB tree arrives; the window is shown before anything is read.</summary>
     public bool IsLoading
     {
         get => isLoading;
@@ -237,13 +270,16 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
 
-    public void Load(IReadOnlyList<UsbNode> detected)
+    public void Load(IReadOnlyList<UsbNode> detected) => Load(detected, readExternalDisplays());
+
+    /// <param name="displays">The external display count, read off the UI thread; later refreshes read it again.</param>
+    public void Load(IReadOnlyList<UsbNode> detected, int? displays)
     {
         IsLoading = false;
         log.TreeRead(detected);
         tree = detected;
         history.Record(tree);
-        Refresh();
+        Refresh(displays);
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)
@@ -261,14 +297,15 @@ public sealed class MainViewModel : ObservableObject
         Refresh();
     }
 
-    private void Refresh()
+    private void Refresh() => Refresh(readExternalDisplays());
+
+    private void Refresh(int? displays)
     {
         var options = Checked;
         var profiles = options.Select(option => option.Profile).ToList();
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var displays = readExternalDisplays();
         var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
