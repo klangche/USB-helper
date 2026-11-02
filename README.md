@@ -308,8 +308,9 @@ reports as a USB-C connector (from its port connector properties) has a "USB-C"
 badge after its name; this changes no result. Empty ports are not in the tree;
 the log lists the flag of every port Windows reports it for. Each controller
 shows its hub count, deepest tier and deepest hop. Next to the tree is a
-summary with the overall result, the status field, disconnected and reconnected devices and the
-findings. The overall result, the status field and the findings cover one USB
+summary with the overall result, the status field, disconnected and
+reconnected devices and the findings. The overall result, the status field
+and the findings cover one USB
 controller's tree, named under "Status". At start, and when that controller
 disappears, the controller with the most connected hubs and devices (built-in
 hubs not counted) is selected; on a tie the first in the tree. Click another
@@ -349,8 +350,9 @@ database load result, per hub which ports Windows reports as USB-C or not
 reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
 ones about unknown limits. Click "Export" in the log window to save it as a
-text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a bug report.
-The log is kept in memory only and starts empty each time the app starts.
+text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
+bug report. The log is kept in memory only and starts empty each time the
+app starts.
 
 No profile for your computer yet? Click "Export computer profile" and save the
 file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
