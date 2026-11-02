@@ -58,8 +58,7 @@ public partial class App : Application
         log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
     }
 
-    // Every problem, a file that cannot be read included, ends up in the window's database error list, so the window
-    // never stays on "Loading database...".
+    // The database is built into the app (#102); every problem ends up in the window's database error list.
     private static async Task LoadDatabase(MainViewModel viewModel, EventLog log)
     {
         log.Add("Loading database");
@@ -67,15 +66,11 @@ public partial class App : Application
         {
             try
             {
-                return (HardwareDatabase.Load(Path.Combine(AppContext.BaseDirectory, "database")), (IReadOnlyList<DatabaseError>)[]);
+                return (EmbeddedDatabase.Load(), (IReadOnlyList<DatabaseError>)[]);
             }
             catch (DatabaseException e)
             {
                 return ((HardwareDatabase?)null, e.Errors);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                return ((HardwareDatabase?)null, [new DatabaseError("database", 0, e.Message)]);
             }
         });
         viewModel.LoadDatabase(database, errors);

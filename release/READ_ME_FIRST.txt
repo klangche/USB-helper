@@ -4,7 +4,7 @@ No installation and no administrator rights are needed. No network
 connection is needed.
 
 1. Unzip the whole folder, for example to your Desktop. Keep the
-   "database" folder and the .dll files next to USB-helper.exe.
+   .dll files next to USB-helper.exe.
 
 2. This build is not signed, so Windows blocks it after a download.
    Before the first start, open PowerShell in this folder and run:
@@ -17,8 +17,9 @@ connection is needed.
 3. Start USB-helper.exe. If Windows SmartScreen still shows a warning,
    click "More info", then "Run anyway".
 
-The hardware database is the "database" folder. How to add or correct a
-computer profile: https://github.com/klangche/USB-helper#hardware-database
+The hardware database is built into USB-helper.exe; a new version brings
+the latest database. How to add or correct a computer profile:
+https://github.com/klangche/USB-helper#hardware-database
 
 The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc.
 (https://fontawesome.com), licensed under CC BY 4.0

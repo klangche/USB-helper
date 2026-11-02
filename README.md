@@ -58,6 +58,9 @@ database/
 └── computers/         one file per computer model, by manufacturer
 ```
 
+The build puts these files into the app, so the download has no database
+folder.
+
 A computer profile inherits from a platform profile, which inherits from
 `base.yaml`. Every profile records its sources, a verification status
 (`verified`, `partial`, `unverified`) and the date it was last checked.
@@ -159,6 +162,8 @@ assumed to carry video, and no bandwidth is calculated.
 5. Run `dotnet test`: it loads the whole database and reports any problem.
 6. Open a pull request. Changes to verified values need review; the git history
    keeps every correction.
+7. The database is built into the app, so users get the change with the next
+   release or beta build; an existing download keeps its own database.
 
 A computer profile's id is never written in the file. The app computes it from
 `manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters
@@ -267,10 +272,10 @@ findings; they have no connection line of their own.
 
 Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 [releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder and
-the `.dll` files next to `USB-helper.exe`, unblock the unsigned exe once
-(`Unblock-File -Path .\USB-helper.exe` in PowerShell), and start it. No
-installation, no administrator rights and no network connection are needed.
+follow `READ_ME_FIRST.txt` in the zip. In short: keep the `.dll` files next to
+`USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
+.\USB-helper.exe` in PowerShell), and start it. No installation, no
+administrator rights and no network connection are needed.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
@@ -376,10 +381,10 @@ the next release would get and `N` counts up from 1 for each beta of it
 - `src/UsbHelper.Detection.Windows`: Windows USB detection (SetupAPI and the USB
   hub IOCTLs).
 - `src/UsbHelper.App`: the GUI. Run it from source on Windows with
-  `dotnet run --project src/UsbHelper.App`. It reads `database/` next to the
-  executable (copied there by the build), picks the computer profile only when
-  the manufacturer and model reported by Windows match a profile exactly, and
-  otherwise lets the user choose. All texts it shows are in
+  `dotnet run --project src/UsbHelper.App`. It reads the database built into
+  it from `database/` (rebuild after a database change), picks the computer
+  profile only when the manufacturer and model reported by Windows match a
+  profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`.
 - `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
   `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon

@@ -34,9 +34,9 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- The hardware database ships next to the executable, read-only. -->
+  <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
   <ItemGroup>
-    <None Include="..\..\database\**\*" LinkBase="database" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

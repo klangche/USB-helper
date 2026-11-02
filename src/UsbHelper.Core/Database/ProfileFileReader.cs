@@ -9,13 +9,13 @@ namespace UsbHelper.Core.Database;
 internal static partial class ProfileFileReader
 {
     /// <summary>Returns the top-level mapping, or null after adding the problem to <paramref name="errors"/>.</summary>
-    public static ProfileValue? Read(string path, string file, List<DatabaseError> errors)
+    /// <param name="yaml">The file's content.</param>
+    public static ProfileValue? Read(string yaml, string file, List<DatabaseError> errors)
     {
         var stream = new YamlStream();
         try
         {
-            using var reader = System.IO.File.OpenText(path);
-            stream.Load(reader);
+            stream.Load(new StringReader(yaml));
         }
         catch (YamlException e)
         {

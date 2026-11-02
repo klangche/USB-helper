@@ -110,7 +110,6 @@ jobs:
           Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
           # The native libraries (SkiaSharp, HarfBuzzSharp, ANGLE); their .pdb files stay out.
           Copy-Item publish/*.dll $name
-          Copy-Item -Recurse publish/database "$name/database"
           # CRLF, so older Notepad versions show the lines.
           (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$name/READ_ME_FIRST.txt"
           Copy-Item LICENSE "$name/LICENSE.txt"
