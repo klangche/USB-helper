@@ -381,6 +381,12 @@ the next release would get and `N` counts up from 1 for each beta of it
   the manufacturer and model reported by Windows match a profile exactly, and
   otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`.
+- `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
+  `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon
+  (`ApplicationIcon`), which Avalonia also uses for every window. After changing
+  the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
+  librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
+  both files.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running
@@ -404,3 +410,10 @@ Contributors and AI agents follow AGENTS.md.
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The app icon is the "usb" icon from [Font Awesome Free](https://fontawesome.com)
+by Fonticons, Inc., licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+([Font Awesome Free license](https://fontawesome.com/license/free)). Changed:
+square view box and drawn white. USB is a trademark of its owner; the icon
+stands for USB connections, and no endorsement is implied.
