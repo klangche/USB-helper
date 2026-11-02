@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -17,23 +18,29 @@ public sealed record UpdateCheckResult(Release? Stable, Release? Beta, string Lo
 /// </summary>
 public static class UpdateCheck
 {
+    /// <summary>The newest 30 releases, for the newest beta (and a stable one, if it is among them).</summary>
     public const string ReleasesUrl = "https://api.github.com/repos/klangche/USB-helper/releases?per_page=30";
+
+    /// <summary>The newest stable release, however many betas came after it; 404 while there is none.</summary>
+    public const string LatestUrl = "https://api.github.com/repos/klangche/USB-helper/releases/latest";
 
     public static async Task<UpdateCheckResult> FindAsync(HttpClient http, string current, TimeSpan timeout)
     {
         using var cancel = new CancellationTokenSource(timeout);
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, ReleasesUrl);
-            request.Headers.UserAgent.Add(new ProductInfoHeaderValue("USB-helper", current));
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-            using var response = await http.SendAsync(request, cancel.Token);
-            if (!response.IsSuccessStatusCode)
-            {
-                return Skipped($"GitHub answered {(int)response.StatusCode} {response.StatusCode}");
-            }
-            using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancel.Token), cancellationToken: cancel.Token);
-            return Compare(Newest(json.RootElement, prerelease: false), Newest(json.RootElement, prerelease: true), current);
+            // Both at once, within the one timeout.
+            var list = Get(http, ReleasesUrl, current, cancel.Token);
+            var latest = Get(http, LatestUrl, current, cancel.Token);
+            using var releases = await list ?? throw new HttpRequestException("GitHub has no release list");
+            using var stable = await latest;
+            var all = releases.RootElement.EnumerateArray().ToList();
+            var stables = stable == null ? all : [.. all, stable.RootElement];
+            return Compare(Newest(stables, prerelease: false), Newest(all, prerelease: true), current);
+        }
+        catch (GitHubException e)
+        {
+            return Skipped(e.Message);
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
@@ -44,6 +51,26 @@ public static class UpdateCheck
             return Skipped(e.Message);
         }
     }
+
+    // The answer as JSON, or null for 404 (no such release).
+    private static async Task<JsonDocument?> Get(HttpClient http, string url, string current, CancellationToken cancel)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.UserAgent.Add(new ProductInfoHeaderValue("USB-helper", current));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        using var response = await http.SendAsync(request, cancel);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new GitHubException($"GitHub answered {(int)response.StatusCode} {response.StatusCode}");
+        }
+        return await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(cancel), cancellationToken: cancel);
+    }
+
+    private sealed class GitHubException(string message) : Exception(message);
 
     private static UpdateCheckResult Skipped(string reason) => new(null, null, $"Update check skipped: {reason}");
 
@@ -63,10 +90,10 @@ public static class UpdateCheck
     }
 
     // The highest version of one kind that is published (not a draft) and has its zip and checksum.
-    private static (ReleaseVersion, Release)? Newest(JsonElement releases, bool prerelease)
+    private static (ReleaseVersion, Release)? Newest(IEnumerable<JsonElement> releases, bool prerelease)
     {
         (ReleaseVersion, Release)? newest = null;
-        foreach (var release in releases.EnumerateArray())
+        foreach (var release in releases)
         {
             if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean() != prerelease
                 || ReleaseVersion.Parse(release.GetProperty("tag_name").GetString() ?? "") is not { } version)

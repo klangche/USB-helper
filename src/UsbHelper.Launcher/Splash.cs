@@ -98,18 +98,18 @@ internal static unsafe partial class Splash
 
     /// <summary>
     /// Shows the question and one button per choice under the status line, and returns the index of the clicked one.
-    /// Esc, or closing the window, picks the last choice (Skip). Called from the work thread; without a window it
-    /// returns the last choice at once.
+    /// Esc, or closing the window, picks the last choice (Skip). Called from the work thread; without a window (none,
+    /// or closed already) it returns the last choice at once.
     /// </summary>
     public static int Ask(string questionText, IReadOnlyList<string> choiceTexts)
     {
-        if (window == 0)
+        question = questionText;
+        choices = choiceTexts;
+        // No window, or it was closed (Alt+F4) while the app was unpacked: nobody can answer.
+        if (window == 0 || PostMessageW(window, WM_APP_ASK, 0, 0) == 0)
         {
             return choiceTexts.Count - 1;
         }
-        question = questionText;
-        choices = choiceTexts;
-        PostMessageW(window, WM_APP_ASK, 0, 0);
         answered.Wait();
         return choice;
     }

@@ -53,7 +53,7 @@ public static class UpdateInstaller
 
     /// <summary>
     /// Moves the running launcher aside as &lt;exe&gt;.old (Windows allows renaming a running exe, not deleting it) and
-    /// the new one into its place. If the second move fails, the old launcher is put back.
+    /// the new one into its place. If the second move fails, the old launcher is put back and the new one removed.
     /// </summary>
     public static void Replace(string exe, string downloaded)
     {
@@ -66,6 +66,7 @@ public static class UpdateInstaller
         catch
         {
             File.Move(old, exe);
+            File.Delete(downloaded);
             throw;
         }
     }

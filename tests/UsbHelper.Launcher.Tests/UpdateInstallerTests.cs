@@ -129,6 +129,16 @@ public sealed class UpdateInstallerTests : IDisposable
     }
 
     [Fact]
+    public void AFailedReplacePutsTheRunningLauncherBack()
+    {
+        // The new launcher is gone (for example removed by a virus scanner) before it is moved into place.
+        Assert.ThrowsAny<IOException>(() => UpdateInstaller.Replace(exe, exe + ".new"));
+
+        Assert.Equal("launcher 0.6.0", File.ReadAllText(exe));
+        Assert.Equal([exe], Directory.GetFiles(folder));
+    }
+
+    [Fact]
     public void ReplaceOverwritesAnOldLauncherLeftFromAnEarlierUpdate()
     {
         File.WriteAllText(exe + ".old", "launcher 0.5.0");

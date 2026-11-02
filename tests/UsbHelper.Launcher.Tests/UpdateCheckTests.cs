@@ -24,14 +24,22 @@ public class UpdateCheckTests
         return $$"""{"tag_name":"{{tag}}","draft":{{(draft ? "true" : "false")}},"prerelease":{{(prerelease ? "true" : "false")}},"assets":[{{string.Join(',', assets)}}]}""";
     }
 
-    private static FakeHttp Feed(params string[] releases) => new((request, _) =>
+    // The release list as GitHub gives it, newest first, and its "latest" release: the newest published stable one.
+    private static FakeHttp Feed(params string[] releases) =>
+        Feed(releases, releases.FirstOrDefault(r => r.Contains("\"draft\":false,\"prerelease\":false", StringComparison.Ordinal)));
+
+    private static FakeHttp Feed(string[] releases, string? latest) => new((request, _) =>
     {
-        Assert.Equal(UpdateCheck.ReleasesUrl, request.RequestUri!.ToString());
         Assert.Contains("USB-helper", request.Headers.UserAgent.ToString()); // GitHub refuses requests without one
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        var body = request.RequestUri!.ToString() switch
         {
-            Content = new StringContent($"[{string.Join(',', releases)}]", Encoding.UTF8, "application/json"),
-        });
+            UpdateCheck.ReleasesUrl => $"[{string.Join(',', releases)}]",
+            UpdateCheck.LatestUrl => latest,
+            var other => throw new InvalidOperationException(other),
+        };
+        return Task.FromResult(body == null
+            ? new HttpResponseMessage(HttpStatusCode.NotFound) // GitHub's answer when there is no stable release
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") });
     });
 
     private static readonly string[] Releases =
@@ -85,6 +93,27 @@ public class UpdateCheckTests
         Assert.Null(result.Stable);
         Assert.Null(result.Beta);
         Assert.Equal("Update check: 0.7.0-beta.2 is up to date (newest with a SHA-256: stable 0.6.0, beta 0.7.0-beta.2)", result.Log);
+    }
+
+    [Fact]
+    public async Task AStableOlderThanAFullPageOfBetasIsFound()
+    {
+        // The list holds only the newest 30 releases; after many betas the stable one is no longer in it.
+        var betas = Enumerable.Range(1, 30).Reverse().Select(n => Release($"v0.5.0-beta.{n}", prerelease: true)).ToArray();
+
+        var result = await UpdateCheck.FindAsync(Feed(betas, Release("v0.4.0", prerelease: false)).Client(), "0.3.0", Timeout);
+
+        Assert.Equal("0.4.0", result.Stable!.Version);
+        Assert.Equal("0.5.0-beta.30", result.Beta!.Version);
+    }
+
+    [Fact]
+    public async Task NoStableReleaseYet()
+    {
+        var result = await UpdateCheck.FindAsync(Feed([Release("v0.5.0-beta.1", prerelease: true)], latest: null).Client(), "0.4.0", Timeout);
+
+        Assert.Null(result.Stable);
+        Assert.Equal("0.5.0-beta.1", result.Beta!.Version);
     }
 
     [Fact]

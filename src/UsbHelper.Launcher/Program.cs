@@ -21,6 +21,9 @@ internal static partial class Program
 
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
 
+    // A whole update download (about 65 MB): ends one that stalls, leaves time for a slow line.
+    private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
+
     public static int Main(string[] args) => OperatingSystem.IsWindows() ? Run(args) : 1;
 
     [SupportedOSPlatform("windows")]
@@ -53,7 +56,16 @@ internal static partial class Program
                 try
                 {
                     var folder = AppFolder.Prepare(root, version, OpenPayload);
-                    var result = check.GetAwaiter().GetResult();
+                    UpdateCheckResult result;
+                    try
+                    {
+                        result = check.GetAwaiter().GetResult();
+                    }
+                    catch (Exception e)
+                    {
+                        // The check handles every expected failure; anything else must not stop the start either.
+                        result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}");
+                    }
                     var log = result.Log;
                     if (result.Stable != null || result.Beta != null)
                     {
@@ -103,9 +115,10 @@ internal static partial class Program
         var release = offered[picked];
         try
         {
+            using var timeout = new CancellationTokenSource(DownloadTimeout);
             var downloaded = UpdateInstaller.DownloadAsync(http, release, exe,
                 percent => Splash.SetStatus(string.Format(CultureInfo.CurrentCulture, Strings.UpdateDownloading, release.Version, percent)),
-                CancellationToken.None).GetAwaiter().GetResult();
+                timeout.Token).GetAwaiter().GetResult();
             UpdateInstaller.Replace(exe, downloaded);
             Splash.SetStatus(Strings.LauncherStarting);
             var start = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Environment.CurrentDirectory };
@@ -116,7 +129,8 @@ internal static partial class Program
             Process.Start(start)!.Dispose();
             return (true, "");
         }
-        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException or InvalidDataException)
+        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException
+            or InvalidDataException or System.ComponentModel.Win32Exception)
         {
             MessageBoxW(0, string.Format(CultureInfo.CurrentCulture, Strings.UpdateFailed, e.Message), Strings.WindowTitle, 0x30); // MB_ICONWARNING
             return (false, $"{result.Log}; update to {release.Version} failed: {e.Message}");

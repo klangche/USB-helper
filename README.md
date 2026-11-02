@@ -307,8 +307,9 @@ to the running one's name, and starts it; the next start removes
 `<name>.old`. A download that fails verification is deleted, never run, and
 the current version starts after a message. The folder of `USB-helper.exe`
 must be writable (no administrator rights are used). The log (#87) lists
-the check's result after "USB-helper started", for example "Update check: beta 0.7.0-beta.2 is
-newer than 0.6.0; skipped" or "Update check skipped: no answer within 2 s".
+the check's result after "USB-helper started", for example "Update check:
+beta 0.7.0-beta.2 is newer than 0.6.0; skipped" or "Update check skipped:
+no answer within 2 s". A download that stalls is given up after 10 minutes.
 
 ## Usage
 
