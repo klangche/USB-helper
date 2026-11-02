@@ -207,7 +207,8 @@ public class DiagnosticEvaluatorTests
 
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Contains(report.Findings, finding => finding.Message
-            == "Hop depth 1 exceeds the recommended limits.recommended_hops 0 (unverified limit); limits.max_hops is 5 (unverified limit).");
+            == "Hop depth 1 exceeds the recommended limits.recommended_hops 0 (unverified limit); limits.max_hops is 5 (unverified limit)."
+            && finding.Brief == "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5.");
     }
 
     [Fact]
@@ -219,6 +220,25 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Green, report.Connections["KEYBOARD"]);
         Assert.Contains(new Finding(FactKind.PredictedRisk, DiagnosticEvaluator.ComputerId, "Test laptop",
             "1 external hubs are connected; limits.max_hubs is 0."), report.Findings);
+    }
+
+    // Owner decision in #100: the window shows the brief text, without "unverified"; the log keeps the message.
+    [Fact]
+    public void TooManyHubsOnAnUnverifiedLimitHasABriefWithoutUnverified()
+    {
+        var report = Evaluate(Desk, Profile(hubs: "0", status: "unverified"));
+
+        var finding = Assert.Single(report.Findings, finding => finding.Kind == FactKind.PredictedRisk);
+        Assert.Equal("1 external hubs are connected; limits.max_hubs is 0 (unverified limit).", finding.Message);
+        Assert.Equal("1 external hubs are connected; limits.max_hubs is 0.", finding.Brief);
+    }
+
+    [Fact]
+    public void BriefIsTheMessageWhenItSaysNothingAboutVerification()
+    {
+        var finding = new Finding(FactKind.DetectedFact, "KEYBOARD", "Keyboard", "code 43");
+
+        Assert.Equal("code 43", finding.Brief);
     }
 
     [Fact]
@@ -278,7 +298,8 @@ public class DiagnosticEvaluatorTests
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        Assert.Contains(report.Findings, finding => finding.Message == "Tier depth 3 exceeds limits.max_tiers 2 (unverified limit).");
+        Assert.Contains(report.Findings, finding => finding.Message == "Tier depth 3 exceeds limits.max_tiers 2 (unverified limit)."
+            && finding.Brief == "Tier depth 3 exceeds limits.max_tiers 2.");
     }
 
     [Fact]
