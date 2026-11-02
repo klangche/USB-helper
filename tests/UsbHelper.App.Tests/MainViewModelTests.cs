@@ -844,14 +844,22 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void HostControllersAndHubsWithChildrenCanBeExpandedAndCollapsed()
+    public void EveryItemWithChildrenCanBeExpandedAndCollapsed()
     {
         var viewModel = NewViewModel();
 
         viewModel.Load(Laptop());
 
-        // Ports always show their one hub or device, so they get no expand control.
-        Assert.Equal(["host", "C1", "ROOT", "INTERNAL", "DOCK", "UNSURE"], All(viewModel.Roots).Where(item => item.CanExpand).Select(item => item.Id));
+        // Devices have nothing below them. Everything else can be collapsed, ports too, so each shows the control.
+        Assert.All(All(viewModel.Roots), item => Assert.Equal(item.Children.Count > 0, item.CanExpand));
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.Id is "WEBCAM" or "KEYBOARD" or "MOUSE" && item.CanExpand);
+        var port = Item(viewModel, "ROOT|port2");
+        Assert.True(port.CanExpand);
+
+        port.IsExpanded = false;
+
+        Assert.Equal(3, port.HiddenCount); // UNSURE, its port and MOUSE.
+        Assert.NotNull(port.CollapsedHint);
     }
 
     [Fact]

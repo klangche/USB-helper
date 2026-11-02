@@ -11,7 +11,7 @@ Status: first version for Windows; computer profiles still to be added.
 - Live USB tree with drawn tree lines from one root for the computer (the
   host): controllers, hubs, occupied ports and devices. Hubs built into the
   computer start collapsed, every other branch open; a chevron before each
-  hub and controller expands or collapses it, and a collapsed one says how
+  item with items below it expands or collapses it, and a collapsed one says how
   many items it hides. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
@@ -284,7 +284,7 @@ status colour, with the result word after its name. Empty ports are left
 out. Hubs built into the computer (for the webcam or Bluetooth, reached only
 through ports that are not user-connectable) start collapsed; everything
 else is open. A collapsed item says how many items it hides ("6 hidden").
-Click the chevron before a hub or controller, double-click the item, or use
+Click the chevron before an item, double-click the item, or use
 the left and right arrow keys, to expand or collapse it; the choice is kept
 while the app runs. Each controller shows its hub count,
 deepest tier and deepest hop. Next to the tree is a summary with the overall
