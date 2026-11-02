@@ -144,7 +144,10 @@ public sealed class NodeViewModel : ObservableObject
     /// After the name: "Extended display: DisplayLink driver required" on a DisplayLink device, "has a display" on a hub
     /// with one below it. Null otherwise.
     /// </summary>
-    public string? DisplayNote => IsDisplay ? Strings.DisplayLinkDevice : isHub && displayBelow ? Strings.HubHasDisplay : null;
+    public string? DisplayNote => IsDisplay ? Strings.DisplayLinkDevice : HasDisplayBelow ? Strings.HubHasDisplay : null;
+
+    /// <summary>A hub with a connected DisplayLink device somewhere below it.</summary>
+    public bool HasDisplayBelow => isHub && displayBelow;
 
     public string Text
     {
@@ -327,7 +330,10 @@ public sealed class NodeViewModel : ObservableObject
         UpdateChildren(wanted, report, extraHops, builtIn, node.Kind == UsbNodeKind.Port ? node.Id : null);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         CountItemsBelow();
-        SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote));
+        if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
+        {
+            OnPropertyChanged(nameof(HasDisplayBelow));
+        }
     }
 
     // Only a collapsed item shows the count, so only a collapsed item notifies when it changes.

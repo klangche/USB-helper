@@ -163,17 +163,18 @@
                     <TextBlock Text="{Binding MarkBadge}" FontWeight="SemiBold"
                                Foreground="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   </Border>
-                  <!-- A DisplayLink device is a display (#92): a badge before its name. -->
+                  <!-- A DisplayLink device is a display (#92): a badge and its message before its name, so a long row never
+                       cuts the message off. -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsDisplay}"
                           BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
                     <TextBlock Text="{x:Static res:Strings.DisplayBadge}" FontWeight="SemiBold" />
                   </Border>
+                  <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
                   <TextBlock Text="{Binding Text}" />
                   <!-- The result word on the right, in the same colour as the elbow. -->
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
-                  <TextBlock Text="{Binding DisplayNote}"
-                             IsVisible="{Binding DisplayNote, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
                   <TextBlock Text="{Binding Counts}" Opacity="0.7"
                              IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
                   <TextBlock Text="{Binding CollapsedHint}" Opacity="0.7"
