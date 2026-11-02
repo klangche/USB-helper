@@ -19,6 +19,7 @@ namespace UsbHelper.App.ViewModels;
 /// system does not show (#76): its extra hops count for everything behind that port.
 /// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
 /// across updates. A collapsed item says how many items it hides (#91).
+/// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -33,6 +34,9 @@ public sealed class NodeViewModel : ObservableObject
     private string? counts;
     private bool isExpanded;
     private int itemsBelow;
+    private bool isDisplay;
+    private bool displayBelow;
+    private bool isHub;
     private int markedHops;
     private readonly Action<string, int> mark;
 
@@ -122,6 +126,25 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>After the name of a collapsed item: how many items it hides. Null otherwise.</summary>
     public string? CollapsedHint => HiddenCount > 0 ? string.Format(CultureInfo.CurrentCulture, Strings.CollapsedHint, HiddenCount) : null;
+
+    /// <summary>A connected DisplayLink device: the view shows it as a display.</summary>
+    public bool IsDisplay
+    {
+        get => isDisplay;
+        private set
+        {
+            if (SetField(ref isDisplay, value))
+            {
+                OnPropertyChanged(nameof(DisplayNote));
+            }
+        }
+    }
+
+    /// <summary>
+    /// After the name: "Extended display: DisplayLink driver required" on a DisplayLink device, "has a display" on a hub
+    /// with one below it. Null otherwise.
+    /// </summary>
+    public string? DisplayNote => IsDisplay ? Strings.DisplayLinkDevice : isHub && displayBelow ? Strings.HubHasDisplay : null;
 
     public string Text
     {
@@ -276,6 +299,9 @@ public sealed class NodeViewModel : ObservableObject
     {
         IsLast = last;
         Text = Describe(node, IsDisconnected);
+        isHub = node.Kind == UsbNodeKind.Hub;
+        // An unplugged device is no display now.
+        IsDisplay = node.IsDisplayLink && !IsDisconnected;
         if (SetField(ref markedHops, PortId == null ? 0 : extraHops.GetValueOrDefault(PortId), nameof(ExtraHops)))
         {
             OnPropertyChanged(nameof(IsUserMarked));
@@ -301,6 +327,7 @@ public sealed class NodeViewModel : ObservableObject
         UpdateChildren(wanted, report, extraHops, builtIn, node.Kind == UsbNodeKind.Port ? node.Id : null);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         CountItemsBelow();
+        SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote));
     }
 
     // Only a collapsed item shows the count, so only a collapsed item notifies when it changes.
