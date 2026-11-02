@@ -1,7 +1,8 @@
 USB-helper {version} for Windows (x64)
 
-No installation and no administrator rights are needed. No network
-connection is needed.
+No installation and no administrator rights are needed. A network
+connection is used only to check for updates when USB-helper starts;
+without one, it starts as normal.
 
 1. Unzip USB-helper.exe, for example to your Desktop. It is the whole
    app; you can move it anywhere.

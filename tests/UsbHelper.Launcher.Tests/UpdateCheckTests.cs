@@ -84,7 +84,7 @@ public class UpdateCheckTests
 
         Assert.Null(result.Stable);
         Assert.Null(result.Beta);
-        Assert.Equal("Update check: 0.7.0-beta.2 is up to date (latest stable 0.6.0, latest beta 0.7.0-beta.2)", result.Log);
+        Assert.Equal("Update check: 0.7.0-beta.2 is up to date (newest with a SHA-256: stable 0.6.0, beta 0.7.0-beta.2)", result.Log);
     }
 
     [Fact]

@@ -38,6 +38,11 @@ public partial class App : Application
     {
         var log = new EventLog();
         log.Add("USB-helper started");
+        // The launcher's update check result (#111); the variable is UsbHelper.Launcher.Program.UpdateLogVariable.
+        if (Environment.GetEnvironmentVariable("USBHELPER_UPDATE_CHECK") is { Length: > 0 } update)
+        {
+            log.Add(update);
+        }
         if (!OperatingSystem.IsWindows())
         {
             var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log);

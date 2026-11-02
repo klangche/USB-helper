@@ -250,4 +250,24 @@
   <data name="LauncherAppExited" xml:space="preserve">
     <value>the app closed before its window opened (exit code {0}).</value>
   </data>
+  <data name="UpdateAvailable" xml:space="preserve">
+    <value>A newer version is available. You have {0}.</value>
+  </data>
+  <data name="UpdateToStable" xml:space="preserve">
+    <value>Update to stable {0}</value>
+  </data>
+  <data name="UpdateToBeta" xml:space="preserve">
+    <value>Update to beta {0} (test build)</value>
+  </data>
+  <data name="UpdateSkip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="UpdateDownloading" xml:space="preserve">
+    <value>Downloading {0}... {1}%</value>
+  </data>
+  <data name="UpdateFailed" xml:space="preserve">
+    <value>The update could not be installed: {0}
+
+USB-helper starts the current version.</value>
+  </data>
 </root>

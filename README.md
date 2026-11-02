@@ -268,7 +268,8 @@ findings; they have no connection line of their own.
 ## Platforms
 
 - Windows x64: first target. Portable, no installation, no administrator
-  rights, no network connection needed.
+  rights. The network is used only for the optional update check at start;
+  without it, the app works as normal.
 - macOS and Linux: planned, with the same GUI and diagnostics.
 
 ## Install
@@ -277,8 +278,9 @@ Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 [releases](https://github.com/klangche/USB-helper/releases), unzip it, and
 follow `READ_ME_FIRST.txt` in the zip. In short: the zip holds one exe,
 `USB-helper.exe`; unblock it once (`Unblock-File -Path .\USB-helper.exe` in
-PowerShell, as it is not signed), and start it. No installation, no
-administrator rights and no network connection are needed.
+PowerShell, as it is not signed), and start it. No installation and no
+administrator rights are needed, and no network connection either (it is
+used only for the update check below).
 `USB-helper.exe` is a small launcher that carries the app. It shows a splash
 with the version at once. On the first start of a version it unpacks the app
 to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
@@ -288,6 +290,25 @@ app's window is up. After a successful start, the other versions in
 `%LOCALAPPDATA%\USB-helper` (older or newer) are removed. To remove USB-helper completely,
 delete `USB-helper.exe` and that folder.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
+
+Updates: on every start, while the splash shows, the launcher asks GitHub
+Releases (no account or token) for the newest stable release and the newest
+beta. Only releases with a published SHA-256 file
+(`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
+download can be verified. If either is newer than the running version, the
+splash shows "Update to stable X", "Update to beta Y" (whichever are newer)
+and "Skip" (also Esc); otherwise nothing is shown. The app starts once the
+check has an answer, at most 2 seconds after the start; with no network, no
+answer in time, a GitHub error or its rate limit, the check is skipped
+silently. On a choice, the launcher downloads that release's zip and its
+SHA-256 file, verifies the zip, writes the new launcher next to the running
+one as `<name>.new`, renames the running one to `<name>.old` and the new one
+to the running one's name, and starts it; the next start removes
+`<name>.old`. A download that fails verification is deleted, never run, and
+the current version starts after a message. The folder of `USB-helper.exe`
+must be writable (no administrator rights are used). The log (#87) lists
+the check's result after "USB-helper started", for example "Update check: beta 0.7.0-beta.2 is
+newer than 0.6.0; skipped" or "Update check skipped: no answer within 2 s".
 
 ## Usage
 
@@ -416,8 +437,11 @@ the next release would get and `N` counts up from 1 for each beta of it
   as the embedded resource `app.zip`, given with `-p:AppPayload=<zip>` (see
   `release.yml`); a build without it reports that it holds no app. It draws
   its splash with plain Win32 calls and uses the texts in the app's
-  `Strings.resx`. The unpack logic (`AppFolder`) is tested in
-  `tests/UsbHelper.Launcher.Tests`.
+  `Strings.resx`. The unpack logic (`AppFolder`), the update check
+  (`UpdateCheck`, `ReleaseVersion`) and the update download and swap
+  (`UpdateInstaller`) are tested in `tests/UsbHelper.Launcher.Tests`, the
+  update check against a fake release feed. `release.yml` publishes
+  `<zip>.sha256` with every release and beta for the update check.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running

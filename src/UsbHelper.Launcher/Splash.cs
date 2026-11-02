@@ -6,7 +6,7 @@ namespace UsbHelper.Launcher;
 /// <summary>
 /// A small window with the app icon, the name, the version and a status line, drawn with plain Win32 calls so the
 /// launcher needs no UI framework. <see cref="Run"/> owns the window and starts the work once it is shown; the work
-/// uses <see cref="SetStatus"/> and <see cref="Close"/>.
+/// uses <see cref="SetStatus"/>, <see cref="Ask"/> and <see cref="Close"/>.
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static unsafe partial class Splash
@@ -14,7 +14,13 @@ internal static unsafe partial class Splash
     private const uint WM_DESTROY = 0x0002;
     private const uint WM_PAINT = 0x000F;
     private const uint WM_CLOSE = 0x0010;
+    private const uint WM_SETFONT = 0x0030;
+    private const uint WM_COMMAND = 0x0111;
     private const uint WM_APP_STATUS = 0x8000; // WM_APP
+    private const uint WM_APP_ASK = 0x8001;
+    private const uint WS_CHILD = 0x40000000;
+    private const uint WS_TABSTOP = 0x00010000;
+    private const int FirstChoice = 100; // control id of the first choice button
     private const uint WS_POPUP = 0x80000000;
     private const uint WS_VISIBLE = 0x10000000;
     private const uint WS_BORDER = 0x00800000;
@@ -31,6 +37,11 @@ internal static unsafe partial class Splash
     private static nint textFont;
     private static string version = "";
     private static volatile string status = "";
+    private static string question = "";
+    private static IReadOnlyList<string> choices = [];
+    private static readonly List<nint> buttons = [];
+    private static int choice;
+    private static readonly SemaphoreSlim answered = new(0);
 
     /// <summary>Shows the splash, runs the work on another thread, and returns when the work calls <see cref="Close"/>.</summary>
     public static void Run(string versionText, string statusText, Action work)
@@ -76,9 +87,31 @@ internal static unsafe partial class Splash
         MSG message;
         while (GetMessageW(&message, 0, 0, 0) > 0)
         {
-            TranslateMessage(&message);
-            DispatchMessageW(&message);
+            // Tab between the choice buttons, Enter and Esc (see WindowProc).
+            if (IsDialogMessageW(window, &message) == 0)
+            {
+                TranslateMessage(&message);
+                DispatchMessageW(&message);
+            }
         }
+    }
+
+    /// <summary>
+    /// Shows the question and one button per choice under the status line, and returns the index of the clicked one.
+    /// Esc, or closing the window, picks the last choice (Skip). Called from the work thread; without a window it
+    /// returns the last choice at once.
+    /// </summary>
+    public static int Ask(string questionText, IReadOnlyList<string> choiceTexts)
+    {
+        if (window == 0)
+        {
+            return choiceTexts.Count - 1;
+        }
+        question = questionText;
+        choices = choiceTexts;
+        PostMessageW(window, WM_APP_ASK, 0, 0);
+        answered.Wait();
+        return choice;
     }
 
     public static void SetStatus(string text)
@@ -100,12 +133,71 @@ internal static unsafe partial class Splash
             case WM_APP_STATUS:
                 InvalidateRect(hwnd, null, 1);
                 return 0;
+            case WM_APP_ASK:
+                ShowChoices(hwnd);
+                return 0;
+            case WM_COMMAND when buttons.Count > 0:
+                // A button's id, 1 (Enter: the focused button) or 2 (Esc: the last choice, Skip).
+                var id = (int)(wParam & 0xFFFF);
+                Answer(id switch
+                {
+                    1 => GetDlgCtrlID(GetFocus()) - FirstChoice,
+                    2 => buttons.Count - 1,
+                    _ => id - FirstChoice,
+                });
+                return 0;
+            case WM_CLOSE when buttons.Count > 0:
+                Answer(buttons.Count - 1);
+                return 0;
             case WM_DESTROY:
                 PostQuitMessage(0);
                 return 0;
             default:
                 return DefWindowProcW(hwnd, message, wParam, lParam);
         }
+    }
+
+    // Grows the window and adds a button per choice, stacked, the first one focused.
+    private static void ShowChoices(nint hwnd)
+    {
+        var scale = GetDpiForWindow(hwnd) / 96.0;
+        int Scaled(int value) => (int)Math.Round(value * scale);
+        int margin = Scaled(24), top = Scaled(Height + 32), rowHeight = Scaled(32), gap = Scaled(8);
+        RECT area;
+        GetWindowRect(hwnd, &area);
+        var height = top + choices.Count * (rowHeight + gap) + margin - gap;
+        SetWindowPos(hwnd, 0, area.left, area.top - (height - (area.bottom - area.top)) / 2, area.right - area.left, height, 0x0014); // SWP_NOZORDER | SWP_NOACTIVATE
+        var instance = GetModuleHandleW(null);
+        fixed (char* buttonClass = "BUTTON")
+        {
+            for (var i = 0; i < choices.Count; i++)
+            {
+                var button = CreateWindowExW(0, buttonClass, choices[i], WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                    margin, top + i * (rowHeight + gap), area.right - area.left - 2 * margin, rowHeight, hwnd, FirstChoice + i, instance, 0);
+                SendMessageW(button, WM_SETFONT, textFont, 1);
+                buttons.Add(button);
+            }
+        }
+        SetForegroundWindow(hwnd);
+        SetFocus(buttons[0]);
+        InvalidateRect(hwnd, null, 1);
+    }
+
+    private static void Answer(int index)
+    {
+        if (index < 0 || index >= buttons.Count)
+        {
+            return;
+        }
+        foreach (var button in buttons)
+        {
+            DestroyWindow(button);
+        }
+        buttons.Clear();
+        question = "";
+        InvalidateRect(window, null, 1);
+        choice = index;
+        answered.Release();
     }
 
     private static void Paint(nint hwnd)
@@ -124,6 +216,10 @@ internal static unsafe partial class Splash
         Text(dc, titleFont, Foreground, "USB-helper", left, Scaled(22), Scaled(Width) - margin);
         Text(dc, textFont, Dimmed, version, left, Scaled(54), Scaled(Width) - margin);
         Text(dc, textFont, Foreground, status, left, Scaled(76), Scaled(Width) - margin);
+        if (question.Length > 0)
+        {
+            Text(dc, textFont, Foreground, question, margin, Scaled(Height), Scaled(Width) - margin);
+        }
         EndPaint(hwnd, &paint);
     }
 
@@ -221,6 +317,33 @@ internal static unsafe partial class Splash
 
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int index);
+
+    [LibraryImport("user32.dll")]
+    private static partial int IsDialogMessageW(nint dialog, MSG* message);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SendMessageW(nint hwnd, uint message, nint wParam, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetFocus(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetFocus();
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetDlgCtrlID(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    private static partial int SetForegroundWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    private static partial int DestroyWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    private static partial int GetWindowRect(nint hwnd, RECT* rect);
+
+    [LibraryImport("user32.dll")]
+    private static partial int SetWindowPos(nint hwnd, nint insertAfter, int x, int y, int width, int height, uint flags);
 
     [LibraryImport("user32.dll")]
     private static partial uint GetDpiForSystem();
