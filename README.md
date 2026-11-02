@@ -34,8 +34,10 @@ Status: first version for Windows; computer profiles still to be added.
   - Red: an expected device or connection is missing.
   - Grey: unknown, no profile checked or the profile has no limits.
 - Results separate detected hardware facts, verified database facts,
-  predicted risks and unknown information. Unknown limits are listed as
-  findings.
+  predicted risks and unknown information. The findings list shows only real
+  findings (a limit or recommendation exceeded, display problems, errors,
+  disconnects and reconnects); unknown limits and database facts are in the
+  log.
 - A log of every event in the session (start, database, connects,
   disconnects, reconnects, errors, profile checks, cable marks and every
   finding), with time, exportable as a text file.
@@ -180,7 +182,7 @@ Bluetooth or a card reader). On Windows the app asks for each port whether it is
 user-connectable; a hub reached only through ports that are not is built into
 the computer and does not count. A device in the laptop's own port has 0 hops.
 If Windows does not say for a port (older versions, some drivers), a hub on it
-is counted as before, as an external hub, and a finding says so.
+is counted as before, as an external hub, and the log says so.
 
 Hop and tier limits in the database (platform and computer profiles) are
 counted the same way, from the computer's own port. A computer with built-in
@@ -214,8 +216,9 @@ status per checked profile; when several apply, the first in this list wins:
 5. Green (stable): none of the above.
 
 Stability is judged on the limits the profile knows: an unknown limit (`null`)
-is listed as a finding and does not turn anything grey. A limit from an
-`unverified` file counts too; its findings say it is unverified. With several
+does not turn anything grey and is reported in the log, not in the findings
+list. A limit from an `unverified` file counts too; its findings say it is
+unverified. With several
 profiles checked, each line shows the worst result of all of them, and each
 profile gets its own overall result: the highest of its lines, its limits and
 its display check (purple above `displays.max_external`, orange for a
@@ -226,7 +229,18 @@ with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
 one; when still tied, the first in the menus wins. Detected facts (operating
 system errors, disconnected and reconnected devices) are always listed. Every
 finding names its device, port or computer and the reason, and is marked as a
-detected fact, a verified database fact, a predicted risk or unknown. A limit
+detected fact, a verified database fact, a predicted risk or unknown.
+
+The findings list shows only real findings: a limit or recommendation
+exceeded, a display problem (more external displays than
+`displays.max_external`, a DisplayLink adapter on a computer without
+DisplayLink support), an operating system error, a disconnected device and a
+reconnected one. Everything else is a note and goes to the log only (see
+Usage): unknown limits and values, unverified limits, limits and port
+capabilities from the database, documented limitations and restrictions, the
+active display count, a connected DisplayLink adapter, hubs that cannot be
+read and hubs that may be built in. So a profile with unknown limits shows no
+findings while everything is within the limits it knows. A limit
 or model exception is a verified database fact only when the file that sets it
 is itself `verified` or `partial`. A limit a computer profile inherits keeps
 its platform file's status.

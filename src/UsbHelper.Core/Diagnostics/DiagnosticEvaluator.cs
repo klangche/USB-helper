@@ -138,7 +138,7 @@ public static class DiagnosticEvaluator
                 if (reconnected?.Contains(node.Id) == true)
                 {
                     status = ConnectionStatus.Purple;
-                    findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, "Disconnected and reconnected during this session."));
+                    findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, "Disconnected and reconnected during this session.") { IsProblem = true });
                 }
                 connections[node.Id] = status;
             }
@@ -159,16 +159,17 @@ public static class DiagnosticEvaluator
             disconnected.Add(device);
             connections[device.Node.Id] = ConnectionStatus.Red;
             findings.Add(new Finding(FactKind.DetectedFact, device.Node.Id, device.Node.Name,
-                $"Disconnected: it was connected to {device.PortName} and is no longer present."));
+                $"Disconnected: it was connected to {device.PortName} and is no longer present.")
+            { IsProblem = true });
         }
 
         foreach (var (hub, port) in Ports(tree).Where(pair => pair.Port.Problem != null))
         {
-            findings.Add(new Finding(FactKind.DetectedFact, port.Id, $"{port.Name} of {hub.Name}", port.Problem!));
+            findings.Add(new Finding(FactKind.DetectedFact, port.Id, $"{port.Name} of {hub.Name}", port.Problem!) { IsProblem = true });
         }
         foreach (var node in AllNodes(tree).Where(node => node.Kind != UsbNodeKind.Port && node.Problem != null))
         {
-            findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, node.Problem!));
+            findings.Add(new Finding(FactKind.DetectedFact, node.Id, node.Name, node.Problem!) { IsProblem = true });
         }
 
         foreach (var exception in profile?.Find("exceptions")?.Items ?? [])
