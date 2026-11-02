@@ -65,6 +65,11 @@ internal static unsafe partial class Splash
             window = CreateWindowExW(0, className, "USB-helper", WS_POPUP | WS_VISIBLE | WS_BORDER,
                 (GetSystemMetrics(0) - width) / 2, (GetSystemMetrics(1) - height) / 2, width, height, 0, 0, instance, 0);
         }
+        if (window == 0)
+        {
+            work(); // No splash; SetStatus and Close then post to no window and do nothing.
+            return;
+        }
         // Only now: Close posts to the window, so the window must exist first.
         new Thread(() => work()).Start();
 

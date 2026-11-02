@@ -281,8 +281,8 @@ with the version at once. On the first start of a version it unpacks the app
 to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
 launcher's copy (SHA-256), and starts it from there; later starts skip the
 unpack, and an incomplete unpack is done again. The splash closes when the
-app's window is up. After a successful start, older versions in
-`%LOCALAPPDATA%\USB-helper` are removed. To remove USB-helper completely,
+app's window is up. After a successful start, the other versions in
+`%LOCALAPPDATA%\USB-helper` (older or newer) are removed. To remove USB-helper completely,
 delete `USB-helper.exe` and that folder.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
 

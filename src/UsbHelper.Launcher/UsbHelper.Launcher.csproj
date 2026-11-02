@@ -13,8 +13,11 @@
   </PropertyGroup>
 
   <!-- Pinned: the SDK would add these at its own runtime version, so the lock file (restored with locked mode) would
-       change with every SDK patch that CI installs. Both packages bring their own compiler and runtime, so a pin is
-       consistent; update both together. -->
+       change with every SDK patch that CI installs. The ILCompiler package also sets the NativeAOT runtime pack it
+       compiles against (Microsoft.NETCore.App.Runtime.NativeAOT.<rid>, same version), so compiler and runtime stay a
+       pair. The launcher's code is still compiled against the SDK's own reference assemblies; within 10.0 patches
+       these have the same API, which is why the pin's warnings are suppressed. Update both pins together, for
+       example when CI's SDK moves to a newer 10.0 runtime. -->
   <PropertyGroup>
     <SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
     <SuppressILLinkExplicitPackageReferenceWarning>true</SuppressILLinkExplicitPackageReferenceWarning>

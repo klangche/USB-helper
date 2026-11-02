@@ -25,15 +25,20 @@ public static class AppFolder
         try
         {
             Unpack(openPayload, unpacking);
+            // Another launcher of this version may have finished first and started the app from its folder.
+            if (IsComplete(folder))
+            {
+                return folder;
+            }
             if (Directory.Exists(folder))
             {
                 Directory.Delete(folder, recursive: true);
             }
             Directory.Move(unpacking, folder);
         }
-        catch (IOException) when (IsComplete(folder))
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException && IsComplete(folder))
         {
-            // Another launcher of this version finished first.
+            // Another launcher of this version finished first, between the check above and the move.
         }
         finally
         {
@@ -45,7 +50,10 @@ public static class AppFolder
         return folder;
     }
 
-    /// <summary>The mark is there and every file it lists has its size. Cheap: no file is read.</summary>
+    /// <summary>
+    /// The mark is there, lists at least one file, and every file it lists has its size. Cheap: no file is read. A
+    /// damaged mark (for example empty after a power cut) counts as not complete.
+    /// </summary>
     public static bool IsComplete(string folder)
     {
         var mark = Path.Combine(folder, Mark);
@@ -53,22 +61,29 @@ public static class AppFolder
         {
             return false;
         }
-        foreach (var line in File.ReadAllLines(mark))
+        var lines = File.ReadAllLines(mark);
+        foreach (var line in lines)
         {
             // <sha256> <size> <path>
             var parts = line.Split(' ', 3);
+            if (parts.Length != 3 || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var size))
+            {
+                return false;
+            }
             var file = new FileInfo(Path.Combine(folder, parts[2]));
-            if (!file.Exists || file.Length != long.Parse(parts[1], CultureInfo.InvariantCulture))
+            if (!file.Exists || file.Length != size)
             {
                 return false;
             }
         }
-        return true;
+        return lines.Length > 0;
     }
 
     /// <summary>
-    /// Removes everything in the root but this version's folder: older versions and stopped unpacks. A folder in use,
-    /// for example by an older copy of the app that is still open, stays until a later start.
+    /// Removes the folders of every other version (older or newer: only the running one is needed) and their stopped
+    /// unpacks. This version's unpacks stay, as another launcher of it may be unpacking right now; the next start of it
+    /// removes them. What cannot be removed, such as the files of an older copy of the app that is still open, stays
+    /// until a later start.
     /// </summary>
     public static void RemoveOtherVersions(string root, string version)
     {
@@ -78,7 +93,8 @@ public static class AppFolder
         }
         foreach (var other in Directory.GetDirectories(root))
         {
-            if (Path.GetFileName(other) == version)
+            var name = Path.GetFileName(other);
+            if (name == version || name.StartsWith($"{version}.unpacking-", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -124,6 +140,12 @@ public static class AppFolder
                 lines.Add($"{Convert.ToHexStringLower(expected)} {entry.Length.ToString(CultureInfo.InvariantCulture)} {entry.FullName}");
             }
         }
-        File.WriteAllLines(Path.Combine(folder, Mark), lines);
+        // On disk before the folder is moved into place, so a power cut cannot leave a complete folder with an empty mark.
+        using var mark = new FileStream(Path.Combine(folder, Mark), FileMode.Create);
+        using (var writer = new StreamWriter(mark, leaveOpen: true))
+        {
+            writer.Write(string.Join('\n', lines));
+        }
+        mark.Flush(flushToDisk: true);
     }
 }

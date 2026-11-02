@@ -125,6 +125,45 @@ public sealed class AppFolderTests : IDisposable
         Assert.Equal(2, payload.Opened);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("not a mark")]
+    [InlineData("abc twelve UsbHelper.App.exe")]
+    public void AnEmptyOrDamagedMarkIsNotComplete(string mark)
+    {
+        var folder = AppFolder.Prepare(root, "1.2.0", new PayloadSource(Payload(AppFiles)).Open);
+        File.WriteAllText(Path.Combine(folder, ".complete"), mark);
+
+        Assert.False(AppFolder.IsComplete(folder));
+
+        var payload = new PayloadSource(Payload(AppFiles));
+        AppFolder.Prepare(root, "1.2.0", payload.Open);
+        AssertHoldsTheApp(folder);
+        Assert.Equal(1, payload.Opened);
+    }
+
+    [Fact]
+    public void AnUnpackThatAnotherLauncherFinishedFirstKeepsTheOtherOne()
+    {
+        // A double-click on the first start: the other launcher completes the folder (and starts the app from it) while
+        // this one is still unpacking. Its folder must not be deleted or replaced.
+        string? other = null;
+        var payload = new PayloadSource(Payload(AppFiles));
+        Stream OpenAfterTheOtherFinished()
+        {
+            other = AppFolder.Prepare(root, "1.2.0", payload.Open);
+            File.WriteAllText(Path.Combine(other, "in use"), "");
+            return payload.Open();
+        }
+
+        var folder = AppFolder.Prepare(root, "1.2.0", OpenAfterTheOtherFinished);
+
+        Assert.Equal(other, folder);
+        Assert.True(File.Exists(Path.Combine(folder, "in use")));
+        AssertHoldsTheApp(folder);
+        Assert.Equal([folder], Directory.GetDirectories(root));
+    }
+
     [Fact]
     public void ABrokenPayloadIsRejectedAndLeavesNothingBehind()
     {
@@ -142,18 +181,20 @@ public sealed class AppFolderTests : IDisposable
     }
 
     [Fact]
-    public void OlderVersionsAndLeftoversAreRemoved()
+    public void OtherVersionsAndTheirLeftoversAreRemoved()
     {
         var current = AppFolder.Prepare(root, "1.2.0", new PayloadSource(Payload(AppFiles)).Open);
-        foreach (var other in new[] { "1.1.0", "1.2.0-beta.4", "1.2.0.unpacking-0123" })
+        foreach (var other in new[] { "1.1.0", "1.2.0-beta.4", "1.3.0", "1.1.0.unpacking-0123" })
         {
             Directory.CreateDirectory(Path.Combine(root, other));
             File.WriteAllText(Path.Combine(root, other, "UsbHelper.App.exe"), "old");
         }
+        // Another launcher of this version may be unpacking right now (a double-click): its folder stays.
+        var unpacking = Directory.CreateDirectory(Path.Combine(root, "1.2.0.unpacking-4567")).FullName;
 
         AppFolder.RemoveOtherVersions(root, "1.2.0");
 
-        Assert.Equal([current], Directory.GetDirectories(root));
+        Assert.Equal([current, unpacking], Directory.GetDirectories(root).Order());
         AssertHoldsTheApp(current);
     }
 

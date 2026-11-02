@@ -53,9 +53,11 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            version=0.0.0-pr
+            # One version per pull request build, so each one unpacks to its own %LOCALAPPDATA% folder (#110).
+            version="0.0.0-pr.$PR_NUMBER.$GITHUB_RUN_NUMBER"
           else
             # The highest release tag, not git describe: the release tag sits on the merge commit on main,
             # which dev does not contain.

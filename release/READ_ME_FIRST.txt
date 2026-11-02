@@ -20,7 +20,7 @@ connection is needed.
 The first start of each version takes a few seconds longer: USB-helper.exe
 unpacks the app to %LOCALAPPDATA%\USB-helper\{version} (a folder in your
 user profile) and starts it from there. Later starts use that folder, and
-older versions there are removed. To remove USB-helper completely, delete
+other versions there are removed. To remove USB-helper completely, delete
 USB-helper.exe and the folder %LOCALAPPDATA%\USB-helper.
 
 The hardware database is built into USB-helper.exe; a new version brings
