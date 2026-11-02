@@ -13,6 +13,8 @@ namespace UsbHelper.App.ViewModels;
 /// The top item is the host, this computer; the controllers are its children.
 /// Ports with nothing on them are left out. Every item but the host has an elbow line from its parent; the view
 /// draws one column per <see cref="Guides"/> entry before it.
+/// Every trunk segment, from the host down, is drawn in the worst status of everything it leads to (#89); the elbow to a
+/// hub or device keeps that item's own status.
 /// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
 /// system does not show (#76): its extra hops count for everything behind that port.
 /// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
@@ -22,8 +24,12 @@ public sealed class NodeViewModel : ObservableObject
 {
     private string text = "";
     private ConnectionStatus? status;
-    private IReadOnlyList<bool> guides = [];
+    private IReadOnlyList<string?> guides = [];
     private bool isLast;
+    private ConnectionStatus? pathStatus;
+    private string trunkAboveColor = StatusColors.Trunk;
+    private string? trunkBelowColor;
+    private string trunkColor = StatusColors.Trunk;
     private string? counts;
     private bool isExpanded;
     private int markedHops;
@@ -132,19 +138,59 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
+    /// <summary>The worst status of this item and everything below it; null when none of them has a status.</summary>
+    public ConnectionStatus? PathStatus
+    {
+        get => pathStatus;
+        private set
+        {
+            if (SetField(ref pathStatus, value))
+            {
+                OnPropertyChanged(nameof(ElbowColor));
+            }
+        }
+    }
+
     public bool HasStatus => Status != null;
 
     /// <summary>The result word on the right, in <see cref="LineColor"/>; null for controllers, root hubs and ports.</summary>
     public string? StatusWord => Status is { } value ? StatusColors.Word(value) : null;
 
-    /// <summary>The elbow from the parent: the status colour for a hub or device, the trunk colour otherwise.</summary>
-    public string ElbowColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.Trunk;
+    /// <summary>
+    /// The elbow from the parent: the item's own status colour for a hub or device; for a controller, root hub or port
+    /// the worst status below it.
+    /// </summary>
+    public string ElbowColor => Color(Status ?? PathStatus);
+
+    /// <summary>The parent's trunk down to this item's elbow: the worst status of this item and its later siblings.</summary>
+    public string TrunkAboveColor
+    {
+        get => trunkAboveColor;
+        private set => SetField(ref trunkAboveColor, value);
+    }
+
+    /// <summary>The parent's trunk on past this item's elbow, to its later siblings; null for the last child.</summary>
+    public string? TrunkBelowColor
+    {
+        get => trunkBelowColor;
+        private set => SetField(ref trunkBelowColor, value);
+    }
+
+    /// <summary>This item's own trunk, from its dot down to its children: the worst status of all of them.</summary>
+    public string TrunkColor
+    {
+        get => trunkColor;
+        private set => SetField(ref trunkColor, value);
+    }
 
     /// <summary>False for the host, the top of the tree.</summary>
     public bool HasLine { get; }
 
-    /// <summary>One entry per ancestor column left of the elbow: true where that ancestor's trunk continues past this row.</summary>
-    public IReadOnlyList<bool> Guides
+    /// <summary>
+    /// One entry per ancestor column left of the elbow: the colour of that ancestor's trunk where it continues past this
+    /// row, null where it does not.
+    /// </summary>
+    public IReadOnlyList<string?> Guides
     {
         get => guides;
         private set
@@ -193,14 +239,32 @@ public sealed class NodeViewModel : ObservableObject
         Text = name;
         IsLast = true;
         var builtIn = TopologyCounts.BuiltIn(controllers).Select(hub => hub.Id).ToHashSet();
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, [], portId: null);
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, portId: null);
+        PathStatus = Worst(Children.Select(child => child.PathStatus));
+        PaintChildren([]);
     }
 
-    private void Update(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlySet<string> builtIn, IReadOnlyList<bool> lines,
-        bool last)
+    // Top down, once every item knows its path status: the trunk colours and the guide columns.
+    private void PaintChildren(IReadOnlyList<string?> childLines)
     {
-        Guides = lines;
+        TrunkColor = Color(Worst(Children.Select(child => child.PathStatus)));
+        for (var i = 0; i < Children.Count; i++)
+        {
+            var child = Children[i];
+            child.Guides = childLines;
+            child.TrunkAboveColor = Color(Worst(Children.Skip(i).Select(item => item.PathStatus)));
+            child.TrunkBelowColor = i < Children.Count - 1 ? Color(Worst(Children.Skip(i + 1).Select(item => item.PathStatus))) : null;
+            child.PaintChildren([.. childLines, child.TrunkBelowColor]);
+        }
+    }
+
+    private static ConnectionStatus? Worst(IEnumerable<ConnectionStatus?> statuses) => statuses.Max();
+
+    private static string Color(ConnectionStatus? status) => status is { } value ? StatusColors.Hex(value) : StatusColors.Trunk;
+
+    private void Update(
+        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlySet<string> builtIn, bool last)
+    {
         IsLast = last;
         Text = Describe(node, IsDisconnected);
         if (SetField(ref markedHops, PortId == null ? 0 : extraHops.GetValueOrDefault(PortId), nameof(ExtraHops)))
@@ -225,13 +289,13 @@ public sealed class NodeViewModel : ObservableObject
                 .Where(missing => missing.PortId == node.Id)
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
-        // Below this item, its own trunk continues past every child but the last.
-        UpdateChildren(wanted, report, extraHops, builtIn, [.. lines, !last], node.Kind == UsbNodeKind.Port ? node.Id : null);
+        UpdateChildren(wanted, report, extraHops, builtIn, node.Kind == UsbNodeKind.Port ? node.Id : null);
+        PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
     }
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        IReadOnlySet<string> builtIn, IReadOnlyList<bool> childLines, string? portId)
+        IReadOnlySet<string> builtIn, string? portId)
     {
         for (var i = 0; i < wanted.Count; i++)
         {
@@ -242,7 +306,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 // A disconnected device has nothing behind it now, so its line cannot be marked.
                 var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, isExpanded: !builtIn.Contains(child.Id), mark);
-                item.Update(child, report, extraHops, builtIn, childLines, childIsLast);
+                item.Update(child, report, extraHops, builtIn, childIsLast);
                 Children.Insert(i, item);
                 continue;
             }
@@ -251,7 +315,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 Children.Move(at, i);
             }
-            existing.Update(child, report, extraHops, builtIn, childLines, childIsLast);
+            existing.Update(child, report, extraHops, builtIn, childIsLast);
         }
         while (Children.Count > wanted.Count)
         {
