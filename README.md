@@ -16,7 +16,9 @@ Status: first version for Windows; computer profiles still to be added.
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
-  unstable device colours its whole path up to the computer.
+  unstable device colours its whole path up to the computer. DisplayLink
+  devices are shown as displays ("Extended display: DisplayLink driver
+  required"), and the hubs above them say they have a display.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -128,11 +130,12 @@ Display checks are separate from the topology limits. The app counts the active
 external displays that use the computer's own outputs (HDMI, DisplayPort,
 DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 `displays.max_external`; DisplayLink and wireless displays are not counted.
-DisplayLink adapters are found in the USB tree and checked against the ports'
-`displaylink` values. Which physical port a monitor uses cannot be detected, so
-the port capabilities and restrictions are listed, not matched to monitors. The
-GUI reads the display count again at every USB change and profile change; a
-monitor plugged in without any USB change shows up at the next one. A
+DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
+0x17E9) and checked against the ports' `displaylink` values. Which physical
+port a monitor uses cannot be detected, so the port capabilities and
+restrictions are listed, not matched to monitors. The GUI reads the display
+count again at every USB change and profile change; a monitor plugged in
+without any USB change shows up at the next one. A
 display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
@@ -286,7 +289,9 @@ through ports that are not user-connectable) start collapsed; everything
 else is open. A collapsed item says how many items it hides ("6 hidden").
 Click the chevron before an item, double-click the item, or use
 the left and right arrow keys, to expand or collapse it; the choice is kept
-while the app runs. Each controller shows its hub count,
+while the app runs. A DisplayLink device is shown as a display: a "Display"
+badge and "Extended display: DisplayLink driver required" before its name;
+every hub above it says it "has a display". Each controller shows its hub count,
 deepest tier and deepest hop. Next to the tree is a summary with the overall
 result, the status field, disconnected and reconnected devices and the
 findings. The overall result, the status field and the findings cover one USB

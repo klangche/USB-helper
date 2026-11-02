@@ -55,6 +55,19 @@ public class UsbTreeBuilderTests
     }
 
     [Fact]
+    public void DeviceWithTheDisplayLinkVendorIdIsMarkedDisplayLink()
+    {
+        var adapter = new RawDevNode(@"USB\VID_17E9&PID_6006\5&2B0E5E8&0&2", "DisplayLink USB Device", null);
+        var mouse = new RawDevNode(@"USB\VID_046D&PID_C52B\5&2B0E5E8&0&1", "USB Composite Device", null);
+
+        // The vendor id comes from the device descriptor read on the port.
+        var ports = BuildSingle(DevicePort(1, mouse), new RawPort(2, 1, false, 0x17E9, 0x6006, adapter, null)).Children[0].Children;
+
+        Assert.False(Assert.Single(ports[0].Children).IsDisplayLink);
+        Assert.True(Assert.Single(ports[1].Children).IsDisplayLink);
+    }
+
+    [Fact]
     public void PortKeepsWhetherItIsUserConnectable()
     {
         var ports = BuildSingle(EmptyPort(1) with { UserConnectable = true }, EmptyPort(2) with { UserConnectable = false }, EmptyPort(3)).Children[0].Children;

@@ -67,6 +67,15 @@
   <data name="DetectedComputer" xml:space="preserve">
     <value>Detected: {0} {1}</value>
   </data>
+  <data name="DisplayLinkDevice" xml:space="preserve">
+    <value>Extended display: DisplayLink driver required</value>
+  </data>
+  <data name="HubHasDisplay" xml:space="preserve">
+    <value>has a display</value>
+  </data>
+  <data name="DisplayBadge" xml:space="preserve">
+    <value>Display</value>
+  </data>
   <data name="ExpandTip" xml:space="preserve">
     <value>Show or hide the items below</value>
   </data>

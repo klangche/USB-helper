@@ -9,9 +9,6 @@ namespace UsbHelper.Core.Diagnostics;
 /// </summary>
 internal static class DisplayEvaluator
 {
-    // DisplayLink's USB vendor id. Its adapters are ordinary USB devices, so they appear in the tree.
-    private const ushort DisplayLinkVendorId = 0x17E9;
-
     private static readonly (string Field, string Label)[] Capabilities =
     [
         ("displayport_alt_mode", "DisplayPort Alt Mode"),
@@ -98,7 +95,7 @@ internal static class DisplayEvaluator
                 DiagnosticEvaluator.ComputerId, computer, (string)restriction.Scalar!));
         }
 
-        var adapters = DiagnosticEvaluator.AllNodes(tree).Where(node => node.Kind == UsbNodeKind.Device && node.VendorId == DisplayLinkVendorId).ToList();
+        var adapters = DiagnosticEvaluator.AllNodes(tree).Where(node => node.IsDisplayLink).ToList();
         foreach (var adapter in adapters)
         {
             findings.Add(new Finding(FactKind.DetectedFact, adapter.Id, adapter.Name,

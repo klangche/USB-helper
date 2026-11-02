@@ -346,6 +346,37 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void DisplayLinkDeviceIsShownAsADisplayAndItsHubsSayTheyHaveOne()
+    {
+        var viewModel = NewViewModel();
+        var adapter = Device("DL") with { VendorId = 0x17E9, ProductId = 0x6006 };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", adapter, Device("KEYBOARD")), Hub("HUB", Device("MOUSE")))])]);
+
+        Assert.True(Item(viewModel, "DL").IsDisplay);
+        Assert.Equal(Strings.DisplayLinkDevice, Item(viewModel, "DL").DisplayNote);
+        Assert.Equal(Strings.HubHasDisplay, Item(viewModel, "DOCK").DisplayNote);
+        Assert.Equal(Strings.HubHasDisplay, Item(viewModel, "ROOT").DisplayNote);
+        // Nothing else: not a hub without one, not the ports, not the other devices.
+        Assert.Equal(["ROOT", "DOCK", "DL"], All(viewModel.Roots).Where(item => item.DisplayNote != null).Select(item => item.Id));
+        Assert.Equal(["DL"], All(viewModel.Roots).Where(item => item.IsDisplay).Select(item => item.Id));
+    }
+
+    [Fact]
+    public void UnpluggedDisplayLinkDeviceIsNoLongerShownAsADisplay()
+    {
+        var viewModel = NewViewModel();
+        var adapter = Device("DL") with { VendorId = 0x17E9 };
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", adapter))])]);
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "DOCK", Port("DOCK", 1, null))]);
+
+        Assert.True(Item(viewModel, "DL").IsDisconnected);
+        Assert.False(Item(viewModel, "DL").IsDisplay);
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.DisplayNote != null);
+    }
+
+    [Fact]
     public void HubsAndDevicesShowTheirResultWordInTheirColour()
     {
         var viewModel = NewViewModel();
