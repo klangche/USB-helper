@@ -141,8 +141,8 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// After the name: "Extended display: DisplayLink driver required" on a DisplayLink device, "has a display" on a hub
-    /// with one below it. Null otherwise.
+    /// Before the name on a DisplayLink device: "Extended display: DisplayLink driver required"; after the name on a hub
+    /// with one below it: "has a display". Null otherwise.
     /// </summary>
     public string? DisplayNote => IsDisplay ? Strings.DisplayLinkDevice : HasDisplayBelow ? Strings.HubHasDisplay : null;
 
