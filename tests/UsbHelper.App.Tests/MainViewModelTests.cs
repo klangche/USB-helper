@@ -832,3 +832,85 @@ public class MainViewModelTests
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "HUB").LineColor);
     }
 }
+
+public class LogViewModelTests
+{
+    private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);
+
+    private static UsbNode Port(string hubId, int number, UsbNode? child) =>
+        new($"{hubId}|port{number}", UsbNodeKind.Port, $"Port {number}", child == null ? [] : [child]) { PortNumber = number };
+
+    private static UsbNode Hub(string id, params UsbNode?[] ports) =>
+        new(id, UsbNodeKind.Hub, id, ports.Select((child, index) => Port(id, index + 1, child)).ToList());
+
+    private static readonly IReadOnlyList<UsbNode> Desk =
+        [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), Device("MOUSE"))])];
+
+    // Platform "p" has no limits, so every limit is unknown while it is checked.
+    private static MainViewModel NewViewModel(EventLog log)
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        return new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
+    }
+
+    [Fact]
+    public void TheLogWindowListsEveryEntryNewestAtTheBottom()
+    {
+        var log = new EventLog();
+        log.Add("Started");
+        var viewModel = NewViewModel(log);
+
+        viewModel.Load(Desk);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        Assert.Equal(log.Entries.Select(entry => entry.ToString()), viewModel.Log.Lines);
+        Assert.Equal("Started", log.Entries[0].Text);
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Database loaded: 1 platform profiles, 1 computer profiles", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text == "USB devices read: 1 controllers");
+        Assert.Contains(log.Entries, entry => entry.Text == "Disconnected: MOUSE from Port 2 of ROOT");
+        Assert.Contains(log.Entries, entry => entry.Text == "Profile checked: p");
+        Assert.Equal("Profile checked: p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)).Text);
+    }
+
+    [Fact]
+    public void ACableMarkIsLogged()
+    {
+        var log = new EventLog();
+        var viewModel = NewViewModel(log);
+        viewModel.Load(Desk);
+        var hub = viewModel.Roots[0].Children[0].Children[0].Children[0].Children[0]; // host > C1 > ROOT > ROOT|port1 > HUB.
+
+        hub.ExtraHops = 2;
+
+        Assert.Equal("HUB", hub.Id);
+        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark: +2 hops on the line to HUB");
+    }
+
+    [Fact]
+    public void ExportWritesEveryEntryUnknownFindingsIncluded()
+    {
+        var log = new EventLog();
+        var viewModel = NewViewModel(log);
+        viewModel.Load(Desk);
+
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        var export = viewModel.Log.Export();
+        Assert.Equal(log.Export(), export);
+        Assert.Contains("Finding (no profile, unknown): ", export, StringComparison.Ordinal);
+        Assert.Contains("Finding (p, unknown): ", export, StringComparison.Ordinal);
+        Assert.Contains("USB devices read: 1 controllers", export, StringComparison.Ordinal);
+        Assert.EndsWith(".txt", viewModel.Log.ExportFileName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WithoutADatabaseItsErrorsAreLogged()
+    {
+        var log = new EventLog();
+
+        _ = new MainViewModel(null, [new DatabaseError("base.yaml", 2, "bad")], new ComputerIdentity(null, null), log: log);
+
+        Assert.Equal(["Database not loaded: 1 errors", "Database error: base.yaml:2: bad"], log.Entries.Select(entry => entry.Text));
+    }
+}
