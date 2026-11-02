@@ -44,6 +44,7 @@
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
       <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
+      <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"

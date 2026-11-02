@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.LogWindow"
+        x:DataType="vm:LogViewModel"
+        Width="900" Height="500"
+        Title="{x:Static res:Strings.LogTitle}">
+
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Button Content="{x:Static res:Strings.LogExport}" Click="ExportLog" />
+      <TextBlock x:Name="ExportResult" VerticalAlignment="Center" TextWrapping="Wrap" />
+    </StackPanel>
+    <!-- Every entry with its time, newest at the bottom; the view follows new entries. -->
+    <ScrollViewer x:Name="Entries">
+      <ItemsControl ItemsSource="{Binding Lines}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="x:String">
+            <SelectableTextBlock Text="{Binding}" FontFamily="monospace" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

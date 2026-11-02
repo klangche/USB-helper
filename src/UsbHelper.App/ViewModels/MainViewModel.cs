@@ -48,6 +48,7 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
+    private readonly EventLog log;
     private readonly Func<int?> readExternalDisplays;
     private readonly ComputerIdentity identity;
     // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
@@ -63,9 +64,21 @@ public sealed class MainViewModel : ObservableObject
     private bool allControllers;
 
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
+    /// <param name="log">The session's event log; a new one when null.</param>
     public MainViewModel(
-        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null)
+        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null,
+        EventLog? log = null)
     {
+        this.log = log ?? new EventLog();
+        Log = new LogViewModel(this.log);
+        if (database != null)
+        {
+            this.log.DatabaseLoaded(database);
+        }
+        else if (databaseErrors.Count > 0)
+        {
+            this.log.DatabaseFailed(databaseErrors);
+        }
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
         this.identity = identity;
         DatabaseErrors = databaseErrors.Select(error => error.ToString()).ToList();
@@ -113,7 +126,11 @@ public sealed class MainViewModel : ObservableObject
         var sorted = options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase).ToList();
         foreach (var option in sorted)
         {
-            option.PropertyChanged += (_, _) => Refresh();
+            option.PropertyChanged += (_, _) =>
+            {
+                log.ProfileChecked(option.Label, option.IsChecked);
+                Refresh();
+            };
         }
         return sorted;
     }
@@ -138,6 +155,9 @@ public sealed class MainViewModel : ObservableObject
         typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
 
     public IReadOnlyList<string> DatabaseErrors { get; }
+
+    /// <summary>The log window's content.</summary>
+    public LogViewModel Log { get; }
 
     public bool HasDatabaseErrors => DatabaseErrors.Count > 0;
 
@@ -193,6 +213,7 @@ public sealed class MainViewModel : ObservableObject
     // hops count in every tier and hop check of everything behind the port. 0 removes the mark.
     private void Mark(string portId, int hops)
     {
+        log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, hops);
         if (hops == 0)
         {
             extraHops.Remove(portId);
@@ -219,6 +240,7 @@ public sealed class MainViewModel : ObservableObject
     public void Load(IReadOnlyList<UsbNode> detected)
     {
         IsLoading = false;
+        log.TreeRead(detected);
         tree = detected;
         history.Record(tree);
         Refresh();
@@ -226,6 +248,7 @@ public sealed class MainViewModel : ObservableObject
 
     public void Apply(IReadOnlyList<UsbChange> changes)
     {
+        log.Changes(tree, changes);
         tree = UsbTree.Apply(tree, changes);
         history.Record(tree);
         foreach (var change in changes.Where(change => change.Kind == UsbChangeKind.Reconnected))
@@ -247,6 +270,10 @@ public sealed class MainViewModel : ObservableObject
         var missing = history.Missing(tree);
         var displays = readExternalDisplays();
         var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
+        // The log gets every finding of every checked profile for all controllers, the unknown ones included.
+        log.Findings(options.Count == 0
+            ? all.Counts.Findings.Select(finding => ((string?)null, finding))
+            : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
         var lines = all.Counts with { Connections = all.Connections };
 
