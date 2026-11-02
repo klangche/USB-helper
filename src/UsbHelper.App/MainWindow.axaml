@@ -56,8 +56,8 @@
         <TextBlock DockPanel.Dock="Top" Text="{x:Static res:Strings.ReadingDevices}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
-        <!-- Tree style B (#43): drawn lines instead of indentation and expand arrows. Built-in hubs start collapsed (#68),
-             every other branch open; a double-click or the arrow keys expand and collapse. -->
+        <!-- Tree style B (#43): drawn lines instead of indentation. Built-in hubs start collapsed (#68), every other branch
+             open. The chevron before the name (#91), a double-click or the arrow keys expand and collapse. -->
         <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
              or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">
@@ -82,6 +82,29 @@
             </Style>
             <Style Selector="Button.cable:focus-visible /template/ Border#ring">
               <Setter Property="BorderThickness" Value="2" />
+            </Style>
+            <!-- Expand/collapse (#91): a boxed chevron, right when collapsed and down when open. Not a "+", so it is not
+                 taken for the active-cable "+" on the lines. -->
+            <Style Selector="ToggleButton.expander">
+              <Setter Property="Width" Value="16" />
+              <Setter Property="Height" Value="16" />
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Cursor" Value="Hand" />
+              <Setter Property="Focusable" Value="False" />
+              <Setter Property="Template">
+                <ControlTemplate>
+                  <Border Name="box" Background="Transparent" BorderBrush="#9E9E9E" BorderThickness="1" CornerRadius="3">
+                    <Path Name="chevron" Data="M0,0 L3,3 L0,6" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"
+                          StrokeThickness="1.5" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                </ControlTemplate>
+              </Setter>
+            </Style>
+            <Style Selector="ToggleButton.expander:checked /template/ Path#chevron">
+              <Setter Property="Data" Value="M0,0 L3,3 L6,0" />
+            </Style>
+            <Style Selector="ToggleButton.expander:pointerover /template/ Border#box">
+              <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
             </Style>
             <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
               <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -132,6 +155,8 @@
                   </Button>
                 </app:TreeLines>
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
+                  <ToggleButton Classes="expander" IsVisible="{Binding CanExpand}" IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                ToolTip.Tip="{x:Static res:Strings.ExpandTip}" AutomationProperties.Name="{x:Static res:Strings.ExpandTip}" />
                   <!-- A marked line's "+N hops" badge, in the line's colour, so it is clear the user added it. -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsUserMarked}"
                           BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">

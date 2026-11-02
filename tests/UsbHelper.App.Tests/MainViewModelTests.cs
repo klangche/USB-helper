@@ -821,6 +821,40 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void CollapsedItemReportsHowManyItemsAreHidden()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Laptop());
+        var builtIn = Item(viewModel, "INTERNAL");
+
+        // Its two ports, WEBCAM, DOCK, DOCK's port and KEYBOARD.
+        Assert.Equal(6, builtIn.HiddenCount);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CollapsedHint, 6), builtIn.CollapsedHint);
+
+        builtIn.IsExpanded = true;
+
+        Assert.Equal(0, builtIn.HiddenCount);
+        Assert.Null(builtIn.CollapsedHint);
+
+        builtIn.IsExpanded = false;
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "INTERNAL", Port("INTERNAL", 2, null))]);
+
+        Assert.Equal(4, Item(viewModel, "INTERNAL").HiddenCount); // DOCK stays, disconnected, without what was behind it.
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.Equal(0, item.HiddenCount));
+    }
+
+    [Fact]
+    public void HostControllersAndHubsWithChildrenCanBeExpandedAndCollapsed()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Laptop());
+
+        // Ports always show their one hub or device, so they get no expand control.
+        Assert.Equal(["host", "C1", "ROOT", "INTERNAL", "DOCK", "UNSURE"], All(viewModel.Roots).Where(item => item.CanExpand).Select(item => item.Id));
+    }
+
+    [Fact]
     public void LiveUpdateKeepsTheUsersExpandAndCollapse()
     {
         var viewModel = NewViewModel();
