@@ -49,8 +49,7 @@ Status: first version for Windows; computer profiles still to be added.
 
 ## Hardware database
 
-Human-readable YAML in `database/`, version-controlled and reviewed. The build
-puts these files into the app, so the download has no database folder:
+Human-readable YAML in `database/`, version-controlled and reviewed:
 
 ```
 database/
@@ -58,6 +57,9 @@ database/
 ├── platforms/         operating system and architecture profiles
 └── computers/         one file per computer model, by manufacturer
 ```
+
+The build puts these files into the app, so the download has no database
+folder.
 
 A computer profile inherits from a platform profile, which inherits from
 `base.yaml`. Every profile records its sources, a verification status
