@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\UsbHelper.App\Assets\usb-helper.ico</ApplicationIcon>
+    <!-- Native code, no .NET runtime to load: the splash shows within a fraction of a second (#110). -->
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
+  <!-- Pinned, so the lock file does not change with the SDK version that builds it. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.14" />
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- The app's texts; one strings file for both. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\UsbHelper.App\Resources\Strings.resx" Link="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>UsbHelper.Launcher.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- The published app, zipped (release.yml). Builds without it start nothing. -->
+  <ItemGroup Condition="'$(AppPayload)' != ''">
+    <EmbeddedResource Include="$(AppPayload)" LogicalName="app.zip" />
+  </ItemGroup>
+
+</Project>
