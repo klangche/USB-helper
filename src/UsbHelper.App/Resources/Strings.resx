@@ -229,4 +229,22 @@
   <data name="LogExportFailed" xml:space="preserve">
     <value>The log could not be saved: {0}</value>
   </data>
+  <data name="LauncherVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="LauncherUnpacking" xml:space="preserve">
+    <value>Preparing this version (first start only)...</value>
+  </data>
+  <data name="LauncherStarting" xml:space="preserve">
+    <value>Starting...</value>
+  </data>
+  <data name="LauncherFailed" xml:space="preserve">
+    <value>USB-helper could not start: {0}</value>
+  </data>
+  <data name="LauncherNoApp" xml:space="preserve">
+    <value>this build of USB-helper.exe does not contain the app. Download it from https://github.com/klangche/USB-helper/releases</value>
+  </data>
+  <data name="LauncherAppExited" xml:space="preserve">
+    <value>the app closed before its window opened (exit code {0}).</value>
+  </data>
 </root>
