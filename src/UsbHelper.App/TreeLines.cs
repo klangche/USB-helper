@@ -16,7 +16,7 @@ namespace UsbHelper.App;
 public sealed class TreeLines : Decorator
 {
     /// <summary>Wide enough for the "+" on the elbow's horizontal line between the curve and the dot.</summary>
-    public const double ColumnWidth = 20;
+    public const double ColumnWidth = 24;
     private const double Radius = 6;
     private const double DotRadius = 2.5;
 
@@ -125,13 +125,14 @@ public sealed class TreeLines : Decorator
         return new(Columns * ColumnWidth, 0);
     }
 
-    // The child is centred on the elbow's horizontal line, between the end of the curve and the dot.
+    // The child is centred on the elbow's horizontal line, between the end of the curve and the dot, so the line
+    // shows on both sides of it.
     protected override Size ArrangeOverride(Size finalSize)
     {
         if (Child is { } child)
         {
             var elbow = Center(Guides?.Count ?? 0);
-            var x = (elbow + Radius + Center((Guides?.Count ?? 0) + 1)) / 2;
+            var x = (elbow + Radius + Center((Guides?.Count ?? 0) + 1) - DotRadius) / 2;
             var size = child.DesiredSize;
             child.Arrange(new Rect(x - (size.Width / 2), Math.Round(finalSize.Height / 2) + 0.5 - (size.Height / 2), size.Width, size.Height));
         }
