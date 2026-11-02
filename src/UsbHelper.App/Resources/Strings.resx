@@ -191,7 +191,7 @@
     <value>Active cable / extender on this connection, extra hops:</value>
   </data>
   <data name="CableMarkTip" xml:space="preserve">
-    <value>Click the line to mark an active cable or extender that the operating system does not show.</value>
+    <value>Add an active cable or extender on this connection that the operating system does not show.</value>
   </data>
   <data name="MarkNone" xml:space="preserve">
     <value>None</value>

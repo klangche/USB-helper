@@ -17,6 +17,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // Before the tree item, which would otherwise take Enter to expand or collapse.
+        Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
     }
 
     // One log window at a time: a second click brings the open one to the front.
@@ -35,16 +37,29 @@ public partial class MainWindow : Window
         }
     }
 
-    // The context menu key (or a right-click) on a tree item opens the mark of its line, the same as clicking the line.
-    private void OpenCableMark(object? sender, ContextRequestedEventArgs e)
+    // The context menu key (or a right-click) on a tree item opens the mark of its line, the same as clicking its "+".
+    private void OpenCableMark(object? sender, ContextRequestedEventArgs e) => e.Handled = ShowCableMark(e.Source);
+
+    // Enter on the selected tree item does the same when its line can be marked: the "+" buttons are not in the Tab
+    // order of the tree. Items without a markable line keep Enter for expanding and collapsing.
+    private void OpenCableMarkByKey(object? sender, KeyEventArgs e)
     {
-        var item = (e.Source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
-        if (item?.DataContext is NodeViewModel { CanMark: true } node
-            && item.GetVisualDescendants().OfType<Button>().FirstOrDefault(button => button.Name == "CableLine" && button.DataContext == node) is { } line)
+        if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None)
         {
-            line.Flyout?.ShowAt(line);
-            e.Handled = true;
+            e.Handled = ShowCableMark(e.Source);
         }
+    }
+
+    private static bool ShowCableMark(object? source)
+    {
+        var item = (source as Visual)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+        if (item?.DataContext is NodeViewModel { CanMark: true } node
+            && item.GetVisualDescendants().OfType<Button>().FirstOrDefault(button => button.Name == "CableMark" && button.DataContext == node) is { } plus)
+        {
+            plus.Flyout?.ShowAt(plus);
+            return true;
+        }
+        return false;
     }
 
     // Asks where to save, then writes this computer as a computer profile. An event handler: any failure (no

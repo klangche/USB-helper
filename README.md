@@ -19,8 +19,8 @@ Status: first version for Windows; computer profiles still to be added.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
 - Active cables and extenders that the operating system does not show can be
-  marked on their connection line ("+N hops"); the marks count in every tier
-  and hop check.
+  marked with the "+" on their connection line ("+N hops"); the marks count in
+  every tier and hop check.
 - Display capabilities per port: DisplayPort Alt Mode, MST, Thunderbolt,
   USB4, HDMI and DisplayLink.
 - Disconnected devices and connection errors reported by the operating system.
@@ -311,12 +311,13 @@ unplugged stays red at its last port; one that comes back is purple
 (unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Click
-the line from the port to the hub or device behind the cable (or select that
-item and press the context menu key) and pick its extra hops (+1 to +5). The
-marked line is drawn dashed with a "+N hops" badge, so it is clear that you
-added it and Windows did not detect it. Every tier and hop check counts the
-extra hops for everything behind that line. Pick "None" to remove the mark.
-Marks last until the app closes.
+the small "+" in the middle of the line from the port to the hub or device
+behind the cable (or select that item and press Enter or the context menu
+key) and pick its extra hops (+1 to +5). The marked line is
+drawn dashed with a "+N hops" badge, so it is clear that you added it and
+Windows did not detect it. Every tier and hop check counts the extra hops for
+everything behind that line. Click the "+" again to change the mark, or pick
+"None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
