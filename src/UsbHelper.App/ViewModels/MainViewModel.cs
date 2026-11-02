@@ -330,7 +330,7 @@ public sealed class MainViewModel : ObservableObject
         Findings.Clear();
         if (options.Count == 0)
         {
-            foreach (var finding in report.Counts.Findings)
+            foreach (var finding in report.Counts.Findings.Where(finding => finding.IsReal))
             {
                 Findings.Add(new FindingItem(FindingHeader(finding), finding.Message));
             }
@@ -338,9 +338,11 @@ public sealed class MainViewModel : ObservableObject
         }
         // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
         // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
+        // Owner decision in #85: only real findings are listed; unknowns and database facts are in the log only.
         var strictest = StrictestProfile.Of(profiles);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
+            .Where(finding => finding.IsReal)
             .Distinct();
         foreach (var finding in findings)
         {

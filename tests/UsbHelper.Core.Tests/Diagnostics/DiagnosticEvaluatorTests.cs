@@ -290,7 +290,7 @@ public class DiagnosticEvaluatorTests
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
         Assert.Equal(ConnectionStatus.Purple, report.Overall);
-        Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Windows stopped this device (code 43)."), report.Findings);
+        Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Windows stopped this device (code 43).") { IsProblem = true }, report.Findings);
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public class DiagnosticEvaluatorTests
         var report = Evaluate(tree, Profile());
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["UNKNOWN"]);
-        Assert.Contains(new Finding(FactKind.DetectedFact, "ROOT|port1", "Port 1 of USB Root Hub", "The device failed enumeration."), report.Findings);
+        Assert.Contains(new Finding(FactKind.DetectedFact, "ROOT|port1", "Port 1 of USB Root Hub", "The device failed enumeration.") { IsProblem = true }, report.Findings);
     }
 
     [Fact]
@@ -327,7 +327,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Red, report.Connections["MOUSE"]);
         Assert.Equal(ConnectionStatus.Red, report.Overall);
         Assert.Equal("ROOT|port1", Assert.Single(report.Missing).PortId);
-        Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Disconnected: it was connected to Port 1 of ROOT and is no longer present."), report.Findings);
+        Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Disconnected: it was connected to Port 1 of ROOT and is no longer present.") { IsProblem = true }, report.Findings);
     }
 
     [Fact]
@@ -457,7 +457,7 @@ public class DiagnosticEvaluatorTests
             Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
             Assert.NotEqual(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
             Assert.Equal(ConnectionStatus.Purple, report.Overall);
-            Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Disconnected and reconnected during this session."), report.Findings);
+            Assert.Contains(new Finding(FactKind.DetectedFact, "MOUSE", "MOUSE", "Disconnected and reconnected during this session.") { IsProblem = true }, report.Findings);
         }
     }
 

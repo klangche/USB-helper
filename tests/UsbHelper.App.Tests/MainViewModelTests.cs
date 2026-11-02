@@ -697,10 +697,66 @@ public class MainViewModelTests
     {
         var viewModel = TwoProfiles();
 
-        viewModel.Computers.Single().IsChecked = true;
+        viewModel.OperatingSystems.Single().IsChecked = true;
 
-        Assert.Contains(viewModel.Findings, finding => finding.Header == "Database (verified) · Latitude 7450");
-        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith(Latitude, StringComparison.Ordinal));
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Risk · KEYBOARD");
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith("p ·", StringComparison.Ordinal));
+    }
+
+    // Owner decision in #85 (#88): the findings list shows only real findings; the rest stay in the log.
+    private static bool IsReal(FindingItem finding) =>
+        !finding.Header.StartsWith(Strings.KindUnknown, StringComparison.Ordinal)
+        && !finding.Header.StartsWith(Strings.KindVerifiedDatabaseFact, StringComparison.Ordinal);
+
+    [Fact]
+    public void UnknownLimitsShowNoFindingsWhileEverythingIsWithinTheKnownLimits()
+    {
+        var log = new EventLog();
+        // Only max_hops is known; the hub and tier limits and the display count are unknown.
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 5");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
+        viewModel.Load(Desk);
+
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        Assert.Empty(viewModel.Findings);
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text == "Finding (p, unknown): This computer: The number of external displays is not known.");
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, database): This computer: limits.max_hops = 5", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WithoutAProfileOnlyRealFindingsAreShown()
+    {
+        var viewModel = NewViewModel(); // Nothing checked: every limit is unknown.
+
+        viewModel.Load(Desk);
+
+        Assert.Empty(viewModel.Findings);
+    }
+
+    [Fact]
+    public void AnExceededLimitAnErrorAndADisconnectAreStillShown()
+    {
+        var log = new EventLog();
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => 3, log);
+        viewModel.Load(Desk);
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        viewModel.Apply([
+            new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, Hub("HUB", Device("KEYBOARD") with { Problem = "code 43" }, null))),
+            new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null)),
+        ]);
+
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Risk · KEYBOARD");
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Detected · KEYBOARD" && finding.Message == "code 43");
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "Detected · MOUSE" && finding.Message.StartsWith("Disconnected", StringComparison.Ordinal));
+        Assert.All(viewModel.Findings, finding => Assert.True(IsReal(finding), finding.Header));
+        // An active display count is a detected fact but not a problem.
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Message.Contains("external displays are active", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
     }
 
     [Theory]

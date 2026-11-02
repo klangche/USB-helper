@@ -17,4 +17,17 @@ public enum FactKind
 
 /// <summary>One warning, error or note, naming what it is about and why.</summary>
 /// <param name="SubjectId">Id of the node (device, hub, port, controller), or <see cref="DiagnosticEvaluator.ComputerId"/>.</param>
-public sealed record Finding(FactKind Kind, string SubjectId, string SubjectName, string Message);
+public sealed record Finding(FactKind Kind, string SubjectId, string SubjectName, string Message)
+{
+    /// <summary>
+    /// A detected problem: an operating system error, a disconnect or a reconnect. Other detected facts, such as the
+    /// active display count, are notes.
+    /// </summary>
+    public bool IsProblem { get; init; }
+
+    /// <summary>
+    /// A real finding (owner decision in #85): a limit or recommendation exceeded, a display problem, or a detected
+    /// problem. Unknowns and database facts are not real findings; they belong in the log only.
+    /// </summary>
+    public bool IsReal => Kind == FactKind.PredictedRisk || IsProblem;
+}
