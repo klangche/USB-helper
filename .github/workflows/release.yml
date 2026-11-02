@@ -93,10 +93,12 @@ jobs:
 
       - run: dotnet restore src/UsbHelper.App -r win-x64 --locked-mode
 
+      # Single file with composite ReadyToRun, not trimmed. The native DLLs stay next to the exe instead of being
+      # extracted to %TEMP% at the first start of every version (#86).
       - name: Publish
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
+          -p:PublishSingleFile=true -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
 
       - name: Zip
@@ -106,6 +108,8 @@ jobs:
           $name = "usb-helper-$version-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
           Copy-Item publish/UsbHelper.App.exe "$name/USB-helper.exe"
+          # The native libraries (SkiaSharp, HarfBuzzSharp, ANGLE); their .pdb files stay out.
+          Copy-Item publish/*.dll $name
           Copy-Item -Recurse publish/database "$name/database"
           # CRLF, so older Notepad versions show the lines.
           (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$name/READ_ME_FIRST.txt"

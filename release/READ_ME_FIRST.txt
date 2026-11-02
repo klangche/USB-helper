@@ -4,7 +4,7 @@ No installation and no administrator rights are needed. No network
 connection is needed.
 
 1. Unzip the whole folder, for example to your Desktop. Keep the
-   "database" folder next to USB-helper.exe.
+   "database" folder and the .dll files next to USB-helper.exe.
 
 2. This build is not signed, so Windows blocks it after a download.
    Before the first start, open PowerShell in this folder and run:

@@ -267,18 +267,20 @@ findings; they have no connection line of their own.
 
 Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
 [releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder next
-to `USB-helper.exe`, unblock the unsigned exe once (`Unblock-File -Path
-.\USB-helper.exe` in PowerShell), and start it. No installation, no
-administrator rights and no network connection are needed. Releases marked
-pre-release (`-beta.N`) are test builds of the next version.
+follow `READ_ME_FIRST.txt` in the zip. In short: keep the `database` folder and
+the `.dll` files next to `USB-helper.exe`, unblock the unsigned exe once
+(`Unblock-File -Path .\USB-helper.exe` in PowerShell), and start it. No
+installation, no administrator rights and no network connection are needed.
+Releases marked pre-release (`-beta.N`) are test builds of the next version.
 
 ## Usage
 
-Start `USB-helper.exe`. The window shows the USB tree. Its root is this
-computer, named after its computer profile when one matches, else by the
-manufacturer and model Windows reports, else by its machine name; the USB
-controllers are its children. Thin lines join the items, starting at the
+Start `USB-helper.exe`. The window opens at once and shows what it is reading
+("Loading database...", "Reading USB devices...", "Reading displays..."); the
+profiles and the tree fill in as they arrive. The window shows the USB tree.
+Its root is this computer, named after its computer profile when one matches,
+else by the manufacturer and model Windows reports, else by its machine name;
+the USB controllers are its children. Thin lines join the items, starting at the
 computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
