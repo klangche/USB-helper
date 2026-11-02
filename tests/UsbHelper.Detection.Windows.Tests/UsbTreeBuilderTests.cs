@@ -76,6 +76,14 @@ public class UsbTreeBuilderTests
     }
 
     [Fact]
+    public void PortKeepsWhetherItIsUsbC()
+    {
+        var ports = BuildSingle(EmptyPort(1) with { UsbC = true }, EmptyPort(2) with { UsbC = false }, EmptyPort(3)).Children[0].Children;
+
+        Assert.Equal([true, false, null], ports.Select(port => port.UsbC));
+    }
+
+    [Fact]
     public void ExternalHubBecomesHubNodeWithItsPorts()
     {
         var hubNode = new RawDevNode(@"USB\VID_05E3&PID_0610\6&1&0&2", "Generic USB Hub", null);

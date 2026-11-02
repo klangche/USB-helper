@@ -28,4 +28,20 @@ public class PortConnectorTests
     {
         Assert.Null(PortConnector.IsUserConnectable(Properties(0x1), bytesReturned: 8));
     }
+
+    [Theory]
+    [InlineData(0x8u, true)] // PortConnectorIsTypeC
+    [InlineData(0x9u, true)] // also PortIsUserConnectable
+    [InlineData(0x0u, false)]
+    [InlineData(0x7u, false)] // every other bit
+    public void ReadsTypeCBit(uint portProperties, bool expected)
+    {
+        Assert.Equal(expected, PortConnector.IsTypeC(Properties(portProperties), bytesReturned: 18));
+    }
+
+    [Fact]
+    public void TooShortAnswerSaysNothingAboutTypeC()
+    {
+        Assert.Null(PortConnector.IsTypeC(Properties(0x8), bytesReturned: 8));
+    }
 }

@@ -49,6 +49,7 @@ internal static class UsbTreeBuilder
         {
             PortNumber = port.Number,
             UserConnectable = port.UserConnectable,
+            UsbC = port.UsbC,
             Problem = port.Error == null ? ConnectionProblem(port.ConnectionStatus) : $"Could not read the port: {port.Error}",
         };
     }

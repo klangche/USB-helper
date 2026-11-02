@@ -76,6 +76,9 @@
   <data name="DisplayBadge" xml:space="preserve">
     <value>Display</value>
   </data>
+  <data name="UsbCPort" xml:space="preserve">
+    <value>USB-C</value>
+  </data>
   <data name="ExpandTip" xml:space="preserve">
     <value>Show or hide the items below</value>
   </data>

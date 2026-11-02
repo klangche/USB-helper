@@ -20,6 +20,7 @@ namespace UsbHelper.App.ViewModels;
 /// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
 /// across updates. A collapsed item's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
+/// A port the operating system calls USB-C says so; an unknown one says nothing (#114).
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -32,6 +33,7 @@ public sealed class NodeViewModel : ObservableObject
     private string? trunkBelowColor;
     private string trunkColor = StatusColors.Trunk;
     private string? counts;
+    private string? portType;
     private bool isExpanded;
     private bool isDisplay;
     private bool displayBelow;
@@ -240,6 +242,13 @@ public sealed class NodeViewModel : ObservableObject
         private set => SetField(ref isLast, value);
     }
 
+    /// <summary>"USB-C" on a port the operating system calls USB-C; null for every other item.</summary>
+    public string? PortType
+    {
+        get => portType;
+        private set => SetField(ref portType, value);
+    }
+
     /// <summary>For a controller: its hub count, deepest tier and deepest hop. Null for everything else.</summary>
     public string? Counts
     {
@@ -309,6 +318,7 @@ public sealed class NodeViewModel : ObservableObject
             ? value
             : null;
         Counts = node.Kind == UsbNodeKind.Controller ? ControllerCounts(node, extraHops) : null;
+        PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
         var wanted = node.Children
             .Where(child => child.Kind != UsbNodeKind.Port || child.Children.Count > 0 || child.Problem != null

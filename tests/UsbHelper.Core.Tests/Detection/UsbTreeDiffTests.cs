@@ -64,6 +64,18 @@ public class UsbTreeDiffTests
     }
 
     [Fact]
+    public void PortThatBecomesKnownAsUsbCIsChanged()
+    {
+        var root = Hub("ROOT", Device("MOUSE"), null);
+        IReadOnlyList<UsbNode> after = [Controller("C1", root with { Children = [root.Children[0] with { UsbC = true }, root.Children[1]] })];
+
+        var change = Single(Machine(Device("MOUSE"), null), after);
+
+        Assert.Equal(UsbChangeKind.Changed, change.Kind);
+        Assert.True(change.Node.UsbC);
+    }
+
+    [Fact]
     public void ChangeBehindHubIsReportedOnThatHubsPort()
     {
         var change = Single(Machine(Hub("HUB", null, null), null), Machine(Hub("HUB", null, Device("KEYBOARD")), null));

@@ -173,6 +173,7 @@ internal static class WindowsUsbReader
                 childHub = ReadHub(hubName, devNodes);
             }
         }
+        var (userConnectable, usbC) = ReadConnector(hub, port);
         return new RawPort(
             port,
             status,
@@ -182,18 +183,19 @@ internal static class WindowsUsbReader
             device,
             childHub)
         {
-            UserConnectable = ReadUserConnectable(hub, port),
+            UserConnectable = userConnectable,
+            UsbC = usbC,
         };
     }
 
-    // Null when Windows does not say, for example before Windows 8 or when the hub driver does not answer.
-    private static bool? ReadUserConnectable(SafeFileHandle hub, int port)
+    // Nulls when Windows does not say, for example before Windows 8 or when the hub driver does not answer.
+    private static (bool? UserConnectable, bool? UsbC) ReadConnector(SafeFileHandle hub, int port)
     {
         var buffer = new byte[PortConnectorPropertiesSize];
         BitConverter.TryWriteBytes(buffer, (uint)port);
         return DeviceIoControl(hub, IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, buffer, buffer.Length, buffer, buffer.Length, out var returned, IntPtr.Zero)
-            ? PortConnector.IsUserConnectable(buffer, returned)
-            : null;
+            ? (PortConnector.IsUserConnectable(buffer, returned), PortConnector.IsTypeC(buffer, returned))
+            : (null, null);
     }
 
     // All present devices enumerated by the USB bus driver: hubs and the devices on their ports.

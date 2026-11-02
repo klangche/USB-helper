@@ -175,6 +175,12 @@
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
                   <!-- A collapsed item's name is bold (#100). -->
                   <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
+                  <!-- A port Windows reports as USB-C (#114). -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center"
+                          IsVisible="{Binding PortType, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                    <TextBlock Text="{Binding PortType}" />
+                  </Border>
                   <!-- The result word on the right, in the same colour as the elbow. -->
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
