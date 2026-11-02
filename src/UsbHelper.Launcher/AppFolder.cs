@@ -81,8 +81,8 @@ public static class AppFolder
 
     /// <summary>
     /// Removes the folders of every other version (older or newer: only the running one is needed) and their stopped
-    /// unpacks. This version's unpacks stay, as another launcher of it may be unpacking right now; the next start of it
-    /// removes them. What cannot be removed, such as the files of an older copy of the app that is still open, stays
+    /// unpacks. This version's unpacks stay, as another launcher of it may be unpacking right now; a stopped one is
+    /// removed by the first start of another version. What cannot be removed, such as the files of an older copy of the app that is still open, stays
     /// until a later start.
     /// </summary>
     public static void RemoveOtherVersions(string root, string version)
