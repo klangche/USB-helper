@@ -261,9 +261,10 @@ computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
-status colour, with the result word after its name. Empty ports are left out. Hubs built
-into the computer (for the webcam or Bluetooth, reached only through ports
-that are not user-connectable) start collapsed; everything else is open.
+status colour, with the result word after its name. Empty ports are left
+out. Hubs built into the computer (for the webcam or Bluetooth, reached only
+through ports that are not user-connectable) start collapsed; everything
+else is open.
 Double-click an item, or use the arrow keys, to expand or collapse it; the
 choice is kept while the app runs. Each controller shows its hub count,
 deepest tier and deepest hop. Next to the tree is a summary with the overall
