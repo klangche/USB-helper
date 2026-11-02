@@ -20,3 +20,7 @@ connection is needed.
 The hardware database is built into USB-helper.exe; a new version brings
 the latest database. How to add or correct a computer profile:
 https://github.com/klangche/USB-helper#hardware-database
+
+The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc.
+(https://fontawesome.com), licensed under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/), drawn white.
