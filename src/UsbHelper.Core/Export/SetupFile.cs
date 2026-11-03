@@ -87,6 +87,23 @@ public sealed record SetupFile(
         return (anonymous, marks);
     }
 
+    /// <summary>
+    /// The tree and monitors with every container id (#143) replaced by a numbered one (…-000000000001), equal where the
+    /// originals were equal, so a monitor still links to the same USB node. The computer's own well-known container id
+    /// is kept.
+    /// </summary>
+    public static (IReadOnlyList<UsbNode> Tree, IReadOnlyList<DisplayMonitor>? Monitors) AnonymizeContainers(
+        IReadOnlyList<UsbNode> tree, IReadOnlyList<DisplayMonitor>? monitors)
+    {
+        var numbers = new Dictionary<Guid, Guid>();
+        Guid? Replaced(Guid? id) => id is not { } value || value == MonitorPlacement.ThisComputer ? id
+            : numbers.TryGetValue(value, out var known) ? known
+            : numbers[value] = new Guid($"00000000-0000-0000-0000-{numbers.Count + 1:D12}");
+        UsbNode Renamed(UsbNode node) => node with { ContainerId = Replaced(node.ContainerId), Children = [.. node.Children.Select(Renamed)] };
+        var renamed = tree.Select(Renamed).ToList();
+        return (renamed, monitors?.Select(monitor => monitor with { ContainerId = Replaced(monitor.ContainerId) }).ToList());
+    }
+
     // portId and newPortId: the port this node is on, if any.
     private static UsbNode Renamed(UsbNode node, string? portId, string? newPortId, string position, Dictionary<string, string> ids)
     {

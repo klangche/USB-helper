@@ -44,6 +44,30 @@ public class SetupFileTests
         Assert.Equal("1/1/1|device", Flatten(anonymous).Last().Id);
     }
 
+    // Container ids (#143) identify physical devices; the export keeps only which ones are equal.
+    [Fact]
+    public void ContainerIdsAreReplacedButStillLink()
+    {
+        var samsung = Guid.NewGuid();
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT",
+            Hub("MONITOR-HUB", Device("CAM") with { ContainerId = samsung }) with { ContainerId = samsung },
+            Device("WEBCAM") with { ContainerId = MonitorPlacement.ThisComputer }))];
+        IReadOnlyList<DisplayMonitor> monitors =
+            [new("M1", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = samsung }, new("M2", "Panel", MonitorOutput.Internal)];
+
+        var (anonymousTree, anonymousMonitors) = SetupFile.AnonymizeContainers(tree, monitors);
+
+        var nodes = Flatten(anonymousTree).ToList();
+        var replaced = nodes.Single(node => node.Id == "MONITOR-HUB").ContainerId;
+        Assert.NotEqual(samsung, replaced);
+        Assert.NotNull(replaced);
+        Assert.Equal(replaced, nodes.Single(node => node.Id == "CAM").ContainerId);
+        Assert.Equal(MonitorPlacement.ThisComputer, nodes.Single(node => node.Id == "WEBCAM").ContainerId); // Well known, kept.
+        Assert.Equal(replaced, anonymousMonitors![0].ContainerId);
+        Assert.Null(anonymousMonitors[1].ContainerId);
+        Assert.Equal(["MONITOR-HUB"], MonitorPlacement.Place(anonymousTree, anonymousMonitors).Linked.Keys);
+    }
+
     [Fact]
     public void TheJsonRoundTrips()
     {

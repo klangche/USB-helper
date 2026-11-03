@@ -26,6 +26,8 @@ public sealed class EventLog(TimeProvider? clock = null)
     // The monitors of the last call to Displays; null before the first call and while they are unknown.
     private IReadOnlyList<DisplayMonitor>? displays;
     private bool displaysLogged;
+    // The monitors shown under a USB node at the last call to DisplayLinks: the node id by monitor id.
+    private Dictionary<string, string> links = [];
 
     public IReadOnlyList<LogEntry> Entries => entries;
 
@@ -158,6 +160,28 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
         displays = current;
         displaysLogged = true;
+    }
+
+    /// <summary>
+    /// Each monitor shown under a USB node because Windows puts both in one container (#143), when that starts or stops.
+    /// A monitor that is gone is logged by <see cref="Displays"/>.
+    /// </summary>
+    public void DisplayLinks(MonitorPlacement placement, IReadOnlyList<UsbNode> tree)
+    {
+        var current = placement.Linked.SelectMany(pair => pair.Value.Select(monitor => (Monitor: monitor, NodeId: pair.Key)))
+            .ToDictionary(link => link.Monitor.Id, link => link.NodeId);
+        foreach (var (monitor, nodeId) in placement.Linked.SelectMany(pair => pair.Value.Select(monitor => (monitor, pair.Key))))
+        {
+            if (links.GetValueOrDefault(monitor.Id) != nodeId)
+            {
+                Add($"Display under a USB device: {monitor} under {UsbTree.Find(tree, nodeId)?.Name ?? nodeId} (same Windows container)");
+            }
+        }
+        foreach (var monitor in placement.Unlinked.Where(monitor => links.ContainsKey(monitor.Id)))
+        {
+            Add($"Display no longer under a USB device: {monitor}");
+        }
+        links = current;
     }
 
     public void ProfileChecked(string label, bool isChecked) => Add($"Profile {(isChecked ? "checked" : "unchecked")}: {label}");

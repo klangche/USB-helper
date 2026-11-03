@@ -21,8 +21,9 @@ namespace UsbHelper.App.ViewModels;
 /// (#142). A collapsed controller's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// A port the operating system calls USB-C says so; an unknown one says nothing (#114).
-/// After the controllers, a "Displays" group lists each active monitor with its name and output type (#133). It does
-/// not say which port or dock a monitor hangs off (#93).
+/// After the controllers, a "Displays" group lists each active monitor with its name and output type (#133). A monitor
+/// that Windows puts in the same container as a USB hub or device is shown under that node instead (#143); no other
+/// placement is guessed (#93).
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -281,7 +282,7 @@ public sealed class NodeViewModel : ObservableObject
     /// <param name="mark">Sets the mark (extra hops, 0 for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
         string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        Action<string, int> mark, IReadOnlyList<DisplayMonitor> monitors)
+        Action<string, int> mark, MonitorPlacement monitors)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
         host.UpdateHost(name, controllers, report, extraHops, monitors);
@@ -294,13 +295,16 @@ public sealed class NodeViewModel : ObservableObject
     /// </summary>
     public void UpdateHost(
         string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        IReadOnlyList<DisplayMonitor> monitors)
+        MonitorPlacement monitors)
     {
         Text = name;
         IsLast = true;
-        // A DisplayLink monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed
-        // again. Windows does not say which indirect monitor hangs off which adapter.
-        var listed = controllers.Any(HasDisplayLink) ? [.. monitors.Where(monitor => monitor.Output != MonitorOutput.Indirect)] : monitors;
+        // A monitor linked to a USB node is shown under it (#143); the others are in the Displays group. A DisplayLink
+        // monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed again.
+        // Windows does not say which indirect monitor hangs off which adapter.
+        var listed = controllers.Any(HasDisplayLink)
+            ? [.. monitors.Unlinked.Where(monitor => monitor.Output != MonitorOutput.Indirect)]
+            : monitors.Unlinked;
         var group = Children.FirstOrDefault(item => item.Id == DisplaysId);
         if (group != null && listed.Count == 0)
         {
@@ -312,8 +316,14 @@ public sealed class NodeViewModel : ObservableObject
             group = new NodeViewModel(DisplaysId, portId: null, isDisconnected: false, hasLine: true, mark);
             Children.Add(group);
         }
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, portId: null, displays: group);
-        group?.UpdateDisplays(listed);
+        var trailing = group == null ? 0 : 1;
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, monitors.Linked, portId: null, trailing, trailing > 0);
+        if (group != null)
+        {
+            group.Text = Strings.DisplaysGroup;
+            group.IsLast = true;
+            group.UpdateMonitors(listed, 0);
+        }
         PathStatus = Worst(Children.Select(child => child.PathStatus));
         PaintChildren([]);
     }
@@ -338,33 +348,37 @@ public sealed class NodeViewModel : ObservableObject
 
     private static bool HasDisplayLink(UsbNode node) => node.IsDisplayLink || node.Children.Any(HasDisplayLink);
 
-    // The Displays group: one item per monitor, in the operating system's order. An item is kept while its monitor is.
-    private void UpdateDisplays(IReadOnlyList<DisplayMonitor> monitors)
+    // The Displays group or a USB node's linked monitors (#143): one item per monitor from index start on, after the
+    // USB children, in the operating system's order. An item is kept while its monitor is.
+    private void UpdateMonitors(IReadOnlyList<DisplayMonitor> monitors, int start)
     {
-        Text = Strings.DisplaysGroup;
-        IsLast = true;
         for (var i = 0; i < monitors.Count; i++)
         {
             var monitor = monitors[i];
-            var id = "display|" + monitor.Id;
-            var item = Children.FirstOrDefault(child => child.Id == id);
+            var id = MonitorPrefix + monitor.Id;
+            var item = Children.Skip(start).FirstOrDefault(child => child.Id == id);
             if (item == null)
             {
                 item = new NodeViewModel(id, portId: null, isDisconnected: false, hasLine: true, mark);
-                Children.Insert(i, item);
+                Children.Insert(start + i, item);
             }
-            else if (Children.IndexOf(item) is var at && at != i)
+            else if (Children.IndexOf(item) is var at && at != start + i)
             {
-                Children.Move(at, i);
+                Children.Move(at, start + i);
             }
             item.Text = string.Format(CultureInfo.CurrentCulture, Strings.MonitorItem, monitor.Name ?? Strings.MonitorUnnamed, OutputText(monitor.Output));
             item.IsLast = i == monitors.Count - 1;
         }
-        while (Children.Count > monitors.Count)
+        while (Children.Count > start + monitors.Count)
         {
             Children.RemoveAt(Children.Count - 1);
         }
     }
+
+    private const string MonitorPrefix = "display|";
+
+    // The Displays group or a monitor item: kept after the USB children.
+    private bool IsMonitorItem => Id == DisplaysId || Id.StartsWith(MonitorPrefix, StringComparison.Ordinal);
 
     private static string OutputText(MonitorOutput output) => output switch
     {
@@ -381,7 +395,8 @@ public sealed class NodeViewModel : ObservableObject
     };
 
     private void Update(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, bool last)
+        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
+        IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, bool last)
     {
         IsLast = last;
         Text = Describe(node, IsDisconnected);
@@ -412,7 +427,10 @@ public sealed class NodeViewModel : ObservableObject
                 .Where(missing => missing.PortId == node.Id)
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
-        UpdateChildren(wanted, report, extraHops, node.Kind == UsbNodeKind.Port ? node.Id : null);
+        var monitors = linked.GetValueOrDefault(node.Id) ?? [];
+        UpdateChildren(wanted, report, extraHops, linked, node.Kind == UsbNodeKind.Port ? node.Id : null,
+            Children.Count(child => child.IsMonitorItem), monitors.Count > 0);
+        UpdateMonitors(monitors, wanted.Count);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
         {
@@ -422,19 +440,20 @@ public sealed class NodeViewModel : ObservableObject
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        string? portId, NodeViewModel? displays = null)
+        IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, string? portId, int trailing, bool followed)
     {
-        // The host's Displays group, when there is one, stays last, after the controllers.
+        // The trailing monitor items (the host's Displays group, a USB node's linked monitors) stay after the USB children;
+        // when there are any, the last USB child is not the last item.
         for (var i = 0; i < wanted.Count; i++)
         {
             var (child, disconnected) = wanted[i];
-            var childIsLast = i == wanted.Count - 1 && displays == null;
+            var childIsLast = i == wanted.Count - 1 && !followed;
             var existing = Children.FirstOrDefault(item => item.Id == child.Id && item.IsDisconnected == disconnected);
             if (existing == null)
             {
                 // A disconnected device has nothing behind it now, so its line cannot be marked.
                 var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, mark);
-                item.Update(child, report, extraHops, childIsLast);
+                item.Update(child, report, extraHops, linked, childIsLast);
                 Children.Insert(i, item);
                 continue;
             }
@@ -443,9 +462,9 @@ public sealed class NodeViewModel : ObservableObject
             {
                 Children.Move(at, i);
             }
-            existing.Update(child, report, extraHops, childIsLast);
+            existing.Update(child, report, extraHops, linked, childIsLast);
         }
-        while (Children.Count > wanted.Count + (displays == null ? 0 : 1))
+        while (Children.Count > wanted.Count + trailing)
         {
             Children.RemoveAt(wanted.Count);
         }

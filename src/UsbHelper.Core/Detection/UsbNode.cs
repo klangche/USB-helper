@@ -49,6 +49,12 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     [System.Text.Json.Serialization.JsonIgnore]
     public bool IsDisplayLink => Kind == UsbNodeKind.Device && VendorId == DisplayLinkVendorId;
 
+    /// <summary>
+    /// For hubs and devices: the container id the operating system gives the physical device this node is part of
+    /// (#143), or null when it gives none. A monitor in the same container is shown under this node.
+    /// </summary>
+    public Guid? ContainerId { get; init; }
+
     /// <summary>A problem the operating system reports for this element, or null when it reports none.</summary>
     public string? Problem { get; init; }
 }

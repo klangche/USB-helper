@@ -23,6 +23,9 @@ internal static class NativeMethods
     public static readonly DEVPROPKEY DevpkeyDeviceBusReportedDeviceDesc = new(new Guid("540b947e-8b40-45bc-a8a2-6a0b894cbda2"), 4);
     public const uint DEVPROP_TYPE_STRING = 0x12;
 
+    // DEVPKEY_Device_ContainerId from devpkey.h: the physical device a device node belongs to (#143).
+    public static readonly DEVPROPKEY DevpkeyDeviceContainerId = new(new Guid("8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c"), 2);
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 
@@ -132,6 +135,10 @@ internal static class NativeMethods
 
     [DllImport("cfgmgr32.dll")]
     public static extern uint CM_Unregister_Notification(IntPtr notifyContext);
+
+    [DllImport("cfgmgr32.dll", EntryPoint = "CM_Get_DevNode_PropertyW")]
+    public static extern uint CM_Get_DevNode_Property(
+        uint devInst, in DEVPROPKEY propertyKey, out uint propertyType, byte[] propertyBuffer, ref uint propertyBufferSize, uint flags);
 
     [DllImport("cfgmgr32.dll", EntryPoint = "CM_Locate_DevNodeW", CharSet = CharSet.Unicode)]
     public static extern uint CM_Locate_DevNode(out uint devInst, string deviceId, uint flags);

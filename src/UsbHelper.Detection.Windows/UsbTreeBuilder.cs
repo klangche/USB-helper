@@ -36,6 +36,7 @@ internal static class UsbTreeBuilder
         return new UsbNode(id, UsbNodeKind.Hub, node?.Name ?? "USB hub", hub.Ports.Select(port => Port(port, id)).ToList())
         {
             Problem = DeviceProblem(node?.ProblemCode) ?? (hub.Error == null ? null : $"Could not read the hub: {hub.Error}"),
+            ContainerId = node?.ContainerId,
         };
     }
 
@@ -62,6 +63,7 @@ internal static class UsbTreeBuilder
             [])
         {
             Problem = DeviceProblem(port.Device?.ProblemCode),
+            ContainerId = port.Device?.ContainerId,
         }, port);
 
     // A failed enumeration leaves the descriptor empty; 0000:0000 is not a real vendor and product.

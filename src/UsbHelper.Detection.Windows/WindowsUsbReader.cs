@@ -247,7 +247,11 @@ internal static class WindowsUsbReader
             StringProperty(set, ref info, SPDRP_FRIENDLYNAME), StringProperty(set, ref info, SPDRP_DEVICEDESC), instanceId);
         int? problem = CM_Get_DevNode_Status(out var status, out var problemNumber, info.DevInst, 0) == CR_SUCCESS
             && (status & DN_HAS_PROBLEM) != 0 ? (int)problemNumber : null;
-        return new RawDevNode(instanceId, name, problem);
+        var container = new byte[16];
+        var containerId = SetupDiGetDeviceProperty(set, ref info, DevpkeyDeviceContainerId, out var containerType, container, 16, out var size, 0)
+            ? ContainerIds.FromProperty(containerType, container, size)
+            : null;
+        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId };
     }
 
     private static string? StringProperty(IntPtr set, ref SP_DEVINFO_DATA info, uint property)

@@ -23,8 +23,10 @@ Status: first version for Windows; computer profiles still to be added.
   The log lists the flag of every port Windows reports it for.
 - Displays group under the computer: each active monitor with its name and
   output type (built-in, HDMI, DisplayPort, DisplayPort over USB4/Thunderbolt,
-  DVI, VGA, indirect such as DisplayLink, wireless). Updated when a monitor is
-  connected or removed; each change is logged.
+  DVI, VGA, indirect such as DisplayLink, wireless). A monitor that Windows
+  puts in the same device container as a USB hub or device (for example a
+  USB-C monitor with a built-in hub) is shown under that hub or device instead.
+  Updated when a monitor is connected or removed; each change is logged.
 - The tree as plain text, in the log after the first read and every change,
   and on the clipboard with Edit > Copy tree as text.
 - Export full setup: one zip with everything detected (`setup.json`), the
@@ -410,10 +412,18 @@ display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". After the controllers, a
 "Displays" group lists each active monitor with its name and output type, for
 example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in
-panel, is listed as "Monitor". The group does not say which USB port or dock a
-monitor hangs off. While a DisplayLink device is connected, indirect monitors
+panel, is listed as "Monitor". A monitor is shown under a USB hub or device
+instead when Windows says both belong to one physical device: they have the
+same container id (for example a USB-C monitor and the USB hub built into it;
+the monitor is shown under the highest USB node of that device). Nothing else
+places a monitor: the container shared by everything built into the computer
+links nothing, and a monitor without a match stays in the group. The log says
+when a monitor is shown under a USB node and when that ends. While a
+DisplayLink device is connected, indirect monitors
 are not listed in the group: they stay under their DisplayLink device.
-Selecting the group or a monitor does not change what the status field covers.
+Selecting the group or a monitor in it does not change what the status field
+covers; a monitor shown under a USB node selects that node's controller, like
+anything else under it.
 The group follows monitors as they are connected and removed, and the log
 lists the monitors at start and each one connected or removed. A port in the
 tree that Windows reports as a USB-C connector (from its port connector
@@ -486,7 +496,9 @@ Export full setup. It saves one zip with four files,
 
 The export holds device and monitor names and vendor and product ids, but no
 serial numbers: the Windows device paths, which can hold them, are replaced by
-positions in the tree ("1/1/2"), and `setup.json` leaves out the computer's
+positions in the tree ("1/1/2"), the Windows container ids are replaced by
+numbered ones that still show which devices belong together, and `setup.json`
+leaves out the computer's
 network name, which is often an asset or service tag. When Windows reports no
 manufacturer and model, the window, and so `screenshot.png` and `tree.txt`,
 name the computer by its network name instead. The developers can load
