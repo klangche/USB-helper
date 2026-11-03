@@ -3,7 +3,10 @@
        dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath app=<absolute folder> -d Version=<release version>
          -d ProductVersion=<release/msi-version.sh output> -o <name>.msi
 
-     <folder> holds the same loose files as the portable zip's USB-helper folder. No administrator rights: Scope="perUser"
+     <folder> holds the same loose files as the portable zip's USB-helper folder. `wix build` runs no ICE validation;
+     the harvested files are per-user components with file key paths in the user profile, which ICE38/ICE64 would flag
+     for a per-machine-style layout. release.yml's "Test MSI" step installs, upgrades and uninstalls each build instead
+     and checks that nothing is left behind. No administrator rights: Scope="perUser"
      marks the package as not needing elevation, and everything goes into the user's own profile. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <!-- The UpgradeCode never changes: it is how a newer .msi finds and replaces the installed one. -->

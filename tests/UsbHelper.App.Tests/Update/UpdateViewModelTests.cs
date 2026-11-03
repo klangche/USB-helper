@@ -109,6 +109,20 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AnMsiInstallRemovesTheMsiOfAnEarlierUpdate()
+    {
+        // About 80 MB each: the .msi of the last update would otherwise stay in %TEMP% for good.
+        Directory.CreateDirectory(Path.Combine(parent, "download"));
+        File.WriteAllText(Path.Combine(parent, "download", "usb-helper-0.5.0-windows-x64.msi"), "msi 0.5.0");
+        var model = MsiModel(GitHub());
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: true);
+
+        Assert.Equal(["usb-helper-0.6.0-windows-x64.msi"], Directory.GetFiles(Path.Combine(parent, "download")).Select(Path.GetFileName));
+    }
+
+    [Fact]
     public async Task AnMsiWithABadChecksumIsDeletedAndNotRun()
     {
         var model = MsiModel(GitHub(badChecksum: true));

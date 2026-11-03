@@ -83,10 +83,12 @@ public partial class App : Application
     }
 
     // Runs the downloaded .msi, which upgrades this install in place (#124), and closes this app so its files can be
-    // replaced. /passive: a progress bar and no questions; the user starts the new version from the Start menu.
+    // replaced. /passive: a progress bar and no questions. /norestart: if a file is still in use, Windows replaces it at
+    // the next restart instead of restarting the computer itself (/passive alone would). The user starts the new version
+    // from the Start menu.
     private static void InstallMsi(string msi, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        Process.Start(new ProcessStartInfo("msiexec.exe") { UseShellExecute = false, ArgumentList = { "/i", msi, "/passive" } })!.Dispose();
+        Process.Start(new ProcessStartInfo("msiexec.exe") { UseShellExecute = false, ArgumentList = { "/i", msi, "/passive", "/norestart" } })!.Dispose();
         desktop.Shutdown();
     }
 

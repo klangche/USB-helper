@@ -154,6 +154,11 @@ public sealed class UpdateViewModel(HttpClient http, string current, UpdateKind 
             string start;
             if (kind == UpdateKind.Msi)
             {
+                // Only this update's .msi stays: an earlier one (about 80 MB) is no longer needed once it installed.
+                if (Directory.Exists(folder))
+                {
+                    Directory.Delete(folder, recursive: true);
+                }
                 Directory.CreateDirectory(folder);
                 start = Path.Combine(folder, release.Download.Segments[^1]);
                 await VerifiedDownload.DownloadAsync(http, release, start, report, cancel.Token);

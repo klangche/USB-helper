@@ -343,7 +343,8 @@ GitHub error or its rate limit, the check is skipped silently.
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
 release's `.msi` and its SHA-256 file to `%TEMP%\USB-helper-update`, verifies
-it, runs it (`msiexec /i ... /passive`: a progress bar, no questions) and
+it, runs it (`msiexec /i ... /passive /norestart`: a progress bar, no
+questions, never a restart of the computer) and
 closes, so the installer can replace its files. Start USB-helper again from
 the Start menu when it is done. Releases from before the `.msi` (0.5.0 and
 older) are not offered to an installed app.
