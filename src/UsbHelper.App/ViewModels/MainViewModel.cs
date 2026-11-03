@@ -4,6 +4,7 @@ using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Export;
 using UsbHelper.Core.Topology;
 
 namespace UsbHelper.App.ViewModels;
@@ -65,6 +66,9 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
+    // The last refresh's monitors and its result for all controllers, for the setup export.
+    private IReadOnlyList<DisplayMonitor>? monitors;
+    private SystemsReport lastReport = DiagnosticEvaluator.EvaluateAll([], [], []);
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
@@ -104,6 +108,7 @@ public sealed class MainViewModel : ObservableObject
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
         CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
+        ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -229,6 +234,40 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
     public RelayCommand CopyTreeCommand { get; }
 
+    /// <summary>File > Export full setup (#135).</summary>
+    public RelayCommand ExportSetupCommand { get; }
+
+    /// <summary><c>usb-helper-setup-&lt;manufacturer&gt;-&lt;model&gt;-&lt;date&gt;.zip</c>; the save dialog lets the user change it.</summary>
+    public string SetupFileName(DateOnly date) =>
+        $"usb-helper-setup-{Path.GetFileNameWithoutExtension(ComputerProfileExport.FileName(identity))}-{date:yyyy-MM-dd}.zip";
+
+    /// <summary>
+    /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's
+    /// <paramref name="screenshot"/> (PNG) and the log.
+    /// </summary>
+    public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
+    {
+        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeText.Render(Roots[0]), screenshot, log.Export());
+        log.Add("Setup exported");
+    }
+
+    // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
+    // ones included.
+    private SetupFile Setup(DateOnly date, string appVersion)
+    {
+        var (controllers, marks) = SetupFile.Anonymize(tree, extraHops);
+        var options = Checked;
+        IReadOnlyList<SetupResult> results = options.Count == 0
+            ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
+            : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
+                Exported(lastReport.Profiles[i].Report.Findings)))];
+        // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, monitors, results);
+    }
+
+    private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
+        [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
+
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }
 
@@ -335,6 +374,7 @@ public sealed class MainViewModel : ObservableObject
         Refresh(monitors);
         LogTree();
         CopyTreeCommand.Refresh();
+        ExportSetupCommand.Refresh();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)
@@ -375,6 +415,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void Refresh(IReadOnlyList<DisplayMonitor>? monitors)
     {
+        this.monitors = monitors;
         log.Displays(monitors);
         var displays = DisplayMonitor.ExternalCount(monitors);
         var options = Checked;
@@ -383,6 +424,7 @@ public sealed class MainViewModel : ObservableObject
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
         var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
+        lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))

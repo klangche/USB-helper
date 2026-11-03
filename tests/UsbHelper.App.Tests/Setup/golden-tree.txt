@@ -1,0 +1,14 @@
+Dell Inc. Latitude 7450
+|-- Intel USB 3.2 controller (Hubs: 1, deepest tier: 4, deepest hop: 2)
+|   `-- ROOT (has a display)
+|       |-- Port 1 [USB-C]
+|       |   `-- [+1 hops] DOCK - unknown (has a display)
+|       |       |-- Port 1
+|       |       |   `-- KEYBOARD (046D:C31C) - unknown
+|       |       `-- Port 2
+|       |           `-- [Display] DL (17E9:6006) - unknown (Extended display: DisplayLink driver required)
+|       `-- Port 2
+|           `-- USB Mouse - unknown
+`-- Displays
+    |-- Monitor (built-in)
+    `-- DELL U2723QE (HDMI)

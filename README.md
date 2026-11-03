@@ -27,6 +27,8 @@ Status: first version for Windows; computer profiles still to be added.
   connected or removed; each change is logged.
 - The tree as plain text, in the log after the first read and every change,
   and on the clipboard with Edit > Copy tree as text.
+- Export full setup: one zip with everything detected (`setup.json`), the
+  tree as text, a screenshot and the log, without serial numbers.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -462,6 +464,29 @@ example to send with a bug report; File > Export log does the same from the
 main window. The log is kept in memory only and starts empty each time the app
 starts.
 
+To explain a setup to someone, or to report one to the developers, use File >
+Export full setup. It saves one zip with four files,
+`usb-helper-setup-<manufacturer>-<model>-<date>.zip`:
+
+- `setup.json`: everything the app detected and found, with a `format_version`:
+  the app version, the computer (manufacturer, model, processor, platform
+  profile), the checked profiles, every controller, hub, port
+  and device (name, vendor and product id, USB-C and user-connectable flags),
+  your active-cable marks, the monitors and their output type, and each
+  checked profile's result with every finding, the unknown ones included.
+- `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
+- `screenshot.png`: the main window as shown.
+- `log.txt`: the log.
+
+The export holds device and monitor names and vendor and product ids, but no
+serial numbers: the Windows device paths, which can hold them, are replaced by
+positions in the tree ("1/1/2"), and `setup.json` leaves out the computer's
+network name, which is often an asset or service tag. When Windows reports no
+manufacturer and model, the window, and so `screenshot.png` and `tree.txt`,
+name the computer by its network name instead. The developers can load
+`setup.json` in the tests as if the app had detected it, so a reported setup
+becomes a test case.
+
 No profile for your computer yet? Click "Export computer profile" (or File >
 Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
 holds what the app detected: the manufacturer and model exactly as Windows
@@ -472,9 +497,9 @@ is `unverified`. Send the file to the developers; they add model-specific
 limits from cited sources.
 
 The menu bar at the top has File (Export computer profile, Export log,
-Settings, Exit), Edit (Copy tree as text) and Help (Check for updates, About
-USB-helper). Copy tree as text puts the tree on the clipboard as plain text, the
-same text the log gets, for pasting into an email:
+Export full setup, Settings, Exit), Edit (Copy tree as text) and Help (Check
+for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
+as plain text, the same text the log gets, for pasting into an email:
 
 ```
 Dell Inc. Latitude 7450

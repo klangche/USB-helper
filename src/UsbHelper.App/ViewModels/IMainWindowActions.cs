@@ -15,6 +15,9 @@ public interface IMainWindowActions
 
     void Exit();
 
+    /// <summary>Takes a screenshot of the window, asks where to save the full setup export, then writes it.</summary>
+    void ExportSetup();
+
     /// <summary>Puts <paramref name="text"/> on the clipboard.</summary>
     void CopyText(string text);
 }

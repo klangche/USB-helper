@@ -142,6 +142,8 @@ public class TreeTextTests
 
         public void CopyText(string text) => Copied.Add(text);
 
+        public void ExportSetup() { }
+
         public void ExportProfile() { }
 
         public void ExportLog() { }

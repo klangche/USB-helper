@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using UsbHelper.App.Resources;
@@ -88,6 +89,50 @@ public partial class MainWindow : Window, IMainWindowActions
     void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
+
+    // Takes the screenshot first, so it shows the window as it was when the user chose the menu item. Async void, run by
+    // the command: any failure is shown instead of ending the app.
+    async void IMainWindowActions.ExportSetup()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        try
+        {
+            var screenshot = Screenshot();
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = Strings.ExportSetupTitle,
+                SuggestedFileName = viewModel.SetupFileName(DateOnly.FromDateTime(DateTime.Now)),
+                DefaultExtension = "zip",
+                FileTypeChoices = [new FilePickerFileType("Zip") { Patterns = ["*.zip"] }],
+            });
+            if (file == null)
+            {
+                return;
+            }
+            await using var stream = await file.OpenWriteAsync();
+            viewModel.ExportSetup(stream, screenshot, DateOnly.FromDateTime(DateTime.Now));
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupSaved, file.Name);
+        }
+        catch (Exception ex)
+        {
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupFailed, ex.Message);
+        }
+    }
+
+    // The window's content as drawn, at the screen's scale, as PNG.
+    private byte[] Screenshot()
+    {
+        var scale = RenderScaling;
+        var size = new PixelSize((int)Math.Ceiling(Bounds.Width * scale), (int)Math.Ceiling(Bounds.Height * scale));
+        using var bitmap = new RenderTargetBitmap(size, new Vector(96 * scale, 96 * scale));
+        bitmap.Render(this);
+        using var png = new MemoryStream();
+        bitmap.Save(png, new PngBitmapEncoderOptions());
+        return png.ToArray();
+    }
 
     // Fire and forget: a clipboard Windows cannot open leaves the old content, nothing else breaks.
     void IMainWindowActions.CopyText(string text) => _ = Clipboard?.SetTextAsync(text);
