@@ -27,7 +27,7 @@ public class TreeTextTests
     private static IReadOnlyList<DisplayMonitor> Monitors() =>
         [new("PANEL", null, MonitorOutput.Internal), new("DELL", "DELL U2723QE", MonitorOutput.Hdmi)];
 
-    private static MainViewModel Loaded(EventLog log, IWindowFake? window = null)
+    private static MainViewModel Loaded(EventLog log, FakeWindow? window = null)
     {
         var viewModel = new MainViewModel(null, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), Monitors, log) { Window = window };
         viewModel.Load(Desk());
@@ -92,11 +92,24 @@ public class TreeTextTests
         Assert.DoesNotContain("DELL U2723QE", TreeEntries(log)[1]);
     }
 
+    // A cable mark changes the tree but is no display change: the next display event logs no tree for it.
+    [Fact]
+    public void ADisplayEventLogsNoTreeForAnEarlierChange()
+    {
+        var log = new EventLog();
+        var viewModel = Loaded(log);
+        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+
+        viewModel.DisplaysChanged();
+
+        Assert.Single(TreeEntries(log));
+    }
+
     [Fact]
     public void CopyTreeAsTextGivesTheSameText()
     {
         var log = new EventLog();
-        var window = new IWindowFake();
+        var window = new FakeWindow();
         var viewModel = Loaded(log, window);
 
         Assert.True(viewModel.CopyTreeCommand.CanExecute(null));
@@ -117,14 +130,13 @@ public class TreeTextTests
     private static List<string> TreeEntries(EventLog log) =>
         [.. log.Entries.Select(entry => entry.Text).Where(text => text.StartsWith("Tree:", StringComparison.Ordinal))];
 
-    private static NodeViewModel Find(NodeViewModel item, string id) =>
-        item.Id == id ? item : item.Children.Select(child => FindOrNull(child, id)).First(found => found != null)!;
+    private static NodeViewModel Find(NodeViewModel item, string id) => FindOrNull(item, id)!;
 
     private static NodeViewModel? FindOrNull(NodeViewModel item, string id) =>
         item.Id == id ? item : item.Children.Select(child => FindOrNull(child, id)).FirstOrDefault(found => found != null);
 
     // Records what the window was asked to copy.
-    private sealed class IWindowFake : IMainWindowActions
+    private sealed class FakeWindow : IMainWindowActions
     {
         public List<string> Copied { get; } = [];
 

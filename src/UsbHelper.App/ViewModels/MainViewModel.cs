@@ -65,8 +65,6 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
-    // The tree text last written to the log.
-    private string? loggedTree;
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
@@ -360,9 +358,10 @@ public sealed class MainViewModel : ObservableObject
     {
         if (!IsLoading && Roots.Count > 0)
         {
+            var before = TreeText.Render(Roots[0]);
             Refresh();
-            // Windows also reports changes nobody sees, such as a moved taskbar: log the tree only when it looks different.
-            if (TreeText.Render(Roots[0]) != loggedTree)
+            // Windows also reports changes nobody sees, such as a moved taskbar: log the tree only when this change shows.
+            if (TreeText.Render(Roots[0]) != before)
             {
                 LogTree();
             }
@@ -370,11 +369,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     // The tree as it looks now, after the first read and every change (#134).
-    private void LogTree()
-    {
-        loggedTree = TreeText.Render(Roots[0]);
-        log.Add("Tree:" + Environment.NewLine + loggedTree);
-    }
+    private void LogTree() => log.Add("Tree:" + Environment.NewLine + TreeText.Render(Roots[0]));
 
     private void Refresh() => Refresh(readMonitors());
 

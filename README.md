@@ -456,10 +456,11 @@ reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
 ones about unknown limits. After the first read and after every USB change
 (and every display change that shows), it also lists the whole tree as text,
-so the log shows how the tree looked at each moment. Click "Export" in the log window to save it as a
-text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
-bug report; File > Export log does the same from the main window. The log
-is kept in memory only and starts empty each time the app starts.
+so the log shows how the tree looked at each moment. Click "Export" in the log
+window to save it as a text file (`usb-helper-log-<date>-<time>.txt`), for
+example to send with a bug report; File > Export log does the same from the
+main window. The log is kept in memory only and starts empty each time the app
+starts.
 
 No profile for your computer yet? Click "Export computer profile" (or File >
 Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
@@ -488,13 +489,14 @@ Dell Inc. Latitude 7450
 ```
 
 Each row has its badges in brackets ("+N hops" for a marked cable, "USB-C",
-"Display"), the result word after " - " and its notes in parentheses. Press Alt, or
-Alt with the underlined letter (for example Alt+F for File), to use it from
-the keyboard. Check for updates runs
-the update check again (see Install) and also says when the running version is
-up to date or the check failed; it is greyed out where the app has no update
-check (outside Windows). About shows the running version, the license, the
-icon's attribution and a link to this repository.
+"Display"), the result word after " - " and its notes in parentheses.
+
+Press Alt, or Alt with the underlined letter (for example Alt+F for File), to
+use the menu from the keyboard. Check for updates runs the update check again
+(see Install) and also says when the running version is up to date or the
+check failed; it is greyed out where the app has no update check (outside
+Windows). About shows the running version, the license, the icon's attribution
+and a link to this repository.
 
 ### Settings
 
