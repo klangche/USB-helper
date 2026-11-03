@@ -9,10 +9,9 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices. At start only the
-  busiest controller is open; hubs built into the computer start collapsed; a
-  chevron before each item with items below it expands or collapses it, and a
-  collapsed item's name is bold. Updated on connect and
+  host): controllers, hubs, occupied ports and devices. The whole tree is
+  always open; only the computer's row has a chevron, which hides or shows the
+  whole tree, and its name is bold while the tree is hidden. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -380,14 +379,11 @@ stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
-out. At start every USB controller is collapsed except the selected one (see
-below), the one with the most connected hubs and devices. Hubs built into the
-computer (for the webcam or Bluetooth, reached only through ports that are not
-user-connectable) start collapsed; everything else is open. A collapsed item's
-name is bold.
-Click the chevron before an item, double-click the item, or use
-the left and right arrow keys, to expand or collapse it; the choice is kept
-while the app runs. A DisplayLink device is shown as a display: a "Display"
+out. Every controller, hub and port is always open, including hubs built into
+the computer. Only the computer's row (the host) can be collapsed: click its
+chevron, double-click it, or use the left and right arrow keys to hide or show
+the whole tree; while it is hidden the computer's name is bold. The choice is
+kept while the app runs. A DisplayLink device is shown as a display: a "Display"
 badge and "Extended display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". A port in the tree that Windows
 reports as a USB-C connector (from its port connector properties) has a "USB-C"
