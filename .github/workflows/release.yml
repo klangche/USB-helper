@@ -169,13 +169,13 @@ jobs:
         run: |
           $folder = "$env:LOCALAPPDATA\Programs\USB-helper"
           $shortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\USB-helper.lnk"
-          # Installed products as Windows Installer lists them (Apps & features shows the same). A per-user .msi writes no
-          # HKCU Uninstall key; AssignmentType 0 means installed for this user only.
-          $installer = New-Object -ComObject WindowsInstaller.Installer
+          # Installed products as Windows Installer records them (Apps & features shows the same). A per-user .msi writes no
+          # HKCU Uninstall key; its entry is under the user's own SID, not under S-1-5-18 (per machine).
+          $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
           function Entries {
-            @($installer.Products | Where-Object { $installer.ProductInfo($_, 'ProductName') -eq 'USB-helper' } | ForEach-Object {
-              [pscustomobject]@{ DisplayVersion = $installer.ProductInfo($_, 'VersionString'); PerUser = $installer.ProductInfo($_, 'AssignmentType') -eq '0' }
-            })
+            @(Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\$sid\Products" -ErrorAction SilentlyContinue |
+              ForEach-Object { Get-ItemProperty "$($_.PSPath)\InstallProperties" -ErrorAction SilentlyContinue } |
+              Where-Object DisplayName -eq 'USB-helper')
           }
           function Msiexec($arguments) {
             $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
@@ -185,8 +185,7 @@ jobs:
           if (-not (Test-Path "$folder\UsbHelper.exe")) { throw "UsbHelper.exe is not in $folder." }
           if ((Get-ChildItem $folder).Count -ne (Get-ChildItem app).Count) { throw "$folder does not hold the same files as the zip." }
           if (-not (Test-Path $shortcut)) { throw "No Start menu shortcut." }
-          if ((Entries).Count -ne 1) { throw "Apps & features does not list USB-helper once." }
-          if (-not (Entries)[0].PerUser) { throw "USB-helper is not installed per user." }
+          if ((Entries).Count -ne 1) { throw "Windows Installer does not list USB-helper once for this user." }
           "Installed: $((Get-ChildItem $folder).Count) files, version $((Entries)[0].DisplayVersion)"
           # A newer .msi (build + 1) upgrades in place: still one entry, with the new version.
           $parts = $env:MSI_VERSION.Split('.')
