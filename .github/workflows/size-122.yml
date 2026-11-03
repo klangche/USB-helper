@@ -1,0 +1,135 @@
+# Measurement only (#122). Lives on debug/122-size-* branches; never merged.
+name: Size measurement (#122)
+
+on:
+  push:
+    branches: ['debug/122-size-*']
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: sc-singlefile-composite, args: '--self-contained -p:PublishSingleFile=true' }
+          - { name: sc-loose-r2r, args: '--self-contained' }
+          - { name: sc-loose-composite, args: '--self-contained -p:PublishReadyToRunComposite=true' }
+          - { name: sc-loose-nor2r, args: '--self-contained -p:PublishReadyToRun=false' }
+          - { name: trim-partial-r2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=partial' }
+          - { name: trim-full-r2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full' }
+          - { name: trim-full-composite, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full -p:PublishReadyToRunComposite=true' }
+          - { name: trim-full-nor2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full -p:PublishReadyToRun=false' }
+          - { name: fd-r2r, args: '-p:SelfContained=false' }
+          - { name: fd-nor2r, args: '-p:SelfContained=false -p:PublishReadyToRun=false' }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Trim warnings are listed, not fatal, so every variant builds.
+      - name: Publish
+        run: >-
+          dotnet publish src/UsbHelper.App -c Release -r win-x64 -p:DebugType=none -p:TreatWarningsAsErrors=false
+          -p:Version=0.0.0-size.${{ github.run_number }} ${{ matrix.args }} -o publish
+
+      - name: Size
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory app | Out-Null
+          Get-ChildItem publish -File | Where-Object Extension -ne '.pdb' | Copy-Item -Destination app
+          $files = Get-ChildItem app -File
+          $size = ($files | Measure-Object Length -Sum).Sum
+          $disk = ($files | ForEach-Object { [math]::Ceiling($_.Length / 4096) * 4096 } | Measure-Object -Sum).Sum
+          Compress-Archive -Path app/* -DestinationPath app.zip
+          $zip = (Get-Item app.zip).Length
+          'SIZE {0}: files {1}, size {2:N1} MB, on disk {3:N1} MB, zip {4:N1} MB' -f '${{ matrix.name }}', $files.Count, ($size / 1MB), ($disk / 1MB), ($zip / 1MB)
+
+      # The #86 measurement: time to the first window, and until the process goes idle. The first start runs from a
+      # freshly unpacked folder, as after a download, so Defender scans the new files.
+      - name: Start time
+        shell: pwsh
+        run: |
+          function Measure-Start([string]$Exe, [string]$Label) {
+              $sw = [Diagnostics.Stopwatch]::StartNew()
+              $p = Start-Process -FilePath $Exe -PassThru
+              while ($p.MainWindowHandle -eq 0) {
+                  if ($p.HasExited) { throw "exited with $($p.ExitCode) before a window" }
+                  if ($sw.Elapsed.TotalSeconds -gt 120) { throw 'No window after 120 s.' }
+                  Start-Sleep -Milliseconds 10
+                  $p.Refresh()
+              }
+              $window = $sw.ElapsedMilliseconds
+              $lastCpu = -1; $idleAt = $window; $quiet = 0
+              while ($quiet -lt 6 -and $sw.Elapsed.TotalSeconds -lt 120) {
+                  Start-Sleep -Milliseconds 250
+                  $p.Refresh()
+                  $cpu = $p.TotalProcessorTime.TotalMilliseconds
+                  if ($cpu -ne $lastCpu) { $lastCpu = $cpu; $idleAt = $sw.ElapsedMilliseconds; $quiet = 0 } else { $quiet++ }
+              }
+              Stop-Process -Id $p.Id
+              $p.WaitForExit()
+              '{0,-24} window {1,6} ms   idle {2,6} ms   cpu {3,6:N0} ms' -f $Label, $window, $idleAt, $lastCpu | Write-Host
+              return $window
+          }
+          try { "Defender real-time protection: $((Get-MpComputerStatus).RealTimeProtectionEnabled)" } catch { 'Defender: unknown' }
+          $fresh = Join-Path $env:RUNNER_TEMP ('fresh-' + [guid]::NewGuid())
+          Expand-Archive app.zip $fresh
+          $first = Measure-Start (Join-Path $fresh 'UsbHelper.App.exe') 'first start (fresh copy)'
+          $exe = (Resolve-Path app/UsbHelper.App.exe).Path
+          $times = @(for ($i = 1; $i -le 5; $i++) { Measure-Start $exe "normal start $i" }) | Sort-Object
+          'START ${{ matrix.name }}: first {0} ms, normal min {1} / median {2} / max {3} ms' -f $first, $times[0], $times[2], $times[-1]
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: app.zip
+          retention-days: 14
+
+  # What a user sees when the .NET runtime the framework-dependent build needs is missing: the runtimeconfig asks for a
+  # version that is not installed, which takes the same path in the apphost.
+  missing-runtime:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet publish src/UsbHelper.App -c Release -r win-x64 -p:SelfContained=false -p:DebugType=none -o publish
+
+      - name: Start without its runtime
+        shell: pwsh
+        run: |
+          $config = 'publish/UsbHelper.App.runtimeconfig.json'
+          (Get-Content $config -Raw).Replace('"10.0.0"', '"10.99.0"') | Set-Content $config
+          $p = Start-Process -FilePath (Resolve-Path publish/UsbHelper.App.exe).Path -PassThru
+          Start-Sleep -Seconds 8
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
+          $root = [Windows.Automation.AutomationElement]::RootElement
+          $cond = New-Object Windows.Automation.PropertyCondition ([Windows.Automation.AutomationElement]::ProcessIdProperty), $p.Id
+          foreach ($w in $root.FindAll([Windows.Automation.TreeScope]::Children, $cond)) {
+              "WINDOW: $($w.Current.Name)"
+              foreach ($e in $w.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition)) {
+                  if ($e.Current.Name) { "  [$($e.Current.ControlType.ProgrammaticName)] $($e.Current.Name)" }
+              }
+          }
+          $b = [Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
+          [Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$PWD/missing-runtime.png")
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id }
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime' } -MaxEvents 1 -ErrorAction SilentlyContinue |
+              ForEach-Object { "EVENT LOG: $($_.Message)" }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: missing-runtime-screenshot
+          path: missing-runtime.png
+          retention-days: 14
