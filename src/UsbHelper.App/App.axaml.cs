@@ -61,7 +61,7 @@ public partial class App : Application
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log, settings)
         {
             Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
-                msi => InstallMsi(msi, desktop), page => desktop.MainWindow?.Launcher.LaunchUriAsync(page), log, UpdateCheckTimeout, settings),
+                msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
@@ -69,6 +69,15 @@ public partial class App : Application
 
     // GitHub's answer within this time, or the check is skipped (#111).
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
+
+    // The portable app's update (#131): the release page in the default browser. A browser that does not open is logged.
+    private static async void OpenPage(Uri page, IClassicDesktopStyleApplicationLifetime desktop, EventLog log)
+    {
+        if (desktop.MainWindow is not { } window || !await window.Launcher.LaunchUriAsync(page))
+        {
+            log.Add($"The browser could not open {page}");
+        }
+    }
 
     // Runs the downloaded .msi, which upgrades this install in place (#124), and closes this app so its files can be
     // replaced. /passive: a progress bar and no questions. /norestart: if a file is still in use, Windows replaces it at

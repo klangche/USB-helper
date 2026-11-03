@@ -28,10 +28,10 @@ public static class UpdateCheck
     public const string ReleasesUrl = "https://api.github.com/repos/klangche/USB-helper/releases?per_page=30";
 
     /// <summary>The newest stable release, however many betas came after it; 404 while there is none.</summary>
+    public const string LatestUrl = "https://api.github.com/repos/klangche/USB-helper/releases/latest";
+
     // A release's page is this plus its tag.
     private const string ReleasePages = "https://github.com/klangche/USB-helper/releases/tag/";
-
-    public const string LatestUrl = "https://api.github.com/repos/klangche/USB-helper/releases/latest";
 
     /// <param name="kind">Which asset a release must have to count: the zip, or the .msi for an .msi install.</param>
     public static async Task<UpdateCheckResult> FindAsync(HttpClient http, string current, TimeSpan timeout, UpdateKind kind = UpdateKind.Portable)

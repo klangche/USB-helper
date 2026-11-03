@@ -7,7 +7,7 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.Tests.Update;
 
-/// <summary>The update notice in the window (#123): checked after start, never blocking it, with both choices and Skip.</summary>
+/// <summary>The update popup (#123, #131): checked after start, never blocking it, with both choices and Skip.</summary>
 public sealed class UpdateViewModelTests : IDisposable
 {
     private readonly string parent = Directory.CreateTempSubdirectory("usbhelper-update-vm-tests-").FullName;

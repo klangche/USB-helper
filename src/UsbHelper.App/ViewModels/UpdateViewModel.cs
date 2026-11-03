@@ -116,14 +116,14 @@ public sealed class UpdateViewModel(
     }
 
     /// <summary>
-    /// Asks GitHub for newer releases; shows the notice if there are any, or, from the menu, also when there are none or
+    /// Asks GitHub for newer releases; opens the popup if there are any, or, from the menu, also when there are none or
     /// the check failed. Never throws.
     /// </summary>
     public async Task CheckAsync(bool fromMenu = false)
     {
         if (IsBusy)
         {
-            return; // a download runs; its notice stays
+            return; // a download runs; its popup stays
         }
         UpdateCheckResult result;
         try
@@ -144,7 +144,7 @@ public sealed class UpdateViewModel(
         var newer = result.Stable != null || result.Beta != null;
         if (!newer && !fromMenu)
         {
-            return; // nothing to show; a notice the menu's check put up meanwhile stays
+            return; // nothing to show; a popup the menu's check opened meanwhile stays
         }
         found = result;
         OnPropertyChanged(nameof(StableText));
