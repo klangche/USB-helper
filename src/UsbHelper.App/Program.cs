@@ -11,7 +11,9 @@ class Program
     // Also used by the Avalonia designer.
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
-            .UsePlatformDetect()
+            .UseWin32()
+            .UseSkia()
+            .UseHarfBuzz()
             .WithInterFont()
             .LogToTrace();
 }

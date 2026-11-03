@@ -18,11 +18,7 @@ jobs:
           - { name: sc-singlefile-composite, args: '--self-contained -p:PublishSingleFile=true' }
           - { name: sc-loose-r2r, args: '--self-contained' }
           - { name: sc-loose-composite, args: '--self-contained -p:PublishReadyToRunComposite=true' }
-          - { name: sc-loose-nor2r, args: '--self-contained -p:PublishReadyToRun=false' }
-          - { name: trim-partial-r2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=partial' }
           - { name: trim-full-r2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full' }
-          - { name: trim-full-composite, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full -p:PublishReadyToRunComposite=true' }
-          - { name: trim-full-nor2r, args: '--self-contained -p:PublishTrimmed=true -p:TrimMode=full -p:PublishReadyToRun=false' }
           - { name: fd-r2r, args: '-p:SelfContained=false' }
           - { name: fd-nor2r, args: '-p:SelfContained=false -p:PublishReadyToRun=false' }
     steps:
@@ -89,47 +85,4 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: app.zip
-          retention-days: 14
-
-  # What a user sees when the .NET runtime the framework-dependent build needs is missing: the runtimeconfig asks for a
-  # version that is not installed, which takes the same path in the apphost.
-  missing-runtime:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: global.json
-
-      - run: dotnet publish src/UsbHelper.App -c Release -r win-x64 -p:SelfContained=false -p:DebugType=none -o publish
-
-      - name: Start without its runtime
-        shell: pwsh
-        run: |
-          $config = 'publish/UsbHelper.App.runtimeconfig.json'
-          (Get-Content $config -Raw).Replace('"10.0.0"', '"10.99.0"') | Set-Content $config
-          $p = Start-Process -FilePath (Resolve-Path publish/UsbHelper.App.exe).Path -PassThru
-          Start-Sleep -Seconds 8
-          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Windows.Forms, System.Drawing
-          $root = [Windows.Automation.AutomationElement]::RootElement
-          $cond = New-Object Windows.Automation.PropertyCondition ([Windows.Automation.AutomationElement]::ProcessIdProperty), $p.Id
-          foreach ($w in $root.FindAll([Windows.Automation.TreeScope]::Children, $cond)) {
-              "WINDOW: $($w.Current.Name)"
-              foreach ($e in $w.FindAll([Windows.Automation.TreeScope]::Descendants, [Windows.Automation.Condition]::TrueCondition)) {
-                  if ($e.Current.Name) { "  [$($e.Current.ControlType.ProgrammaticName)] $($e.Current.Name)" }
-              }
-          }
-          $b = [Windows.Forms.Screen]::PrimaryScreen.Bounds
-          $bmp = New-Object Drawing.Bitmap $b.Width, $b.Height
-          [Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [Drawing.Point]::Empty, $b.Size)
-          $bmp.Save("$PWD/missing-runtime.png")
-          if (-not $p.HasExited) { Stop-Process -Id $p.Id }
-          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime' } -MaxEvents 1 -ErrorAction SilentlyContinue |
-              ForEach-Object { "EVENT LOG: $($_.Message)" }
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: missing-runtime-screenshot
-          path: missing-runtime.png
           retention-days: 14
