@@ -21,6 +21,8 @@ public class MenuTests
 
         public void ShowAbout() => Calls.Add(nameof(ShowAbout));
 
+        public void ShowSettings() => Calls.Add(nameof(ShowSettings));
+
         public void Exit() => Calls.Add(nameof(Exit));
     }
 
@@ -41,10 +43,11 @@ public class MenuTests
 
         viewModel.ExportProfileCommand.Execute(null);
         viewModel.ExportLogCommand.Execute(null);
+        viewModel.SettingsCommand.Execute(null);
         viewModel.AboutCommand.Execute(null);
         viewModel.ExitCommand.Execute(null);
 
-        Assert.Equal(["ExportProfile", "ExportLog", "ShowAbout", "Exit"], window.Calls);
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit"], window.Calls);
     }
 
     [Fact]
@@ -86,9 +89,11 @@ public class MenuTests
     }
 
     [Fact]
-    public void SettingsIsDisabledUntilItExists()
+    public void SettingsOpensTheSettingsWindow()
     {
-        Assert.Equal("False", (string?)MenuItem(MainWindowXaml(), "MenuSettings").Attribute("IsEnabled"));
+        var item = MenuItem(MainWindowXaml(), "MenuSettings");
+        Assert.Equal("{Binding SettingsCommand}", (string?)item.Attribute("Command"));
+        Assert.Null(item.Attribute("IsEnabled"));
     }
 
     [Fact]
