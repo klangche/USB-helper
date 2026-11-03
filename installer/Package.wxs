@@ -1,0 +1,52 @@
+<!-- The per-user .msi (#124), built by release.yml with WiX Toolset (version pinned in .config/dotnet-tools.json):
+
+       dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath app=<absolute folder> -d Version=<release version>
+         -d ProductVersion=<release/msi-version.sh output> -o <name>.msi
+
+     <folder> holds the same loose files as the portable zip's USB-helper folder. `wix build` runs no ICE validation;
+     the harvested files are per-user components with file key paths in the user profile, which ICE38/ICE64 would flag
+     for a per-machine-style layout. release.yml's "Test MSI" step installs, upgrades and uninstalls each build instead
+     and checks that nothing is left behind. No administrator rights: Scope="perUser"
+     marks the package as not needing elevation, and everything goes into the user's own profile. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- The UpgradeCode never changes: it is how a newer .msi finds and replaces the installed one. -->
+  <Package Name="USB-helper" Manufacturer="klangche" Version="$(var.ProductVersion)" Language="1033"
+           UpgradeCode="0E64449D-669A-4752-8190-622B5AC5A528" Scope="perUser">
+    <SummaryInformation Description="USB-helper $(var.Version)" />
+
+    <!-- A newer .msi upgrades in place; the same version reinstalls (pull request builds all map to 0.0.0). Settings live
+         in %APPDATA%\USB-helper, outside the install folder, so they stay. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of USB-helper is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Apps & features: icon, link, version; no "Modify" (there is nothing to choose). -->
+    <Icon Id="UsbHelper.ico" SourceFile="$(sys.SOURCEFILEDIR)..\src\UsbHelper.App\Assets\usb-helper.ico" />
+    <Property Id="ARPPRODUCTICON" Value="UsbHelper.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/klangche/USB-helper" />
+    <Property Id="ARPCOMMENTS" Value="USB-helper $(var.Version)" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+
+    <!-- %LOCALAPPDATA%\Programs\USB-helper, where per-user apps go. The app checks for this folder to update by .msi. -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="USB-helper" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main">
+      <!-- Every file of the app's folder: the exe, its DLLs, the .NET runtime, READ_ME_FIRST.txt and LICENSE.txt. -->
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.app)\**" />
+
+      <!-- The Start menu shortcut takes the exe's own icon (#103). A per-user component needs a registry key as its key
+           path; the RemoveFolder entries remove the folders on uninstall when they are empty. -->
+      <Component Id="StartMenu" Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenuShortcut" Name="USB-helper" Description="Live USB tree and BYOD/BYOM checks"
+                  Target="[INSTALLFOLDER]UsbHelper.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\klangche\USB-helper" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>
