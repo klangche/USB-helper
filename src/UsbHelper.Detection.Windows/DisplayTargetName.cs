@@ -13,6 +13,8 @@ internal static class DisplayTargetName
     private const int DISPLAYCONFIG_TARGET_DEVICE_NAME_SIZE = 420; // header 20, then 16, name 128, device path 256
     private const int NameOffset = 36;
     private const int NameLength = 64;
+    private const int DevicePathOffset = 164;
+    private const int DevicePathLength = 128;
 
     /// <summary>A request for the name of <paramref name="target"/> on <paramref name="adapter"/>; the reply is written into it.</summary>
     public static byte[] Request(long adapter, uint target)
@@ -26,11 +28,16 @@ internal static class DisplayTargetName
     }
 
     /// <summary>The monitor's friendly name from a reply, usually from its EDID; null when it has none.</summary>
-    public static string? Name(byte[] reply)
+    public static string? Name(byte[] reply) => Text(reply, NameOffset, NameLength);
+
+    /// <summary>The monitor's device interface path from a reply (#143); null when it has none.</summary>
+    public static string? DevicePath(byte[] reply) => Text(reply, DevicePathOffset, DevicePathLength);
+
+    private static string? Text(byte[] reply, int offset, int length)
     {
-        var name = Encoding.Unicode.GetString(reply, NameOffset, NameLength * 2);
-        var end = name.IndexOf('\0', StringComparison.Ordinal);
-        name = (end < 0 ? name : name[..end]).Trim();
-        return name.Length == 0 ? null : name;
+        var text = Encoding.Unicode.GetString(reply, offset, length * 2);
+        var end = text.IndexOf('\0', StringComparison.Ordinal);
+        text = (end < 0 ? text : text[..end]).Trim();
+        return text.Length == 0 ? null : text;
     }
 }

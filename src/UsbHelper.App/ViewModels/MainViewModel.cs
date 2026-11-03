@@ -257,14 +257,15 @@ public sealed class MainViewModel : ObservableObject
     // ones included.
     private SetupFile Setup(DateOnly date, string appVersion)
     {
-        var (controllers, marks) = SetupFile.Anonymize(tree, extraHops);
+        var (containerFree, displays) = SetupFile.AnonymizeContainers(tree, monitors);
+        var (controllers, marks) = SetupFile.Anonymize(containerFree, extraHops);
         var options = Checked;
         IReadOnlyList<SetupResult> results = options.Count == 0
             ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
-        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, monitors, results);
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results);
     }
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
@@ -449,13 +450,15 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
 
+        var placement = MonitorPlacement.Place(tree, monitors ?? []);
+        log.DisplayLinks(placement, tree);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, monitors ?? []));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, extraHops, monitors ?? []);
+            Roots[0].UpdateHost(HostName, tree, lines, extraHops, placement);
         }
         // Owner decision in #142: when the controllers first arrive, only the selected one, the busiest, is open, and only
         // when it has devices. After that the user's choices are kept.

@@ -25,6 +25,9 @@ public enum MonitorOutput
 /// <summary>An active monitor (#133). <see cref="Id"/> stays the same while it is connected; <see cref="Name"/> is null when the monitor gives none.</summary>
 public sealed record DisplayMonitor(string Id, string? Name, MonitorOutput Output)
 {
+    /// <summary>The container id of the physical device the monitor is part of (#143), or null when unknown.</summary>
+    public Guid? ContainerId { get; init; }
+
     /// <summary>The active external displays among <paramref name="monitors"/>; null when the monitors are unknown.</summary>
     public static int? ExternalCount(IReadOnlyList<DisplayMonitor>? monitors) => monitors?.Count(monitor => monitor.Output.IsExternal());
 

@@ -1095,6 +1095,48 @@ public class MainViewModelTests
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.StatusFor, Strings.AllControllers), viewModel.StatusScope);
     }
 
+    // #143: a monitor in the same Windows container as a USB node is shown under that node, not in the Displays group.
+    [Fact]
+    public void ALinkedMonitorIsShownUnderItsUsbNode()
+    {
+        var container = new Guid("6f1d2a6e-0000-4000-8000-000000000001");
+        var monitorHub = Hub("MONITOR-HUB", Device("CAM")) with { ContainerId = container };
+        var tree = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", monitorHub, Device("MOUSE"))]);
+        var samsung = new DisplayMonitor("SAMSUNG", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = container };
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, samsung], log);
+
+        viewModel.Load([tree]);
+
+        var hub = Item(viewModel, "MONITOR-HUB");
+        Assert.Equal(["MONITOR-HUB|port1", "display|SAMSUNG"], hub.Children.Select(item => item.Id));
+        Assert.Equal("LS27A600U (DisplayPort)", hub.Children[1].Text);
+        Assert.True(hub.Children[1].IsLast);
+        Assert.False(hub.Children[0].IsLast);
+        Assert.Equal(["Monitor (built-in)"], DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+        Assert.Contains("Display under a USB device: LS27A600U (DisplayPort) under MONITOR-HUB (same Windows container)",
+            log.Entries.Select(entry => entry.Text));
+    }
+
+    [Fact]
+    public void WhenEveryMonitorIsLinkedThereIsNoDisplaysGroup()
+    {
+        var container = new Guid("6f1d2a6e-0000-4000-8000-000000000001");
+        var tree = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("MONITOR-HUB", (UsbNode?)null) with { ContainerId = container })]);
+        IReadOnlyList<DisplayMonitor> monitors = [new DisplayMonitor("SAMSUNG", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = container }];
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => monitors);
+
+        viewModel.Load([tree]);
+
+        Assert.Null(DisplaysGroup(viewModel));
+        Assert.True(Item(viewModel, "display|SAMSUNG").IsLast);
+
+        monitors = [];
+        viewModel.DisplaysChanged();
+
+        Assert.Empty(Item(viewModel, "MONITOR-HUB").Children);
+    }
+
     [Fact]
     public void ThereIsNoDisplaysGroupWhenTheMonitorsAreUnknown()
     {
