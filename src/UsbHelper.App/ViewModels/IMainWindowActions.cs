@@ -9,6 +9,8 @@ public interface IMainWindowActions
     /// <summary>Asks where to save the log, then writes it.</summary>
     void ExportLog();
 
+    void ShowSettings();
+
     void ShowAbout();
 
     void Exit();
