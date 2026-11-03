@@ -305,4 +305,22 @@ This version keeps running.</value>
   <data name="AboutClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsCheckForUpdates" xml:space="preserve">
+    <value>Check for updates at start</value>
+  </data>
+  <data name="SettingsOfferBetas" xml:space="preserve">
+    <value>Offer beta versions</value>
+  </data>
+  <data name="SettingsRememberProfiles" xml:space="preserve">
+    <value>Remember the checked profiles between starts</value>
+  </data>
+  <data name="SettingsSavedAt" xml:space="preserve">
+    <value>Changes are saved at once, in:</value>
+  </data>
+  <data name="SettingsClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
 </root>

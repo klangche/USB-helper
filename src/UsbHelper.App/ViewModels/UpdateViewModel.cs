@@ -16,9 +16,14 @@ namespace UsbHelper.App.ViewModels;
 /// <param name="kind">How this app was installed: which release asset it takes.</param>
 /// <param name="folder">Portable: the folder of USB-helper.exe (#130). Msi: the folder the .msi is downloaded to.</param>
 /// <param name="restart">Starts the given USB-helper.exe (portable) or .msi (Msi) and closes this app.</param>
-public sealed class UpdateViewModel(HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, EventLog log, TimeSpan timeout)
+/// <param name="settings">Whether to check at start and to offer betas (#126); the defaults when null.</param>
+public sealed class UpdateViewModel(
+    HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, EventLog log, TimeSpan timeout,
+    SettingsViewModel? settings = null)
     : ObservableObject
 {
+    private readonly SettingsViewModel settings = settings ?? new SettingsViewModel();
+
     // A whole update download (about 80 MB): ends one that stalls, leaves time for a slow line.
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(10);
 
@@ -95,6 +100,17 @@ public sealed class UpdateViewModel(HttpClient http, string current, UpdateKind 
         }
     });
 
+    /// <summary>The check after the window opens, unless it is turned off in the settings (#126).</summary>
+    public Task CheckAtStartAsync()
+    {
+        if (!settings.CheckForUpdatesAtStart)
+        {
+            log.Add("Update check at start is off in the settings");
+            return Task.CompletedTask;
+        }
+        return CheckAsync();
+    }
+
     /// <summary>
     /// Asks GitHub for newer releases; shows the notice if there are any, or, from the menu, also when there are none or
     /// the check failed. Never throws.
@@ -116,6 +132,11 @@ public sealed class UpdateViewModel(HttpClient http, string current, UpdateKind 
             result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}", e.Message);
         }
         log.Add(result.Log);
+        if (!settings.OfferBetas && result.Beta != null)
+        {
+            result = result with { Beta = null };
+            log.Add("Betas are off in the settings: the beta is not offered");
+        }
         var newer = result.Stable != null || result.Beta != null;
         if (!newer && !fromMenu)
         {

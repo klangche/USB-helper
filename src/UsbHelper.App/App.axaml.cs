@@ -7,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Settings;
 using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
@@ -32,7 +33,7 @@ public partial class App : Application
             if (viewModel.Update is { } update) // set on Windows only
             {
                 // After the window shows, so the check never delays the start (#123).
-                desktop.MainWindow.Opened += (_, _) => _ = update.CheckAsync();
+                desktop.MainWindow.Opened += (_, _) => _ = update.CheckAtStartAsync();
             }
         }
 
@@ -46,9 +47,10 @@ public partial class App : Application
     {
         var log = new EventLog();
         log.Add("USB-helper started");
+        var settings = SettingsViewModel.Load(SettingsFile.Default, log);
         if (!OperatingSystem.IsWindows())
         {
-            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log);
+            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log, settings: settings);
             _ = LoadUnavailable(unavailable, log);
             return unavailable;
         }
@@ -59,11 +61,11 @@ public partial class App : Application
         var kind = UpdateKinds.For(top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : top;
         log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
-        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log)
+        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log, settings)
         {
             Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, folder,
                 file => (kind == UpdateKind.Msi ? (Action<string, IClassicDesktopStyleApplicationLifetime>)InstallMsi : Restart)(file, desktop),
-                log, UpdateCheckTimeout),
+                log, UpdateCheckTimeout, settings),
         };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;

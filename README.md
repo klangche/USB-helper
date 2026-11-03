@@ -9,10 +9,9 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices. At start only the
-  busiest controller is open; hubs built into the computer start collapsed; a
-  chevron before each item with items below it expands or collapses it, and a
-  collapsed item's name is bold. Updated on connect and
+  host): controllers, hubs, occupied ports and devices. The whole tree is
+  always open; only the computer's row has a chevron, which hides or shows the
+  whole tree, and its name is bold while the tree is hidden. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -323,7 +322,8 @@ USB-helper/
 own): it starts `app\UsbHelper.exe` with the same arguments and exits, in a few
 milliseconds. Without the `app` folder next to it, it says so and links to the
 releases. Keep the files together; the folder can be moved anywhere. Nothing is
-unpacked elsewhere. To remove USB-helper, delete its folder.
+unpacked elsewhere. To remove USB-helper, delete its folder, and
+`%APPDATA%\USB-helper` if you want its settings gone too (see Settings).
 
 ### From 0.5.0
 
@@ -339,15 +339,16 @@ cannot install this layout; download the zip once by hand. An installed
 
 ### Updates
 
-After the window shows, the app asks GitHub Releases (no account or token) for
-the newest stable release and the newest beta, in the background: the window
-works as normal meanwhile. Only releases with a published SHA-256 file
+After the window shows (unless "Check for updates at start" is off in the
+settings), the app asks GitHub Releases (no account or token) for the newest
+stable release and the newest beta, in the background: the window works as
+normal meanwhile. Only releases with a published SHA-256 file
 (`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
 installed app) count, so that every download can be verified. If either is
-newer than the running version, a notice at the top of the window shows
-"Update to stable X", "Update to beta Y" (whichever are newer) and "Skip";
-otherwise nothing is shown. With no network, no answer within 2 seconds, a
-GitHub error or its rate limit, the check is skipped silently.
+newer than the running version, a notice at the top of the window shows "Update
+to stable X", "Update to beta Y" (whichever are newer) and "Skip"; otherwise
+nothing is shown. With no network, no answer within 2 seconds, a GitHub error
+or its rate limit, the check is skipped silently.
 
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
@@ -387,14 +388,11 @@ stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
-out. At start every USB controller is collapsed except the selected one (see
-below), the one with the most connected hubs and devices. Hubs built into the
-computer (for the webcam or Bluetooth, reached only through ports that are not
-user-connectable) start collapsed; everything else is open. A collapsed item's
-name is bold.
-Click the chevron before an item, double-click the item, or use
-the left and right arrow keys, to expand or collapse it; the choice is kept
-while the app runs. A DisplayLink device is shown as a display: a "Display"
+out. Every controller, hub and port is always open, including hubs built into
+the computer. Only the computer's row (the host) can be collapsed: click its
+chevron, double-click it, or use the left and right arrow keys to hide or show
+the whole tree; while it is hidden the computer's name is bold. The choice is
+kept while the app runs. A DisplayLink device is shown as a display: a "Display"
 badge and "Extended display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". A port in the tree that Windows
 reports as a USB-C connector (from its port connector properties) has a "USB-C"
@@ -459,11 +457,33 @@ limits from cited sources.
 The menu bar at the top has File (Export computer profile, Export log,
 Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
 Alt with the underlined letter (for example Alt+F for File), to use it from
-the keyboard. Settings is greyed out until it is built. Check for updates runs
+the keyboard. Check for updates runs
 the update check again (see Install) and also says when the running version is
 up to date or the check failed; it is greyed out where the app has no update
 check (outside Windows). About shows the running version, the license, the
 icon's attribution and a link to this repository.
+
+### Settings
+
+File > Settings opens the settings. Each change is saved at once:
+
+- **Check for updates at start** (on by default): off, the app does not ask
+  GitHub after it starts; Help > Check for updates still works.
+- **Offer beta versions** (on by default): off, only stable releases are
+  offered, and a newer beta alone counts as up to date.
+- **Remember the checked profiles between starts** (off by default): on, the
+  operating systems and computers checked in the two lists are checked again
+  at the next start, instead of only the detected platform profile. If
+  nothing was checked, the detected platform profile is checked, as without
+  the setting. Turning it off forgets them.
+
+The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
+roaming app data folder), the same for every copy of the app, so they survive
+updates and moving the app's folder. With a roaming Windows profile they
+also follow the user to other computers, remembered profiles included.
+Without the file the defaults apply. A
+file that cannot be read is named in the log with the reason, and the
+defaults apply; it is only replaced when a setting is changed.
 
 ## Development
 
