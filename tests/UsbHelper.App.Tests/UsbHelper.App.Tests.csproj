@@ -22,6 +22,11 @@
     <EmbeddedResource Include="BrokenDatabase\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- Golden files of a setup export (#135), read from the output folder. -->
+  <ItemGroup>
+    <None Include="Setup\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\UsbHelper.App\UsbHelper.App.csproj" />
     <ProjectReference Include="..\..\src\UsbHelper.Core\UsbHelper.Core.csproj" />

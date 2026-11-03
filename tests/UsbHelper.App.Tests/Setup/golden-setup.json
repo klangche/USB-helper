@@ -1,0 +1,194 @@
+{
+  "format_version": 1,
+  "app_version": "0.6.0-test",
+  "date": "2026-11-03",
+  "computer": {
+    "manufacturer": "Dell Inc.",
+    "model": "Latitude 7450",
+    "platform": "p"
+  },
+  "checked_profiles": [
+    "p",
+    "y98inr"
+  ],
+  "controllers": [
+    {
+      "id": "1",
+      "kind": "controller",
+      "name": "Intel USB 3.2 controller",
+      "children": [
+        {
+          "id": "1/1",
+          "kind": "hub",
+          "name": "ROOT",
+          "children": [
+            {
+              "id": "1/1/1",
+              "kind": "port",
+              "name": "Port 1",
+              "children": [
+                {
+                  "id": "1/1/1/1",
+                  "kind": "hub",
+                  "name": "DOCK",
+                  "children": [
+                    {
+                      "id": "1/1/1/1/1",
+                      "kind": "port",
+                      "name": "Port 1",
+                      "children": [
+                        {
+                          "id": "1/1/1/1/1/1",
+                          "kind": "device",
+                          "name": "KEYBOARD",
+                          "children": [],
+                          "vendor_id": "046D",
+                          "product_id": "C31C"
+                        }
+                      ],
+                      "port_number": 1
+                    },
+                    {
+                      "id": "1/1/1/1/2",
+                      "kind": "port",
+                      "name": "Port 2",
+                      "children": [
+                        {
+                          "id": "1/1/1/1/2/1",
+                          "kind": "device",
+                          "name": "DL",
+                          "children": [],
+                          "vendor_id": "17E9",
+                          "product_id": "6006"
+                        }
+                      ],
+                      "port_number": 2
+                    }
+                  ]
+                }
+              ],
+              "port_number": 1,
+              "user_connectable": true,
+              "usb_c": true
+            },
+            {
+              "id": "1/1/2",
+              "kind": "port",
+              "name": "Port 2",
+              "children": [
+                {
+                  "id": "1/1/2/1",
+                  "kind": "device",
+                  "name": "USB Mouse",
+                  "children": []
+                }
+              ],
+              "port_number": 2,
+              "user_connectable": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "marks": {
+    "1/1/1": 1
+  },
+  "displays": [
+    {
+      "id": "PANEL",
+      "output": "internal"
+    },
+    {
+      "id": "DELL",
+      "name": "DELL U2723QE",
+      "output": "hdmi"
+    }
+  ],
+  "results": [
+    {
+      "profile": "p",
+      "label": "p",
+      "overall": "grey",
+      "findings": [
+        {
+          "kind": "unknown",
+          "subject": "This computer",
+          "message": "limits.max_hubs is unknown."
+        },
+        {
+          "kind": "unknown",
+          "subject": "This computer",
+          "message": "limits.max_tiers is unknown."
+        },
+        {
+          "kind": "unknown",
+          "subject": "This computer",
+          "message": "limits.max_hops is unknown."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "This computer",
+          "message": "1 external displays are active (DisplayLink and wireless displays not counted)."
+        },
+        {
+          "kind": "unknown",
+          "subject": "This computer",
+          "message": "displays.max_external is unknown."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "DL",
+          "message": "DisplayLink adapter: its displays use the DisplayLink driver, not the computer's own video outputs."
+        },
+        {
+          "kind": "unknown",
+          "subject": "This computer",
+          "message": "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."
+        }
+      ]
+    },
+    {
+      "profile": "y98inr",
+      "label": "Dell Inc. Latitude 7450 (y98inr)",
+      "overall": "green",
+      "findings": [
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "limits.max_hubs = 5 (computers/c.yaml)."
+        },
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "limits.max_tiers = 7 (computers/c.yaml)."
+        },
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "limits.max_hops = 5 (computers/c.yaml)."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "Latitude 7450",
+          "message": "1 external displays are active (DisplayLink and wireless displays not counted)."
+        },
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "displays.max_external = 2 (computers/c.yaml)."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "DL",
+          "message": "DisplayLink adapter: its displays use the DisplayLink driver, not the computer's own video outputs."
+        },
+        {
+          "kind": "unknown",
+          "subject": "Latitude 7450",
+          "message": "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."
+        }
+      ]
+    }
+  ]
+}

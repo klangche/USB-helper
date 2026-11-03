@@ -46,6 +46,7 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     /// A DisplayLink device: a USB display adapter whose displays need the DisplayLink driver. Only a device, never a hub:
     /// the adapter is the display, the hub above it only leads to it.
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public bool IsDisplayLink => Kind == UsbNodeKind.Device && VendorId == DisplayLinkVendorId;
 
     /// <summary>A problem the operating system reports for this element, or null when it reports none.</summary>
