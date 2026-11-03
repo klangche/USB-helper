@@ -939,16 +939,12 @@ public class MainViewModelTests
         foreach (var id in new[] { "C1", "ROOT", "INTERNAL", "ROOT|port2", "UNSURE" })
         {
             var item = Item(viewModel, id);
-            var changed = new List<string?>();
-            item.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
 
             item.IsExpanded = false; // As the tree view does for a double-click or an arrow key.
 
             Assert.True(item.IsExpanded);
             Assert.False(item.IsCollapsed);
             Assert.True(item.ShowsChildren);
-            // The view's two-way binding reads the value back, so the row does not stay closed on screen.
-            Assert.Contains(nameof(NodeViewModel.IsExpanded), changed);
         }
     }
 

@@ -104,8 +104,7 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>
     /// Whether the children are shown. The user expands and collapses the host with its chevron, a double-click or the
-    /// arrow keys. Every other item stays open: collapsing it is refused, and the change is announced anyway so the tree
-    /// view's two-way binding opens the row again.
+    /// arrow keys. Every other item stays open: collapsing it is refused here, and the window keeps its row open (#132).
     /// </summary>
     public bool IsExpanded
     {
@@ -114,7 +113,6 @@ public sealed class NodeViewModel : ObservableObject
         {
             if (!value && Id != HostId)
             {
-                OnPropertyChanged(nameof(IsExpanded));
                 return;
             }
             if (SetField(ref isExpanded, value))

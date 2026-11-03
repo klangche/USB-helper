@@ -19,6 +19,8 @@ public partial class MainWindow : Window, IMainWindowActions
         InitializeComponent();
         // Before the tree item, which would otherwise take Enter to expand or collapse.
         Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
+        // Only the host collapses (#132): a double-click, arrow key, Enter or subtree collapse closes no row below it.
+        Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {
@@ -56,6 +58,14 @@ public partial class MainWindow : Window, IMainWindowActions
             logWindow = new LogWindow(viewModel.Log);
             logWindow.Closed += (_, _) => logWindow = null;
             logWindow.Show(this);
+        }
+    }
+
+    private static void KeepOpen(object? sender, RoutedEventArgs e)
+    {
+        if (e.Source is TreeViewItem { DataContext: NodeViewModel node } item && node.Id != NodeViewModel.HostId)
+        {
+            item.SetCurrentValue(TreeViewItem.IsExpandedProperty, true);
         }
     }
 
