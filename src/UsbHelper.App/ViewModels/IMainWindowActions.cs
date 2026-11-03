@@ -14,4 +14,7 @@ public interface IMainWindowActions
     void ShowAbout();
 
     void Exit();
+
+    /// <summary>Puts <paramref name="text"/> on the clipboard.</summary>
+    void CopyText(string text);
 }

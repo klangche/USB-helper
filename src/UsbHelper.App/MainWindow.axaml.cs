@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
@@ -87,6 +88,9 @@ public partial class MainWindow : Window, IMainWindowActions
     void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
+
+    // Fire and forget: a clipboard Windows cannot open leaves the old content, nothing else breaks.
+    void IMainWindowActions.CopyText(string text) => _ = Clipboard?.SetTextAsync(text);
 
     // One log window at a time: a second click brings the open one to the front.
     private void OpenLog(object? sender, RoutedEventArgs e)

@@ -65,6 +65,8 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
+    // The tree text last written to the log.
+    private string? loggedTree;
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
@@ -103,6 +105,7 @@ public sealed class MainViewModel : ObservableObject
         ExitCommand = new RelayCommand(() => Window?.Exit());
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
+        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -225,6 +228,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Settings.</summary>
     public RelayCommand SettingsCommand { get; }
 
+    /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
+    public RelayCommand CopyTreeCommand { get; }
+
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }
 
@@ -329,6 +335,8 @@ public sealed class MainViewModel : ObservableObject
         tree = detected;
         history.Record(tree);
         Refresh(monitors);
+        LogTree();
+        CopyTreeCommand.Refresh();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)
@@ -344,6 +352,7 @@ public sealed class MainViewModel : ObservableObject
             }
         }
         Refresh();
+        LogTree();
     }
 
     /// <summary>A monitor was connected or removed (#133): the Displays group, the display count and the log follow.</summary>
@@ -352,7 +361,19 @@ public sealed class MainViewModel : ObservableObject
         if (!IsLoading && Roots.Count > 0)
         {
             Refresh();
+            // Windows also reports changes nobody sees, such as a moved taskbar: log the tree only when it looks different.
+            if (TreeText.Render(Roots[0]) != loggedTree)
+            {
+                LogTree();
+            }
         }
+    }
+
+    // The tree as it looks now, after the first read and every change (#134).
+    private void LogTree()
+    {
+        loggedTree = TreeText.Render(Roots[0]);
+        log.Add("Tree:" + Environment.NewLine + loggedTree);
     }
 
     private void Refresh() => Refresh(readMonitors());

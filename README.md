@@ -25,6 +25,8 @@ Status: first version for Windows; computer profiles still to be added.
   output type (built-in, HDMI, DisplayPort, DisplayPort over USB4/Thunderbolt,
   DVI, VGA, indirect such as DisplayLink, wireless). Updated when a monitor is
   connected or removed; each change is logged.
+- The tree as plain text, in the log after the first read and every change,
+  and on the clipboard with Edit > Copy tree as text.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -452,7 +454,9 @@ database load result, per hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
 reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
-ones about unknown limits. Click "Export" in the log window to save it as a
+ones about unknown limits. After the first read and after every USB change
+(and every display change that shows), it also lists the whole tree as text,
+so the log shows how the tree looked at each moment. Click "Export" in the log window to save it as a
 text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
 bug report; File > Export log does the same from the main window. The log
 is kept in memory only and starts empty each time the app starts.
@@ -467,7 +471,24 @@ is `unverified`. Send the file to the developers; they add model-specific
 limits from cited sources.
 
 The menu bar at the top has File (Export computer profile, Export log,
-Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
+Settings, Exit), Edit (Copy tree as text) and Help (Check for updates, About
+USB-helper). Copy tree as text puts the tree on the clipboard as plain text, the
+same text the log gets, for pasting into an email:
+
+```
+Dell Inc. Latitude 7450
+|-- Controller (Hubs: 1, deepest tier: 3, deepest hop: 1)
+|   `-- ROOT
+|       `-- Port 1 [USB-C]
+|           `-- [+2 hops] Dock - stable
+|               `-- Port 1
+|                   `-- Keyboard (046D:C31C) - stable
+`-- Displays
+    `-- DELL U2723QE (HDMI)
+```
+
+Each row has its badges in brackets ("+N hops" for a marked cable, "USB-C",
+"Display"), the result word after " - " and its notes in parentheses. Press Alt, or
 Alt with the underlined letter (for example Alt+F for File), to use it from
 the keyboard. Check for updates runs
 the update check again (see Install) and also says when the running version is

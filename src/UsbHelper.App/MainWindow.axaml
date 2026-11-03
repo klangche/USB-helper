@@ -20,6 +20,9 @@
         <Separator />
         <MenuItem Header="{x:Static res:Strings.MenuExit}" Command="{Binding ExitCommand}" />
       </MenuItem>
+      <MenuItem Header="{x:Static res:Strings.MenuEdit}">
+        <MenuItem Header="{x:Static res:Strings.MenuCopyTree}" Command="{Binding CopyTreeCommand}" />
+      </MenuItem>
       <MenuItem Header="{x:Static res:Strings.MenuHelp}">
         <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" Command="{Binding Update.CheckNow}"
                   IsEnabled="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}" />
