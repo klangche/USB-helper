@@ -413,8 +413,8 @@ Alt with the underlined letter (for example Alt+F for File), to use it from
 the keyboard. Settings is greyed out until it is built. Check for updates runs
 the update check again (see Install) and also says when the running version is
 up to date or the check failed; it is greyed out where the app has no update
-check (outside Windows). About shows the running version, the license, the icon's attribution
-and a link to this repository.
+check (outside Windows). About shows the running version, the license, the
+icon's attribution and a link to this repository.
 
 ## Development
 

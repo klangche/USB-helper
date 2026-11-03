@@ -157,6 +157,32 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task ALateStartUpCheckWithNothingNewerKeepsTheMenusNotice()
+    {
+        // The start-up check's two requests wait at the gate; the menu's check, started meanwhile, answers at once.
+        var gate = new TaskCompletionSource();
+        var github = GitHub();
+        var requests = 0;
+        var http = new FakeHttp(async (request, cancel) =>
+        {
+            if (Interlocked.Increment(ref requests) <= 2)
+            {
+                await gate.Task.WaitAsync(cancel);
+            }
+            return await github.Client().SendAsync(new HttpRequestMessage(request.Method, request.RequestUri), cancel);
+        });
+        var model = Model(http, current: "0.7.0-beta.1");
+
+        var startUp = model.CheckAsync();
+        await model.CheckAsync(fromMenu: true);
+        gate.SetResult();
+        await startUp;
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("USB-helper 0.7.0-beta.1 is up to date.", model.Message);
+    }
+
+    [Fact]
     public async Task CheckingFromTheMenuOfflineSaysTheCheckFailed()
     {
         var model = Model(new FakeHttp((_, _) => throw new HttpRequestException("No such host is known.")));

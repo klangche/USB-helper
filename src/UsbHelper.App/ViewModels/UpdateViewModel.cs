@@ -114,10 +114,14 @@ public sealed class UpdateViewModel(HttpClient http, string current, string appF
             result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}", e.Message);
         }
         log.Add(result.Log);
+        var newer = result.Stable != null || result.Beta != null;
+        if (!newer && !fromMenu)
+        {
+            return; // nothing to show; a notice the menu's check put up meanwhile stays
+        }
         found = result;
         OnPropertyChanged(nameof(StableText));
         OnPropertyChanged(nameof(BetaText));
-        var newer = result.Stable != null || result.Beta != null;
         Status = null;
         CloseText = newer ? Strings.UpdateSkip : Strings.UpdateClose;
         Message = newer ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateAvailable, current)
