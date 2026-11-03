@@ -1,7 +1,8 @@
 using System.Net;
 using System.Text;
+using UsbHelper.App.Update;
 
-namespace UsbHelper.Launcher.Tests;
+namespace UsbHelper.App.Tests.Update;
 
 /// <summary>The update check against a fake GitHub Releases feed (#111).</summary>
 public class UpdateCheckTests

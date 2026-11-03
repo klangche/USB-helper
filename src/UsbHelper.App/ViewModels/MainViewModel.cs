@@ -184,11 +184,14 @@ public sealed class MainViewModel : ObservableObject
     public string ExportProfile() =>
         ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion(), DateOnly.FromDateTime(DateTime.Now));
 
-    // The release build sets the version; "+commit" metadata is left out.
-    private static string AppVersion() =>
+    /// <summary>This app's version as the release build sets it; "+commit" metadata is left out.</summary>
+    public static string AppVersion() =>
         typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
+
+    /// <summary>The update notice (#123); null where the app does not check for updates.</summary>
+    public UpdateViewModel? Update { get; init; }
 
     /// <summary>The log window's content.</summary>
     public LogViewModel Log { get; }

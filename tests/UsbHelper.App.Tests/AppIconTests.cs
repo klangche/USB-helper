@@ -48,7 +48,7 @@ public class AppIconTests
             return; // Only a Windows build puts the icon into the exe.
         }
         // The referenced app's exe is copied next to the tests.
-        var exe = Path.Combine(AppContext.BaseDirectory, "UsbHelper.App.exe");
+        var exe = Path.Combine(AppContext.BaseDirectory, "UsbHelper.exe");
         Assert.True(File.Exists(exe), exe);
         Assert.Equal(1u, ExtractIconEx(exe, -1, IntPtr.Zero, IntPtr.Zero, 0)); // -1: count the icons
     }

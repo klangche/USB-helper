@@ -47,6 +47,24 @@
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
+    <!-- The update notice (#123): shown only when a newer release exists; the window works as normal meanwhile. -->
+    <Border DockPanel.Dock="Top" Margin="0,0,0,12" Padding="8" CornerRadius="4" BorderThickness="1"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+            IsVisible="{Binding Update.IsOffered, FallbackValue=False}">
+      <StackPanel Spacing="6">
+        <WrapPanel>
+          <TextBlock Text="{Binding Update.Message}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <Button Content="{Binding Update.StableText}" Command="{Binding Update.UpdateToStable}" IsEnabled="{Binding Update.CanChoose}"
+                  IsVisible="{Binding Update.StableText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+          <Button Content="{Binding Update.BetaText}" Command="{Binding Update.UpdateToBeta}" IsEnabled="{Binding Update.CanChoose}"
+                  IsVisible="{Binding Update.BetaText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+          <Button Content="{x:Static res:Strings.UpdateSkip}" Command="{Binding Update.Skip}" IsEnabled="{Binding Update.CanChoose}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding Update.Status}" TextWrapping="Wrap"
+                   IsVisible="{Binding Update.Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </StackPanel>
+    </Border>
+
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Versioning;
 using Avalonia;
@@ -25,7 +26,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow { DataContext = Start(desktop) };
+            var viewModel = Start(desktop);
+            desktop.MainWindow = new MainWindow { DataContext = viewModel };
+            if (OperatingSystem.IsWindows() && viewModel.Update is { } update)
+            {
+                // After the window shows, so the check never delays the start (#123).
+                desktop.MainWindow.Opened += (_, _) => _ = update.CheckAsync();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -38,11 +45,6 @@ public partial class App : Application
     {
         var log = new EventLog();
         log.Add("USB-helper started");
-        // The launcher's update check result (#111); the variable is UsbHelper.Launcher.Program.UpdateLogVariable.
-        if (Environment.GetEnvironmentVariable("USBHELPER_UPDATE_CHECK") is { Length: > 0 } update)
-        {
-            log.Add(update);
-        }
         if (!OperatingSystem.IsWindows())
         {
             var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log);
@@ -50,9 +52,28 @@ public partial class App : Application
             return unavailable;
         }
 
-        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log);
+        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log)
+        {
+            Update = new UpdateViewModel(new HttpClient(), MainViewModel.AppVersion(), AppContext.BaseDirectory, exe => Restart(exe, desktop), log,
+                UpdateCheckTimeout),
+        };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
+    }
+
+    // GitHub's answer within this time, or the check is skipped (#111).
+    private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
+
+    // Starts the updated app from its own folder with this app's arguments, then closes this one (#123).
+    private static void Restart(string exe, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var start = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) };
+        foreach (var arg in desktop.Args ?? [])
+        {
+            start.ArgumentList.Add(arg);
+        }
+        Process.Start(start)!.Dispose();
+        desktop.Shutdown();
     }
 
     private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log)
