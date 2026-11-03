@@ -1,6 +1,6 @@
 <!-- The per-user .msi (#124), built by release.yml with WiX Toolset (version pinned in .config/dotnet-tools.json):
 
-       dotnet wix build installer/Package.wxs -arch x64 -bindpath app=<folder> -d Version=<release version>
+       dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath app=<absolute folder> -d Version=<release version>
          -d ProductVersion=<release/msi-version.sh output> -o <name>.msi
 
      <folder> holds the same loose files as the portable zip's USB-helper folder. No administrator rights: Scope="perUser"
