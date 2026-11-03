@@ -292,12 +292,15 @@ Releases marked pre-release (`-beta.N`) are test builds of the next version.
 Download the `.msi` and open it. It installs for the current user only, with
 no administrator rights and no UAC prompt, to
 `%LOCALAPPDATA%\Programs\USB-helper`, and adds USB-helper to the Start menu
-and to Apps & features (Settings > Apps > Installed apps). As the `.msi` is not
-signed, Windows SmartScreen may warn first: click "More info", then "Run
-anyway". A newer `.msi` (stable or beta) upgrades the installed one in place;
-an older one does not install over a newer one. Settings live in
-`%APPDATA%\USB-helper` and stay through upgrades. To uninstall, use Apps &
-features, or `msiexec /x usb-helper-<version>-windows-x64.msi`.
+and to Apps & features (Settings > Apps > Installed apps). As the `.msi` is
+not signed, Windows SmartScreen may warn first: click "More info", then "Run
+anyway". The setup shows the license, the progress and a last page with
+"Launch USB-helper", ticked by default: Finish then starts USB-helper; untick
+it to finish without starting. A newer `.msi` (stable or beta) upgrades the
+installed one in place; an older one does not install over a newer one.
+Settings live in `%APPDATA%\USB-helper` and stay through upgrades. To
+uninstall, use Apps & features, or `msiexec /x
+usb-helper-<version>-windows-x64.msi`.
 
 Windows Installer versions have no pre-release part, so Apps & features shows
 an MSI version (`release/msi-version.sh`): `X.Y.Z` is `X.Y.(Z*1000+999)` and
@@ -363,11 +366,11 @@ seconds, a GitHub error or its rate limit, the check is skipped silently.
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
 release's `.msi` and its SHA-256 file to `%TEMP%\USB-helper-update`, verifies
-it, runs it (`msiexec /i ... /passive /norestart`: a progress bar, no
-questions, never a restart of the computer) and
-closes, so the installer can replace its files. Start USB-helper again from
-the Start menu when it is done. Releases from before the `.msi` (0.5.0 and
-older) are not offered to an installed app.
+it, runs it (`msiexec /i ... /passive /norestart LAUNCHAPPONEXIT=1`: a
+progress bar, no questions, never a restart of the computer) and closes, so
+the installer can replace its files. When the install is done, the installer
+starts the new version (`LAUNCHAPPONEXIT=1`). Releases from before the `.msi`
+(0.5.0 and older) are not offered to an installed app.
 
 A `.msi` download that fails verification is never run; the window shows why
 and the current version keeps running. A download that stalls is given up
@@ -584,8 +587,11 @@ the next release would get and `N` counts up from 1 for each beta of it
   against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
   release and beta for the update check.
 - `installer/Package.wxs`: the per-user `.msi`, built in `release.yml` with
-  WiX Toolset (the `wix` .NET tool, pinned in `.config/dotnet-tools.json`;
-  `dotnet tool restore`, then `dotnet wix build`, Windows only). It packs the
+  WiX Toolset (the `wix` .NET tool, pinned in `.config/dotnet-tools.json`, and
+  its UI and Util extensions, pinned in `release/build-msi.ps1`; Windows only).
+  It uses the standard minimal setup UI with the "Launch USB-helper" box, and
+  starts the app after an install with `LAUNCHAPPONEXIT=1`, which the app's own
+  update passes (`Update/MsiInstall.cs`). It packs the
   same files as the zip. Its `UpgradeCode` must never change: it is how a newer
   `.msi` finds the installed one. `release.yml` installs, upgrades and
   uninstalls every `.msi` it builds as a check. `release/msi-version.sh` maps

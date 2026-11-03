@@ -1,7 +1,9 @@
 <!-- The per-user .msi (#124), built by release.yml with WiX Toolset (version pinned in .config/dotnet-tools.json):
 
-       dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath layout=<absolute folder> -d Version=<release version>
-         -d ProductVersion=<release/msi-version.sh output> -o <name>.msi
+       dotnet wix extension add WixToolset.UI.wixext/6.0.2 WixToolset.Util.wixext/6.0.2
+       dotnet wix build installer/Package.wxs -arch x64 -wx -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
+         -bindpath layout=<absolute folder> -d Version=<release version> -d ProductVersion=<release/msi-version.sh output>
+         -d LicenseRtf=<LICENSE as RTF> -o <name>.msi
 
      <folder> holds the same files as the portable zip's USB-helper folder (#130): USB-helper.exe, READ_ME_FIRST.txt,
      LICENSE.txt and the folder "app" with the app, its DLLs and the .NET runtime. `wix build` runs no ICE validation;
@@ -9,7 +11,7 @@
      for a per-machine-style layout. release.yml's "Test MSI" step installs, upgrades and uninstalls each build instead
      and checks that nothing is left behind. No administrator rights: Scope="perUser"
      marks the package as not needing elevation, and everything goes into the user's own profile. -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <!-- The UpgradeCode never changes: it is how a newer .msi finds and replaces the installed one. -->
   <Package Name="USB-helper" Manufacturer="klangche" Version="$(var.ProductVersion)" Language="1033"
            UpgradeCode="0E64449D-669A-4752-8190-622B5AC5A528" Scope="perUser">
@@ -26,6 +28,26 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/klangche/USB-helper" />
     <Property Id="ARPCOMMENTS" Value="USB-helper $(var.Version)" />
     <Property Id="ARPNOMODIFY" Value="1" />
+
+    <!-- The standard minimal setup (#147): the license (LICENSE as RTF), progress, and a last page with "Launch
+         USB-helper", ticked by default. Finish then starts the installed USB-helper.exe. -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch USB-helper" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+
+    <!-- Starts USB-helper.exe as the installing user (WixShellExec, from the Util extension). The app's own update runs
+         the .msi with /passive and LAUNCHAPPONEXIT=1 (src/UsbHelper.App/Update/MsiInstall.cs): no last page, so the
+         new version starts right after the install instead. -->
+    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]USB-helper.exe" />
+    <CustomAction Id="LaunchApplication" DllEntry="WixShellExec" Impersonate="yes" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchApplication" After="InstallFinalize" Condition="LAUNCHAPPONEXIT = 1 AND NOT REMOVE" />
+    </InstallExecuteSequence>
 
     <!-- %LOCALAPPDATA%\Programs\USB-helper, where per-user apps go. The app checks for this folder to update by .msi. -->
     <StandardDirectory Id="LocalAppDataFolder">
