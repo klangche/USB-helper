@@ -3,3 +3,8 @@ bin/
 obj/
 *.user
 .vs/
+
+# Local WiX builds (release/build-msi.ps1, release.yml)
+.wix/
+License.rtf
+decompiled.wxs

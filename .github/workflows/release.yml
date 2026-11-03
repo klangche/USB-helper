@@ -182,15 +182,23 @@ jobs:
       - name: MSI
         shell: pwsh
         run: |
-          dotnet tool restore
-          # An absolute -bindpath: WiX resolves a relative one against the .wxs folder. -wx: a warning, such as no files
-          # harvested, fails the build instead of making an empty .msi.
-          dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath "layout=$PWD\layout" -d Version='${{ needs.version.outputs.version }}' -d ProductVersion=$env:MSI_VERSION -o "$env:NAME.msi"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          . release/build-msi.ps1
+          Build-Msi '${{ needs.version.outputs.version }}' $env:MSI_VERSION "$env:NAME.msi"
           "$env:NAME.msi: ProductVersion $env:MSI_VERSION, $([math]::Round((Get-Item "$env:NAME.msi").Length / 1MB, 1)) MB"
+          # The last page's "Launch USB-helper" exists and is ticked by default (#147), and the launch action is in.
+          dotnet wix msi decompile "$env:NAME.msi" -o decompiled.wxs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          [xml] $package = Get-Content decompiled.wxs -Raw
+          $properties = @{}
+          $package.SelectNodes("//*[local-name()='Property']") | ForEach-Object { $properties[$_.Id] = $_.Value }
+          if ($properties['WIXUI_EXITDIALOGOPTIONALCHECKBOX'] -ne '1') { throw "Launch USB-helper is not ticked by default." }
+          if ($properties['WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT'] -ne 'Launch USB-helper') { throw "The last page has no Launch USB-helper box." }
+          if (-not $package.SelectNodes("//*[local-name()='CustomAction' and @Id='LaunchApplication']").Count) { throw "No LaunchApplication action." }
+          "Last page: '$($properties['WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT'])', ticked by default"
 
       # Installs the .msi as the runner's user, checks the files, the Start menu shortcut and the Apps & features entry,
-      # starts the app through the shortcut's target, upgrades it with a newer build of the same files, and uninstalls.
+      # checks that nothing starts by itself, starts the app through the shortcut's target, upgrades it with a newer build
+      # of the same files with LAUNCHAPPONEXIT=1 and waits for the new version's window (#147), and uninstalls.
       # /qn: no window. The runner's user is an administrator, so this cannot show that no UAC prompt appears;
       # Scope="perUser" in installer/Package.wxs does.
       - name: Test MSI
@@ -213,6 +221,8 @@ jobs:
           }
           function Files($path) { (Get-ChildItem $path -Recurse -File).FullName.Substring($path.Length) | Sort-Object }
           Msiexec "/i $env:NAME.msi /qn /l*v msi.log"
+          # Without LAUNCHAPPONEXIT (and with no last page under /qn) nothing starts.
+          Assert-NotRunning $folder 'install without LAUNCHAPPONEXIT'
           if (Compare-Object (Files $folder) (Files "$PWD\layout")) { throw "$folder does not hold the same files as the zip's USB-helper folder." }
           if (-not (Test-Path $shortcut)) { throw "No Start menu shortcut." }
           $target = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut).TargetPath
@@ -220,14 +230,16 @@ jobs:
           if ((Entries).Count -ne 1) { throw "Windows Installer does not list USB-helper once for this user." }
           "Installed: $((Files $folder).Count) files, version $((Entries)[0].DisplayVersion); top level: $((Get-ChildItem $folder).Name -join ', ')"
           Test-Start $target
-          # A newer .msi (build + 1) upgrades in place: still one entry, with the new version.
+          # A newer .msi (build + 1) upgrades in place: still one entry, with the new version. LAUNCHAPPONEXIT=1, as the app's
+          # own update passes it (#147): the new version starts when the install is done.
+          . release/build-msi.ps1
           $parts = $env:MSI_VERSION.Split('.')
           $newer = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
-          dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath "layout=$PWD\layout" -d Version=upgrade-test -d ProductVersion=$newer -o upgrade-test.msi
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          Msiexec "/i upgrade-test.msi /qn /l*v msi.log"
+          Build-Msi upgrade-test $newer upgrade-test.msi
+          Msiexec "/i upgrade-test.msi /qn LAUNCHAPPONEXIT=1 /l*v msi.log"
           if ((Entries).Count -ne 1 -or (Entries)[0].DisplayVersion -ne $newer) { throw "The newer .msi did not upgrade in place." }
           "Upgraded to $newer"
+          Wait-Window $folder 'started by the .msi with LAUNCHAPPONEXIT=1'
           Msiexec "/x upgrade-test.msi /qn /l*v msi.log"
           if ((Test-Path $folder) -or (Test-Path $shortcut) -or (Entries).Count) { throw "Uninstall left the folder, the shortcut or the entry." }
           "Uninstalled"
