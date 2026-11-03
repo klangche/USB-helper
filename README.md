@@ -382,16 +382,23 @@ reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
 ones about unknown limits. Click "Export" in the log window to save it as a
 text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
-bug report. The log is kept in memory only and starts empty each time the
+bug report; File > Export log does the same from the main window. The log is kept in memory only and starts empty each time the
 app starts.
 
-No profile for your computer yet? Click "Export computer profile" and save the
-file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
+No profile for your computer yet? Click "Export computer profile" (or File >
+Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
 manufacturer and model exactly as Windows reports them, the processor, the
 matching platform profile, the USB controllers with their root hub ports, and
 the number of active external displays. It sets no limits, so it uses the
 platform profile's, and the status is `unverified`. Send the file to the
 developers; they add model-specific limits from cited sources.
+
+The menu bar at the top has File (Export computer profile, Export log,
+Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
+Alt with the underlined letter (for example Alt+F for File), to use it from
+the keyboard. Settings and Check for updates are greyed out until they are
+built. About shows the running version, the license, the icon's attribution
+and a link to this repository.
 
 ## Development
 

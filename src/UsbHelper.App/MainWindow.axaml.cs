@@ -10,7 +10,7 @@ using UsbHelper.App.ViewModels;
 
 namespace UsbHelper.App;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IMainWindowActions
 {
     private LogWindow? logWindow;
 
@@ -19,7 +19,29 @@ public partial class MainWindow : Window
         InitializeComponent();
         // Before the tree item, which would otherwise take Enter to expand or collapse.
         Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
+        // The menu and the top bar buttons run the view model's commands, which call back here.
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.Window = this;
+            }
+        };
     }
+
+    void IMainWindowActions.ExportProfile() => ExportProfile();
+
+    async void IMainWindowActions.ExportLog()
+    {
+        if (DataContext is MainViewModel viewModel && await LogWindow.SaveLog(this, viewModel.Log) is { } result)
+        {
+            ExportResult.Text = result;
+        }
+    }
+
+    void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
+
+    void IMainWindowActions.Exit() => Close();
 
     // One log window at a time: a second click brings the open one to the front.
     private void OpenLog(object? sender, RoutedEventArgs e)
@@ -64,7 +86,7 @@ public partial class MainWindow : Window
 
     // Asks where to save, then writes this computer as a computer profile. An event handler: any failure (no
     // access to the folder, a disk error, a name the encoder rejects) is shown instead of ending the app.
-    private async void ExportProfile(object? sender, RoutedEventArgs e)
+    private async void ExportProfile()
     {
         if (DataContext is not MainViewModel viewModel)
         {

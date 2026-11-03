@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Reflection;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -89,6 +88,10 @@ public sealed class MainViewModel : ObservableObject
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
         report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
+        ExportProfileCommand = new RelayCommand(() => Window?.ExportProfile(), () => CanExport);
+        ExportLogCommand = new RelayCommand(() => Window?.ExportLog());
+        ExitCommand = new RelayCommand(() => Window?.Exit());
+        AboutCommand = new RelayCommand(() => Window?.ShowAbout());
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -182,11 +185,20 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>This computer as a computer profile YAML, to send to the developers.</summary>
     public string ExportProfile() =>
-        ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion(), DateOnly.FromDateTime(DateTime.Now));
+        ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion.Current, DateOnly.FromDateTime(DateTime.Now));
 
-    // The release build sets the version; "+commit" metadata is left out.
-    private static string AppVersion() =>
-        typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
+    /// <summary>The view that carries out the commands below; set by the main window.</summary>
+    public IMainWindowActions? Window { get; set; }
+
+    /// <summary>File > Export computer profile and the top bar button; enabled when <see cref="CanExport"/>.</summary>
+    public RelayCommand ExportProfileCommand { get; }
+
+    /// <summary>File > Export log: the same export as the log window's button.</summary>
+    public RelayCommand ExportLogCommand { get; }
+
+    public RelayCommand ExitCommand { get; }
+
+    public RelayCommand AboutCommand { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 
@@ -204,6 +216,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetField(ref isLoading, value))
             {
                 OnPropertyChanged(nameof(CanExport)); // Not before the USB tree is known.
+                ExportProfileCommand.Refresh();
             }
         }
     }

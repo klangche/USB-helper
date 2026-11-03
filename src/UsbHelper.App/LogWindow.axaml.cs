@@ -28,17 +28,24 @@ public partial class LogWindow : Window
     private void ScrollToNewest(object? sender, NotifyCollectionChangedEventArgs e) =>
         Dispatcher.UIThread.Post(Entries.ScrollToEnd, DispatcherPriority.Background);
 
-    // Asks where to save, then writes the log as plain text. Same style as the profile export in MainWindow: any
-    // failure is shown instead of ending the app.
     private async void ExportLog(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not LogViewModel viewModel)
+        if (DataContext is LogViewModel viewModel && await SaveLog(this, viewModel) is { } result)
         {
-            return;
+            ExportResult.Text = result;
         }
+    }
+
+    /// <summary>
+    /// Asks where to save, then writes the log as plain text: for this window's button and the main window's
+    /// File > Export log. Returns the message to show, or null when the user cancelled. Same style as the profile export
+    /// in MainWindow: any failure is shown instead of ending the app.
+    /// </summary>
+    internal static async Task<string?> SaveLog(TopLevel owner, LogViewModel viewModel)
+    {
         try
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = Strings.LogExportTitle,
                 SuggestedFileName = viewModel.ExportFileName,
@@ -47,16 +54,16 @@ public partial class LogWindow : Window
             });
             if (file == null)
             {
-                return;
+                return null;
             }
             await using var stream = await file.OpenWriteAsync();
             await using var writer = new StreamWriter(stream);
             await writer.WriteAsync(viewModel.Export());
-            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.LogExportSaved, file.Name);
+            return string.Format(CultureInfo.CurrentCulture, Strings.LogExportSaved, file.Name);
         }
         catch (Exception ex)
         {
-            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.LogExportFailed, ex.Message);
+            return string.Format(CultureInfo.CurrentCulture, Strings.LogExportFailed, ex.Message);
         }
     }
 }
