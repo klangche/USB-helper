@@ -47,7 +47,7 @@ public static class PortableUpdate
                 }
             }
             var unzipped = Path.Combine(staging, "unzipped");
-            ZipFile.ExtractToDirectory(zip, unzipped); // refuses entries that point outside the folder
+            await ZipFile.ExtractToDirectoryAsync(zip, unzipped, cancel); // refuses entries that point outside the folder; off the UI thread
             var folder = Path.Combine(unzipped, FolderName);
             if (!File.Exists(Path.Combine(folder, ExeName)))
             {

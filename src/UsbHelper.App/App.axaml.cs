@@ -28,7 +28,7 @@ public partial class App : Application
         {
             var viewModel = Start(desktop);
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
-            if (OperatingSystem.IsWindows() && viewModel.Update is { } update)
+            if (viewModel.Update is { } update) // set on Windows only
             {
                 // After the window shows, so the check never delays the start (#123).
                 desktop.MainWindow.Opened += (_, _) => _ = update.CheckAsync();
