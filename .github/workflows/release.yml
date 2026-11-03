@@ -169,7 +169,14 @@ jobs:
         run: |
           $folder = "$env:LOCALAPPDATA\Programs\USB-helper"
           $shortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\USB-helper.lnk"
-          function Entries { @(Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'USB-helper') }
+          # Installed products as Windows Installer lists them (Apps & features shows the same). A per-user .msi writes no
+          # HKCU Uninstall key; AssignmentType 0 means installed for this user only.
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          function Entries {
+            @($installer.Products | Where-Object { $installer.ProductInfo($_, 'ProductName') -eq 'USB-helper' } | ForEach-Object {
+              [pscustomobject]@{ DisplayVersion = $installer.ProductInfo($_, 'VersionString'); PerUser = $installer.ProductInfo($_, 'AssignmentType') -eq '0' }
+            })
+          }
           function Msiexec($arguments) {
             $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
             if ($process.ExitCode) { Get-Content msi.log -ErrorAction SilentlyContinue | Select-Object -Last 40; throw "msiexec $arguments exited with $($process.ExitCode)." }
@@ -179,6 +186,7 @@ jobs:
           if ((Get-ChildItem $folder).Count -ne (Get-ChildItem app).Count) { throw "$folder does not hold the same files as the zip." }
           if (-not (Test-Path $shortcut)) { throw "No Start menu shortcut." }
           if ((Entries).Count -ne 1) { throw "Apps & features does not list USB-helper once." }
+          if (-not (Entries)[0].PerUser) { throw "USB-helper is not installed per user." }
           "Installed: $((Get-ChildItem $folder).Count) files, version $((Entries)[0].DisplayVersion)"
           # A newer .msi (build + 1) upgrades in place: still one entry, with the new version.
           $parts = $env:MSI_VERSION.Split('.')
