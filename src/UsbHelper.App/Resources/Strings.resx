@@ -324,6 +324,12 @@ This version keeps running.</value>
   <data name="MenuExit" xml:space="preserve">
     <value>E_xit</value>
   </data>
+  <data name="MenuEdit" xml:space="preserve">
+    <value>_Edit</value>
+  </data>
+  <data name="MenuCopyTree" xml:space="preserve">
+    <value>_Copy tree as text</value>
+  </data>
   <data name="MenuHelp" xml:space="preserve">
     <value>_Help</value>
   </data>

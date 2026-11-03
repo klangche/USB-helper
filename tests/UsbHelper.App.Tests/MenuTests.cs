@@ -24,6 +24,8 @@ public class MenuTests
         public void ShowSettings() => Calls.Add(nameof(ShowSettings));
 
         public void Exit() => Calls.Add(nameof(Exit));
+
+        public void CopyText(string text) => Calls.Add(nameof(CopyText));
     }
 
     private static MainViewModel Loaded(ComputerIdentity identity, FakeWindow window)
@@ -46,8 +48,9 @@ public class MenuTests
         viewModel.SettingsCommand.Execute(null);
         viewModel.AboutCommand.Execute(null);
         viewModel.ExitCommand.Execute(null);
+        viewModel.CopyTreeCommand.Execute(null);
 
-        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit"], window.Calls);
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText"], window.Calls);
     }
 
     [Fact]
@@ -83,8 +86,10 @@ public class MenuTests
     {
         var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
         var top = menu.Elements(Avalonia + "MenuItem").Select(Key).ToList();
-        Assert.Equal(["MenuFile", "MenuHelp"], top);
+        Assert.Equal(["MenuFile", "MenuEdit", "MenuHelp"], top);
         Assert.Equal(["MenuExportProfile", "MenuExportLog", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
+        Assert.Equal(["MenuCopyTree"], Items(menu, "MenuEdit"));
+        Assert.Equal("{Binding CopyTreeCommand}", (string?)MenuItem(MainWindowXaml(), "MenuCopyTree").Attribute("Command"));
         Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));
     }
 
