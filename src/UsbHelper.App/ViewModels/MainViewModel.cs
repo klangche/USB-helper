@@ -267,7 +267,8 @@ public sealed class MainViewModel : ObservableObject
         get => selectedNode;
         set
         {
-            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0)
+            // A monitor belongs to no controller (#133): clicking the Displays group or a monitor keeps the scope.
+            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0 && !IsDisplay(value))
             {
                 // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
                 allControllers = value == Roots[0];
@@ -276,6 +277,9 @@ public sealed class MainViewModel : ObservableObject
             }
         }
     }
+
+    private bool IsDisplay(NodeViewModel item) =>
+        Roots[0].Children.FirstOrDefault(child => child.Id == NodeViewModel.DisplaysId) is { } displays && Contains(displays, item);
 
     private static bool Contains(NodeViewModel item, NodeViewModel wanted) =>
         item == wanted || item.Children.Any(child => Contains(child, wanted));

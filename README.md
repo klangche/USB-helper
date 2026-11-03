@@ -394,9 +394,11 @@ every hub above it says it "has a display". After the controllers, a
 example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in
 panel, is listed as "Monitor". The group does not say which USB port or dock a
 monitor hangs off. While a DisplayLink device is connected, indirect monitors
-are not listed in the group: they stay under their DisplayLink device. The
-group follows monitors as they are connected and removed, and the log lists
-the monitors at start and each one connected or removed. A port in the tree that Windows
+are not listed in the group: they stay under their DisplayLink device.
+Selecting the group or a monitor does not change what the status field covers.
+The group follows monitors as they are connected and removed, and the log
+lists the monitors at start and each one connected or removed. A port in the
+tree that Windows
 reports as a USB-C connector (from its port connector properties) has a "USB-C"
 badge after its name; this changes no result. Empty ports are not in the tree;
 the log lists the flag of every port Windows reports it for. Each controller

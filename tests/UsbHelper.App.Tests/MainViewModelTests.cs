@@ -1090,6 +1090,26 @@ public class MainViewModelTests
         Assert.Contains("External displays: 3, limit 2 (exceeded)", viewModel.StatusRows.Single().Details);
     }
 
+    // A monitor belongs to no controller: selecting it, or the group, keeps what the status covers.
+    [Fact]
+    public void SelectingAMonitorKeepsTheStatusScope()
+    {
+        var other = new UsbNode("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("A"))]);
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, Dell]);
+        viewModel.Load([.. Desk, other]);
+
+        viewModel.SelectedNode = Item(viewModel, "C2");
+        viewModel.SelectedNode = DisplaysGroup(viewModel)!.Children[1];
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+
+        viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
+        viewModel.SelectedNode = DisplaysGroup(viewModel);
+
+        Assert.Null(viewModel.SelectedControllerId);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.StatusFor, Strings.AllControllers), viewModel.StatusScope);
+    }
+
     [Fact]
     public void ThereIsNoDisplaysGroupWhenTheMonitorsAreUnknown()
     {
