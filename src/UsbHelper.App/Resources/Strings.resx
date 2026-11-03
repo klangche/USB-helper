@@ -244,6 +244,15 @@
   <data name="UpdateSkip" xml:space="preserve">
     <value>Skip</value>
   </data>
+  <data name="UpdateUpToDate" xml:space="preserve">
+    <value>USB-helper {0} is up to date.</value>
+  </data>
+  <data name="UpdateCheckFailed" xml:space="preserve">
+    <value>The update check failed: {0}</value>
+  </data>
+  <data name="UpdateClose" xml:space="preserve">
+    <value>OK</value>
+  </data>
   <data name="UpdateDownloading" xml:space="preserve">
     <value>Downloading {0}... {1}%</value>
   </data>

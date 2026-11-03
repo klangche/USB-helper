@@ -139,6 +139,50 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckingFromTheMenuWhenUpToDateSaysSo()
+    {
+        var model = Model(GitHub(), current: "0.7.0-beta.1");
+
+        await model.CheckAsync(fromMenu: true);
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("USB-helper 0.7.0-beta.1 is up to date.", model.Message);
+        Assert.Null(model.StableText);
+        Assert.Null(model.BetaText);
+        Assert.Equal("OK", model.CloseText);
+
+        model.Skip.Execute(null);
+
+        Assert.False(model.IsOffered);
+    }
+
+    [Fact]
+    public async Task CheckingFromTheMenuOfflineSaysTheCheckFailed()
+    {
+        var model = Model(new FakeHttp((_, _) => throw new HttpRequestException("No such host is known.")));
+
+        await model.CheckAsync(fromMenu: true);
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("The update check failed: No such host is known.", model.Message);
+        Assert.Equal("OK", model.CloseText);
+    }
+
+    [Fact]
+    public async Task CheckingFromTheMenuOffersNewerReleasesAsAtStart()
+    {
+        var model = Model(GitHub());
+
+        model.CheckNow.Execute(null);
+        await model.Checking;
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("A newer version is available. You have 0.5.0.", model.Message);
+        Assert.Equal("Update to stable 0.6.0", model.StableText);
+        Assert.Equal("Skip", model.CloseText);
+    }
+
+    [Fact]
     public async Task SkipHidesTheNotice()
     {
         var model = Model(GitHub());

@@ -7,7 +7,8 @@ namespace UsbHelper.App.ViewModels;
 
 /// <summary>
 /// The update notice in the main window (#123). <see cref="CheckAsync"/> runs after the window shows and never blocks
-/// it; when a newer stable release or beta exists, the notice offers each with "Skip". A picked release is downloaded,
+/// it; when a newer stable release or beta exists, the notice offers each with "Skip". Help > Check for updates
+/// (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A picked release is downloaded,
 /// verified and unzipped next to the app (<see cref="PortableUpdate"/>), then started in place of this one.
 /// </summary>
 /// <param name="current">This app's version.</param>
@@ -23,6 +24,8 @@ public sealed class UpdateViewModel(HttpClient http, string current, string appF
     private bool isOffered;
     private bool isBusy;
     private string? status;
+    private string message = "";
+    private string closeText = Strings.UpdateSkip;
 
     public bool IsOffered
     {
@@ -45,7 +48,24 @@ public sealed class UpdateViewModel(HttpClient http, string current, string appF
 
     public bool CanChoose => !IsBusy;
 
-    public string Message => string.Format(CultureInfo.CurrentCulture, Strings.UpdateAvailable, current);
+    public string Message
+    {
+        get => message;
+        private set => SetField(ref message, value);
+    }
+
+    /// <summary>"Skip" while releases are offered, else "OK".</summary>
+    public string CloseText
+    {
+        get => closeText;
+        private set => SetField(ref closeText, value);
+    }
+
+    /// <summary>The last check started from the menu.</summary>
+    public Task Checking { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Help > Check for updates.</summary>
+    public RelayCommand CheckNow => new(() => Checking = CheckAsync(fromMenu: true));
 
     /// <summary>The stable choice's text, or null when no newer stable release exists.</summary>
     public string? StableText => found?.Stable is { } stable ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateToStable, stable.Version) : null;
@@ -67,12 +87,22 @@ public sealed class UpdateViewModel(HttpClient http, string current, string appF
     public RelayCommand Skip => new(() =>
     {
         IsOffered = false;
-        log.Add("Update skipped");
+        if (found?.Stable != null || found?.Beta != null)
+        {
+            log.Add("Update skipped");
+        }
     });
 
-    /// <summary>Asks GitHub for newer releases; shows the notice if there are any. Never throws.</summary>
-    public async Task CheckAsync()
+    /// <summary>
+    /// Asks GitHub for newer releases; shows the notice if there are any, or, from the menu, also when there are none or
+    /// the check failed. Never throws.
+    /// </summary>
+    public async Task CheckAsync(bool fromMenu = false)
     {
+        if (IsBusy)
+        {
+            return; // a download runs; its notice stays
+        }
         UpdateCheckResult result;
         try
         {
@@ -81,13 +111,19 @@ public sealed class UpdateViewModel(HttpClient http, string current, string appF
         catch (Exception e)
         {
             // The check handles every expected failure; anything else must not reach the window either.
-            result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}");
+            result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}", e.Message);
         }
         log.Add(result.Log);
         found = result;
         OnPropertyChanged(nameof(StableText));
         OnPropertyChanged(nameof(BetaText));
-        IsOffered = result.Stable != null || result.Beta != null;
+        var newer = result.Stable != null || result.Beta != null;
+        Status = null;
+        CloseText = newer ? Strings.UpdateSkip : Strings.UpdateClose;
+        Message = newer ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateAvailable, current)
+            : result.SkippedBecause is { } reason ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateCheckFailed, reason)
+            : string.Format(CultureInfo.CurrentCulture, Strings.UpdateUpToDate, current);
+        IsOffered = newer || fromMenu;
     }
 
     /// <summary>Downloads and starts the picked release. A failure is shown in <see cref="Status"/>; this app keeps running.</summary>

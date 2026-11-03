@@ -8,8 +8,11 @@ namespace UsbHelper.App.Update;
 /// <summary>A release the app can update to: its zip and the zip's SHA-256 file.</summary>
 public sealed record Release(string Version, Uri Zip, Uri Checksum);
 
-/// <summary>The newest stable release and the newest beta, each only when newer than this version; and the log line.</summary>
-public sealed record UpdateCheckResult(Release? Stable, Release? Beta, string Log);
+/// <summary>
+/// The newest stable release and the newest beta, each only when newer than this version; the log line; and why the
+/// check was skipped, when it was.
+/// </summary>
+public sealed record UpdateCheckResult(Release? Stable, Release? Beta, string Log, string? SkippedBecause = null);
 
 /// <summary>
 /// Asks GitHub Releases (no token) for the newest stable release and the newest beta after every start (#111, #123). It never
@@ -72,7 +75,7 @@ public static class UpdateCheck
 
     private sealed class GitHubException(string message) : Exception(message);
 
-    private static UpdateCheckResult Skipped(string reason) => new(null, null, $"Update check skipped: {reason}");
+    private static UpdateCheckResult Skipped(string reason) => new(null, null, $"Update check skipped: {reason}", reason);
 
     private static UpdateCheckResult Compare((ReleaseVersion, Release)? stable, (ReleaseVersion, Release)? beta, string current)
     {
