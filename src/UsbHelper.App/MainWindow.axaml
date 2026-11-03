@@ -16,7 +16,7 @@
         <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />
         <Separator />
-        <MenuItem Header="{x:Static res:Strings.MenuSettings}" IsEnabled="False" />
+        <MenuItem Header="{x:Static res:Strings.MenuSettings}" Command="{Binding SettingsCommand}" />
         <Separator />
         <MenuItem Header="{x:Static res:Strings.MenuExit}" Command="{Binding ExitCommand}" />
       </MenuItem>

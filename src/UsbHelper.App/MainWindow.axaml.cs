@@ -39,6 +39,14 @@ public partial class MainWindow : Window, IMainWindowActions
         }
     }
 
+    void IMainWindowActions.ShowSettings()
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            _ = new SettingsWindow { DataContext = viewModel.Settings }.ShowDialog(this);
+        }
+    }
+
     void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();

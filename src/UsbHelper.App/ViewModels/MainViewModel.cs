@@ -69,8 +69,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
         HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null,
-        EventLog? log = null)
-        : this(identity, readExternalDisplays, log)
+        EventLog? log = null, SettingsViewModel? settings = null)
+        : this(identity, readExternalDisplays, log, settings)
     {
         LoadDatabase(database, databaseErrors);
     }
@@ -78,8 +78,17 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>A model for the window before anything is read: it shows "Loading database..." first.</summary>
     /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
-    public MainViewModel(ComputerIdentity identity, Func<int?>? readExternalDisplays = null, EventLog? log = null)
+    /// <param name="settings">The settings (#126); the defaults, kept in memory only, when null.</param>
+    public MainViewModel(ComputerIdentity identity, Func<int?>? readExternalDisplays = null, EventLog? log = null, SettingsViewModel? settings = null)
     {
+        Settings = settings ?? new SettingsViewModel();
+        Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SettingsViewModel.RememberCheckedProfiles))
+            {
+                KeepCheckedProfiles(); // Turned on: keep what is checked now.
+            }
+        };
         this.log = log ?? new EventLog();
         Log = new LogViewModel(this.log);
         this.readExternalDisplays = readExternalDisplays ?? (() => null);
@@ -92,6 +101,7 @@ public sealed class MainViewModel : ObservableObject
         ExportLogCommand = new RelayCommand(() => Window?.ExportLog());
         ExitCommand = new RelayCommand(() => Window?.Exit());
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
+        SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -109,11 +119,16 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(DatabaseErrors));
         OnPropertyChanged(nameof(HasDatabaseErrors));
         // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
-        // match, are checked by the user.
-        AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile =>
-            new ProfileOption(profile.Id, profile) { IsChecked = profile.Id == identity.Platform }));
-        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile =>
-            new ProfileOption(ComputerLabel(profile), profile)));
+        // match, are checked by the user. With "remember" on (#126), the profiles checked last time instead.
+        var remembered = Settings.RememberCheckedProfiles && (Settings.CheckedOperatingSystems.Count > 0 || Settings.CheckedComputers.Count > 0);
+        AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)
+        {
+            IsChecked = remembered ? Settings.CheckedOperatingSystems.Contains(profile.Id) : profile.Id == identity.Platform,
+        }));
+        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)
+        {
+            IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
+        }));
         HostName = HostNameFor(loaded, identity);
         LoadingStage = Strings.ReadingDevices;
     }
@@ -166,11 +181,17 @@ public sealed class MainViewModel : ObservableObject
             option.PropertyChanged += (_, _) =>
             {
                 log.ProfileChecked(option.Label, option.IsChecked);
+                KeepCheckedProfiles();
                 Refresh();
             };
             list.Add(option);
         }
     }
+
+    // Kept only while "remember" is on; see SettingsViewModel.CheckedProfiles.
+    private void KeepCheckedProfiles() => Settings.CheckedProfiles(
+        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)],
+        [.. Computers.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
 
@@ -199,6 +220,12 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ExitCommand { get; }
 
     public RelayCommand AboutCommand { get; }
+
+    /// <summary>File > Settings.</summary>
+    public RelayCommand SettingsCommand { get; }
+
+    /// <summary>The settings window's content; also read by the update check.</summary>
+    public SettingsViewModel Settings { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 

@@ -318,7 +318,8 @@ USB-helper/
 ```
 
 Keep the files together; the folder can be moved anywhere. Nothing is
-unpacked elsewhere. To remove USB-helper, delete its folder.
+unpacked elsewhere. To remove USB-helper, delete its folder, and
+`%APPDATA%\USB-helper` if you want its settings gone too (see Settings).
 
 ### From 0.5.0
 
@@ -330,15 +331,16 @@ update cannot install this version (it reports that the zip holds no
 
 ### Updates
 
-After the window shows, the app asks GitHub Releases (no account or token) for
-the newest stable release and the newest beta, in the background: the window
-works as normal meanwhile. Only releases with a published SHA-256 file
+After the window shows (unless "Check for updates at start" is off in the
+settings), the app asks GitHub Releases (no account or token) for the newest
+stable release and the newest beta, in the background: the window works as
+normal meanwhile. Only releases with a published SHA-256 file
 (`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
 installed app) count, so that every download can be verified. If either is
-newer than the running version, a notice at the top of the window shows
-"Update to stable X", "Update to beta Y" (whichever are newer) and "Skip";
-otherwise nothing is shown. With no network, no answer within 2 seconds, a
-GitHub error or its rate limit, the check is skipped silently.
+newer than the running version, a notice at the top of the window shows "Update
+to stable X", "Update to beta Y" (whichever are newer) and "Skip"; otherwise
+nothing is shown. With no network, no answer within 2 seconds, a GitHub error
+or its rate limit, the check is skipped silently.
 
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
@@ -450,11 +452,33 @@ limits from cited sources.
 The menu bar at the top has File (Export computer profile, Export log,
 Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
 Alt with the underlined letter (for example Alt+F for File), to use it from
-the keyboard. Settings is greyed out until it is built. Check for updates runs
+the keyboard. Check for updates runs
 the update check again (see Install) and also says when the running version is
 up to date or the check failed; it is greyed out where the app has no update
 check (outside Windows). About shows the running version, the license, the
 icon's attribution and a link to this repository.
+
+### Settings
+
+File > Settings opens the settings. Each change is saved at once:
+
+- **Check for updates at start** (on by default): off, the app does not ask
+  GitHub after it starts; Help > Check for updates still works.
+- **Offer beta versions** (on by default): off, only stable releases are
+  offered, and a newer beta alone counts as up to date.
+- **Remember the checked profiles between starts** (off by default): on, the
+  operating systems and computers checked in the two lists are checked again
+  at the next start, instead of only the detected platform profile. If
+  nothing was checked, the detected platform profile is checked, as without
+  the setting. Turning it off forgets them.
+
+The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
+roaming app data folder), the same for every copy of the app, so they survive
+updates and moving the app's folder. With a roaming Windows profile they
+also follow the user to other computers, remembered profiles included.
+Without the file the defaults apply. A
+file that cannot be read is named in the log with the reason, and the
+defaults apply; it is only replaced when a setting is changed.
 
 ## Development
 
