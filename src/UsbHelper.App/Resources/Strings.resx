@@ -323,4 +323,10 @@ This version keeps running.</value>
   <data name="SettingsClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="UpdateTitle" xml:space="preserve">
+    <value>USB-helper update</value>
+  </data>
+  <data name="UpdatePortableNote" xml:space="preserve">
+    <value>Opens the release page in your browser: download the new zip there.</value>
+  </data>
 </root>

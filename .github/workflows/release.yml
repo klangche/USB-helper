@@ -139,9 +139,8 @@ jobs:
           if (($top -join ',') -ne 'app,LICENSE.txt,READ_ME_FIRST.txt,USB-helper.exe') { throw "Unexpected top level: $($top -join ', ')" }
           "NAME=usb-helper-$version-windows-x64" >> $env:GITHUB_ENV
 
-      # The zip holds one folder, USB-helper, with the layout in it, so unzipping gives one folder to start from and an
-      # update can unzip it next to the running one (USB-helper-<version>). ZipFile, not Compress-Archive: entry names
-      # with "/", as every unzip tool expects.
+      # The zip holds one folder, USB-helper, with the layout in it, so unzipping gives one folder to start from.
+      # ZipFile, not Compress-Archive: entry names with "/", as every unzip tool expects.
       - name: Zip
         shell: pwsh
         run: |

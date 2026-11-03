@@ -63,6 +63,7 @@ public class UpdateCheckTests
         Assert.Equal("0.6.0", result.Stable!.Version);
         Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-windows-x64.zip", result.Stable.Download.ToString());
         Assert.Equal(result.Stable.Download + ".sha256", result.Stable.Checksum.ToString());
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/tag/v0.6.0", result.Stable.Page.ToString());
         Assert.Null(result.Beta);
         Assert.Equal("Update check: stable 0.6.0 is newer than 0.6.0-beta.3", result.Log);
     }

@@ -57,15 +57,12 @@ public partial class App : Application
 
         // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
         // The app runs from the app folder below USB-helper.exe (#130).
-        var top = UpdateKinds.TopFolder(AppContext.BaseDirectory);
-        var kind = UpdateKinds.For(top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : top;
-        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
+        var kind = UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates open the release page");
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log, settings)
         {
-            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, folder,
-                file => (kind == UpdateKind.Msi ? (Action<string, IClassicDesktopStyleApplicationLifetime>)InstallMsi : Restart)(file, desktop),
-                log, UpdateCheckTimeout, settings),
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
+                msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
@@ -74,16 +71,13 @@ public partial class App : Application
     // GitHub's answer within this time, or the check is skipped (#111).
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
 
-    // Starts the updated app from its own folder with this app's arguments, then closes this one (#123).
-    private static void Restart(string exe, IClassicDesktopStyleApplicationLifetime desktop)
+    // The portable app's update (#131): the release page in the default browser. A browser that does not open is logged.
+    private static async void OpenPage(Uri page, IClassicDesktopStyleApplicationLifetime desktop, EventLog log)
     {
-        var start = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) };
-        foreach (var arg in desktop.Args ?? [])
+        if (desktop.MainWindow is not { } window || !await window.Launcher.LaunchUriAsync(page))
         {
-            start.ArgumentList.Add(arg);
+            log.Add($"The browser could not open {page}");
         }
-        Process.Start(start)!.Dispose();
-        desktop.Shutdown();
     }
 
     // Runs the downloaded .msi, which upgrades this install in place (#124), and closes this app so its files can be

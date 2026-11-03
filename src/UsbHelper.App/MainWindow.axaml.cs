@@ -13,6 +13,7 @@ namespace UsbHelper.App;
 public partial class MainWindow : Window, IMainWindowActions
 {
     private LogWindow? logWindow;
+    private UpdateWindow? updateWindow;
 
     public MainWindow()
     {
@@ -27,8 +28,40 @@ public partial class MainWindow : Window, IMainWindowActions
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.Window = this;
+                if (viewModel.Update is { } update)
+                {
+                    update.PropertyChanged += (_, e) =>
+                    {
+                        if (e.PropertyName == nameof(UpdateViewModel.IsOffered))
+                        {
+                            ShowUpdate(update);
+                        }
+                    };
+                }
             }
         };
+    }
+
+    // The update popup (#131) is open exactly while the update model offers something.
+    private void ShowUpdate(UpdateViewModel update)
+    {
+        if (update.IsOffered && updateWindow == null)
+        {
+            updateWindow = new UpdateWindow { DataContext = update };
+            updateWindow.Closed += (_, _) =>
+            {
+                updateWindow = null;
+                if (update.IsOffered)
+                {
+                    update.Skip.Execute(null); // closed with the title bar's close button or Alt+F4
+                }
+            };
+            _ = updateWindow.ShowDialog(this);
+        }
+        else if (!update.IsOffered)
+        {
+            updateWindow?.Close();
+        }
     }
 
     void IMainWindowActions.ExportProfile() => ExportProfile();
