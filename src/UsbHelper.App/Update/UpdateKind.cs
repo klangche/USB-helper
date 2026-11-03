@@ -3,7 +3,7 @@ namespace UsbHelper.App.Update;
 /// <summary>How this app was installed, and so which release asset updates it.</summary>
 public enum UpdateKind
 {
-    /// <summary>Unzipped from the portable zip (#123): updated by unzipping the next zip next to it.</summary>
+    /// <summary>Unzipped from the portable zip (#123): an update opens the release page; the user downloads the zip there (#131).</summary>
     Portable,
 
     /// <summary>Installed by the per-user .msi (#124): updated by running the next .msi.</summary>

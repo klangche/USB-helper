@@ -57,13 +57,11 @@ public partial class App : Application
 
         // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
         var kind = UpdateKinds.For(AppContext.BaseDirectory, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : AppContext.BaseDirectory;
-        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates open the release page");
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log, settings)
         {
-            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, folder,
-                file => (kind == UpdateKind.Msi ? (Action<string, IClassicDesktopStyleApplicationLifetime>)InstallMsi : Restart)(file, desktop),
-                log, UpdateCheckTimeout, settings),
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
+                msi => InstallMsi(msi, desktop), page => desktop.MainWindow?.Launcher.LaunchUriAsync(page), log, UpdateCheckTimeout, settings),
         };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
@@ -71,18 +69,6 @@ public partial class App : Application
 
     // GitHub's answer within this time, or the check is skipped (#111).
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
-
-    // Starts the updated app from its own folder with this app's arguments, then closes this one (#123).
-    private static void Restart(string exe, IClassicDesktopStyleApplicationLifetime desktop)
-    {
-        var start = new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = Path.GetDirectoryName(exe) };
-        foreach (var arg in desktop.Args ?? [])
-        {
-            start.ArgumentList.Add(arg);
-        }
-        Process.Start(start)!.Dispose();
-        desktop.Shutdown();
-    }
 
     // Runs the downloaded .msi, which upgrades this install in place (#124), and closes this app so its files can be
     // replaced. /passive: a progress bar and no questions. /norestart: if a file is still in use, Windows replaces it at

@@ -6,20 +6,21 @@ using UsbHelper.Core.Diagnostics;
 namespace UsbHelper.App.ViewModels;
 
 /// <summary>
-/// The update notice in the main window (#123). <see cref="CheckAsync"/> runs after the window shows and never blocks
-/// it; when a newer stable release or beta exists, the notice offers each with "Skip". Help > Check for updates
-/// (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A picked release
-/// is downloaded and verified; the portable app unzips it next to itself (<see cref="PortableUpdate"/>), an .msi install
-/// keeps the .msi (#124). <paramref name="restart"/> then starts it in place of this app.
+/// The update popup (#123, #131): shown while <see cref="IsOffered"/>. <see cref="CheckAsync"/> runs after the window
+/// shows and never blocks it; when a newer stable release or beta exists, the popup offers each with "Skip". Help > Check
+/// for updates (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A
+/// picked release: an .msi install downloads and verifies the .msi (#124) and hands it to <paramref name="restart"/>; the
+/// portable app opens the release's page in the browser and does not download or replace itself (#131).
 /// </summary>
 /// <param name="current">This app's version.</param>
 /// <param name="kind">How this app was installed: which release asset it takes.</param>
-/// <param name="folder">Portable: the folder this app runs from. Msi: the folder the .msi is downloaded to.</param>
-/// <param name="restart">Starts the given exe (portable) or .msi (Msi) and closes this app.</param>
+/// <param name="folder">The folder the .msi is downloaded to (Msi only).</param>
+/// <param name="restart">Runs the given .msi and closes this app (Msi only).</param>
+/// <param name="openPage">Opens a release page in the browser (portable only).</param>
 /// <param name="settings">Whether to check at start and to offer betas (#126); the defaults when null.</param>
 public sealed class UpdateViewModel(
-    HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, EventLog log, TimeSpan timeout,
-    SettingsViewModel? settings = null)
+    HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, Action<Uri> openPage, EventLog log,
+    TimeSpan timeout, SettingsViewModel? settings = null)
     : ObservableObject
 {
     private readonly SettingsViewModel settings = settings ?? new SettingsViewModel();
@@ -79,6 +80,9 @@ public sealed class UpdateViewModel(
 
     /// <summary>The beta choice's text, or null when no newer beta exists.</summary>
     public string? BetaText => found?.Beta is { } beta ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateToBeta, beta.Version) : null;
+
+    /// <summary>The portable app's hint that a choice opens the release page; null for an .msi install or with nothing to choose.</summary>
+    public string? Note => kind == UpdateKind.Portable && (found?.Stable != null || found?.Beta != null) ? Strings.UpdatePortableNote : null;
 
     /// <summary>The download's progress, or why the update failed.</summary>
     public string? Status
@@ -145,6 +149,7 @@ public sealed class UpdateViewModel(
         found = result;
         OnPropertyChanged(nameof(StableText));
         OnPropertyChanged(nameof(BetaText));
+        OnPropertyChanged(nameof(Note));
         Status = null;
         CloseText = newer ? Strings.UpdateSkip : Strings.UpdateClose;
         Message = newer ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateAvailable, current)
@@ -153,11 +158,21 @@ public sealed class UpdateViewModel(
         IsOffered = newer || fromMenu;
     }
 
-    /// <summary>Downloads and starts the picked release. A failure is shown in <see cref="Status"/>; this app keeps running.</summary>
+    /// <summary>
+    /// The picked release. Portable: opens its page and closes the popup. Msi: downloads, verifies and runs it; a failure
+    /// is shown in <see cref="Status"/> and this app keeps running.
+    /// </summary>
     public async Task InstallAsync(bool stable)
     {
         if (IsBusy || (stable ? found?.Stable : found?.Beta) is not { } release)
         {
+            return;
+        }
+        if (kind == UpdateKind.Portable)
+        {
+            openPage(release.Page);
+            log.Add($"Opened the release page of {release.Version}");
+            IsOffered = false;
             return;
         }
         IsBusy = true;
@@ -171,26 +186,16 @@ public sealed class UpdateViewModel(
                     Status = string.Format(CultureInfo.CurrentCulture, Strings.UpdateDownloading, release.Version, percent);
                 }
             });
-            var report = ((IProgress<int>)progress).Report;
-            string start;
-            if (kind == UpdateKind.Msi)
+            // Only this update's .msi stays: an earlier one (about 80 MB) is no longer needed once it installed.
+            if (Directory.Exists(folder))
             {
-                // Only this update's .msi stays: an earlier one (about 80 MB) is no longer needed once it installed.
-                if (Directory.Exists(folder))
-                {
-                    Directory.Delete(folder, recursive: true);
-                }
-                Directory.CreateDirectory(folder);
-                start = Path.Combine(folder, release.Download.Segments[^1]);
-                await VerifiedDownload.DownloadAsync(http, release, start, report, cancel.Token);
-                log.Add($"Downloaded {release.Version} to {start}; installing it");
+                Directory.Delete(folder, recursive: true);
             }
-            else
-            {
-                start = await PortableUpdate.DownloadAsync(http, release, folder, report, cancel.Token);
-                log.Add($"Updated to {release.Version} in {Path.GetDirectoryName(start)}; starting it");
-            }
-            restart(start);
+            Directory.CreateDirectory(folder);
+            var msi = Path.Combine(folder, release.Download.Segments[^1]);
+            await VerifiedDownload.DownloadAsync(http, release, msi, ((IProgress<int>)progress).Report, cancel.Token);
+            log.Add($"Downloaded {release.Version} to {msi}; installing it");
+            restart(msi);
         }
         catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or OperationCanceledException
             or InvalidDataException or System.ComponentModel.Win32Exception)

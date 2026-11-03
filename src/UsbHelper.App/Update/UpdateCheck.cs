@@ -5,8 +5,11 @@ using System.Text.Json;
 
 namespace UsbHelper.App.Update;
 
-/// <summary>A release the app can update to: its zip or .msi (<see cref="UpdateKind"/>) and that file's SHA-256 file.</summary>
-public sealed record Release(string Version, Uri Download, Uri Checksum);
+/// <summary>
+/// A release the app can update to: its zip or .msi (<see cref="UpdateKind"/>), that file's SHA-256 file, and its page on
+/// GitHub, which the portable app opens instead of downloading (#131).
+/// </summary>
+public sealed record Release(string Version, Uri Download, Uri Checksum, Uri Page);
 
 /// <summary>
 /// The newest stable release and the newest beta, each only when newer than this version; the log line; and why the
@@ -25,6 +28,9 @@ public static class UpdateCheck
     public const string ReleasesUrl = "https://api.github.com/repos/klangche/USB-helper/releases?per_page=30";
 
     /// <summary>The newest stable release, however many betas came after it; 404 while there is none.</summary>
+    // A release's page is this plus its tag.
+    private const string ReleasePages = "https://github.com/klangche/USB-helper/releases/tag/";
+
     public const string LatestUrl = "https://api.github.com/repos/klangche/USB-helper/releases/latest";
 
     /// <param name="kind">Which asset a release must have to count: the zip, or the .msi for an .msi install.</param>
@@ -110,7 +116,8 @@ public static class UpdateCheck
             if (assets.TryGetValue(fileName, out var file) && assets.TryGetValue(fileName + ".sha256", out var checksum)
                 && (newest is null || version.CompareTo(newest.Value.Item1) > 0))
             {
-                newest = (version, new Release(version.ToString(), new Uri(file), new Uri(checksum)));
+                var page = new Uri($"{ReleasePages}{Uri.EscapeDataString(release.GetProperty("tag_name").GetString()!)}");
+                newest = (version, new Release(version.ToString(), new Uri(file), new Uri(checksum), page));
             }
         }
         return newest;

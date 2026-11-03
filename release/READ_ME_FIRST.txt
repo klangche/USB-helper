@@ -21,11 +21,10 @@ without one, it works as normal.
 3. Start UsbHelper.exe in that folder. If Windows SmartScreen shows a
    warning, click "More info", then "Run anyway".
 
-Updates: when a newer version exists, USB-helper shows it at the top of
-its window. If you pick it, USB-helper downloads and verifies it,
-unzips it into a new folder next to this one (USB-helper-<version>),
-starts it and closes. This folder stays; delete it when you no longer
-need it. To remove USB-helper completely, delete its folders.
+Updates: when a newer version exists, USB-helper shows it in a small
+window after it starts. If you pick it, USB-helper opens that release's
+page in your browser; download the new zip there and unzip it as above.
+To remove USB-helper completely, delete its folder.
 
 From 0.5.0: that version unpacked itself to %LOCALAPPDATA%\USB-helper.
 This version does not use or touch that folder; you can delete it, and

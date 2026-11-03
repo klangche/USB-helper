@@ -336,10 +336,12 @@ stable release and the newest beta, in the background: the window works as
 normal meanwhile. Only releases with a published SHA-256 file
 (`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
 installed app) count, so that every download can be verified. If either is
-newer than the running version, a notice at the top of the window shows "Update
-to stable X", "Update to beta Y" (whichever are newer) and "Skip"; otherwise
-nothing is shown. With no network, no answer within 2 seconds, a GitHub error
-or its rate limit, the check is skipped silently.
+newer than the running version, a small window opens over the main window with
+the running version, "Update to stable X", "Update to beta Y" (whichever are
+newer; the beta only when betas are on in the settings) and "Skip"; the main
+window keeps reading devices behind it. Closing the window is the same as
+"Skip". Otherwise nothing is shown. With no network, no answer within 2
+seconds, a GitHub error or its rate limit, the check is skipped silently.
 
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
@@ -350,19 +352,16 @@ closes, so the installer can replace its files. Start USB-helper again from
 the Start menu when it is done. Releases from before the `.msi` (0.5.0 and
 older) are not offered to an installed app.
 
-Portable: on a choice, the app downloads that release's zip
-and its SHA-256 file, verifies the zip, unzips its `USB-helper` folder into a
-new folder `USB-helper-<version>` next to the running app's folder (as
-`USB-helper-<version> (2)` if that name is taken), starts `UsbHelper.exe`
-there and closes. The old folder stays for the user to delete. The download
-and unzip happen in `USB-helper-<version>.download` next to it, which is
-removed afterwards; a download that fails verification is never unzipped or
-run, and the notice shows why while the current version keeps running. The
-folder that holds the app's folder must be writable (no administrator rights
-are used). A download that stalls is given up after 10 minutes. The log
+A `.msi` download that fails verification is never run; the window shows why
+and the current version keeps running. A download that stalls is given up
+after 10 minutes.
+
+Portable: on a choice, the app opens that release's page on GitHub in the
+browser and keeps running; it does not download, unzip or replace itself.
+Download the new zip there and unzip it as under Install. The log
 (#87) lists the check's result, for example "Update check: beta
-0.7.0-beta.2 is newer than 0.6.0", "Update skipped" or "Update check
-skipped: no answer within 2 s".
+0.7.0-beta.2 is newer than 0.6.0", "Opened the release page of 0.7.0-beta.2",
+"Update skipped" or "Update check skipped: no answer within 2 s".
 
 ## Usage
 
@@ -510,8 +509,8 @@ the next release would get and `N` counts up from 1 for each beta of it
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,
-  `Update/ReleaseVersion`), the portable update (`Update/PortableUpdate`) and the
-  notice (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
+  `Update/ReleaseVersion`), the verified `.msi` download (`Update/VerifiedDownload`)
+  and the popup's model (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
   against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
   release and beta for the update check.
 - `installer/Package.wxs`: the per-user `.msi`, built in `release.yml` with
