@@ -84,8 +84,8 @@ public partial class MainWindow : Window, IMainWindowActions
         return false;
     }
 
-    // Asks where to save, then writes this computer as a computer profile. An event handler: any failure (no
-    // access to the folder, a disk error, a name the encoder rejects) is shown instead of ending the app.
+    // Asks where to save, then writes this computer as a computer profile. Async void, run by the command: any failure
+    // (no access to the folder, a disk error, a name the encoder rejects) is shown instead of ending the app.
     private async void ExportProfile()
     {
         if (DataContext is not MainViewModel viewModel)
