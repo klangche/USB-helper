@@ -398,11 +398,11 @@ are not listed in the group: they stay under their DisplayLink device.
 Selecting the group or a monitor does not change what the status field covers.
 The group follows monitors as they are connected and removed, and the log
 lists the monitors at start and each one connected or removed. A port in the
-tree that Windows
-reports as a USB-C connector (from its port connector properties) has a "USB-C"
-badge after its name; this changes no result. Empty ports are not in the tree;
-the log lists the flag of every port Windows reports it for. Each controller
-shows its hub count, deepest tier and deepest hop. Next to the tree is a
+tree that Windows reports as a USB-C connector (from its port connector
+properties) has a "USB-C" badge after its name; this changes no result. Empty
+ports are not in the tree; the log lists the flag of every port Windows
+reports it for. Each controller shows its hub count, deepest tier and deepest
+hop. Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
 and the findings cover one USB
