@@ -7,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -52,10 +53,15 @@ public partial class App : Application
             return unavailable;
         }
 
+        // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
+        var kind = UpdateKinds.For(AppContext.BaseDirectory, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : AppContext.BaseDirectory;
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log)
         {
-            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, AppContext.BaseDirectory, exe => Restart(exe, desktop), log,
-                UpdateCheckTimeout),
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, folder,
+                file => (kind == UpdateKind.Msi ? (Action<string, IClassicDesktopStyleApplicationLifetime>)InstallMsi : Restart)(file, desktop),
+                log, UpdateCheckTimeout),
         };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
@@ -73,6 +79,14 @@ public partial class App : Application
             start.ArgumentList.Add(arg);
         }
         Process.Start(start)!.Dispose();
+        desktop.Shutdown();
+    }
+
+    // Runs the downloaded .msi, which upgrades this install in place (#124), and closes this app so its files can be
+    // replaced. /passive: a progress bar and no questions; the user starts the new version from the Start menu.
+    private static void InstallMsi(string msi, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        Process.Start(new ProcessStartInfo("msiexec.exe") { UseShellExecute = false, ArgumentList = { "/i", msi, "/passive" } })!.Dispose();
         desktop.Shutdown();
     }
 

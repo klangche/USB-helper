@@ -52,7 +52,7 @@ public sealed class PortableUpdateTests : IDisposable
 
     private static FakeHttp Serving(byte[] zip, byte[] checksum) => FakeHttp.Serving(new Dictionary<string, byte[]>
     {
-        [Release.Zip.ToString()] = zip,
+        [Release.Download.ToString()] = zip,
         [Release.Checksum.ToString()] = checksum,
     });
 

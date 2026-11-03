@@ -2,11 +2,11 @@ name: Release
 
 # Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
 # pull requests merged since the last release ask for one (release/next-version.sh picks the version):
-# it builds the portable Windows zip (a USB-helper folder with the app's loose files, #123), creates the tag vX.Y.Z and
-# publishes a GitHub release.
+# it builds the portable Windows zip (a USB-helper folder with the app's loose files, #123) and the per-user .msi (#124)
+# from the same files, creates the tag vX.Y.Z and publishes a GitHub release.
 # Every merge into dev publishes a pre-release vX.Y.Z-beta.N the same way: X.Y.Z is that next version,
 # N counts the earlier betas of it (release/beta-version.sh). Beta tags never count as a release.
-# Pull requests that change the packaging build the zip as an artifact only.
+# Pull requests that change the packaging build the zip and the .msi as artifacts only.
 on:
   push:
     branches: [main, dev]
@@ -14,6 +14,8 @@ on:
     paths:
       - .github/workflows/release.yml
       - release/**
+      - installer/**
+      - .config/dotnet-tools.json
       - src/UsbHelper.App/**
       - Directory.Build.props
       - "**/packages.lock.json"
@@ -45,6 +47,7 @@ jobs:
         run: |
           release/next-version.test.sh
           release/tags.test.sh
+          release/msi-version.test.sh
 
       - name: Version
         id: version
@@ -104,7 +107,22 @@ jobs:
           -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
 
-      # Signing (#112) adds one step here: sign UsbHelper.exe and the project's own DLLs before they are packaged.
+      # Signing (#112) adds one step here: sign UsbHelper.exe and the project's own DLLs before they are packaged, and one
+      # after "MSI": sign the .msi.
+
+      # The app's folder, the same for the zip and the .msi. Native packages put their .pdb files (about 100 MB) into the
+      # publish folder despite DebugType=none (#122); they are left out.
+      - name: App folder
+        shell: pwsh
+        run: |
+          $version = '${{ needs.version.outputs.version }}'
+          New-Item -ItemType Directory app | Out-Null
+          Copy-Item publish/* app -Recurse -Exclude *.pdb
+          # CRLF, so older Notepad versions show the lines.
+          (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline app/READ_ME_FIRST.txt
+          Copy-Item LICENSE app/LICENSE.txt
+          if (Get-ChildItem app -Recurse -Filter *.pdb) { throw "The app folder holds .pdb files." }
+          "NAME=usb-helper-$version-windows-x64" >> $env:GITHUB_ENV
 
       # The zip holds one folder, USB-helper, with everything in it, so unzipping gives one folder to start from and an
       # update can unzip it next to the running one (USB-helper-<version>). ZipFile, not Compress-Archive: entry names
@@ -112,16 +130,11 @@ jobs:
       - name: Zip
         shell: pwsh
         run: |
-          $version = '${{ needs.version.outputs.version }}'
-          $name = "usb-helper-$version-windows-x64"
-          $folder = "$name/USB-helper"
-          New-Item -ItemType Directory $folder | Out-Null
-          Copy-Item publish/* $folder -Recurse
-          # CRLF, so older Notepad versions show the lines.
-          (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$folder/READ_ME_FIRST.txt"
-          Copy-Item LICENSE "$folder/LICENSE.txt"
+          $name = $env:NAME
+          New-Item -ItemType Directory "zip/USB-helper" | Out-Null
+          Copy-Item app/* "zip/USB-helper" -Recurse
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/$name", "$PWD/$name.zip", [IO.Compression.CompressionLevel]::Optimal, $false)
+          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/zip", "$PWD/$name.zip", [IO.Compression.CompressionLevel]::Optimal, $false)
           # The app's update (#123) needs USB-helper/UsbHelper.exe; no launcher (#110) may be left in the zip.
           $archive = [IO.Compression.ZipFile]::OpenRead("$PWD/$name.zip")
           $entries = $archive.Entries.FullName
@@ -130,18 +143,71 @@ jobs:
           if ($entries | Where-Object { $_ -notlike 'USB-helper/*' -or $_ -like '*USB-helper.exe' -or $_ -like '*Launcher*' }) { throw "The zip holds files outside USB-helper/ or a launcher." }
           "$($entries.Count) files in $name.zip, $([math]::Round((Get-Item "$name.zip").Length / 1MB, 1)) MB:"
           $entries | Select-Object -First 15
-          # The app's update check (#111) verifies a download against this file (sha256sum format, LF).
-          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -NoNewline -Path "$name.zip.sha256" -Value "$hash  $name.zip`n"
-          Get-Content "$name.zip.sha256"
-          "ZIP=$name.zip" >> $env:GITHUB_ENV
+
+      # MSI versions have no pre-release part: release/msi-version.sh maps X.Y.Z-beta.N to X.Y.(Z*1000+N) and X.Y.Z to
+      # X.Y.(Z*1000+999), so betas and releases upgrade each other in order.
+      - name: MSI version
+        shell: bash
+        run: echo "MSI_VERSION=$(release/msi-version.sh '${{ needs.version.outputs.version }}')" >> "$GITHUB_ENV"
+
+      # WiX Toolset, pinned in .config/dotnet-tools.json.
+      - name: MSI
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet wix build installer/Package.wxs -arch x64 -bindpath app=app -d Version='${{ needs.version.outputs.version }}' -d ProductVersion=$env:MSI_VERSION -o "$env:NAME.msi"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "$env:NAME.msi: ProductVersion $env:MSI_VERSION, $([math]::Round((Get-Item "$env:NAME.msi").Length / 1MB, 1)) MB"
+
+      # Installs the .msi as the runner's user, checks the files, the Start menu shortcut and the Apps & features entry,
+      # upgrades it with a newer build of the same files, and uninstalls. /qn: no window. The runner's user is an
+      # administrator, so this cannot show that no UAC prompt appears; Scope="perUser" in installer/Package.wxs does.
+      - name: Test MSI
+        shell: pwsh
+        run: |
+          $folder = "$env:LOCALAPPDATA\Programs\USB-helper"
+          $shortcut = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\USB-helper.lnk"
+          function Entries { @(Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'USB-helper') }
+          function Msiexec($arguments) {
+            $process = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
+            if ($process.ExitCode) { Get-Content msi.log -ErrorAction SilentlyContinue | Select-Object -Last 40; throw "msiexec $arguments exited with $($process.ExitCode)." }
+          }
+          Msiexec "/i $env:NAME.msi /qn /l*v msi.log"
+          if (-not (Test-Path "$folder\UsbHelper.exe")) { throw "UsbHelper.exe is not in $folder." }
+          if ((Get-ChildItem $folder).Count -ne (Get-ChildItem app).Count) { throw "$folder does not hold the same files as the zip." }
+          if (-not (Test-Path $shortcut)) { throw "No Start menu shortcut." }
+          if ((Entries).Count -ne 1) { throw "Apps & features does not list USB-helper once." }
+          "Installed: $((Get-ChildItem $folder).Count) files, version $((Entries)[0].DisplayVersion)"
+          # A newer .msi (build + 1) upgrades in place: still one entry, with the new version.
+          $parts = $env:MSI_VERSION.Split('.')
+          $newer = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
+          dotnet wix build installer/Package.wxs -arch x64 -bindpath app=app -d Version=upgrade-test -d ProductVersion=$newer -o upgrade-test.msi
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Msiexec "/i upgrade-test.msi /qn /l*v msi.log"
+          if ((Entries).Count -ne 1 -or (Entries)[0].DisplayVersion -ne $newer) { throw "The newer .msi did not upgrade in place." }
+          "Upgraded to $newer"
+          Msiexec "/x upgrade-test.msi /qn /l*v msi.log"
+          if ((Test-Path $folder) -or (Test-Path $shortcut) -or (Entries).Count) { throw "Uninstall left the folder, the shortcut or the entry." }
+          "Uninstalled"
+
+      # The app's update check (#111, #124) verifies a download against these files (sha256sum format, LF).
+      - name: Checksums
+        shell: pwsh
+        run: |
+          foreach ($file in "$env:NAME.zip", "$env:NAME.msi") {
+            $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+            Set-Content -NoNewline -Path "$file.sha256" -Value "$hash  $file`n"
+            Get-Content "$file.sha256"
+          }
 
       - uses: actions/upload-artifact@v7
         with:
-          name: windows-zip
+          name: windows
           path: |
-            ${{ env.ZIP }}
-            ${{ env.ZIP }}.sha256
+            ${{ env.NAME }}.zip
+            ${{ env.NAME }}.zip.sha256
+            ${{ env.NAME }}.msi
+            ${{ env.NAME }}.msi.sha256
 
   # Only this job can write to the repository, and never for pull requests.
   github-release:
@@ -153,7 +219,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v7
         with:
-          name: windows-zip
+          name: windows
 
       # Creates the tag on the built commit. Notes start at the last release, not the last beta.
       # A push to dev publishes a pre-release.
@@ -172,4 +238,4 @@ jobs:
           if [ "$GITHUB_REF_NAME" = dev ]; then
             args+=(--prerelease)
           fi
-          gh release create "$TAG" usb-helper-*-windows-x64.zip usb-helper-*-windows-x64.zip.sha256 --target "$GITHUB_SHA" --title "$TAG" --generate-notes "${args[@]}"
+          gh release create "$TAG" usb-helper-*-windows-x64.zip usb-helper-*-windows-x64.zip.sha256 usb-helper-*-windows-x64.msi usb-helper-*-windows-x64.msi.sha256 --target "$GITHUB_SHA" --title "$TAG" --generate-notes "${args[@]}"
