@@ -4,12 +4,10 @@
     <Project Path="src/UsbHelper.Cli/UsbHelper.Cli.csproj" />
     <Project Path="src/UsbHelper.Core/UsbHelper.Core.csproj" />
     <Project Path="src/UsbHelper.Detection.Windows/UsbHelper.Detection.Windows.csproj" />
-    <Project Path="src/UsbHelper.Launcher/UsbHelper.Launcher.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/UsbHelper.App.Tests/UsbHelper.App.Tests.csproj" />
     <Project Path="tests/UsbHelper.Core.Tests/UsbHelper.Core.Tests.csproj" />
     <Project Path="tests/UsbHelper.Detection.Windows.Tests/UsbHelper.Detection.Windows.Tests.csproj" />
-    <Project Path="tests/UsbHelper.Launcher.Tests/UsbHelper.Launcher.Tests.csproj" />
   </Folder>
 </Solution>

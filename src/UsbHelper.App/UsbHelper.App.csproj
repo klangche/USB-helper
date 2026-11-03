@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <!-- UsbHelper.exe in the release zip's USB-helper folder (#123). Not USB-helper.exe: the 0.5.0 launcher's update
+         would take an exe of that name for a new launcher. The namespace stays the project's. -->
+    <AssemblyName>UsbHelper</AssemblyName>
+    <RootNamespace>UsbHelper.App</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

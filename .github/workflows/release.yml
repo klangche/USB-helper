@@ -2,7 +2,7 @@ name: Release
 
 # Merging the dev -> main pull request (with a merge commit) makes a release when the titles of the
 # pull requests merged since the last release ask for one (release/next-version.sh picks the version):
-# it builds the portable Windows zip (one launcher exe that carries the app, #110), creates the tag vX.Y.Z and
+# it builds the portable Windows zip (a USB-helper folder with the app's loose files, #123), creates the tag vX.Y.Z and
 # publishes a GitHub release.
 # Every merge into dev publishes a pre-release vX.Y.Z-beta.N the same way: X.Y.Z is that next version,
 # N counts the earlier betas of it (release/beta-version.sh). Beta tags never count as a release.
@@ -15,7 +15,6 @@ on:
       - .github/workflows/release.yml
       - release/**
       - src/UsbHelper.App/**
-      - src/UsbHelper.Launcher/**
       - Directory.Build.props
       - "**/packages.lock.json"
 
@@ -56,7 +55,7 @@ jobs:
           PR_NUMBER: ${{ github.event.number }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            # One version per pull request build, so each one unpacks to its own %LOCALAPPDATA% folder (#110).
+            # A version below every release, so a pull request build offers the newest stable and beta as updates.
             version="0.0.0-pr.$PR_NUMBER.$GITHUB_RUN_NUMBER"
           else
             # The highest release tag, not git describe: the release tag sits on the merge commit on main,
@@ -97,49 +96,41 @@ jobs:
 
       - run: dotnet restore src/UsbHelper.App -r win-x64 --locked-mode
 
-      # Single file with composite ReadyToRun, not trimmed. The native DLLs stay next to the exe instead of being
-      # extracted to %TEMP% at the first start of every version (#86).
+      # Loose files (#123): the exe, its DLLs and the .NET runtime in one folder, ReadyToRun, not trimmed. No single file:
+      # nothing is extracted or unpacked at start.
       - name: Publish app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true -p:DebugType=none
+          -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
 
-      # Signing (#112) adds one step here, before packing, and one after "Publish launcher", before zipping: the app exe
-      # is signed first, then the launcher that carries it.
+      # Signing (#112) adds one step here: sign UsbHelper.exe and the project's own DLLs before they are packaged.
 
-      # The app (exe and native DLLs, no .pdb files) goes into the launcher as app.zip; the launcher unpacks it to
-      # %LOCALAPPDATA%\USB-helper\<version> on the first start of the version.
-      - name: Pack app
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory app | Out-Null
-          Copy-Item publish/UsbHelper.App.exe, publish/*.dll app
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/app", "$PWD/app.zip")
-
-      - run: dotnet restore src/UsbHelper.Launcher -r win-x64 --locked-mode
-
-      # NativeAOT: a small native exe that shows its splash at once.
-      - name: Publish launcher
-        run: >-
-          dotnet publish src/UsbHelper.Launcher --no-restore -c Release -r win-x64
-          -p:AppPayload=${{ github.workspace }}/app.zip -p:DebugType=none
-          -p:Version=${{ needs.version.outputs.version }} -o launcher
-
+      # The zip holds one folder, USB-helper, with everything in it, so unzipping gives one folder to start from and an
+      # update can unzip it next to the running one (USB-helper-<version>). ZipFile, not Compress-Archive: entry names
+      # with "/", as every unzip tool expects.
       - name: Zip
         shell: pwsh
         run: |
           $version = '${{ needs.version.outputs.version }}'
           $name = "usb-helper-$version-windows-x64"
-          New-Item -ItemType Directory $name | Out-Null
-          Copy-Item launcher/UsbHelper.Launcher.exe "$name/USB-helper.exe"
+          $folder = "$name/USB-helper"
+          New-Item -ItemType Directory $folder | Out-Null
+          Copy-Item publish/* $folder -Recurse
           # CRLF, so older Notepad versions show the lines.
-          (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$name/READ_ME_FIRST.txt"
-          Copy-Item LICENSE "$name/LICENSE.txt"
-          Get-ChildItem $name | Format-Table Name, Length -AutoSize | Out-String | Write-Host
-          Compress-Archive -Path $name -DestinationPath "$name.zip"
-          # The launcher's update check (#111) verifies a download against this file (sha256sum format, LF).
+          (Get-Content release/READ_ME_FIRST.txt -Raw).Replace('{version}', $version).Replace("`n", "`r`n") | Set-Content -NoNewline "$folder/READ_ME_FIRST.txt"
+          Copy-Item LICENSE "$folder/LICENSE.txt"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [IO.Compression.ZipFile]::CreateFromDirectory("$PWD/$name", "$PWD/$name.zip", [IO.Compression.CompressionLevel]::Optimal, $false)
+          # The app's update (#123) needs USB-helper/UsbHelper.exe; no launcher (#110) may be left in the zip.
+          $archive = [IO.Compression.ZipFile]::OpenRead("$PWD/$name.zip")
+          $entries = $archive.Entries.FullName
+          $archive.Dispose()
+          if ($entries -notcontains 'USB-helper/UsbHelper.exe') { throw "The zip has no USB-helper/UsbHelper.exe." }
+          if ($entries | Where-Object { $_ -notlike 'USB-helper/*' -or $_ -like '*USB-helper.exe' -or $_ -like '*Launcher*' }) { throw "The zip holds files outside USB-helper/ or a launcher." }
+          "$($entries.Count) files in $name.zip, $([math]::Round((Get-Item "$name.zip").Length / 1MB, 1)) MB:"
+          $entries | Select-Object -First 15
+          # The app's update check (#111) verifies a download against this file (sha256sum format, LF).
           $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -NoNewline -Path "$name.zip.sha256" -Value "$hash  $name.zip`n"
           Get-Content "$name.zip.sha256"

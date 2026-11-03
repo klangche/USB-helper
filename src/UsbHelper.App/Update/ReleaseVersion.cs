@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace UsbHelper.Launcher;
+namespace UsbHelper.App.Update;
 
 /// <summary>
 /// A release version as the release workflow makes them (1.2.3, 1.2.3-beta.4, 0.0.0-pr.117.112), ordered as semantic

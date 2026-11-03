@@ -202,6 +202,9 @@ public sealed class MainViewModel : ObservableObject
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 
+    /// <summary>The update notice (#123); null where the app does not check for updates.</summary>
+    public UpdateViewModel? Update { get; init; }
+
     /// <summary>The log window's content.</summary>
     public LogViewModel Log { get; }
 

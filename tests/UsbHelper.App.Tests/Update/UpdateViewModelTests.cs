@@ -1,0 +1,253 @@
+using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using UsbHelper.App.Update;
+using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Diagnostics;
+
+namespace UsbHelper.App.Tests.Update;
+
+/// <summary>The update notice in the window (#123): checked after start, never blocking it, with both choices and Skip.</summary>
+public sealed class UpdateViewModelTests : IDisposable
+{
+    private readonly string parent = Directory.CreateTempSubdirectory("usbhelper-update-vm-tests-").FullName;
+    private readonly string app;
+    private readonly EventLog log = new();
+    private readonly List<string> restarted = [];
+
+    public UpdateViewModelTests()
+    {
+        app = Path.Combine(parent, "USB-helper");
+        Directory.CreateDirectory(app);
+    }
+
+    public void Dispose() => Directory.Delete(parent, recursive: true);
+
+    private static string Download(string tag) =>
+        $"https://github.com/klangche/USB-helper/releases/download/{tag}/usb-helper-{tag[1..]}-windows-x64.zip";
+
+    private static string ReleaseJson(string tag, bool prerelease) =>
+        $$"""
+        {"tag_name":"{{tag}}","draft":false,"prerelease":{{(prerelease ? "true" : "false")}},"assets":[
+          {"name":"usb-helper-{{tag[1..]}}-windows-x64.zip","browser_download_url":"{{Download(tag)}}"},
+          {"name":"usb-helper-{{tag[1..]}}-windows-x64.zip.sha256","browser_download_url":"{{Download(tag)}}.sha256"}]}
+        """;
+
+    private static byte[] Zip(string text)
+    {
+        using var memory = new MemoryStream();
+        using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using var entry = zip.CreateEntry($"USB-helper/{PortableUpdate.ExeName}").Open();
+            entry.Write(Encoding.UTF8.GetBytes(text));
+        }
+        return memory.ToArray();
+    }
+
+    // GitHub with stable 0.6.0 and beta 0.7.0-beta.1, each with its zip; answers once the gate opens.
+    private static FakeHttp GitHub(Task? gate = null, bool badChecksum = false)
+    {
+        var stableZip = Zip("app 0.6.0");
+        var betaZip = Zip("app 0.7.0-beta.1");
+        var files = new Dictionary<string, string>
+        {
+            [UpdateCheck.ReleasesUrl] = $"[{ReleaseJson("v0.7.0-beta.1", true)},{ReleaseJson("v0.6.0", false)}]",
+            [UpdateCheck.LatestUrl] = ReleaseJson("v0.6.0", false),
+        };
+        var binary = new Dictionary<string, byte[]>
+        {
+            [Download("v0.6.0")] = stableZip,
+            [Download("v0.6.0") + ".sha256"] = Checksum(badChecksum ? betaZip : stableZip),
+            [Download("v0.7.0-beta.1")] = betaZip,
+            [Download("v0.7.0-beta.1") + ".sha256"] = Checksum(betaZip),
+        };
+        return new FakeHttp(async (request, cancel) =>
+        {
+            if (gate != null)
+            {
+                await gate.WaitAsync(cancel);
+            }
+            var url = request.RequestUri!.ToString();
+            return files.TryGetValue(url, out var json)
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") }
+                : binary.TryGetValue(url, out var bytes)
+                    ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) }
+                    : new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+    }
+
+    private static byte[] Checksum(byte[] zip) => Encoding.ASCII.GetBytes($"{Convert.ToHexStringLower(SHA256.HashData(zip))}  x.zip\n");
+
+    private UpdateViewModel Model(FakeHttp http, string current = "0.5.0") =>
+        new(http.Client(), current, app, restarted.Add, log, TimeSpan.FromSeconds(2));
+
+    [Fact]
+    public async Task TheCheckRunsInTheBackgroundAndShowsNothingUntilItHasAnAnswer()
+    {
+        var gate = new TaskCompletionSource();
+        var model = Model(GitHub(gate.Task));
+
+        var check = model.CheckAsync();
+
+        // The window is up and usable while GitHub has not answered.
+        Assert.False(check.IsCompleted);
+        Assert.False(model.IsOffered);
+
+        gate.SetResult();
+        await check;
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("A newer version is available. You have 0.5.0.", model.Message);
+        Assert.Equal("Update to stable 0.6.0", model.StableText);
+        Assert.Equal("Update to beta 0.7.0-beta.1 (test build)", model.BetaText);
+        Assert.Contains("Update check: stable 0.6.0 and beta 0.7.0-beta.1 are newer than 0.5.0", log.Entries.Select(entry => entry.Text));
+    }
+
+    [Fact]
+    public async Task OnlyTheNewerChoiceIsOffered()
+    {
+        var model = Model(GitHub(), current: "0.6.0");
+
+        await model.CheckAsync();
+
+        Assert.True(model.IsOffered);
+        Assert.Null(model.StableText);
+        Assert.Equal("Update to beta 0.7.0-beta.1 (test build)", model.BetaText);
+    }
+
+    [Fact]
+    public async Task UpToDateShowsNothing()
+    {
+        var model = Model(GitHub(), current: "0.7.0-beta.1");
+
+        await model.CheckAsync();
+
+        Assert.False(model.IsOffered);
+        Assert.StartsWith("Update check: 0.7.0-beta.1 is up to date", log.Entries[^1].Text);
+    }
+
+    [Fact]
+    public async Task OfflineShowsNothingAndIsLogged()
+    {
+        var model = Model(new FakeHttp((_, _) => throw new HttpRequestException("No such host is known.")));
+
+        await model.CheckAsync();
+
+        Assert.False(model.IsOffered);
+        Assert.Equal("Update check skipped: No such host is known.", log.Entries[^1].Text);
+    }
+
+    [Fact]
+    public async Task CheckingFromTheMenuWhenUpToDateSaysSo()
+    {
+        var model = Model(GitHub(), current: "0.7.0-beta.1");
+
+        await model.CheckAsync(fromMenu: true);
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("USB-helper 0.7.0-beta.1 is up to date.", model.Message);
+        Assert.Null(model.StableText);
+        Assert.Null(model.BetaText);
+        Assert.Equal("OK", model.CloseText);
+
+        model.Skip.Execute(null);
+
+        Assert.False(model.IsOffered);
+    }
+
+    [Fact]
+    public async Task ALateStartUpCheckWithNothingNewerKeepsTheMenusNotice()
+    {
+        // The start-up check's two requests wait at the gate; the menu's check, started meanwhile, answers at once.
+        var gate = new TaskCompletionSource();
+        var github = GitHub();
+        var requests = 0;
+        var http = new FakeHttp(async (request, cancel) =>
+        {
+            if (Interlocked.Increment(ref requests) <= 2)
+            {
+                await gate.Task.WaitAsync(cancel);
+            }
+            return await github.Client().SendAsync(new HttpRequestMessage(request.Method, request.RequestUri), cancel);
+        });
+        var model = Model(http, current: "0.7.0-beta.1");
+
+        var startUp = model.CheckAsync();
+        await model.CheckAsync(fromMenu: true);
+        gate.SetResult();
+        await startUp;
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("USB-helper 0.7.0-beta.1 is up to date.", model.Message);
+    }
+
+    [Fact]
+    public async Task CheckingFromTheMenuOfflineSaysTheCheckFailed()
+    {
+        var model = Model(new FakeHttp((_, _) => throw new HttpRequestException("No such host is known.")));
+
+        await model.CheckAsync(fromMenu: true);
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("The update check failed: No such host is known.", model.Message);
+        Assert.Equal("OK", model.CloseText);
+    }
+
+    [Fact]
+    public async Task CheckingFromTheMenuOffersNewerReleasesAsAtStart()
+    {
+        var model = Model(GitHub());
+
+        model.CheckNow.Execute(null);
+        await model.Checking;
+
+        Assert.True(model.IsOffered);
+        Assert.Equal("A newer version is available. You have 0.5.0.", model.Message);
+        Assert.Equal("Update to stable 0.6.0", model.StableText);
+        Assert.Equal("Skip", model.CloseText);
+    }
+
+    [Fact]
+    public async Task SkipHidesTheNotice()
+    {
+        var model = Model(GitHub());
+        await model.CheckAsync();
+
+        model.Skip.Execute(null);
+
+        Assert.False(model.IsOffered);
+        Assert.Empty(restarted);
+        Assert.Equal("Update skipped", log.Entries[^1].Text);
+    }
+
+    [Fact]
+    public async Task PickingAReleaseUnzipsItNextToTheAppAndStartsIt()
+    {
+        var model = Model(GitHub());
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: false);
+
+        var exe = Path.Combine(parent, "USB-helper-0.7.0-beta.1", PortableUpdate.ExeName);
+        Assert.Equal([exe], restarted);
+        Assert.Equal("app 0.7.0-beta.1", File.ReadAllText(exe));
+        Assert.Equal($"Updated to 0.7.0-beta.1 in {Path.GetDirectoryName(exe)}; starting it", log.Entries[^1].Text);
+    }
+
+    [Fact]
+    public async Task ABadChecksumIsRejectedShownAndNothingStarts()
+    {
+        var model = Model(GitHub(badChecksum: true));
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: true);
+
+        Assert.Empty(restarted);
+        Assert.Equal(["USB-helper"], Directory.GetDirectories(parent).Select(Path.GetFileName));
+        Assert.True(model.IsOffered); // the user can still skip or pick the other one
+        Assert.False(model.IsBusy);
+        Assert.StartsWith("The update could not be installed: usb-helper-0.6.0-windows-x64.zip does not match its SHA-256.", model.Status);
+        Assert.StartsWith("Update to 0.6.0 failed: ", log.Entries[^1].Text);
+    }
+}

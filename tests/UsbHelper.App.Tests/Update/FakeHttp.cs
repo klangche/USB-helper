@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace UsbHelper.Launcher.Tests;
+namespace UsbHelper.App.Tests.Update;
 
 /// <summary>An HTTP client whose answers the test gives, per URL.</summary>
 internal sealed class FakeHttp(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> answer) : HttpMessageHandler

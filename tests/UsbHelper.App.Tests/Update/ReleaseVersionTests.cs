@@ -1,4 +1,6 @@
-namespace UsbHelper.Launcher.Tests;
+using UsbHelper.App.Update;
+
+namespace UsbHelper.App.Tests.Update;
 
 /// <summary>Release versions compared as semantic versions (#111).</summary>
 public class ReleaseVersionTests

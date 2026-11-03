@@ -86,11 +86,18 @@ public class MenuTests
     }
 
     [Fact]
-    public void SettingsAndCheckForUpdatesAreDisabledUntilTheyExist()
+    public void SettingsIsDisabledUntilItExists()
     {
-        var window = MainWindowXaml();
-        Assert.Equal("False", (string?)MenuItem(window, "MenuSettings").Attribute("IsEnabled"));
-        Assert.Equal("False", (string?)MenuItem(window, "MenuCheckForUpdates").Attribute("IsEnabled"));
+        Assert.Equal("False", (string?)MenuItem(MainWindowXaml(), "MenuSettings").Attribute("IsEnabled"));
+    }
+
+    [Fact]
+    public void CheckForUpdatesRunsTheUpdateCheckWhereTheAppHasOne()
+    {
+        // The update check exists on Windows only (#123); elsewhere Update is null and the item is greyed out.
+        var item = MenuItem(MainWindowXaml(), "MenuCheckForUpdates");
+        Assert.Equal("{Binding Update.CheckNow}", (string?)item.Attribute("Command"));
+        Assert.Equal("{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}", (string?)item.Attribute("IsEnabled"));
     }
 
     [Fact]

@@ -10,7 +10,7 @@
 
   <DockPanel>
 
-    <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) and the update check (#123) come later. -->
+    <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="{x:Static res:Strings.MenuFile}">
         <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
@@ -21,7 +21,8 @@
         <MenuItem Header="{x:Static res:Strings.MenuExit}" Command="{Binding ExitCommand}" />
       </MenuItem>
       <MenuItem Header="{x:Static res:Strings.MenuHelp}">
-        <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" IsEnabled="False" />
+        <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" Command="{Binding Update.CheckNow}"
+                  IsEnabled="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <Separator />
         <MenuItem Header="{x:Static res:Strings.MenuAbout}" Command="{Binding AboutCommand}" />
       </MenuItem>
@@ -63,6 +64,25 @@
       <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
+
+    <!-- The update notice (#123): shown when a newer release exists, or after Help > Check for updates; the window works as
+         normal meanwhile. -->
+    <Border DockPanel.Dock="Top" Margin="12,0,12,12" Padding="8" CornerRadius="4" BorderThickness="1"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+            IsVisible="{Binding Update.IsOffered, FallbackValue=False}">
+      <StackPanel Spacing="6">
+        <WrapPanel>
+          <TextBlock Text="{Binding Update.Message}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <Button Content="{Binding Update.StableText}" Command="{Binding Update.UpdateToStable}" IsEnabled="{Binding Update.CanChoose}"
+                  IsVisible="{Binding Update.StableText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+          <Button Content="{Binding Update.BetaText}" Command="{Binding Update.UpdateToBeta}" IsEnabled="{Binding Update.CanChoose}"
+                  IsVisible="{Binding Update.BetaText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+          <Button Content="{Binding Update.CloseText}" Command="{Binding Update.Skip}" IsEnabled="{Binding Update.CanChoose}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding Update.Status}" TextWrapping="Wrap"
+                   IsVisible="{Binding Update.Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </StackPanel>
+    </Border>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

@@ -275,46 +275,59 @@ findings; they have no connection line of their own.
 ## Install
 
 Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
-[releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: the zip holds one exe,
-`USB-helper.exe`; unblock it once (`Unblock-File -Path .\USB-helper.exe` in
-PowerShell, as it is not signed), and start it. No installation and no
-administrator rights are needed, and no network connection either (it is
-used only for the update check below).
-`USB-helper.exe` is a small launcher that carries the app. It shows a splash
-with the version at once. On the first start of a version it unpacks the app
-to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
-launcher's copy (SHA-256), and starts it from there; later starts skip the
-unpack, and an incomplete unpack is done again. The splash closes when the
-app's window is up. After a successful start, the other versions in
-`%LOCALAPPDATA%\USB-helper` (older or newer) are removed. To remove USB-helper completely,
-delete `USB-helper.exe` and that folder.
+[releases](https://github.com/klangche/USB-helper/releases) and follow
+`READ_ME_FIRST.txt` in the zip. In short: unblock the zip once
+(`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in PowerShell,
+as it is not signed), unzip it, and start `UsbHelper.exe` in the `USB-helper`
+folder. No installation and no administrator rights are needed, and no
+network connection either (it is used only for the update check below).
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
 
-Updates: on every start, while the splash shows, the launcher asks GitHub
-Releases (no account or token) for the newest stable release and the newest
-beta. Only releases with a published SHA-256 file
-(`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
-download can be verified. If either is newer than the running version, the
-splash shows "Update to stable X", "Update to beta Y" (whichever are newer)
-and "Skip" (also Esc); otherwise nothing is shown. The app starts once the
-check has an answer, at most 2 seconds after the start; with no network, no
-answer in time, a GitHub error or its rate limit, the check is skipped
-silently. On a choice, the launcher downloads that release's zip and its
-SHA-256 file, verifies the zip, writes the new launcher next to the running
-one as `<name>.new`, renames the running one to `<name>.old` and the new one
-to the running one's name, and starts it; the next start removes
-`<name>.old`. A download that fails verification is deleted, never run, and
-the current version starts after a message. The folder of `USB-helper.exe`
-must be writable (no administrator rights are used). The log (#87) lists
-the check's result after "USB-helper started", for example "Update check:
-beta 0.7.0-beta.2 is newer than 0.6.0; skipped" or "Update check skipped:
-no answer within 2 s". A download that stalls is given up after 10 minutes.
+The zip holds one folder:
+
+```
+USB-helper/
+  UsbHelper.exe          the app
+  *.dll, *.json          its libraries and the .NET runtime, as loose files
+  READ_ME_FIRST.txt
+  LICENSE.txt
+```
+
+Keep the files together; the folder can be moved anywhere. Nothing is
+unpacked elsewhere. To remove USB-helper, delete its folder.
+
+From 0.5.0: that version was one `USB-helper.exe` that unpacked the app to
+`%LOCALAPPDATA%\USB-helper\<version>`. This version does not use or touch
+that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
+update cannot install this version (it reports that the zip holds no
+`USB-helper.exe` and keeps running 0.5.0): download it once by hand.
+
+Updates: after the window shows, the app asks GitHub Releases (no account or
+token) for the newest stable release and the newest beta, in the background:
+the window works as normal meanwhile. Only releases with a published SHA-256
+file (`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
+download can be verified. If either is newer than the running version, a
+notice at the top of the window shows "Update to stable X", "Update to beta
+Y" (whichever are newer) and "Skip"; otherwise nothing is shown. With no
+network, no answer within 2 seconds, a GitHub error or its rate limit, the
+check is skipped silently. On a choice, the app downloads that release's zip
+and its SHA-256 file, verifies the zip, unzips its `USB-helper` folder into a
+new folder `USB-helper-<version>` next to the running app's folder (as
+`USB-helper-<version> (2)` if that name is taken), starts `UsbHelper.exe`
+there and closes. The old folder stays for the user to delete. The download
+and unzip happen in `USB-helper-<version>.download` next to it, which is
+removed afterwards; a download that fails verification is never unzipped or
+run, and the notice shows why while the current version keeps running. The
+folder that holds the app's folder must be writable (no administrator rights
+are used). A download that stalls is given up after 10 minutes. The log
+(#87) lists the check's result, for example "Update check: beta
+0.7.0-beta.2 is newer than 0.6.0", "Update skipped" or "Update check
+skipped: no answer within 2 s".
 
 ## Usage
 
-Start `USB-helper.exe`. Its splash shows at once (see Install); then the
-window opens and shows what it is reading
+Start `UsbHelper.exe` in the `USB-helper` folder (see Install). The window
+opens at once and shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
 profiles and the tree fill in as they arrive. The window shows the USB tree.
 Its root is this computer, named after its computer profile when one matches,
@@ -397,9 +410,11 @@ limits from cited sources.
 The menu bar at the top has File (Export computer profile, Export log,
 Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
 Alt with the underlined letter (for example Alt+F for File), to use it from
-the keyboard. Settings and Check for updates are greyed out until they are
-built. About shows the running version, the license, the icon's attribution
-and a link to this repository.
+the keyboard. Settings is greyed out until it is built. Check for updates runs
+the update check again (see Install) and also says when the running version is
+up to date or the check failed; it is greyed out where the app has no update
+check (outside Windows). About shows the running version, the license, the
+icon's attribution and a link to this repository.
 
 ## Development
 
@@ -417,7 +432,7 @@ minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
-(the app is published, zipped and built into the launcher, see below),
+(the published app's loose files in a `USB-helper` folder, see Install),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -434,23 +449,17 @@ the next release would get and `N` counts up from 1 for each beta of it
   it from `database/` (rebuild after a database change), picks the computer
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
-  `src/UsbHelper.App/Resources/Strings.resx`.
+  `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,
+  `Update/ReleaseVersion`), the portable update (`Update/PortableUpdate`) and the
+  notice (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
+  against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
+  release and beta for the update check.
 - `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
   `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon
   (`ApplicationIcon`), which Avalonia also uses for every window. After changing
   the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
   librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
   both files.
-- `src/UsbHelper.Launcher`: `USB-helper.exe` in the download, compiled with
-  NativeAOT so it starts without loading .NET. It carries the published app
-  as the embedded resource `app.zip`, given with `-p:AppPayload=<zip>` (see
-  `release.yml`); a build without it reports that it holds no app. It draws
-  its splash with plain Win32 calls and uses the texts in the app's
-  `Strings.resx`. The unpack logic (`AppFolder`), the update check
-  (`UpdateCheck`, `ReleaseVersion`) and the update download and swap
-  (`UpdateInstaller`) are tested in `tests/UsbHelper.Launcher.Tests`, the
-  update check against a fake release feed. `release.yml` publishes
-  `<zip>.sha256` with every release and beta for the update check.
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running
