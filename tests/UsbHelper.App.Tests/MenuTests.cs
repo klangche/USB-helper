@@ -29,7 +29,7 @@ public class MenuTests
     private static MainViewModel Loaded(ComputerIdentity identity, FakeWindow window)
     {
         var viewModel = new MainViewModel(null, [], identity) { Window = window };
-        viewModel.Load([], 0);
+        viewModel.Load([], monitors: []);
         return viewModel;
     }
 
@@ -59,7 +59,7 @@ public class MenuTests
         Assert.False(viewModel.CanExport);
         Assert.False(viewModel.ExportProfileCommand.CanExecute(null)); // Still loading.
 
-        viewModel.Load([], 0);
+        viewModel.Load([], monitors: []);
 
         Assert.True(viewModel.CanExport);
         Assert.True(viewModel.ExportProfileCommand.CanExecute(null));

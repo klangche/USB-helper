@@ -21,6 +21,8 @@ namespace UsbHelper.App.ViewModels;
 /// host's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// A port the operating system calls USB-C says so; an unknown one says nothing (#114).
+/// After the controllers, a "Displays" group lists each active monitor with its name and output type (#133). It does
+/// not say which port or dock a monitor hangs off (#93).
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -60,6 +62,9 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>The id of the host item. Never a USB id: those are the operating system's device paths.</summary>
     public const string HostId = "host";
+
+    /// <summary>The id of the Displays group under the host; its monitors' ids start with "display|".</summary>
+    public const string DisplaysId = "displays";
 
     public string Id { get; }
 
@@ -267,24 +272,47 @@ public sealed class NodeViewModel : ObservableObject
 
     public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
 
-    /// <summary>The host item, the top of the tree without a line, with <paramref name="controllers"/> as its children.</summary>
+    /// <summary>
+    /// The host item, the top of the tree without a line, with <paramref name="controllers"/> and then the Displays
+    /// group, when there are <paramref name="monitors"/>, as its children.
+    /// </summary>
     /// <param name="extraHops">The user's marks: extra hops per port id.</param>
     /// <param name="mark">Sets the mark (extra hops, 0 for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
         string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        Action<string, int> mark)
+        Action<string, int> mark, IReadOnlyList<DisplayMonitor> monitors)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
-        host.UpdateHost(name, controllers, report, extraHops);
+        host.UpdateHost(name, controllers, report, extraHops, monitors);
         return host;
     }
 
-    /// <summary>Brings the host item and its children up to date with <paramref name="controllers"/>, <paramref name="report"/> and the marks.</summary>
-    public void UpdateHost(string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops)
+    /// <summary>
+    /// Brings the host item and its children up to date with <paramref name="controllers"/>, <paramref name="report"/>,
+    /// the marks and <paramref name="monitors"/>.
+    /// </summary>
+    public void UpdateHost(
+        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
+        IReadOnlyList<DisplayMonitor> monitors)
     {
         Text = name;
         IsLast = true;
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, portId: null);
+        // A DisplayLink monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed
+        // again. Windows does not say which indirect monitor hangs off which adapter.
+        var listed = controllers.Any(HasDisplayLink) ? [.. monitors.Where(monitor => monitor.Output != MonitorOutput.Indirect)] : monitors;
+        var group = Children.FirstOrDefault(item => item.Id == DisplaysId);
+        if (group != null && listed.Count == 0)
+        {
+            Children.Remove(group);
+            group = null;
+        }
+        else if (group == null && listed.Count > 0)
+        {
+            group = new NodeViewModel(DisplaysId, portId: null, isDisconnected: false, hasLine: true, mark);
+            Children.Add(group);
+        }
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, portId: null, displays: group);
+        group?.UpdateDisplays(listed);
         PathStatus = Worst(Children.Select(child => child.PathStatus));
         PaintChildren([]);
     }
@@ -306,6 +334,50 @@ public sealed class NodeViewModel : ObservableObject
     private static ConnectionStatus? Worst(IEnumerable<ConnectionStatus?> statuses) => statuses.Max();
 
     private static string Color(ConnectionStatus? status) => status is { } value ? StatusColors.Hex(value) : StatusColors.Trunk;
+
+    private static bool HasDisplayLink(UsbNode node) => node.IsDisplayLink || node.Children.Any(HasDisplayLink);
+
+    // The Displays group: one item per monitor, in the operating system's order. An item is kept while its monitor is.
+    private void UpdateDisplays(IReadOnlyList<DisplayMonitor> monitors)
+    {
+        Text = Strings.DisplaysGroup;
+        IsLast = true;
+        for (var i = 0; i < monitors.Count; i++)
+        {
+            var monitor = monitors[i];
+            var id = "display|" + monitor.Id;
+            var item = Children.FirstOrDefault(child => child.Id == id);
+            if (item == null)
+            {
+                item = new NodeViewModel(id, portId: null, isDisconnected: false, hasLine: true, mark);
+                Children.Insert(i, item);
+            }
+            else if (Children.IndexOf(item) is var at && at != i)
+            {
+                Children.Move(at, i);
+            }
+            item.Text = string.Format(CultureInfo.CurrentCulture, Strings.MonitorItem, monitor.Name ?? Strings.MonitorUnnamed, OutputText(monitor.Output));
+            item.IsLast = i == monitors.Count - 1;
+        }
+        while (Children.Count > monitors.Count)
+        {
+            Children.RemoveAt(Children.Count - 1);
+        }
+    }
+
+    private static string OutputText(MonitorOutput output) => output switch
+    {
+        MonitorOutput.Internal => Strings.OutputInternal,
+        MonitorOutput.Hdmi => Strings.OutputHdmi,
+        MonitorOutput.DisplayPort => Strings.OutputDisplayPort,
+        MonitorOutput.UsbTunnel => Strings.OutputUsbTunnel,
+        MonitorOutput.Dvi => Strings.OutputDvi,
+        MonitorOutput.Vga => Strings.OutputVga,
+        MonitorOutput.Indirect => Strings.OutputIndirect,
+        MonitorOutput.Wireless => Strings.OutputWireless,
+        MonitorOutput.Virtual => Strings.OutputVirtual,
+        _ => Strings.OutputOther,
+    };
 
     private void Update(
         UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, bool last)
@@ -348,12 +420,13 @@ public sealed class NodeViewModel : ObservableObject
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        string? portId)
+        string? portId, NodeViewModel? displays = null)
     {
+        // The host's Displays group, when there is one, stays last, after the controllers.
         for (var i = 0; i < wanted.Count; i++)
         {
             var (child, disconnected) = wanted[i];
-            var childIsLast = i == wanted.Count - 1;
+            var childIsLast = i == wanted.Count - 1 && displays == null;
             var existing = Children.FirstOrDefault(item => item.Id == child.Id && item.IsDisconnected == disconnected);
             if (existing == null)
             {
@@ -370,9 +443,9 @@ public sealed class NodeViewModel : ObservableObject
             }
             existing.Update(child, report, extraHops, childIsLast);
         }
-        while (Children.Count > wanted.Count)
+        while (Children.Count > wanted.Count + (displays == null ? 0 : 1))
         {
-            Children.RemoveAt(Children.Count - 1);
+            Children.RemoveAt(wanted.Count);
         }
     }
 

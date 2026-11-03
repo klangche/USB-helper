@@ -146,11 +146,7 @@ internal static class NativeMethods
     public const uint QDC_ONLY_ACTIVE_PATHS = 0x2;
     public const int ERROR_SUCCESS = 0;
     public const int ERROR_INSUFFICIENT_BUFFER = 122;
-    public const int DISPLAYCONFIG_PATH_INFO_SIZE = 72; // source info 20, target info 48, flags 4
     public const int DISPLAYCONFIG_MODE_INFO_SIZE = 64;
-    public const int DISPLAYCONFIG_PATH_TARGET_ADAPTER_OFFSET = 20; // LUID (8), then target id (4)
-    public const int DISPLAYCONFIG_PATH_TARGET_ID_OFFSET = 28;
-    public const int DISPLAYCONFIG_PATH_OUTPUT_TECHNOLOGY_OFFSET = 36; // after modeInfoIdx (4)
 
     [DllImport("user32.dll")]
     public static extern int GetDisplayConfigBufferSizes(uint flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);
@@ -159,6 +155,10 @@ internal static class NativeMethods
     public static extern int QueryDisplayConfig(
         uint flags, ref uint numPathArrayElements, byte[] pathArray, ref uint numModeInfoArrayElements, byte[] modeInfoArray,
         IntPtr currentTopologyId);
+
+    // The packet is a blittable array, so Windows writes the reply into it.
+    [DllImport("user32.dll")]
+    public static extern int DisplayConfigGetDeviceInfo(byte[] requestPacket);
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern SafeFileHandle CreateFile(

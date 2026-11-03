@@ -43,14 +43,15 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 /// <summary>
 /// The main window's state. Uses only Core types, so it is the same on every operating system.
 /// The window shows before anything is read (#86): call <see cref="LoadDatabase"/>, <see cref="ReadingDisplays"/> and
-/// <see cref="Load(IReadOnlyList{UsbNode}, int?)"/> once each, in that order, then <see cref="Apply"/> for every batch of
-/// changes, on the UI thread.
+/// <see cref="Load(IReadOnlyList{UsbNode}, IReadOnlyList{DisplayMonitor})"/> once each, in that order, then
+/// <see cref="Apply"/> for every batch of USB changes and <see cref="DisplaysChanged"/> for every display change, on the
+/// UI thread.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
     private readonly EventLog log;
-    private readonly Func<int?> readExternalDisplays;
+    private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
     // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
     private readonly Dictionary<string, int> extraHops = [];
@@ -67,18 +68,19 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
-        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null,
-        EventLog? log = null, SettingsViewModel? settings = null)
-        : this(identity, readExternalDisplays, log, settings)
+        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity,
+        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
+        : this(identity, readMonitors, log, settings)
     {
         LoadDatabase(database, databaseErrors);
     }
 
     /// <summary>A model for the window before anything is read: it shows "Loading database..." first.</summary>
-    /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
+    /// <param name="readMonitors">Reads the active monitors, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
     /// <param name="settings">The settings (#126); the defaults, kept in memory only, when null.</param>
-    public MainViewModel(ComputerIdentity identity, Func<int?>? readExternalDisplays = null, EventLog? log = null, SettingsViewModel? settings = null)
+    public MainViewModel(
+        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
     {
         Settings = settings ?? new SettingsViewModel();
         Settings.PropertyChanged += (_, e) =>
@@ -90,7 +92,7 @@ public sealed class MainViewModel : ObservableObject
         };
         this.log = log ?? new EventLog();
         Log = new LogViewModel(this.log);
-        this.readExternalDisplays = readExternalDisplays ?? (() => null);
+        this.readMonitors = readMonitors ?? (() => null);
         this.identity = identity;
         HostName = HostNameFor(null, identity);
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
@@ -205,7 +207,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>This computer as a computer profile YAML, to send to the developers.</summary>
     public string ExportProfile() =>
-        ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion.Current, DateOnly.FromDateTime(DateTime.Now));
+        ComputerProfileExport.ToYaml(identity, tree, DisplayMonitor.ExternalCount(readMonitors()), AppVersion.Current, DateOnly.FromDateTime(DateTime.Now));
 
     /// <summary>The view that carries out the commands below; set by the main window.</summary>
     public IMainWindowActions? Window { get; set; }
@@ -313,16 +315,16 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
 
-    public void Load(IReadOnlyList<UsbNode> detected) => Load(detected, readExternalDisplays());
+    public void Load(IReadOnlyList<UsbNode> detected) => Load(detected, readMonitors());
 
-    /// <param name="displays">The external display count, read off the UI thread; later refreshes read it again.</param>
-    public void Load(IReadOnlyList<UsbNode> detected, int? displays)
+    /// <param name="monitors">The active monitors, read off the UI thread; later refreshes read them again.</param>
+    public void Load(IReadOnlyList<UsbNode> detected, IReadOnlyList<DisplayMonitor>? monitors)
     {
         IsLoading = false;
         log.TreeRead(detected);
         tree = detected;
         history.Record(tree);
-        Refresh(displays);
+        Refresh(monitors);
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)
@@ -340,10 +342,21 @@ public sealed class MainViewModel : ObservableObject
         Refresh();
     }
 
-    private void Refresh() => Refresh(readExternalDisplays());
-
-    private void Refresh(int? displays)
+    /// <summary>A monitor was connected or removed (#133): the Displays group, the display count and the log follow.</summary>
+    public void DisplaysChanged()
     {
+        if (!IsLoading && Roots.Count > 0)
+        {
+            Refresh();
+        }
+    }
+
+    private void Refresh() => Refresh(readMonitors());
+
+    private void Refresh(IReadOnlyList<DisplayMonitor>? monitors)
+    {
+        log.Displays(monitors);
+        var displays = DisplayMonitor.ExternalCount(monitors);
         var options = Checked;
         var profiles = options.Select(option => option.Profile).ToList();
         var reconnected = history.Reconnected(tree);
@@ -374,11 +387,11 @@ public sealed class MainViewModel : ObservableObject
 
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, monitors ?? []));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, extraHops);
+            Roots[0].UpdateHost(HostName, tree, lines, extraHops, monitors ?? []);
         }
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));

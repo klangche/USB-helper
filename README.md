@@ -21,6 +21,10 @@ Status: first version for Windows; computer profiles still to be added.
   tree (one with something on it) that Windows reports as USB-C shows a
   "USB-C" badge; other ports, and ports Windows says nothing about, show none.
   The log lists the flag of every port Windows reports it for.
+- Displays group under the computer: each active monitor with its name and
+  output type (built-in, HDMI, DisplayPort, DisplayPort over USB4/Thunderbolt,
+  DVI, VGA, indirect such as DisplayLink, wireless). Updated when a monitor is
+  connected or removed; each change is logged.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -138,9 +142,9 @@ DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
 0x17E9) and checked against the ports' `displaylink` values. Which physical
 port a monitor uses cannot be detected, so the port capabilities and
-restrictions are listed, not matched to monitors. The GUI reads the display
-count again at every USB change and profile change; a monitor plugged in
-without any USB change shows up at the next one. A
+restrictions are listed, not matched to monitors. The GUI reads the monitors
+again when Windows reports a display change, and at every USB change and
+profile change. A
 display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
@@ -385,7 +389,14 @@ chevron, double-click it, or use the left and right arrow keys to hide or show
 the whole tree; while it is hidden the computer's name is bold. The choice is
 kept while the app runs. A DisplayLink device is shown as a display: a "Display"
 badge and "Extended display: DisplayLink driver required" before its name;
-every hub above it says it "has a display". A port in the tree that Windows
+every hub above it says it "has a display". After the controllers, a
+"Displays" group lists each active monitor with its name and output type, for
+example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in
+panel, is listed as "Monitor". The group does not say which USB port or dock a
+monitor hangs off. While a DisplayLink device is connected, indirect monitors
+are not listed in the group: they stay under their DisplayLink device. The
+group follows monitors as they are connected and removed, and the log lists
+the monitors at start and each one connected or removed. A port in the tree that Windows
 reports as a USB-C connector (from its port connector properties) has a "USB-C"
 badge after its name; this changes no result. Empty ports are not in the tree;
 the log lists the flag of every port Windows reports it for. Each controller

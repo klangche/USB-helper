@@ -59,7 +59,7 @@ public partial class App : Application
         var kind = UpdateKinds.For(AppContext.BaseDirectory, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : AppContext.BaseDirectory;
         log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
-        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log, settings)
+        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadMonitors, log, settings)
         {
             Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, folder,
                 file => (kind == UpdateKind.Msi ? (Action<string, IClassicDesktopStyleApplicationLifetime>)InstallMsi : Restart)(file, desktop),
@@ -133,8 +133,8 @@ public partial class App : Application
             tree = await Task.Run(detector.Enumerate);
             log.Add("Reading displays");
             viewModel.ReadingDisplays();
-            var displays = await Task.Run(ReadExternalDisplays);
-            viewModel.Load(tree, displays);
+            var monitors = await Task.Run(ReadMonitors);
+            viewModel.Load(tree, monitors);
         }
         catch (Exception e)
         {
@@ -160,11 +160,11 @@ public partial class App : Application
 
     // Unknown rather than a guess when Windows cannot report the display configuration.
     [SupportedOSPlatform("windows")]
-    private static int? ReadExternalDisplays()
+    private static IReadOnlyList<DisplayMonitor>? ReadMonitors()
     {
         try
         {
-            return WindowsDisplayReader.CountExternalDisplays();
+            return WindowsDisplayReader.ReadMonitors();
         }
         catch (Win32Exception)
         {
