@@ -17,8 +17,8 @@ namespace UsbHelper.App.ViewModels;
 /// hub or device keeps that item's own status.
 /// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
 /// system does not show (#76): its extra hops count for everything behind that port.
-/// A hub built into the computer starts collapsed, everything else open (#68); the item keeps the user's choice
-/// across updates. A collapsed item's name is bold (#100).
+/// Only the host can be collapsed, which hides the whole tree; every item below it is always open (#132). A collapsed
+/// host's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// A port the operating system calls USB-C says so; an unknown one says nothing (#114).
 /// </summary>
@@ -41,14 +41,14 @@ public sealed class NodeViewModel : ObservableObject
     private int markedHops;
     private readonly Action<string, int> mark;
 
-    private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, bool isExpanded, Action<string, int> mark)
+    private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, int> mark)
     {
         Id = id;
         PortId = portId;
         IsDisconnected = isDisconnected;
         this.mark = mark;
         HasLine = hasLine;
-        this.isExpanded = isExpanded;
+        isExpanded = true;
         Children.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasChildren));
@@ -102,12 +102,21 @@ public sealed class NodeViewModel : ObservableObject
 
     public bool HasChildren => Children.Count > 0;
 
-    /// <summary>Whether the children are shown. The user expands and collapses with a double-click or the arrow keys.</summary>
+    /// <summary>
+    /// Whether the children are shown. The user expands and collapses the host with its chevron, a double-click or the
+    /// arrow keys. Every other item stays open: collapsing it is refused, and the change is announced anyway so the tree
+    /// view's two-way binding opens the row again.
+    /// </summary>
     public bool IsExpanded
     {
         get => isExpanded;
         set
         {
+            if (!value && Id != HostId)
+            {
+                OnPropertyChanged(nameof(IsExpanded));
+                return;
+            }
             if (SetField(ref isExpanded, value))
             {
                 OnPropertyChanged(nameof(ShowsChildren));
@@ -116,10 +125,10 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    /// <summary>An item with children: the view shows its expand/collapse control.</summary>
-    public bool CanExpand => HasChildren;
+    /// <summary>The host with children: the view shows its expand/collapse control. No other item has one.</summary>
+    public bool CanExpand => Id == HostId && HasChildren;
 
-    /// <summary>An item with children that is not expanded: the view shows its name in bold.</summary>
+    /// <summary>The host with children that is not expanded: the view shows its name in bold.</summary>
     public bool IsCollapsed => HasChildren && !IsExpanded;
 
     /// <summary>The children are visible, so the item's own trunk is drawn below it.</summary>
@@ -267,7 +276,7 @@ public sealed class NodeViewModel : ObservableObject
         string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
         Action<string, int> mark)
     {
-        var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, isExpanded: true, mark);
+        var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
         host.UpdateHost(name, controllers, report, extraHops);
         return host;
     }
@@ -277,8 +286,7 @@ public sealed class NodeViewModel : ObservableObject
     {
         Text = name;
         IsLast = true;
-        var builtIn = TopologyCounts.BuiltIn(controllers).Select(hub => hub.Id).ToHashSet();
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, builtIn, portId: null);
+        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, extraHops, portId: null);
         PathStatus = Worst(Children.Select(child => child.PathStatus));
         PaintChildren([]);
     }
@@ -302,7 +310,7 @@ public sealed class NodeViewModel : ObservableObject
     private static string Color(ConnectionStatus? status) => status is { } value ? StatusColors.Hex(value) : StatusColors.Trunk;
 
     private void Update(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, IReadOnlySet<string> builtIn, bool last)
+        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops, bool last)
     {
         IsLast = last;
         Text = Describe(node, IsDisconnected);
@@ -332,7 +340,7 @@ public sealed class NodeViewModel : ObservableObject
                 .Where(missing => missing.PortId == node.Id)
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
-        UpdateChildren(wanted, report, extraHops, builtIn, node.Kind == UsbNodeKind.Port ? node.Id : null);
+        UpdateChildren(wanted, report, extraHops, node.Kind == UsbNodeKind.Port ? node.Id : null);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
         {
@@ -342,7 +350,7 @@ public sealed class NodeViewModel : ObservableObject
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> extraHops,
-        IReadOnlySet<string> builtIn, string? portId)
+        string? portId)
     {
         for (var i = 0; i < wanted.Count; i++)
         {
@@ -352,8 +360,8 @@ public sealed class NodeViewModel : ObservableObject
             if (existing == null)
             {
                 // A disconnected device has nothing behind it now, so its line cannot be marked.
-                var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, isExpanded: !builtIn.Contains(child.Id), mark);
-                item.Update(child, report, extraHops, builtIn, childIsLast);
+                var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, mark);
+                item.Update(child, report, extraHops, childIsLast);
                 Children.Insert(i, item);
                 continue;
             }
@@ -362,7 +370,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 Children.Move(at, i);
             }
-            existing.Update(child, report, extraHops, builtIn, childIsLast);
+            existing.Update(child, report, extraHops, childIsLast);
         }
         while (Children.Count > wanted.Count)
         {

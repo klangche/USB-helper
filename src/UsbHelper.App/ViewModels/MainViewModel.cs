@@ -64,7 +64,6 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
-    private bool controllersShown;
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
@@ -354,17 +353,6 @@ public sealed class MainViewModel : ObservableObject
         {
             Roots[0].UpdateHost(HostName, tree, lines, extraHops);
         }
-        // Owner decision in #100: when the controllers first arrive, only the selected one, the one with most devices, is
-        // open. After that the user's choices are kept.
-        if (!controllersShown && tree.Count > 0)
-        {
-            controllersShown = true;
-            foreach (var controller in Roots[0].Children)
-            {
-                controller.IsExpanded = controller.Id == selectedControllerId;
-            }
-        }
-
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
 

@@ -910,77 +910,80 @@ public class MainViewModelTests
         return [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])];
     }
 
+    // Owner decision in #132: only the host row can be collapsed; everything below it, built-in hubs too, is always open.
     [Fact]
-    public void BuiltInHubStartsCollapsedAndEverythingElseOpen()
+    public void OnlyTheHostCanCollapseAndEverythingBelowIsOpen()
     {
         var viewModel = NewViewModel();
 
         viewModel.Load(Laptop());
 
-        Assert.False(Item(viewModel, "INTERNAL").IsExpanded);
-        Assert.False(Item(viewModel, "INTERNAL").ShowsChildren); // No trunk below a collapsed item.
-        Assert.True(Item(viewModel, "INTERNAL").IsCollapsed);
-        Assert.True(Item(viewModel, "DOCK").IsExpanded); // External, although it is behind the built-in hub.
-        Assert.True(Item(viewModel, "UNSURE").IsExpanded); // Windows does not say: open, as it is counted.
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.True(item.IsExpanded));
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.False(item.IsCollapsed));
-    }
-
-    // Owner decision in #100: a collapsed item's name is bold, with no hidden count after it; an expanded one is not bold.
-    [Fact]
-    public void CollapsedItemIsBoldWithoutAHiddenCount()
-    {
-        var viewModel = NewViewModel();
-        viewModel.Load(Laptop());
-        var builtIn = Item(viewModel, "INTERNAL");
-        var changed = new List<string?>();
-        builtIn.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
-
-        Assert.True(builtIn.IsCollapsed);
-        Assert.Equal("INTERNAL", builtIn.Text);
-
-        builtIn.IsExpanded = true;
-
-        Assert.False(builtIn.IsCollapsed);
-        Assert.Contains(nameof(NodeViewModel.IsCollapsed), changed);
-        Assert.Equal("INTERNAL", builtIn.Text);
-        Assert.DoesNotContain(All(viewModel.Roots), item => item.IsCollapsed);
-        Assert.False(Item(viewModel, "WEBCAM").IsCollapsed); // Nothing below it: never bold.
+        var host = Item(viewModel, NodeViewModel.HostId);
+        Assert.True(host.CanExpand);
+        Assert.True(host.IsExpanded);
+        Assert.All(All(viewModel.Roots).Where(item => item != host), item =>
+        {
+            Assert.False(item.CanExpand);
+            Assert.True(item.IsExpanded);
+            Assert.False(item.IsCollapsed);
+        });
+        Assert.True(Item(viewModel, "INTERNAL").ShowsChildren); // The built-in hub is open too.
     }
 
     [Fact]
-    public void EveryItemWithChildrenCanBeExpandedAndCollapsed()
+    public void ItemsBelowTheHostCannotBeCollapsed()
     {
         var viewModel = NewViewModel();
-
         viewModel.Load(Laptop());
 
-        // Devices have nothing below them. Everything else can be collapsed, ports too, so each shows the control.
-        Assert.All(All(viewModel.Roots), item => Assert.Equal(item.Children.Count > 0, item.CanExpand));
-        Assert.DoesNotContain(All(viewModel.Roots), item => item.Id is "WEBCAM" or "KEYBOARD" or "MOUSE" && item.CanExpand);
-        var port = Item(viewModel, "ROOT|port2");
-        Assert.True(port.CanExpand);
+        foreach (var id in new[] { "C1", "ROOT", "INTERNAL", "ROOT|port2", "UNSURE" })
+        {
+            var item = Item(viewModel, id);
+            var changed = new List<string?>();
+            item.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
 
-        port.IsExpanded = false;
+            item.IsExpanded = false; // As the tree view does for a double-click or an arrow key.
 
-        Assert.True(port.IsCollapsed);
+            Assert.True(item.IsExpanded);
+            Assert.False(item.IsCollapsed);
+            Assert.True(item.ShowsChildren);
+            // The view's two-way binding reads the value back, so the row does not stay closed on screen.
+            Assert.Contains(nameof(NodeViewModel.IsExpanded), changed);
+        }
+    }
+
+    // Collapsing the host hides the whole tree; expanding it shows the tree as before. A collapsed host's name is bold (#100).
+    [Fact]
+    public void CollapsingTheHostHidesTheTreeAndExpandingShowsItAgain()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Laptop());
+        var host = Item(viewModel, NodeViewModel.HostId);
+
+        host.IsExpanded = false;
+
+        Assert.False(host.ShowsChildren);
+        Assert.True(host.IsCollapsed);
+
+        host.IsExpanded = true;
+
+        Assert.True(host.ShowsChildren);
+        Assert.False(host.IsCollapsed);
+        Assert.All(All(viewModel.Roots), item => Assert.True(item.IsExpanded));
     }
 
     [Fact]
-    public void LiveUpdateKeepsTheUsersExpandAndCollapse()
+    public void LiveUpdateKeepsTheHostCollapsed()
     {
         var viewModel = NewViewModel();
         viewModel.Load(Laptop());
+        Item(viewModel, NodeViewModel.HostId).IsExpanded = false;
 
-        Item(viewModel, "INTERNAL").IsExpanded = true;
-        Item(viewModel, "UNSURE").IsExpanded = false;
-        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "DOCK", Port("DOCK", 2, Device("STICK")))]);
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "UNSURE", Port("UNSURE", 1, null))]);
 
-        Assert.True(Item(viewModel, "INTERNAL").IsExpanded);
-        Assert.True(Item(viewModel, "INTERNAL").ShowsChildren);
-        Assert.False(Item(viewModel, "UNSURE").IsExpanded);
-        Assert.True(Item(viewModel, "UNSURE").IsCollapsed);
+        Assert.False(Item(viewModel, NodeViewModel.HostId).IsExpanded);
+        Assert.True(Item(viewModel, "UNSURE").Children.Single().Children.Single().IsDisconnected); // The update reached the hidden tree.
+        Assert.All(All(viewModel.Roots).Skip(1), item => Assert.True(item.IsExpanded));
     }
 
     [Fact]
@@ -1131,48 +1134,17 @@ public class MainViewModelTests
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "HUB").LineColor);
     }
 
-    // Owner decision in #100: at start every controller is collapsed except the selected one, the one with most devices.
+    // Owner decision in #132: every controller is open at start; the selected one is still the busiest (#73).
     [Fact]
-    public void AtStartOnlyTheBusiestControllerIsExpanded()
+    public void AtStartEveryControllerIsOpenAndTheBusiestIsSelected()
     {
         var other = new UsbNode("C3", UsbNodeKind.Controller, "Third controller", [Hub("ROOT3", Device("A"))]);
 
         var viewModel = TwoControllers(Phone, Desk[0], other);
 
-        Assert.True(Item(viewModel, "C1").IsExpanded);
-        Assert.False(Item(viewModel, "C2").IsExpanded);
-        Assert.False(Item(viewModel, "C3").IsExpanded);
-        Assert.True(Item(viewModel, "C2").IsCollapsed);
-        Assert.True(Item(viewModel, NodeViewModel.HostId).IsExpanded);
-        Assert.True(Item(viewModel, "ROOT2").IsExpanded); // Only the controller is collapsed; what is below keeps its default.
-    }
-
-    [Fact]
-    public void ControllersAreCollapsedWhenTheTreeArrivesAfterAProfileWasChecked()
-    {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
-        viewModel.Computers.Single().IsChecked = true; // While the tree is still being read.
-
-        viewModel.Load([Phone, .. Desk]);
-
-        Assert.True(Item(viewModel, "C1").IsExpanded);
-        Assert.False(Item(viewModel, "C2").IsExpanded);
-    }
-
-    [Fact]
-    public void LiveUpdatesAndSelectionKeepTheUsersControllerChoice()
-    {
-        var viewModel = TwoControllers();
-        Item(viewModel, "C1").IsExpanded = false;
-        Item(viewModel, "C2").IsExpanded = true;
-
-        viewModel.SelectedNode = Item(viewModel, "PHONE");
-        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "ROOT2", Port("ROOT2", 2, Device("STICK")))]);
-        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
-
-        Assert.False(Item(viewModel, "C1").IsExpanded);
-        Assert.True(Item(viewModel, "C2").IsExpanded);
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.All(All(viewModel.Roots), item => Assert.True(item.IsExpanded));
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.IsCollapsed);
     }
 
     // Owner decision in #100: the window never says a limit is unverified or not verified; the log keeps it.
