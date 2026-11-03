@@ -125,6 +125,47 @@ internal static class DisplayEvaluator
         return (check, contribution);
     }
 
+    /// <summary>
+    /// The "No MST" rule (owner decision in #144): when the profile says <c>displays.mst: false</c> and more than one
+    /// external DisplayPort display is active (DisplayPort or DisplayPort over USB4/Thunderbolt; DisplayLink, HDMI and
+    /// built-in displays never count), the first is judged as usual (green) and every further one is potentially
+    /// unstable, because without MST it can only duplicate. Unknown MST is a finding only. Returns each judged monitor's
+    /// status by monitor id. The message names the profile's computer, which need not be the one running the app.
+    /// </summary>
+    public static IEnumerable<(string Monitor, ConnectionStatus Status)> Mst(
+        ResolvedProfile? profile, IReadOnlyList<DisplayMonitor> monitors, string computer, List<Finding> findings)
+    {
+        var displayPort = monitors.Where(monitor => monitor.Output is MonitorOutput.DisplayPort or MonitorOutput.UsbTunnel).ToList();
+        var mst = profile?.Find("displays.mst");
+        if (displayPort.Count < 2 || profile == null)
+        {
+            yield break;
+        }
+        if (mst?.Kind != ValueKind.Boolean)
+        {
+            var source = mst == null ? "" : $" ({mst.File})";
+            findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
+                $"{displayPort.Count} DisplayPort displays are active; whether {computer} supports MST (displays.mst) is unknown{source}."));
+            yield break;
+        }
+        if ((bool)mst.Scalar!)
+        {
+            yield break;
+        }
+        var verified = DiagnosticEvaluator.IsVerified(profile, mst);
+        yield return (displayPort[0].Id, ConnectionStatus.Green);
+        foreach (var monitor in displayPort.Skip(1))
+        {
+            var message = $"No MST on {computer}: this display is duplicated; use a second USB-C port or DisplayLink.";
+            findings.Add(new Finding(FactKind.PredictedRisk, monitor.Id, monitor.Name ?? "Monitor",
+                verified ? message : $"{message} (displays.mst comes from an unverified profile, {mst.File})")
+            {
+                Brief = message,
+            });
+            yield return (monitor.Id, ConnectionStatus.Orange);
+        }
+    }
+
     // Only the fields the profile sets are described; an omitted field is not claimed either way. Fields set to
     // null are returned separately, so they are reported as unknown rather than as database facts.
     private static (List<string> Known, List<string> Unknown) Describe(ProfileValue port)

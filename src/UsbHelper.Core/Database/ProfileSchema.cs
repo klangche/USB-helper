@@ -24,6 +24,7 @@ internal static class ProfileSchema
         ["displays"] = FieldType.Mapping,
         ["displays.max_external"] = FieldType.Integer,
         ["displays.restrictions"] = FieldType.StringList, // For example ports that cannot drive displays at the same time.
+        ["displays.mst"] = FieldType.Boolean, // DisplayPort Multi-Stream Transport: several displays on one DP output (#144).
         ["ports"] = FieldType.Mapping,
         ["ports.*"] = FieldType.Mapping,
         ["ports.*.location"] = FieldType.String,
