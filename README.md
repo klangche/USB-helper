@@ -477,7 +477,7 @@ same text the log gets, for pasting into an email:
 
 ```
 Dell Inc. Latitude 7450
-|-- Controller (Hubs: 1, deepest tier: 3, deepest hop: 1)
+|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
 |           `-- [+2 hops] Dock - stable
