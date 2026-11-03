@@ -2,7 +2,11 @@ namespace UsbHelper.Detection.Windows;
 
 /// <summary>A device node from SetupAPI.</summary>
 /// <param name="ProblemCode">Windows device problem code (CM_PROB_*), or null when the device has no problem.</param>
-internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCode);
+internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCode)
+{
+    /// <summary>DEVPKEY_Device_ContainerId, or null when Windows gives none (#143).</summary>
+    public Guid? ContainerId { get; init; }
+}
 
 /// <param name="Error">Why the root hub could not be read, or null.</param>
 internal sealed record RawController(RawDevNode Node, RawHub? RootHub, string? Error);

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- USB-helper.exe at the top of the zip and the install folder (#130); it starts app\UsbHelper.exe. -->
+    <AssemblyName>USB-helper</AssemblyName>
+    <RootNamespace>UsbHelper.Starter</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\UsbHelper.App\Assets\usb-helper.ico</ApplicationIcon>
+    <!-- Native code, no .NET runtime to load: the starter adds only a few milliseconds before the app starts. -->
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
+  <!-- Pinned, as the #110 launcher did: the SDK would add these at its own runtime version, so the lock file (restored
+       with locked mode) would change with every SDK patch that CI installs. The ILCompiler package also sets the
+       NativeAOT runtime pack it compiles against, so compiler and runtime stay a pair. Within 10.0 patches the
+       reference assemblies have the same API, which is why the pin's warnings are suppressed. Update both pins
+       together when CI's SDK moves to a newer 10.0 runtime. -->
+  <PropertyGroup>
+    <SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
+    <SuppressILLinkExplicitPackageReferenceWarning>true</SuppressILLinkExplicitPackageReferenceWarning>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.14" />
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- The app's texts; one strings file for the app and the starter. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\UsbHelper.App\Resources\Strings.resx" Link="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedNamespace>UsbHelper.Starter.Resources</StronglyTypedNamespace>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

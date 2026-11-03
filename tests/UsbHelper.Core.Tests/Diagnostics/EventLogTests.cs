@@ -94,6 +94,54 @@ public class EventLogTests
             Texts(log));
     }
 
+    // #133: the monitors at start, then each one connected or removed.
+    [Fact]
+    public void DisplaysAreLoggedAtStartAndOnEveryChange()
+    {
+        var log = NewLog();
+        DisplayMonitor panel = new("1", null, MonitorOutput.Internal);
+        DisplayMonitor dell = new("2", "DELL U2723QE", MonitorOutput.Hdmi);
+        DisplayMonitor lg = new("3", "LG HDR 4K", MonitorOutput.DisplayPort);
+
+        log.Displays([panel, dell]);
+        log.Displays([panel, dell]);
+        log.Displays([panel, lg]);
+        log.Displays(null);
+        log.Displays(null);
+
+        Assert.Equal(
+            [
+                "Displays read: 2",
+                "Display: unnamed (built-in)",
+                "Display: DELL U2723QE (HDMI)",
+                "Display connected: LG HDR 4K (DisplayPort)",
+                "Display disconnected: DELL U2723QE (HDMI)",
+                "Displays could not be read",
+            ],
+            Texts(log));
+    }
+
+    // #143: a monitor shown under a USB node is logged when the link starts and when it ends.
+    [Fact]
+    public void DisplayLinksAreLoggedWhenTheyStartAndEnd()
+    {
+        var log = NewLog();
+        var container = Guid.NewGuid();
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("MONITOR-HUB") with { ContainerId = container, Name = "Realtek hub" }))];
+        DisplayMonitor samsung = new("M1", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = container };
+
+        log.DisplayLinks(MonitorPlacement.Place(tree, [samsung]), tree);
+        log.DisplayLinks(MonitorPlacement.Place(tree, [samsung]), tree);
+        log.DisplayLinks(MonitorPlacement.Place([], [samsung]), []);
+
+        Assert.Equal(
+            [
+                "Display under a USB device: LS27A600U (DisplayPort) under Realtek hub (same Windows container)",
+                "Display no longer under a USB device: LS27A600U (DisplayPort)",
+            ],
+            Texts(log));
+    }
+
     [Fact]
     public void AConnectIsOneEntry()
     {

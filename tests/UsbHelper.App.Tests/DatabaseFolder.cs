@@ -11,8 +11,10 @@ internal static class DatabaseFolder
     /// <param name="platformLimits">YAML lines under <c>limits:</c> of the platform profile; none when null.</param>
     /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
     /// <param name="platform">The platform profile's id.</param>
+    /// <param name="mst">The computer's <c>displays.mst</c>; not set when null.</param>
     public static HardwareDatabase Load(
-        string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "p")
+        string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "p",
+        string? mst = null)
     {
         var folder = Directory.CreateTempSubdirectory("usb-helper-app-").FullName;
         Directory.CreateDirectory(Path.Combine(folder, "platforms"));
@@ -31,6 +33,7 @@ internal static class DatabaseFolder
               max_hops: 5
             displays:
               max_external: 2
+              {(mst == null ? "" : $"mst: {mst}")}
             verification:
               status: {status}
             """);

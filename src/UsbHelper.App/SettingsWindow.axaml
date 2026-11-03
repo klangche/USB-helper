@@ -1,0 +1,20 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Title="{x:Static res:Strings.SettingsTitle}">
+
+  <!-- Each change is saved at once (#126), so there is no Save or Cancel. -->
+  <StackPanel Margin="16" Spacing="10">
+    <CheckBox Content="{x:Static res:Strings.SettingsCheckForUpdates}" IsChecked="{Binding CheckForUpdatesAtStart}" />
+    <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding OfferBetas}" />
+    <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
+    <TextBlock Text="{x:Static res:Strings.SettingsSavedAt}" TextWrapping="Wrap" Opacity="0.7" />
+    <SelectableTextBlock Text="{Binding FilePath}" TextWrapping="Wrap" FontFamily="monospace" Opacity="0.7" />
+    <Button Content="{x:Static res:Strings.SettingsClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
+  </StackPanel>
+</Window>

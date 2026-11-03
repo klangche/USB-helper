@@ -9,10 +9,9 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices. At start only the
-  busiest controller is open; hubs built into the computer start collapsed; a
-  chevron before each item with items below it expands or collapses it, and a
-  collapsed item's name is bold. Updated on connect and
+  host): controllers, hubs, occupied ports and devices. Each controller has a
+  chevron that hides or shows its tree; at start only the busiest controller is
+  open, and a collapsed controller's name is bold. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -22,6 +21,16 @@ Status: first version for Windows; computer profiles still to be added.
   tree (one with something on it) that Windows reports as USB-C shows a
   "USB-C" badge; other ports, and ports Windows says nothing about, show none.
   The log lists the flag of every port Windows reports it for.
+- Displays group under the computer: each active monitor with its name and
+  output type (built-in, HDMI, DisplayPort, DisplayPort over USB4/Thunderbolt,
+  DVI, VGA, indirect such as DisplayLink, wireless). A monitor that Windows
+  puts in the same device container as a USB hub or device (for example a
+  USB-C monitor with a built-in hub) is shown under that hub or device instead.
+  Updated when a monitor is connected or removed; each change is logged.
+- The tree as plain text, in the log after the first read and every change,
+  and on the clipboard with Edit > Copy tree as text.
+- Export full setup: one zip with everything detected (`setup.json`), the
+  tree as text, a screenshot and the log, without serial numbers.
 - Per controller: its hub count, deepest tier and deepest hop.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
@@ -128,6 +137,7 @@ ports:
       - "Charging only below 15 W."
 displays:
   max_external: 2
+  mst: false     # DisplayPort Multi-Stream Transport; null = unknown
   restrictions:
     - "HDMI and the left front port share one display output."
 ```
@@ -139,9 +149,21 @@ DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
 0x17E9) and checked against the ports' `displaylink` values. Which physical
 port a monitor uses cannot be detected, so the port capabilities and
-restrictions are listed, not matched to monitors. The GUI reads the display
-count again at every USB change and profile change; a monitor plugged in
-without any USB change shows up at the next one. A
+restrictions are listed, not matched to monitors.
+
+`displays.mst` says whether the computer supports DisplayPort Multi-Stream
+Transport, several independent displays on one DisplayPort output. When a
+checked profile says `mst: false` and more than one external DisplayPort
+display is active (DisplayPort, DisplayPort Alt Mode, or DisplayPort over
+USB4/Thunderbolt; DisplayLink, HDMI and built-in displays never count), the
+first one is judged as usual and every further one is potentially unstable
+(orange) with "No MST on <computer>: this display is duplicated; use a second
+USB-C port or DisplayLink." The computer named is the profile's, which need not
+be the one running the app, so a Mac can be planned for on Windows. Above
+`displays.max_external` the result stays unstable (purple). When `mst` is
+unknown, the log says so and nothing is judged. The GUI reads the monitors
+again when Windows reports a display change, and at every USB change and
+profile change. A
 display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
@@ -235,7 +257,8 @@ unverified, the window does not. With several
 profiles checked, each line shows the worst result of all of them, and each
 profile gets its own overall result: the highest of its lines, its limits and
 its display check (purple above `displays.max_external`, orange for a
-DisplayLink adapter on a computer without DisplayLink support). The findings
+DisplayLink adapter on a computer without DisplayLink support or a further
+DisplayPort display on a computer without MST). The findings
 list then shows only the findings of the strictest checked profile: the one
 with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
 `max_tiers`, then `max_hubs`. An unknown limit counts as higher than any known
@@ -247,7 +270,8 @@ detected fact, a verified database fact, a predicted risk or unknown.
 The findings list shows only real findings: a limit or recommendation
 exceeded, a display problem (more external displays than
 `displays.max_external`, a DisplayLink adapter on a computer without
-DisplayLink support), an operating system error, a disconnected device and a
+DisplayLink support, a further DisplayPort display without MST), an operating
+system error, a disconnected device and a
 reconnected one. Everything else is a note and goes to the log only (see
 Usage): unknown limits and values, unverified limits, limits and port
 capabilities from the database, documented limitations and restrictions, the
@@ -267,54 +291,120 @@ findings; they have no connection line of their own.
 
 ## Platforms
 
-- Windows x64: first target. Portable, no installation, no administrator
-  rights. The network is used only for the optional update check at start;
-  without it, the app works as normal.
+- Windows x64: first target. A per-user installer (`.msi`) or a portable zip,
+  both without administrator rights. The network is used only for the optional
+  update check at start; without it, the app works as normal.
 - macOS and Linux: planned, with the same GUI and diagnostics.
 
 ## Install
 
-Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
-[releases](https://github.com/klangche/USB-helper/releases), unzip it, and
-follow `READ_ME_FIRST.txt` in the zip. In short: the zip holds one exe,
-`USB-helper.exe`; unblock it once (`Unblock-File -Path .\USB-helper.exe` in
-PowerShell, as it is not signed), and start it. No installation and no
-administrator rights are needed, and no network connection either (it is
-used only for the update check below).
-`USB-helper.exe` is a small launcher that carries the app. It shows a splash
-with the version at once. On the first start of a version it unpacks the app
-to `%LOCALAPPDATA%\USB-helper\<version>`, checks every file against the
-launcher's copy (SHA-256), and starts it from there; later starts skip the
-unpack, and an incomplete unpack is done again. The splash closes when the
-app's window is up. After a successful start, the other versions in
-`%LOCALAPPDATA%\USB-helper` (older or newer) are removed. To remove USB-helper completely,
-delete `USB-helper.exe` and that folder.
+Windows x64: each [release](https://github.com/klangche/USB-helper/releases)
+has two downloads with the same app: an installer,
+`usb-helper-<version>-windows-x64.msi`, and a portable zip,
+`usb-helper-<version>-windows-x64.zip`. Neither needs administrator rights.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
 
-Updates: on every start, while the splash shows, the launcher asks GitHub
-Releases (no account or token) for the newest stable release and the newest
-beta. Only releases with a published SHA-256 file
-(`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
-download can be verified. If either is newer than the running version, the
-splash shows "Update to stable X", "Update to beta Y" (whichever are newer)
-and "Skip" (also Esc); otherwise nothing is shown. The app starts once the
-check has an answer, at most 2 seconds after the start; with no network, no
-answer in time, a GitHub error or its rate limit, the check is skipped
-silently. On a choice, the launcher downloads that release's zip and its
-SHA-256 file, verifies the zip, writes the new launcher next to the running
-one as `<name>.new`, renames the running one to `<name>.old` and the new one
-to the running one's name, and starts it; the next start removes
-`<name>.old`. A download that fails verification is deleted, never run, and
-the current version starts after a message. The folder of `USB-helper.exe`
-must be writable (no administrator rights are used). The log (#87) lists
-the check's result after "USB-helper started", for example "Update check:
-beta 0.7.0-beta.2 is newer than 0.6.0; skipped" or "Update check skipped:
-no answer within 2 s". A download that stalls is given up after 10 minutes.
+### Installer (.msi)
+
+Download the `.msi` and open it. It installs for the current user only, with
+no administrator rights and no UAC prompt, to
+`%LOCALAPPDATA%\Programs\USB-helper`, and adds USB-helper to the Start menu
+and to Apps & features (Settings > Apps > Installed apps). As the `.msi` is
+not signed, Windows SmartScreen may warn first: click "More info", then "Run
+anyway". The setup shows the license, the progress and a last page with
+"Launch USB-helper", ticked by default: Finish then starts USB-helper; untick
+it to finish without starting. A newer `.msi` (stable or beta) upgrades the
+installed one in place; an older one does not install over a newer one.
+Settings live in `%APPDATA%\USB-helper` and stay through upgrades. To
+uninstall, use Apps & features, or `msiexec /x
+usb-helper-<version>-windows-x64.msi`.
+
+Windows Installer versions have no pre-release part, so Apps & features shows
+an MSI version (`release/msi-version.sh`): `X.Y.Z` is `X.Y.(Z*1000+999)` and
+`X.Y.Z-beta.N` is `X.Y.(Z*1000+N)`. For example 0.6.0-beta.2 is 0.6.2 and
+0.6.0 is 0.6.999, so every beta sorts before its release and after the
+release before it. Pull request builds are 0.0.0. The real version is in the
+entry's comment and in Help > About.
+
+### Portable zip
+
+Download the zip and follow `READ_ME_FIRST.txt` in it. In short: unblock the
+zip once (`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in
+PowerShell, as it is not signed), unzip it, and start `USB-helper.exe` in the
+`USB-helper` folder. No installation and no administrator rights are needed,
+and no network connection either (it is used only for the update check below).
+
+The zip holds one folder:
+
+```
+USB-helper/
+  USB-helper.exe         starts the app
+  READ_ME_FIRST.txt
+  LICENSE.txt
+  app/
+    UsbHelper.exe        the app
+    *.dll, *.json        its libraries and the .NET runtime, as loose files
+```
+
+`USB-helper.exe` is a small native starter (NativeAOT, no .NET runtime of its
+own): it starts `app\UsbHelper.exe` with the same arguments and exits, in a few
+milliseconds. Without the `app` folder next to it, it says so and links to the
+releases. Keep the files together; the folder can be moved anywhere. Nothing is
+unpacked elsewhere. To remove USB-helper, delete its folder, and
+`%APPDATA%\USB-helper` if you want its settings gone too (see Settings).
+
+### From 0.5.0
+
+That version was one `USB-helper.exe` that unpacked the app to
+`%LOCALAPPDATA%\USB-helper\<version>`. This version does not use or touch
+that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
+update cannot install this version: download it once by hand.
+
+The portable 0.6.0 betas before this layout had `UsbHelper.exe` at the top of
+the zip (no `app` folder). Their in-app update looks for that file and so
+cannot install this layout; download the zip once by hand. An installed
+(`.msi`) beta updates as normal.
+
+### Updates
+
+After the window shows (unless "Check for updates at start" is off in the
+settings), the app asks GitHub Releases (no account or token) for the newest
+stable release and the newest beta, in the background: the window works as
+normal meanwhile. Only releases with a published SHA-256 file
+(`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
+installed app) count, so that every download can be verified. If either is
+newer than the running version, a small window opens over the main window with
+the running version, "Update to stable X", "Update to beta Y" (whichever are
+newer; the beta only when betas are on in the settings) and "Skip"; the main
+window keeps reading devices behind it. Closing the window is the same as
+"Skip". Otherwise nothing is shown. With no network, no answer within 2
+seconds, a GitHub error or its rate limit, the check is skipped silently.
+
+Installed by the `.msi` (the app runs from
+`%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
+release's `.msi` and its SHA-256 file to `%TEMP%\USB-helper-update`, verifies
+it, runs it (`msiexec /i ... /passive /norestart LAUNCHAPPONEXIT=1`: a
+progress bar, no questions, never a restart of the computer) and closes, so
+the installer can replace its files. When the install is done, the installer
+starts the new version (`LAUNCHAPPONEXIT=1`). Releases from before the `.msi`
+(0.5.0 and older) are not offered to an installed app.
+
+A `.msi` download that fails verification is never run; the window shows why
+and the current version keeps running. A download that stalls is given up
+after 10 minutes.
+
+Portable: on a choice, the app opens that release's page on GitHub in the
+browser and keeps running; it does not download, unzip or replace itself.
+Download the new zip there and unzip it as under Install. The log
+(#87) lists the check's result, for example "Update check: beta
+0.7.0-beta.2 is newer than 0.6.0", "Opened the release page of 0.7.0-beta.2",
+"Update skipped" or "Update check skipped: no answer within 2 s".
 
 ## Usage
 
-Start `USB-helper.exe`. Its splash shows at once (see Install); then the
-window opens and shows what it is reading
+Start USB-helper from the Start menu (installer) or `USB-helper.exe` in the
+`USB-helper` folder (portable zip; see Install). The window opens at once and
+shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
 profiles and the tree fill in as they arrive. The window shows the USB tree.
 Its root is this computer, named after its computer profile when one matches,
@@ -325,20 +415,37 @@ stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
-out. At start every USB controller is collapsed except the selected one (see
-below), the one with the most connected hubs and devices. Hubs built into the
-computer (for the webcam or Bluetooth, reached only through ports that are not
-user-connectable) start collapsed; everything else is open. A collapsed item's
-name is bold.
-Click the chevron before an item, double-click the item, or use
-the left and right arrow keys, to expand or collapse it; the choice is kept
-while the app runs. A DisplayLink device is shown as a display: a "Display"
-badge and "Extended display: DisplayLink driver required" before its name;
-every hub above it says it "has a display". A port in the tree that Windows
-reports as a USB-C connector (from its port connector properties) has a "USB-C"
-badge after its name; this changes no result. Empty ports are not in the tree;
-the log lists the flag of every port Windows reports it for. Each controller
-shows its hub count, deepest tier and deepest hop. Next to the tree is a
+out. Only the USB controller rows can be collapsed: click a controller's
+chevron, double-click it, or use the left and right arrow keys to hide or show
+its tree; while it is hidden the controller's name is bold. At start only the
+selected controller (see below), the one with the most connected hubs and
+devices, is open, and only when it has any. The computer's row, the Displays
+group and everything below a controller, hubs built into the computer
+included, are always open. The choice is kept while the app runs. A
+DisplayLink device is shown as a display: a "Display" badge and "Extended
+display: DisplayLink driver required" before its name;
+every hub above it says it "has a display". After the controllers, a
+"Displays" group lists each active monitor with its name and output type, for
+example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in
+panel, is listed as "Monitor". A monitor is shown under a USB hub or device
+instead when Windows says both belong to one physical device: they have the
+same container id (for example a USB-C monitor and the USB hub built into it;
+the monitor is shown under the highest USB node of that device). Nothing else
+places a monitor: the container shared by everything built into the computer
+links nothing, and a monitor without a match stays in the group. The log says
+when a monitor is shown under a USB node and when that ends. While a
+DisplayLink device is connected, indirect monitors
+are not listed in the group: they stay under their DisplayLink device.
+Selecting the group or a monitor in it does not change what the status field
+covers; a monitor shown under a USB node selects that node's controller, like
+anything else under it.
+The group follows monitors as they are connected and removed, and the log
+lists the monitors at start and each one connected or removed. A port in the
+tree that Windows reports as a USB-C connector (from its port connector
+properties) has a "USB-C" badge after its name; this changes no result. Empty
+ports are not in the tree; the log lists the flag of every port Windows
+reports it for. Each controller shows its hub count, deepest tier and deepest
+hop. Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
 and the findings cover one USB
@@ -380,18 +487,96 @@ database load result, per hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
 reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
-ones about unknown limits. Click "Export" in the log window to save it as a
-text file (`usb-helper-log-<date>-<time>.txt`), for example to send with a
-bug report. The log is kept in memory only and starts empty each time the
-app starts.
+ones about unknown limits. After the first read and after every USB change
+(and every display change that shows), it also lists the whole tree as text,
+so the log shows how the tree looked at each moment. Click "Export" in the log
+window to save it as a text file (`usb-helper-log-<date>-<time>.txt`), for
+example to send with a bug report; File > Export log does the same from the
+main window. The log is kept in memory only and starts empty each time the app
+starts.
 
-No profile for your computer yet? Click "Export computer profile" and save the
-file (`<manufacturer>-<model>.yaml`). It holds what the app detected: the
-manufacturer and model exactly as Windows reports them, the processor, the
-matching platform profile, the USB controllers with their root hub ports, and
-the number of active external displays. It sets no limits, so it uses the
-platform profile's, and the status is `unverified`. Send the file to the
-developers; they add model-specific limits from cited sources.
+To explain a setup to someone, or to report one to the developers, use File >
+Export full setup. It saves one zip with four files,
+`usb-helper-setup-<manufacturer>-<model>-<date>.zip`:
+
+- `setup.json`: everything the app detected and found, with a `format_version`:
+  the app version, the computer (manufacturer, model, processor, platform
+  profile), the checked profiles, every controller, hub, port
+  and device (name, vendor and product id, USB-C and user-connectable flags),
+  your active-cable marks, the monitors and their output type, and each
+  checked profile's result with every finding, the unknown ones included.
+- `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
+- `screenshot.png`: the main window as shown.
+- `log.txt`: the log.
+
+The export holds device and monitor names and vendor and product ids, but no
+serial numbers: the Windows device paths, which can hold them, are replaced by
+positions in the tree ("1/1/2"), the Windows container ids are replaced by
+numbered ones that still show which devices belong together, and `setup.json`
+leaves out the computer's
+network name, which is often an asset or service tag. When Windows reports no
+manufacturer and model, the window, and so `screenshot.png` and `tree.txt`,
+name the computer by its network name instead. The developers can load
+`setup.json` in the tests as if the app had detected it, so a reported setup
+becomes a test case.
+
+No profile for your computer yet? Click "Export computer profile" (or File >
+Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
+holds what the app detected: the manufacturer and model exactly as Windows
+reports them, the processor, the matching platform profile, the USB
+controllers with their root hub ports, and the number of active external
+displays. It sets no limits, so it uses the platform profile's, and the status
+is `unverified`. Send the file to the developers; they add model-specific
+limits from cited sources.
+
+The menu bar at the top has File (Export computer profile, Export log,
+Export full setup, Settings, Exit), Edit (Copy tree as text) and Help (Check
+for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
+as plain text, the same text the log gets, for pasting into an email:
+
+```
+Dell Inc. Latitude 7450
+|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
+|   `-- ROOT
+|       `-- Port 1 [USB-C]
+|           `-- [+2 hops] Dock - stable
+|               `-- Port 1
+|                   `-- Keyboard (046D:C31C) - stable
+`-- Displays
+    `-- DELL U2723QE (HDMI)
+```
+
+Each row has its badges in brackets ("+N hops" for a marked cable, "USB-C",
+"Display"), the result word after " - " and its notes in parentheses.
+
+Press Alt, or Alt with the underlined letter (for example Alt+F for File), to
+use the menu from the keyboard. Check for updates runs the update check again
+(see Install) and also says when the running version is up to date or the
+check failed; it is greyed out where the app has no update check (outside
+Windows). About shows the running version, the license, the icon's attribution
+and a link to this repository.
+
+### Settings
+
+File > Settings opens the settings. Each change is saved at once:
+
+- **Check for updates at start** (on by default): off, the app does not ask
+  GitHub after it starts; Help > Check for updates still works.
+- **Offer beta versions** (on by default): off, only stable releases are
+  offered, and a newer beta alone counts as up to date.
+- **Remember the checked profiles between starts** (off by default): on, the
+  operating systems and computers checked in the two lists are checked again
+  at the next start, instead of only the detected platform profile. If
+  nothing was checked, the detected platform profile is checked, as without
+  the setting. Turning it off forgets them.
+
+The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
+roaming app data folder), the same for every copy of the app, so they survive
+updates and moving the app's folder. With a roaming Windows profile they
+also follow the user to other computers, remembered profiles included.
+Without the file the defaults apply. A
+file that cannot be read is named in the log with the reason, and the
+defaults apply; it is only replaced when a setting is changed.
 
 ## Development
 
@@ -409,7 +594,7 @@ minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
-(the app is published, zipped and built into the launcher, see below),
+and the `.msi` (the starter and the published app's loose files, see Install),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -426,23 +611,35 @@ the next release would get and `N` counts up from 1 for each beta of it
   it from `database/` (rebuild after a database change), picks the computer
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
-  `src/UsbHelper.App/Resources/Strings.resx`.
+  `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,
+  `Update/ReleaseVersion`), the verified `.msi` download (`Update/VerifiedDownload`)
+  and the popup's model (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
+  against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
+  release and beta for the update check.
+- `installer/Package.wxs`: the per-user `.msi`, built in `release.yml` with
+  WiX Toolset (the `wix` .NET tool, pinned in `.config/dotnet-tools.json`, and
+  its UI and Util extensions, pinned in `release/build-msi.ps1`; Windows only).
+  It uses the standard minimal setup UI with the "Launch USB-helper" box, and
+  starts the app after an install with `LAUNCHAPPONEXIT=1`, which the app's own
+  update passes (`Update/MsiInstall.cs`). It packs the
+  same files as the zip. Its `UpgradeCode` must never change: it is how a newer
+  `.msi` finds the installed one. `release.yml` installs, upgrades and
+  uninstalls every `.msi` it builds as a check. `release/msi-version.sh` maps
+  release versions to MSI versions, tested by `release/msi-version.test.sh`.
 - `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
   `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon
   (`ApplicationIcon`), which Avalonia also uses for every window. After changing
   the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
   librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
   both files.
-- `src/UsbHelper.Launcher`: `USB-helper.exe` in the download, compiled with
-  NativeAOT so it starts without loading .NET. It carries the published app
-  as the embedded resource `app.zip`, given with `-p:AppPayload=<zip>` (see
-  `release.yml`); a build without it reports that it holds no app. It draws
-  its splash with plain Win32 calls and uses the texts in the app's
-  `Strings.resx`. The unpack logic (`AppFolder`), the update check
-  (`UpdateCheck`, `ReleaseVersion`) and the update download and swap
-  (`UpdateInstaller`) are tested in `tests/UsbHelper.Launcher.Tests`, the
-  update check against a fake release feed. `release.yml` publishes
-  `<zip>.sha256` with every release and beta for the update check.
+- `src/UsbHelper.Starter`: `USB-helper.exe` at the top of the zip and the
+  install folder (#130), compiled with NativeAOT (its compiler packages are
+  pinned in the project; update both pins together). It starts
+  `app\UsbHelper.exe` and shows a message from `Strings.resx` when that is
+  missing; tested in `tests/UsbHelper.Starter.Tests`. The app finds the top
+  folder as the parent of its `app` folder (`UpdateKinds.TopFolder`).
+  `release.yml` starts both the unzipped zip and the installed `.msi` through
+  `USB-helper.exe` and waits for the window (`release/start-test.ps1`).
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running

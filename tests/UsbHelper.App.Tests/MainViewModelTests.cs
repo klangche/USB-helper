@@ -12,6 +12,9 @@ public class MainViewModelTests
 {
     private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);
 
+    private static IReadOnlyList<DisplayMonitor> External(int count) =>
+        [.. Enumerable.Range(1, count).Select(i => new DisplayMonitor($"M{i}", $"Monitor {i}", MonitorOutput.Hdmi))];
+
     private static UsbNode Port(string hubId, int number, UsbNode? child) =>
         new($"{hubId}|port{number}", UsbNodeKind.Port, $"Port {number}", child == null ? [] : [child]) { PortNumber = number };
 
@@ -66,7 +69,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-1"), () =>
         {
             displaysRead++;
-            return 2;
+            return External(2);
         }, log);
 
         Assert.True(viewModel.IsLoading);
@@ -92,7 +95,7 @@ public class MainViewModelTests
         Assert.Empty(viewModel.Roots);
         Assert.Equal(0, displaysRead);
 
-        viewModel.Load(Desk, displays: 2);
+        viewModel.Load(Desk, monitors: External(2));
 
         Assert.False(viewModel.IsLoading);
         Assert.NotEmpty(viewModel.Roots);
@@ -847,7 +850,7 @@ public class MainViewModelTests
     {
         var log = new EventLog();
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => 3, log);
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => External(3), log);
         viewModel.Load(Desk);
         viewModel.OperatingSystems.Single().IsChecked = true;
 
@@ -878,7 +881,7 @@ public class MainViewModelTests
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
         var displays = 1;
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => displays);
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => External(displays));
         viewModel.Load(Desk);
         viewModel.Computers.Single().IsChecked = true;
 
@@ -910,77 +913,259 @@ public class MainViewModelTests
         return [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])];
     }
 
+    // Owner decision in #142: only the controller rows collapse; the host and everything below a controller, built-in
+    // hubs too, are always open.
     [Fact]
-    public void BuiltInHubStartsCollapsedAndEverythingElseOpen()
+    public void OnlyControllersCanCollapse()
     {
         var viewModel = NewViewModel();
 
         viewModel.Load(Laptop());
 
-        Assert.False(Item(viewModel, "INTERNAL").IsExpanded);
-        Assert.False(Item(viewModel, "INTERNAL").ShowsChildren); // No trunk below a collapsed item.
-        Assert.True(Item(viewModel, "INTERNAL").IsCollapsed);
-        Assert.True(Item(viewModel, "DOCK").IsExpanded); // External, although it is behind the built-in hub.
-        Assert.True(Item(viewModel, "UNSURE").IsExpanded); // Windows does not say: open, as it is counted.
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.True(item.IsExpanded));
-        Assert.All(All(viewModel.Roots).Where(item => item.Id != "INTERNAL"), item => Assert.False(item.IsCollapsed));
-    }
-
-    // Owner decision in #100: a collapsed item's name is bold, with no hidden count after it; an expanded one is not bold.
-    [Fact]
-    public void CollapsedItemIsBoldWithoutAHiddenCount()
-    {
-        var viewModel = NewViewModel();
-        viewModel.Load(Laptop());
-        var builtIn = Item(viewModel, "INTERNAL");
-        var changed = new List<string?>();
-        builtIn.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
-
-        Assert.True(builtIn.IsCollapsed);
-        Assert.Equal("INTERNAL", builtIn.Text);
-
-        builtIn.IsExpanded = true;
-
-        Assert.False(builtIn.IsCollapsed);
-        Assert.Contains(nameof(NodeViewModel.IsCollapsed), changed);
-        Assert.Equal("INTERNAL", builtIn.Text);
-        Assert.DoesNotContain(All(viewModel.Roots), item => item.IsCollapsed);
-        Assert.False(Item(viewModel, "WEBCAM").IsCollapsed); // Nothing below it: never bold.
+        Assert.True(Item(viewModel, "C1").CanExpand);
+        Assert.All(All(viewModel.Roots).Where(item => item.Id != "C1"), item =>
+        {
+            Assert.False(item.CanExpand);
+            Assert.True(item.IsExpanded);
+            Assert.False(item.IsCollapsed);
+        });
+        Assert.True(Item(viewModel, "INTERNAL").ShowsChildren); // The built-in hub is open.
     }
 
     [Fact]
-    public void EveryItemWithChildrenCanBeExpandedAndCollapsed()
+    public void TheHostAndEverythingBelowAControllerCannotCollapse()
     {
         var viewModel = NewViewModel();
-
         viewModel.Load(Laptop());
 
-        // Devices have nothing below them. Everything else can be collapsed, ports too, so each shows the control.
-        Assert.All(All(viewModel.Roots), item => Assert.Equal(item.Children.Count > 0, item.CanExpand));
-        Assert.DoesNotContain(All(viewModel.Roots), item => item.Id is "WEBCAM" or "KEYBOARD" or "MOUSE" && item.CanExpand);
-        var port = Item(viewModel, "ROOT|port2");
-        Assert.True(port.CanExpand);
+        foreach (var id in new[] { NodeViewModel.HostId, "ROOT", "INTERNAL", "ROOT|port2", "UNSURE" })
+        {
+            var item = Item(viewModel, id);
 
-        port.IsExpanded = false;
+            item.IsExpanded = false; // As the tree view does for a double-click or an arrow key.
 
-        Assert.True(port.IsCollapsed);
+            Assert.True(item.IsExpanded);
+            Assert.False(item.IsCollapsed);
+            Assert.True(item.ShowsChildren);
+        }
+    }
+
+    // A collapsed controller hides its tree and its name is bold (#100); expanding it shows the tree as before.
+    [Fact]
+    public void CollapsingAControllerHidesItsTreeAndExpandingShowsItAgain()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Laptop());
+        var controller = Item(viewModel, "C1");
+
+        controller.IsExpanded = false;
+
+        Assert.False(controller.ShowsChildren);
+        Assert.True(controller.IsCollapsed);
+
+        controller.IsExpanded = true;
+
+        Assert.True(controller.ShowsChildren);
+        Assert.False(controller.IsCollapsed);
+        Assert.All(All(viewModel.Roots), item => Assert.True(item.IsExpanded));
+    }
+
+    private static readonly DisplayMonitor Panel = new("PANEL", null, MonitorOutput.Internal);
+    private static readonly DisplayMonitor Dell = new("DELL", "DELL U2723QE", MonitorOutput.Hdmi);
+    private static readonly DisplayMonitor Lg = new("LG", "LG HDR 4K", MonitorOutput.DisplayPort);
+    private static readonly DisplayMonitor OnDisplayLink = new("DL-MONITOR", "HP E24", MonitorOutput.Indirect);
+
+    private static NodeViewModel? DisplaysGroup(MainViewModel viewModel) =>
+        Item(viewModel, NodeViewModel.HostId).Children.SingleOrDefault(item => item.Id == NodeViewModel.DisplaysId);
+
+    // Owner decision in #133: a "Displays" group under the host lists each monitor with its name and output type.
+    [Fact]
+    public void TheDisplaysGroupListsEachMonitorWithItsTypeUnderTheHost()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, Dell, Lg]);
+
+        viewModel.Load(Desk);
+
+        var host = Item(viewModel, NodeViewModel.HostId);
+        Assert.Equal(["C1", NodeViewModel.DisplaysId], host.Children.Select(item => item.Id));
+        var group = DisplaysGroup(viewModel)!;
+        Assert.Equal(Strings.DisplaysGroup, group.Text);
+        Assert.Equal(["Monitor (built-in)", "DELL U2723QE (HDMI)", "LG HDR 4K (DisplayPort)"], group.Children.Select(item => item.Text));
+        Assert.True(group.IsLast);
+        Assert.False(Item(viewModel, "C1").IsLast);
+        Assert.True(group.Children[^1].IsLast);
+        Assert.All(group.Children.Prepend(group), item =>
+        {
+            Assert.False(item.CanMark);
+            Assert.False(item.CanExpand);
+            Assert.Null(item.Status);
+            Assert.False(item.IsDisplay); // The DisplayLink note is for DisplayLink devices only.
+        });
+    }
+
+    // DisplayLink monitors stay under their USB device (#92) and are not listed twice.
+    [Fact]
+    public void ADisplayLinkMonitorIsNotListedTwice()
+    {
+        var adapter = Device("DL") with { VendorId = UsbNode.DisplayLinkVendorId };
+        var tree = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", adapter))]);
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Dell, OnDisplayLink]);
+
+        viewModel.Load([tree]);
+
+        Assert.Equal(["DELL U2723QE (HDMI)"], DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+        Assert.Equal(Strings.DisplayLinkDevice, Item(viewModel, "DL").DisplayNote);
     }
 
     [Fact]
-    public void LiveUpdateKeepsTheUsersExpandAndCollapse()
+    public void AnIndirectMonitorIsListedWhenNoDisplayLinkDeviceIsConnected()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [OnDisplayLink]);
+
+        viewModel.Load(Desk);
+
+        Assert.Equal([string.Format(CultureInfo.CurrentCulture, Strings.MonitorItem, "HP E24", Strings.OutputIndirect)],
+            DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+    }
+
+    [Fact]
+    public void PluggingAndUnpluggingAMonitorUpdatesTheGroupAndTheLog()
+    {
+        var log = new EventLog();
+        IReadOnlyList<DisplayMonitor>? monitors = [Panel, Dell];
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => monitors, log);
+        viewModel.Load(Desk);
+        var panel = DisplaysGroup(viewModel)!.Children[0];
+
+        monitors = [Panel, Dell, Lg];
+        viewModel.DisplaysChanged();
+
+        Assert.Equal(["Monitor (built-in)", "DELL U2723QE (HDMI)", "LG HDR 4K (DisplayPort)"],
+            DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+        Assert.Same(panel, DisplaysGroup(viewModel)!.Children[0]); // Kept, so a selection survives.
+
+        monitors = [Panel];
+        viewModel.DisplaysChanged();
+
+        Assert.Equal(["Monitor (built-in)"], DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+        Assert.True(DisplaysGroup(viewModel)!.Children.Single().IsLast);
+        Assert.Contains("Display connected: LG HDR 4K (DisplayPort)", log.Entries.Select(entry => entry.Text));
+        Assert.Contains("Display disconnected: DELL U2723QE (HDMI)", log.Entries.Select(entry => entry.Text));
+        Assert.Contains("Display disconnected: LG HDR 4K (DisplayPort)", log.Entries.Select(entry => entry.Text));
+
+        monitors = [];
+        viewModel.DisplaysChanged();
+
+        Assert.Null(DisplaysGroup(viewModel));
+        Assert.True(Item(viewModel, "C1").IsLast);
+    }
+
+    [Fact]
+    public void ADisplayChangeUpdatesTheDisplayCount()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
+        IReadOnlyList<DisplayMonitor> monitors = [Panel, Dell];
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => monitors);
+        viewModel.Load(Desk);
+        viewModel.Computers.Single().IsChecked = true;
+
+        monitors = [Panel, Dell, Lg, Lg with { Id = "LG2" }];
+        viewModel.DisplaysChanged();
+
+        Assert.Contains("External displays: 3, limit 2 (exceeded)", viewModel.StatusRows.Single().Details);
+    }
+
+    // A monitor belongs to no controller: selecting it, or the group, keeps what the status covers.
+    [Fact]
+    public void SelectingAMonitorKeepsTheStatusScope()
+    {
+        var other = new UsbNode("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("A"))]);
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, Dell]);
+        viewModel.Load([.. Desk, other]);
+
+        viewModel.SelectedNode = Item(viewModel, "C2");
+        viewModel.SelectedNode = DisplaysGroup(viewModel)!.Children[1];
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+
+        viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
+        viewModel.SelectedNode = DisplaysGroup(viewModel);
+
+        Assert.Null(viewModel.SelectedControllerId);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.StatusFor, Strings.AllControllers), viewModel.StatusScope);
+    }
+
+    // #143: a monitor in the same Windows container as a USB node is shown under that node, not in the Displays group.
+    [Fact]
+    public void ALinkedMonitorIsShownUnderItsUsbNode()
+    {
+        var container = new Guid("6f1d2a6e-0000-4000-8000-000000000001");
+        var monitorHub = Hub("MONITOR-HUB", Device("CAM")) with { ContainerId = container };
+        var tree = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", monitorHub, Device("MOUSE"))]);
+        var samsung = new DisplayMonitor("SAMSUNG", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = container };
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, samsung], log);
+
+        viewModel.Load([tree]);
+
+        var hub = Item(viewModel, "MONITOR-HUB");
+        Assert.Equal(["MONITOR-HUB|port1", "display|SAMSUNG"], hub.Children.Select(item => item.Id));
+        Assert.Equal("LS27A600U (DisplayPort)", hub.Children[1].Text);
+        Assert.True(hub.Children[1].IsLast);
+        Assert.False(hub.Children[0].IsLast);
+        Assert.Equal(["Monitor (built-in)"], DisplaysGroup(viewModel)!.Children.Select(item => item.Text));
+        Assert.Contains("Display under a USB device: LS27A600U (DisplayPort) under MONITOR-HUB (same Windows container)",
+            log.Entries.Select(entry => entry.Text));
+    }
+
+    [Fact]
+    public void WhenEveryMonitorIsLinkedThereIsNoDisplaysGroup()
+    {
+        var container = new Guid("6f1d2a6e-0000-4000-8000-000000000001");
+        var tree = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("MONITOR-HUB", (UsbNode?)null) with { ContainerId = container })]);
+        IReadOnlyList<DisplayMonitor> monitors = [new DisplayMonitor("SAMSUNG", "LS27A600U", MonitorOutput.DisplayPort) { ContainerId = container }];
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => monitors);
+
+        viewModel.Load([tree]);
+
+        Assert.Null(DisplaysGroup(viewModel));
+        Assert.True(Item(viewModel, "display|SAMSUNG").IsLast);
+
+        monitors = [];
+        viewModel.DisplaysChanged();
+
+        Assert.Empty(Item(viewModel, "MONITOR-HUB").Children);
+    }
+
+    // Owner decision in #144: with a Mac-like profile (no MST) checked, the second DisplayPort monitor is orange with
+    // the No MST message; the first stays green.
+    [Fact]
+    public void WithoutMstTheSecondDisplayPortMonitorIsOrange()
+    {
+        var database = DatabaseFolder.Load("Apple", "Mac17,5", status: "verified", name: "MacBook Neo", mst: "false");
+        DisplayMonitor first = new("A", "LS27A600U", MonitorOutput.DisplayPort);
+        DisplayMonitor second = new("B", "LS27A600U", MonitorOutput.DisplayPort);
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("LENOVO", "21JK"), () => [Panel, first, second]);
+        viewModel.Load(Desk);
+
+        viewModel.Computers.Single().IsChecked = true;
+
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "display|A").Status);
+        Assert.Equal(ConnectionStatus.Orange, Item(viewModel, "display|B").Status);
+        Assert.Equal("potentially unstable", Item(viewModel, "display|B").StatusWord);
+        Assert.Null(Item(viewModel, "display|PANEL").Status);
+        Assert.Contains(viewModel.Findings, finding =>
+            finding.Message == "No MST on MacBook Neo: this display is duplicated; use a second USB-C port or DisplayLink.");
+    }
+
+    [Fact]
+    public void ThereIsNoDisplaysGroupWhenTheMonitorsAreUnknown()
     {
         var viewModel = NewViewModel();
-        viewModel.Load(Laptop());
 
-        Item(viewModel, "INTERNAL").IsExpanded = true;
-        Item(viewModel, "UNSURE").IsExpanded = false;
-        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "DOCK", Port("DOCK", 2, Device("STICK")))]);
-        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "UNSURE", Port("UNSURE", 1, null))]);
+        viewModel.Load(Desk);
 
-        Assert.True(Item(viewModel, "INTERNAL").IsExpanded);
-        Assert.True(Item(viewModel, "INTERNAL").ShowsChildren);
-        Assert.False(Item(viewModel, "UNSURE").IsExpanded);
-        Assert.True(Item(viewModel, "UNSURE").IsCollapsed);
+        Assert.Null(DisplaysGroup(viewModel));
     }
 
     [Fact]
@@ -1131,48 +1316,59 @@ public class MainViewModelTests
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), Item(viewModel, "HUB").LineColor);
     }
 
-    // Owner decision in #100: at start every controller is collapsed except the selected one, the one with most devices.
+    // Owner decision in #142: at start only the busiest controller, the selected one (#73), is open.
     [Fact]
-    public void AtStartOnlyTheBusiestControllerIsExpanded()
+    public void AtStartOnlyTheBusiestControllerIsOpen()
     {
         var other = new UsbNode("C3", UsbNodeKind.Controller, "Third controller", [Hub("ROOT3", Device("A"))]);
 
         var viewModel = TwoControllers(Phone, Desk[0], other);
 
+        Assert.Equal("C1", viewModel.SelectedControllerId);
         Assert.True(Item(viewModel, "C1").IsExpanded);
-        Assert.False(Item(viewModel, "C2").IsExpanded);
-        Assert.False(Item(viewModel, "C3").IsExpanded);
         Assert.True(Item(viewModel, "C2").IsCollapsed);
+        Assert.True(Item(viewModel, "C3").IsCollapsed);
         Assert.True(Item(viewModel, NodeViewModel.HostId).IsExpanded);
-        Assert.True(Item(viewModel, "ROOT2").IsExpanded); // Only the controller is collapsed; what is below keeps its default.
+        Assert.True(Item(viewModel, "ROOT2").IsExpanded); // Only the controller row is collapsed.
     }
 
     [Fact]
-    public void ControllersAreCollapsedWhenTheTreeArrivesAfterAProfileWasChecked()
+    public void AControllerWithNoDevicesStartsCollapsed()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
-        viewModel.Computers.Single().IsChecked = true; // While the tree is still being read.
+        var empty = new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)]);
+        var viewModel = NewViewModel();
 
-        viewModel.Load([Phone, .. Desk]);
+        viewModel.Load([empty]);
 
-        Assert.True(Item(viewModel, "C1").IsExpanded);
-        Assert.False(Item(viewModel, "C2").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
     }
 
     [Fact]
-    public void LiveUpdatesAndSelectionKeepTheUsersControllerChoice()
+    public void LiveUpdatesKeepTheUsersControllerChoice()
     {
-        var viewModel = TwoControllers();
+        var viewModel = TwoControllers(Phone, Desk[0]);
         Item(viewModel, "C1").IsExpanded = false;
         Item(viewModel, "C2").IsExpanded = true;
 
-        viewModel.SelectedNode = Item(viewModel, "PHONE");
         viewModel.Apply([new UsbChange(UsbChangeKind.Added, "ROOT2", Port("ROOT2", 2, Device("STICK")))]);
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
 
-        Assert.False(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
         Assert.True(Item(viewModel, "C2").IsExpanded);
+    }
+
+    // The Displays group (#133) stays open and has no control.
+    [Fact]
+    public void TheDisplaysGroupCannotCollapse()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel]);
+        viewModel.Load(Desk);
+        var group = Item(viewModel, NodeViewModel.DisplaysId);
+
+        group.IsExpanded = false;
+
+        Assert.False(group.CanExpand);
+        Assert.True(group.IsExpanded);
     }
 
     // Owner decision in #100: the window never says a limit is unverified or not verified; the log keeps it.
@@ -1181,7 +1377,7 @@ public class MainViewModelTests
     {
         var log = new EventLog();
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "unverified");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => 3, log);
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => External(3), log);
         viewModel.Load(Desk);
 
         viewModel.Computers.Single().IsChecked = true;

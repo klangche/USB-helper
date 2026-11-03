@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Reflection;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Export;
 using UsbHelper.Core.Topology;
 
 namespace UsbHelper.App.ViewModels;
@@ -44,14 +44,15 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 /// <summary>
 /// The main window's state. Uses only Core types, so it is the same on every operating system.
 /// The window shows before anything is read (#86): call <see cref="LoadDatabase"/>, <see cref="ReadingDisplays"/> and
-/// <see cref="Load(IReadOnlyList{UsbNode}, int?)"/> once each, in that order, then <see cref="Apply"/> for every batch of
-/// changes, on the UI thread.
+/// <see cref="Load(IReadOnlyList{UsbNode}, IReadOnlyList{DisplayMonitor})"/> once each, in that order, then
+/// <see cref="Apply"/> for every batch of USB changes and <see cref="DisplaysChanged"/> for every display change, on the
+/// UI thread.
 /// </summary>
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
     private readonly EventLog log;
-    private readonly Func<int?> readExternalDisplays;
+    private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
     // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
     private readonly Dictionary<string, int> extraHops = [];
@@ -65,30 +66,51 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
+    // The controllers' first open or collapsed state is set once, when they first arrive.
     private bool controllersShown;
+    // The last refresh's monitors and its result for all controllers, for the setup export.
+    private IReadOnlyList<DisplayMonitor>? monitors;
+    private SystemsReport lastReport = DiagnosticEvaluator.EvaluateAll([], [], []);
 
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
-        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity, Func<int?>? readExternalDisplays = null,
-        EventLog? log = null)
-        : this(identity, readExternalDisplays, log)
+        HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity,
+        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
+        : this(identity, readMonitors, log, settings)
     {
         LoadDatabase(database, databaseErrors);
     }
 
     /// <summary>A model for the window before anything is read: it shows "Loading database..." first.</summary>
-    /// <param name="readExternalDisplays">Reads the active external display count, or null when unknown. Called on every refresh.</param>
+    /// <param name="readMonitors">Reads the active monitors, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
-    public MainViewModel(ComputerIdentity identity, Func<int?>? readExternalDisplays = null, EventLog? log = null)
+    /// <param name="settings">The settings (#126); the defaults, kept in memory only, when null.</param>
+    public MainViewModel(
+        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
     {
+        Settings = settings ?? new SettingsViewModel();
+        Settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SettingsViewModel.RememberCheckedProfiles))
+            {
+                KeepCheckedProfiles(); // Turned on: keep what is checked now.
+            }
+        };
         this.log = log ?? new EventLog();
         Log = new LogViewModel(this.log);
-        this.readExternalDisplays = readExternalDisplays ?? (() => null);
+        this.readMonitors = readMonitors ?? (() => null);
         this.identity = identity;
         HostName = HostNameFor(null, identity);
         DetectedComputer = string.Format(CultureInfo.CurrentCulture, Strings.DetectedComputer,
             identity.Manufacturer ?? Strings.UnknownValue, identity.Model ?? Strings.UnknownValue);
         report = DiagnosticEvaluator.EvaluateAll(tree, [], []);
+        ExportProfileCommand = new RelayCommand(() => Window?.ExportProfile(), () => CanExport);
+        ExportLogCommand = new RelayCommand(() => Window?.ExportLog());
+        ExitCommand = new RelayCommand(() => Window?.Exit());
+        AboutCommand = new RelayCommand(() => Window?.ShowAbout());
+        SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
+        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
+        ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -106,11 +128,16 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(DatabaseErrors));
         OnPropertyChanged(nameof(HasDatabaseErrors));
         // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
-        // match, are checked by the user.
-        AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile =>
-            new ProfileOption(profile.Id, profile) { IsChecked = profile.Id == identity.Platform }));
-        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile =>
-            new ProfileOption(ComputerLabel(profile), profile)));
+        // match, are checked by the user. With "remember" on (#126), the profiles checked last time instead.
+        var remembered = Settings.RememberCheckedProfiles && (Settings.CheckedOperatingSystems.Count > 0 || Settings.CheckedComputers.Count > 0);
+        AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)
+        {
+            IsChecked = remembered ? Settings.CheckedOperatingSystems.Contains(profile.Id) : profile.Id == identity.Platform,
+        }));
+        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)
+        {
+            IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
+        }));
         HostName = HostNameFor(loaded, identity);
         LoadingStage = Strings.ReadingDevices;
     }
@@ -163,11 +190,17 @@ public sealed class MainViewModel : ObservableObject
             option.PropertyChanged += (_, _) =>
             {
                 log.ProfileChecked(option.Label, option.IsChecked);
+                KeepCheckedProfiles();
                 Refresh();
             };
             list.Add(option);
         }
     }
+
+    // Kept only while "remember" is on; see SettingsViewModel.CheckedProfiles.
+    private void KeepCheckedProfiles() => Settings.CheckedProfiles(
+        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)],
+        [.. Computers.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
 
@@ -182,13 +215,69 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>This computer as a computer profile YAML, to send to the developers.</summary>
     public string ExportProfile() =>
-        ComputerProfileExport.ToYaml(identity, tree, readExternalDisplays(), AppVersion(), DateOnly.FromDateTime(DateTime.Now));
+        ComputerProfileExport.ToYaml(identity, tree, DisplayMonitor.ExternalCount(readMonitors()), AppVersion.Current, DateOnly.FromDateTime(DateTime.Now));
 
-    // The release build sets the version; "+commit" metadata is left out.
-    private static string AppVersion() =>
-        typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "unknown";
+    /// <summary>The view that carries out the commands below; set by the main window.</summary>
+    public IMainWindowActions? Window { get; set; }
+
+    /// <summary>File > Export computer profile and the top bar button; enabled when <see cref="CanExport"/>.</summary>
+    public RelayCommand ExportProfileCommand { get; }
+
+    /// <summary>File > Export log: the same export as the log window's button.</summary>
+    public RelayCommand ExportLogCommand { get; }
+
+    public RelayCommand ExitCommand { get; }
+
+    public RelayCommand AboutCommand { get; }
+
+    /// <summary>File > Settings.</summary>
+    public RelayCommand SettingsCommand { get; }
+
+    /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
+    public RelayCommand CopyTreeCommand { get; }
+
+    /// <summary>File > Export full setup (#135).</summary>
+    public RelayCommand ExportSetupCommand { get; }
+
+    /// <summary><c>usb-helper-setup-&lt;manufacturer&gt;-&lt;model&gt;-&lt;date&gt;.zip</c>; the save dialog lets the user change it.</summary>
+    public string SetupFileName(DateOnly date) =>
+        $"usb-helper-setup-{Path.GetFileNameWithoutExtension(ComputerProfileExport.FileName(identity))}-{date:yyyy-MM-dd}.zip";
+
+    /// <summary>
+    /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's
+    /// <paramref name="screenshot"/> (PNG) and the log.
+    /// </summary>
+    public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
+    {
+        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeText.Render(Roots[0]), screenshot, log.Export());
+        log.Add("Setup exported");
+    }
+
+    // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
+    // ones included.
+    private SetupFile Setup(DateOnly date, string appVersion)
+    {
+        var (containerFree, displays) = SetupFile.AnonymizeContainers(tree, monitors);
+        var (controllers, marks) = SetupFile.Anonymize(containerFree, extraHops);
+        var options = Checked;
+        IReadOnlyList<SetupResult> results = options.Count == 0
+            ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
+            : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
+                Exported(lastReport.Profiles[i].Report.Findings)))];
+        // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results);
+    }
+
+    private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
+        [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
+
+    /// <summary>The settings window's content; also read by the update check.</summary>
+    public SettingsViewModel Settings { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
+
+    /// <summary>The update popup's model (#123, #131); null where the app does not check for updates.</summary>
+    public UpdateViewModel? Update { get; init; }
 
     /// <summary>The log window's content.</summary>
     public LogViewModel Log { get; }
@@ -204,6 +293,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetField(ref isLoading, value))
             {
                 OnPropertyChanged(nameof(CanExport)); // Not before the USB tree is known.
+                ExportProfileCommand.Refresh();
             }
         }
     }
@@ -223,7 +313,9 @@ public sealed class MainViewModel : ObservableObject
         get => selectedNode;
         set
         {
-            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0)
+            // The Displays group and its monitors belong to no controller (#133): clicking them keeps the scope. A monitor
+            // shown under a USB node (#143) is part of that controller's tree, like anything else under it.
+            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0 && !IsDisplay(value))
             {
                 // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
                 allControllers = value == Roots[0];
@@ -232,6 +324,9 @@ public sealed class MainViewModel : ObservableObject
             }
         }
     }
+
+    private bool IsDisplay(NodeViewModel item) =>
+        Roots[0].Children.FirstOrDefault(child => child.Id == NodeViewModel.DisplaysId) is { } displays && Contains(displays, item);
 
     private static bool Contains(NodeViewModel item, NodeViewModel wanted) =>
         item == wanted || item.Children.Any(child => Contains(child, wanted));
@@ -271,16 +366,19 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
 
-    public void Load(IReadOnlyList<UsbNode> detected) => Load(detected, readExternalDisplays());
+    public void Load(IReadOnlyList<UsbNode> detected) => Load(detected, readMonitors());
 
-    /// <param name="displays">The external display count, read off the UI thread; later refreshes read it again.</param>
-    public void Load(IReadOnlyList<UsbNode> detected, int? displays)
+    /// <param name="monitors">The active monitors, read off the UI thread; later refreshes read them again.</param>
+    public void Load(IReadOnlyList<UsbNode> detected, IReadOnlyList<DisplayMonitor>? monitors)
     {
         IsLoading = false;
         log.TreeRead(detected);
         tree = detected;
         history.Record(tree);
-        Refresh(displays);
+        Refresh(monitors);
+        LogTree();
+        CopyTreeCommand.Refresh();
+        ExportSetupCommand.Refresh();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)
@@ -296,18 +394,41 @@ public sealed class MainViewModel : ObservableObject
             }
         }
         Refresh();
+        LogTree();
     }
 
-    private void Refresh() => Refresh(readExternalDisplays());
-
-    private void Refresh(int? displays)
+    /// <summary>A monitor was connected or removed (#133): the Displays group, the display count and the log follow.</summary>
+    public void DisplaysChanged()
     {
+        if (!IsLoading && Roots.Count > 0)
+        {
+            var before = TreeText.Render(Roots[0]);
+            Refresh();
+            // Windows also reports changes nobody sees, such as a moved taskbar: log the tree only when this change shows.
+            if (TreeText.Render(Roots[0]) != before)
+            {
+                LogTree();
+            }
+        }
+    }
+
+    // The tree as it looks now, after the first read and every change (#134).
+    private void LogTree() => log.Add("Tree:" + Environment.NewLine + TreeText.Render(Roots[0]));
+
+    private void Refresh() => Refresh(readMonitors());
+
+    private void Refresh(IReadOnlyList<DisplayMonitor>? monitors)
+    {
+        this.monitors = monitors;
+        log.Displays(monitors);
+        var displays = DisplayMonitor.ExternalCount(monitors);
         var options = Checked;
         var profiles = options.Select(option => option.Profile).ToList();
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors);
+        lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
@@ -326,29 +447,32 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree);
+                reconnectedIds, extraHops, tree, monitors);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
 
+        var placement = MonitorPlacement.Place(tree, monitors ?? []);
+        log.DisplayLinks(placement, tree);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, extraHops);
+            Roots[0].UpdateHost(HostName, tree, lines, extraHops, placement);
         }
-        // Owner decision in #100: when the controllers first arrive, only the selected one, the one with most devices, is
-        // open. After that the user's choices are kept.
+        // Owner decision in #142: when the controllers first arrive, only the selected one, the busiest, is open, and only
+        // when it has devices. After that the user's choices are kept.
         if (!controllersShown && tree.Count > 0)
         {
             controllersShown = true;
-            foreach (var controller in Roots[0].Children)
+            var busiest = tree.FirstOrDefault(controller => controller.Id == selectedControllerId);
+            var open = busiest != null && TopologyCounts.Depths([busiest]).Count > 0 ? busiest.Id : null;
+            foreach (var controller in Roots[0].Children.Where(item => item.CanExpand))
             {
-                controller.IsExpanded = controller.Id == selectedControllerId;
+                controller.IsExpanded = controller.Id == open;
             }
         }
-
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
 

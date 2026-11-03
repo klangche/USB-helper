@@ -23,6 +23,9 @@ internal static class NativeMethods
     public static readonly DEVPROPKEY DevpkeyDeviceBusReportedDeviceDesc = new(new Guid("540b947e-8b40-45bc-a8a2-6a0b894cbda2"), 4);
     public const uint DEVPROP_TYPE_STRING = 0x12;
 
+    // DEVPKEY_Device_ContainerId from devpkey.h: the physical device a device node belongs to (#143).
+    public static readonly DEVPROPKEY DevpkeyDeviceContainerId = new(new Guid("8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c"), 2);
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 
@@ -133,6 +136,10 @@ internal static class NativeMethods
     [DllImport("cfgmgr32.dll")]
     public static extern uint CM_Unregister_Notification(IntPtr notifyContext);
 
+    [DllImport("cfgmgr32.dll", EntryPoint = "CM_Get_DevNode_PropertyW")]
+    public static extern uint CM_Get_DevNode_Property(
+        uint devInst, in DEVPROPKEY propertyKey, out uint propertyType, byte[] propertyBuffer, ref uint propertyBufferSize, uint flags);
+
     [DllImport("cfgmgr32.dll", EntryPoint = "CM_Locate_DevNodeW", CharSet = CharSet.Unicode)]
     public static extern uint CM_Locate_DevNode(out uint devInst, string deviceId, uint flags);
 
@@ -146,11 +153,7 @@ internal static class NativeMethods
     public const uint QDC_ONLY_ACTIVE_PATHS = 0x2;
     public const int ERROR_SUCCESS = 0;
     public const int ERROR_INSUFFICIENT_BUFFER = 122;
-    public const int DISPLAYCONFIG_PATH_INFO_SIZE = 72; // source info 20, target info 48, flags 4
     public const int DISPLAYCONFIG_MODE_INFO_SIZE = 64;
-    public const int DISPLAYCONFIG_PATH_TARGET_ADAPTER_OFFSET = 20; // LUID (8), then target id (4)
-    public const int DISPLAYCONFIG_PATH_TARGET_ID_OFFSET = 28;
-    public const int DISPLAYCONFIG_PATH_OUTPUT_TECHNOLOGY_OFFSET = 36; // after modeInfoIdx (4)
 
     [DllImport("user32.dll")]
     public static extern int GetDisplayConfigBufferSizes(uint flags, out uint numPathArrayElements, out uint numModeInfoArrayElements);
@@ -159,6 +162,10 @@ internal static class NativeMethods
     public static extern int QueryDisplayConfig(
         uint flags, ref uint numPathArrayElements, byte[] pathArray, ref uint numModeInfoArrayElements, byte[] modeInfoArray,
         IntPtr currentTopologyId);
+
+    // The packet is a blittable array, so Windows writes the reply into it.
+    [DllImport("user32.dll")]
+    public static extern int DisplayConfigGetDeviceInfo(byte[] requestPacket);
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern SafeFileHandle CreateFile(

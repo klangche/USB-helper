@@ -70,6 +70,49 @@
   <data name="DisplayLinkDevice" xml:space="preserve">
     <value>Extended display: DisplayLink driver required</value>
   </data>
+  <data name="DisplaysGroup" xml:space="preserve">
+    <value>Displays</value>
+    <comment>The group under the computer that lists the active monitors (#133).</comment>
+  </data>
+  <data name="MonitorItem" xml:space="preserve">
+    <value>{0} ({1})</value>
+    <comment>A monitor in the Displays group: {0} its name, {1} its output type.</comment>
+  </data>
+  <data name="MonitorUnnamed" xml:space="preserve">
+    <value>Monitor</value>
+    <comment>A monitor that reports no name, often the built-in panel.</comment>
+  </data>
+  <data name="OutputInternal" xml:space="preserve">
+    <value>built-in</value>
+  </data>
+  <data name="OutputHdmi" xml:space="preserve">
+    <value>HDMI</value>
+  </data>
+  <data name="OutputDisplayPort" xml:space="preserve">
+    <value>DisplayPort</value>
+    <comment>DisplayPort, DisplayPort Alt Mode over USB-C included.</comment>
+  </data>
+  <data name="OutputUsbTunnel" xml:space="preserve">
+    <value>DisplayPort over USB4/Thunderbolt</value>
+  </data>
+  <data name="OutputDvi" xml:space="preserve">
+    <value>DVI</value>
+  </data>
+  <data name="OutputVga" xml:space="preserve">
+    <value>VGA</value>
+  </data>
+  <data name="OutputIndirect" xml:space="preserve">
+    <value>indirect, for example DisplayLink</value>
+  </data>
+  <data name="OutputWireless" xml:space="preserve">
+    <value>wireless</value>
+  </data>
+  <data name="OutputVirtual" xml:space="preserve">
+    <value>virtual</value>
+  </data>
+  <data name="OutputOther" xml:space="preserve">
+    <value>other</value>
+  </data>
   <data name="HubHasDisplay" xml:space="preserve">
     <value>has a display</value>
   </data>
@@ -232,23 +275,10 @@
   <data name="LogExportFailed" xml:space="preserve">
     <value>The log could not be saved: {0}</value>
   </data>
-  <data name="LauncherVersion" xml:space="preserve">
-    <value>Version {0}</value>
-  </data>
-  <data name="LauncherUnpacking" xml:space="preserve">
-    <value>Preparing this version (first start only)...</value>
-  </data>
-  <data name="LauncherStarting" xml:space="preserve">
-    <value>Starting...</value>
-  </data>
-  <data name="LauncherFailed" xml:space="preserve">
-    <value>USB-helper could not start: {0}</value>
-  </data>
-  <data name="LauncherNoApp" xml:space="preserve">
-    <value>this build of USB-helper.exe does not contain the app. Download it from https://github.com/klangche/USB-helper/releases</value>
-  </data>
-  <data name="LauncherAppExited" xml:space="preserve">
-    <value>the app closed before its window opened (exit code {0}).</value>
+  <data name="StarterNoApp" xml:space="preserve">
+    <value>USB-helper cannot find its app: {0}
+
+Keep USB-helper.exe together with the "app" folder next to it, or download USB-helper again from https://github.com/klangche/USB-helper/releases</value>
   </data>
   <data name="UpdateAvailable" xml:space="preserve">
     <value>A newer version is available. You have {0}.</value>
@@ -262,12 +292,102 @@
   <data name="UpdateSkip" xml:space="preserve">
     <value>Skip</value>
   </data>
+  <data name="UpdateUpToDate" xml:space="preserve">
+    <value>USB-helper {0} is up to date.</value>
+  </data>
+  <data name="UpdateCheckFailed" xml:space="preserve">
+    <value>The update check failed: {0}</value>
+  </data>
+  <data name="UpdateClose" xml:space="preserve">
+    <value>OK</value>
+  </data>
   <data name="UpdateDownloading" xml:space="preserve">
     <value>Downloading {0}... {1}%</value>
   </data>
   <data name="UpdateFailed" xml:space="preserve">
     <value>The update could not be installed: {0}
 
-USB-helper starts the current version.</value>
+This version keeps running.</value>
+  </data>
+  <data name="MenuFile" xml:space="preserve">
+    <value>_File</value>
+  </data>
+  <data name="MenuExportProfile" xml:space="preserve">
+    <value>_Export computer profile...</value>
+  </data>
+  <data name="MenuExportLog" xml:space="preserve">
+    <value>Export _log...</value>
+  </data>
+  <data name="MenuSettings" xml:space="preserve">
+    <value>_Settings...</value>
+  </data>
+  <data name="MenuExit" xml:space="preserve">
+    <value>E_xit</value>
+  </data>
+  <data name="MenuExportSetup" xml:space="preserve">
+    <value>Export full set_up...</value>
+  </data>
+  <data name="ExportSetupTitle" xml:space="preserve">
+    <value>Save the full setup</value>
+  </data>
+  <data name="ExportSetupSaved" xml:space="preserve">
+    <value>Saved {0}: the detected setup, the tree as text, a screenshot and the log.</value>
+  </data>
+  <data name="ExportSetupFailed" xml:space="preserve">
+    <value>The setup could not be saved: {0}</value>
+  </data>
+  <data name="MenuEdit" xml:space="preserve">
+    <value>_Edit</value>
+  </data>
+  <data name="MenuCopyTree" xml:space="preserve">
+    <value>_Copy tree as text</value>
+  </data>
+  <data name="MenuHelp" xml:space="preserve">
+    <value>_Help</value>
+  </data>
+  <data name="MenuCheckForUpdates" xml:space="preserve">
+    <value>_Check for updates</value>
+  </data>
+  <data name="MenuAbout" xml:space="preserve">
+    <value>_About USB-helper</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>About USB-helper</value>
+  </data>
+  <data name="AboutVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="AboutLicense" xml:space="preserve">
+    <value>MIT License. Copyright (c) 2026 Linus Klang.</value>
+  </data>
+  <data name="AboutIconAttribution" xml:space="preserve">
+    <value>The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc., licensed under CC BY 4.0. Changed: square view box and drawn white. USB is a trademark of its owner; the icon stands for USB connections, and no endorsement is implied.</value>
+  </data>
+  <data name="AboutClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="SettingsTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsCheckForUpdates" xml:space="preserve">
+    <value>Check for updates at start</value>
+  </data>
+  <data name="SettingsOfferBetas" xml:space="preserve">
+    <value>Offer beta versions</value>
+  </data>
+  <data name="SettingsRememberProfiles" xml:space="preserve">
+    <value>Remember the checked profiles between starts</value>
+  </data>
+  <data name="SettingsSavedAt" xml:space="preserve">
+    <value>Changes are saved at once, in:</value>
+  </data>
+  <data name="SettingsClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="UpdateTitle" xml:space="preserve">
+    <value>USB-helper update</value>
+  </data>
+  <data name="UpdatePortableNote" xml:space="preserve">
+    <value>Opens the release page in your browser: download the new zip there.</value>
   </data>
 </root>

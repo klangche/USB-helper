@@ -8,9 +8,31 @@
         Width="1100" Height="700"
         Title="{x:Static res:Strings.WindowTitle}">
 
-  <DockPanel Margin="12">
+  <DockPanel>
 
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+    <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="{x:Static res:Strings.MenuFile}">
+        <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
+        <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />
+        <MenuItem Header="{x:Static res:Strings.MenuExportSetup}" Command="{Binding ExportSetupCommand}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuSettings}" Command="{Binding SettingsCommand}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuExit}" Command="{Binding ExitCommand}" />
+      </MenuItem>
+      <MenuItem Header="{x:Static res:Strings.MenuEdit}">
+        <MenuItem Header="{x:Static res:Strings.MenuCopyTree}" Command="{Binding CopyTreeCommand}" />
+      </MenuItem>
+      <MenuItem Header="{x:Static res:Strings.MenuHelp}">
+        <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" Command="{Binding Update.CheckNow}"
+                  IsEnabled="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuAbout}" Command="{Binding AboutCommand}" />
+      </MenuItem>
+    </Menu>
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12">
       <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
       <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
         <DropDownButton.Flyout>
@@ -43,21 +65,21 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
+      <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
-    <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
+    <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-    <Grid ColumnDefinitions="3*,6,2*">
+    <Grid ColumnDefinitions="3*,6,2*" Margin="12,0,12,12">
 
       <DockPanel Grid.Column="0">
         <TextBlock DockPanel.Dock="Top" Text="{Binding LoadingStage}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
-        <!-- Tree style B (#43): drawn lines instead of indentation. Built-in hubs start collapsed (#68), every other branch
-             open. The chevron before the name (#91), a double-click or the arrow keys expand and collapse. -->
+        <!-- Tree style B (#43): drawn lines instead of indentation. Only the controllers can be collapsed (#142): a
+             controller's chevron (#91), a double-click or the arrow keys hide or show its tree. Everything else stays open. -->
         <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
              or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">

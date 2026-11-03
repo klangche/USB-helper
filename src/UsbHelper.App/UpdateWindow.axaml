@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.UpdateWindow"
+        x:DataType="vm:UpdateViewModel"
+        Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Title="{x:Static res:Strings.UpdateTitle}">
+
+  <!-- The update popup (#131): opened over the main window while Update.IsOffered; the main window keeps reading devices. -->
+  <StackPanel Margin="16" Spacing="10">
+    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" Opacity="0.7"
+               IsVisible="{Binding Note, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    <TextBlock Text="{Binding Status}" TextWrapping="Wrap"
+               IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    <WrapPanel HorizontalAlignment="Right">
+      <Button Content="{Binding StableText}" Command="{Binding UpdateToStable}" IsEnabled="{Binding CanChoose}"
+              IsVisible="{Binding StableText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+      <Button Content="{Binding BetaText}" Command="{Binding UpdateToBeta}" IsEnabled="{Binding CanChoose}"
+              IsVisible="{Binding BetaText, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,0,8,0" />
+      <Button Content="{Binding CloseText}" Command="{Binding Skip}" IsEnabled="{Binding CanChoose}" IsCancel="True" />
+    </WrapPanel>
+  </StackPanel>
+</Window>

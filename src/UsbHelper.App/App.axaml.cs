@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Versioning;
 using Avalonia;
@@ -6,6 +7,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Settings;
+using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -25,7 +28,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow { DataContext = Start(desktop) };
+            var viewModel = Start(desktop);
+            desktop.MainWindow = new MainWindow { DataContext = viewModel };
+            if (viewModel.Update is { } update) // set on Windows only
+            {
+                // After the window shows, so the check never delays the start (#123).
+                desktop.MainWindow.Opened += (_, _) => _ = update.CheckAtStartAsync();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -38,21 +47,45 @@ public partial class App : Application
     {
         var log = new EventLog();
         log.Add("USB-helper started");
-        // The launcher's update check result (#111); the variable is UsbHelper.Launcher.Program.UpdateLogVariable.
-        if (Environment.GetEnvironmentVariable("USBHELPER_UPDATE_CHECK") is { Length: > 0 } update)
-        {
-            log.Add(update);
-        }
+        var settings = SettingsViewModel.Load(SettingsFile.Default, log);
         if (!OperatingSystem.IsWindows())
         {
-            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log);
+            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log, settings: settings);
             _ = LoadUnavailable(unavailable, log);
             return unavailable;
         }
 
-        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log);
+        // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
+        // The app runs from the app folder below USB-helper.exe (#130).
+        var kind = UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates open the release page");
+        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadMonitors, log, settings)
+        {
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
+                msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
+        };
         _ = LoadInBackground(viewModel, log, desktop);
         return viewModel;
+    }
+
+    // GitHub's answer within this time, or the check is skipped (#111).
+    private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
+
+    // The portable app's update (#131): the release page in the default browser. A browser that does not open is logged.
+    private static async void OpenPage(Uri page, IClassicDesktopStyleApplicationLifetime desktop, EventLog log)
+    {
+        if (desktop.MainWindow is not { } window || !await window.Launcher.LaunchUriAsync(page))
+        {
+            log.Add($"The browser could not open {page}");
+        }
+    }
+
+    // Runs the downloaded .msi, which upgrades this install in place and starts the new version when it is done (#124,
+    // #147), and closes this app so its files can be replaced.
+    private static void InstallMsi(string msi, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        Process.Start(MsiInstall.StartInfo(msi))!.Dispose();
+        desktop.Shutdown();
     }
 
     private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log)
@@ -94,8 +127,8 @@ public partial class App : Application
             tree = await Task.Run(detector.Enumerate);
             log.Add("Reading displays");
             viewModel.ReadingDisplays();
-            var displays = await Task.Run(ReadExternalDisplays);
-            viewModel.Load(tree, displays);
+            var monitors = await Task.Run(ReadMonitors);
+            viewModel.Load(tree, monitors);
         }
         catch (Exception e)
         {
@@ -121,11 +154,11 @@ public partial class App : Application
 
     // Unknown rather than a guess when Windows cannot report the display configuration.
     [SupportedOSPlatform("windows")]
-    private static int? ReadExternalDisplays()
+    private static IReadOnlyList<DisplayMonitor>? ReadMonitors()
     {
         try
         {
-            return WindowsDisplayReader.CountExternalDisplays();
+            return WindowsDisplayReader.ReadMonitors();
         }
         catch (Win32Exception)
         {
