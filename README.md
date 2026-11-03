@@ -306,7 +306,7 @@ entry's comment and in Help > About.
 
 Download the zip and follow `READ_ME_FIRST.txt` in it. In short: unblock the
 zip once (`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in
-PowerShell, as it is not signed), unzip it, and start `UsbHelper.exe` in the
+PowerShell, as it is not signed), unzip it, and start `USB-helper.exe` in the
 `USB-helper` folder. No installation and no administrator rights are needed,
 and no network connection either (it is used only for the update check below).
 
@@ -314,13 +314,18 @@ The zip holds one folder:
 
 ```
 USB-helper/
-  UsbHelper.exe          the app
-  *.dll, *.json          its libraries and the .NET runtime, as loose files
+  USB-helper.exe         starts the app
   READ_ME_FIRST.txt
   LICENSE.txt
+  app/
+    UsbHelper.exe        the app
+    *.dll, *.json        its libraries and the .NET runtime, as loose files
 ```
 
-Keep the files together; the folder can be moved anywhere. Nothing is
+`USB-helper.exe` is a small native starter (NativeAOT, no .NET runtime of its
+own): it starts `app\UsbHelper.exe` with the same arguments and exits, in a few
+milliseconds. Without the `app` folder next to it, it says so and links to the
+releases. Keep the files together; the folder can be moved anywhere. Nothing is
 unpacked elsewhere. To remove USB-helper, delete its folder, and
 `%APPDATA%\USB-helper` if you want its settings gone too (see Settings).
 
@@ -329,8 +334,12 @@ unpacked elsewhere. To remove USB-helper, delete its folder, and
 That version was one `USB-helper.exe` that unpacked the app to
 `%LOCALAPPDATA%\USB-helper\<version>`. This version does not use or touch
 that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
-update cannot install this version (it reports that the zip holds no
-`USB-helper.exe` and keeps running 0.5.0): download it once by hand.
+update cannot install this version: download it once by hand.
+
+The portable 0.6.0 betas before this layout had `UsbHelper.exe` at the top of
+the zip (no `app` folder). Their in-app update looks for that file and so
+cannot install this layout; download the zip once by hand. An installed
+(`.msi`) beta updates as normal.
 
 ### Updates
 
@@ -340,10 +349,12 @@ stable release and the newest beta, in the background: the window works as
 normal meanwhile. Only releases with a published SHA-256 file
 (`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
 installed app) count, so that every download can be verified. If either is
-newer than the running version, a notice at the top of the window shows "Update
-to stable X", "Update to beta Y" (whichever are newer) and "Skip"; otherwise
-nothing is shown. With no network, no answer within 2 seconds, a GitHub error
-or its rate limit, the check is skipped silently.
+newer than the running version, a small window opens over the main window with
+the running version, "Update to stable X", "Update to beta Y" (whichever are
+newer; the beta only when betas are on in the settings) and "Skip"; the main
+window keeps reading devices behind it. Closing the window is the same as
+"Skip". Otherwise nothing is shown. With no network, no answer within 2
+seconds, a GitHub error or its rate limit, the check is skipped silently.
 
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
@@ -354,23 +365,20 @@ closes, so the installer can replace its files. Start USB-helper again from
 the Start menu when it is done. Releases from before the `.msi` (0.5.0 and
 older) are not offered to an installed app.
 
-Portable: on a choice, the app downloads that release's zip
-and its SHA-256 file, verifies the zip, unzips its `USB-helper` folder into a
-new folder `USB-helper-<version>` next to the running app's folder (as
-`USB-helper-<version> (2)` if that name is taken), starts `UsbHelper.exe`
-there and closes. The old folder stays for the user to delete. The download
-and unzip happen in `USB-helper-<version>.download` next to it, which is
-removed afterwards; a download that fails verification is never unzipped or
-run, and the notice shows why while the current version keeps running. The
-folder that holds the app's folder must be writable (no administrator rights
-are used). A download that stalls is given up after 10 minutes. The log
+A `.msi` download that fails verification is never run; the window shows why
+and the current version keeps running. A download that stalls is given up
+after 10 minutes.
+
+Portable: on a choice, the app opens that release's page on GitHub in the
+browser and keeps running; it does not download, unzip or replace itself.
+Download the new zip there and unzip it as under Install. The log
 (#87) lists the check's result, for example "Update check: beta
-0.7.0-beta.2 is newer than 0.6.0", "Update skipped" or "Update check
-skipped: no answer within 2 s".
+0.7.0-beta.2 is newer than 0.6.0", "Opened the release page of 0.7.0-beta.2",
+"Update skipped" or "Update check skipped: no answer within 2 s".
 
 ## Usage
 
-Start USB-helper from the Start menu (installer) or `UsbHelper.exe` in the
+Start USB-helper from the Start menu (installer) or `USB-helper.exe` in the
 `USB-helper` folder (portable zip; see Install). The window opens at once and
 shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
@@ -505,7 +513,7 @@ minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
-and the `.msi` (the published app's loose files, see Install),
+and the `.msi` (the starter and the published app's loose files, see Install),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -523,8 +531,8 @@ the next release would get and `N` counts up from 1 for each beta of it
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,
-  `Update/ReleaseVersion`), the portable update (`Update/PortableUpdate`) and the
-  notice (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
+  `Update/ReleaseVersion`), the verified `.msi` download (`Update/VerifiedDownload`)
+  and the popup's model (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
   against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
   release and beta for the update check.
 - `installer/Package.wxs`: the per-user `.msi`, built in `release.yml` with
@@ -540,6 +548,14 @@ the next release would get and `N` counts up from 1 for each beta of it
   the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
   librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
   both files.
+- `src/UsbHelper.Starter`: `USB-helper.exe` at the top of the zip and the
+  install folder (#130), compiled with NativeAOT (its compiler packages are
+  pinned in the project; update both pins together). It starts
+  `app\UsbHelper.exe` and shows a message from `Strings.resx` when that is
+  missing; tested in `tests/UsbHelper.Starter.Tests`. The app finds the top
+  folder as the parent of its `app` folder (`UpdateKinds.TopFolder`).
+  `release.yml` starts both the unzipped zip and the installed `.msi` through
+  `USB-helper.exe` and waits for the window (`release/start-test.ps1`).
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running

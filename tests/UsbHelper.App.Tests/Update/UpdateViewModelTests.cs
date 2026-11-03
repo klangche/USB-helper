@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
@@ -8,13 +7,14 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.Tests.Update;
 
-/// <summary>The update notice in the window (#123): checked after start, never blocking it, with both choices and Skip.</summary>
+/// <summary>The update popup (#123, #131): checked after start, never blocking it, with both choices and Skip.</summary>
 public sealed class UpdateViewModelTests : IDisposable
 {
     private readonly string parent = Directory.CreateTempSubdirectory("usbhelper-update-vm-tests-").FullName;
     private readonly string app;
     private readonly EventLog log = new();
     private readonly List<string> restarted = [];
+    private readonly List<Uri> opened = [];
 
     public UpdateViewModelTests()
     {
@@ -36,22 +36,11 @@ public sealed class UpdateViewModelTests : IDisposable
           {"name":"usb-helper-{{tag[1..]}}-windows-x64.msi.sha256","browser_download_url":"{{Download(tag, "msi")}}.sha256"}]}
         """;
 
-    private static byte[] Zip(string text)
-    {
-        using var memory = new MemoryStream();
-        using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            using var entry = zip.CreateEntry($"USB-helper/{PortableUpdate.ExeName}").Open();
-            entry.Write(Encoding.UTF8.GetBytes(text));
-        }
-        return memory.ToArray();
-    }
-
     // GitHub with stable 0.6.0 and beta 0.7.0-beta.1, each with its zip; answers once the gate opens.
     private static FakeHttp GitHub(Task? gate = null, bool badChecksum = false)
     {
-        var stableZip = Zip("app 0.6.0");
-        var betaZip = Zip("app 0.7.0-beta.1");
+        var stableZip = Encoding.UTF8.GetBytes("zip 0.6.0");
+        var betaZip = Encoding.UTF8.GetBytes("zip 0.7.0-beta.1");
         var files = new Dictionary<string, string>
         {
             [UpdateCheck.ReleasesUrl] = $"[{ReleaseJson("v0.7.0-beta.1", true)},{ReleaseJson("v0.6.0", false)}]",
@@ -86,11 +75,11 @@ public sealed class UpdateViewModelTests : IDisposable
     private static byte[] Checksum(byte[] zip) => Encoding.ASCII.GetBytes($"{Convert.ToHexStringLower(SHA256.HashData(zip))}  x.zip\n");
 
     private UpdateViewModel Model(FakeHttp http, string current = "0.5.0") =>
-        new(http.Client(), current, UpdateKind.Portable, app, restarted.Add, log, TimeSpan.FromSeconds(2));
+        new(http.Client(), current, UpdateKind.Portable, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
 
     // An app installed by the .msi (#124): it downloads into this folder and hands the .msi to restart.
     private UpdateViewModel MsiModel(FakeHttp http) =>
-        new(http.Client(), "0.5.0", UpdateKind.Msi, Path.Combine(parent, "download"), restarted.Add, log, TimeSpan.FromSeconds(2));
+        new(http.Client(), "0.5.0", UpdateKind.Msi, Path.Combine(parent, "download"), restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
 
     [Fact]
     public async Task AnMsiInstallDownloadsTheVerifiedMsiAndRunsIt()
@@ -275,32 +264,28 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task PickingAReleaseUnzipsItNextToTheAppAndStartsIt()
+    public async Task APortableAppOpensTheReleasePageInsteadOfDownloading()
     {
-        var model = Model(GitHub());
+        var github = GitHub();
+        var model = Model(github);
         await model.CheckAsync();
+        Assert.Equal("Opens the release page in your browser: download the new zip there.", model.Note);
 
         await model.InstallAsync(stable: false);
 
-        var exe = Path.Combine(parent, "USB-helper-0.7.0-beta.1", PortableUpdate.ExeName);
-        Assert.Equal([exe], restarted);
-        Assert.Equal("app 0.7.0-beta.1", File.ReadAllText(exe));
-        Assert.Equal($"Updated to 0.7.0-beta.1 in {Path.GetDirectoryName(exe)}; starting it", log.Entries[^1].Text);
+        Assert.Equal([new Uri("https://github.com/klangche/USB-helper/releases/tag/v0.7.0-beta.1")], opened);
+        Assert.Empty(restarted);
+        Assert.DoesNotContain(github.Requests, url => url.ToString().Contains("/releases/download/", StringComparison.Ordinal));
+        Assert.False(model.IsOffered); // the popup closes; this version keeps running
+        Assert.Equal("Opened the release page of 0.7.0-beta.1", log.Entries[^1].Text);
     }
 
     [Fact]
-    public async Task ABadChecksumIsRejectedShownAndNothingStarts()
+    public async Task AnMsiInstallHasNoNote()
     {
-        var model = Model(GitHub(badChecksum: true));
+        var model = MsiModel(GitHub());
         await model.CheckAsync();
 
-        await model.InstallAsync(stable: true);
-
-        Assert.Empty(restarted);
-        Assert.Equal(["USB-helper"], Directory.GetDirectories(parent).Select(Path.GetFileName));
-        Assert.True(model.IsOffered); // the user can still skip or pick the other one
-        Assert.False(model.IsBusy);
-        Assert.StartsWith("The update could not be installed: usb-helper-0.6.0-windows-x64.zip does not match its SHA-256.", model.Status);
-        Assert.StartsWith("Update to 0.6.0 failed: ", log.Entries[^1].Text);
+        Assert.Null(model.Note);
     }
 }

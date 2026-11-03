@@ -275,6 +275,11 @@
   <data name="LogExportFailed" xml:space="preserve">
     <value>The log could not be saved: {0}</value>
   </data>
+  <data name="StarterNoApp" xml:space="preserve">
+    <value>USB-helper cannot find its app: {0}
+
+Keep USB-helper.exe together with the "app" folder next to it, or download USB-helper again from https://github.com/klangche/USB-helper/releases</value>
+  </data>
   <data name="UpdateAvailable" xml:space="preserve">
     <value>A newer version is available. You have {0}.</value>
   </data>
@@ -360,5 +365,11 @@ This version keeps running.</value>
   </data>
   <data name="SettingsClose" xml:space="preserve">
     <value>Close</value>
+  </data>
+  <data name="UpdateTitle" xml:space="preserve">
+    <value>USB-helper update</value>
+  </data>
+  <data name="UpdatePortableNote" xml:space="preserve">
+    <value>Opens the release page in your browser: download the new zip there.</value>
   </data>
 </root>

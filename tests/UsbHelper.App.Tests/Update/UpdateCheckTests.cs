@@ -63,6 +63,7 @@ public class UpdateCheckTests
         Assert.Equal("0.6.0", result.Stable!.Version);
         Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-windows-x64.zip", result.Stable.Download.ToString());
         Assert.Equal(result.Stable.Download + ".sha256", result.Stable.Checksum.ToString());
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/tag/v0.6.0", result.Stable.Page.ToString());
         Assert.Null(result.Beta);
         Assert.Equal("Update check: stable 0.6.0 is newer than 0.6.0-beta.3", result.Log);
     }
@@ -170,6 +171,19 @@ public class UpdateCheckTests
         var kind = UpdateKinds.For(Path.Combine(localAppData, appFolder.Replace('/', Path.DirectorySeparatorChar)), localAppData);
 
         Assert.Equal(expected, kind);
+    }
+
+    [Theory]
+    [InlineData("USB-helper/app/", "USB-helper")] // AppContext.BaseDirectory of app\UsbHelper.exe (#130)
+    [InlineData("USB-helper/app", "USB-helper")]
+    [InlineData("bin/Debug/net10.0/", "bin/Debug/net10.0")] // run from source: no app folder
+    public void TheTopFolderHoldsTheAppFolder(string baseDirectory, string expected)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "layout");
+
+        var top = UpdateKinds.TopFolder(Path.Combine(root, baseDirectory.Replace('/', Path.DirectorySeparatorChar)));
+
+        Assert.Equal(Path.Combine(root, expected.Replace('/', Path.DirectorySeparatorChar)), top);
     }
 
     [Fact]
