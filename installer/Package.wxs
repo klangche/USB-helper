@@ -22,12 +22,12 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of USB-helper is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Apps & features: icon, link, version; no "Modify" (there is nothing to choose). -->
+    <!-- Apps & features: icon, link, version; no "Modify" (there is nothing to choose; WixUI_Minimal below sets
+         ARPNOMODIFY). -->
     <Icon Id="UsbHelper.ico" SourceFile="$(sys.SOURCEFILEDIR)..\src\UsbHelper.App\Assets\usb-helper.ico" />
     <Property Id="ARPPRODUCTICON" Value="UsbHelper.ico" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/klangche/USB-helper" />
     <Property Id="ARPCOMMENTS" Value="USB-helper $(var.Version)" />
-    <Property Id="ARPNOMODIFY" Value="1" />
 
     <!-- The standard minimal setup (#147): the license (LICENSE as RTF), progress, and a last page with "Launch
          USB-helper", ticked by default. Finish then starts the installed USB-helper.exe. -->
