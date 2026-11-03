@@ -15,9 +15,21 @@ public static class UpdateKinds
     /// <summary>The .msi's install folder, below %LOCALAPPDATA% (#124; installer/Package.wxs).</summary>
     public static readonly string MsiFolder = Path.Combine("Programs", "USB-helper");
 
-    /// <summary><see cref="UpdateKind.Msi"/> when the app runs from the .msi's install folder, else portable.</summary>
-    public static UpdateKind For(string appFolder, string localAppData) =>
-        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(appFolder)),
+    /// <summary>
+    /// The folder of USB-helper.exe: the parent of the "app" folder the app runs from (#130). Run from source, without an
+    /// app folder, the app's own folder.
+    /// </summary>
+    public static string TopFolder(string baseDirectory)
+    {
+        var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(baseDirectory));
+        return string.Equals(Path.GetFileName(folder), "app", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetDirectoryName(folder)!
+            : folder;
+    }
+
+    /// <summary><see cref="UpdateKind.Msi"/> when <paramref name="topFolder"/> is the .msi's install folder, else portable.</summary>
+    public static UpdateKind For(string topFolder, string localAppData) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(topFolder)),
             Path.GetFullPath(Path.Combine(localAppData, MsiFolder)), StringComparison.OrdinalIgnoreCase)
             ? UpdateKind.Msi
             : UpdateKind.Portable;
