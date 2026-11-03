@@ -8,15 +8,18 @@ namespace UsbHelper.App.ViewModels;
 /// <summary>
 /// The update notice in the main window (#123). <see cref="CheckAsync"/> runs after the window shows and never blocks
 /// it; when a newer stable release or beta exists, the notice offers each with "Skip". Help > Check for updates
-/// (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A picked release is downloaded,
-/// verified and unzipped next to the app (<see cref="PortableUpdate"/>), then started in place of this one.
+/// (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A picked release
+/// is downloaded and verified; the portable app unzips it next to itself (<see cref="PortableUpdate"/>), an .msi install
+/// keeps the .msi (#124). <paramref name="restart"/> then starts it in place of this app.
 /// </summary>
 /// <param name="current">This app's version.</param>
-/// <param name="appFolder">The folder this app runs from.</param>
-/// <param name="restart">Starts the given exe and closes this app.</param>
+/// <param name="kind">How this app was installed: which release asset it takes.</param>
+/// <param name="folder">Portable: the folder this app runs from. Msi: the folder the .msi is downloaded to.</param>
+/// <param name="restart">Starts the given exe (portable) or .msi (Msi) and closes this app.</param>
 /// <param name="settings">Whether to check at start and to offer betas (#126); the defaults when null.</param>
 public sealed class UpdateViewModel(
-    HttpClient http, string current, string appFolder, Action<string> restart, EventLog log, TimeSpan timeout, SettingsViewModel? settings = null)
+    HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, EventLog log, TimeSpan timeout,
+    SettingsViewModel? settings = null)
     : ObservableObject
 {
     private readonly SettingsViewModel settings = settings ?? new SettingsViewModel();
@@ -121,7 +124,7 @@ public sealed class UpdateViewModel(
         UpdateCheckResult result;
         try
         {
-            result = await UpdateCheck.FindAsync(http, current, timeout);
+            result = await UpdateCheck.FindAsync(http, current, timeout, kind);
         }
         catch (Exception e)
         {
@@ -168,9 +171,26 @@ public sealed class UpdateViewModel(
                     Status = string.Format(CultureInfo.CurrentCulture, Strings.UpdateDownloading, release.Version, percent);
                 }
             });
-            var exe = await PortableUpdate.DownloadAsync(http, release, appFolder, ((IProgress<int>)progress).Report, cancel.Token);
-            log.Add($"Updated to {release.Version} in {Path.GetDirectoryName(exe)}; starting it");
-            restart(exe);
+            var report = ((IProgress<int>)progress).Report;
+            string start;
+            if (kind == UpdateKind.Msi)
+            {
+                // Only this update's .msi stays: an earlier one (about 80 MB) is no longer needed once it installed.
+                if (Directory.Exists(folder))
+                {
+                    Directory.Delete(folder, recursive: true);
+                }
+                Directory.CreateDirectory(folder);
+                start = Path.Combine(folder, release.Download.Segments[^1]);
+                await VerifiedDownload.DownloadAsync(http, release, start, report, cancel.Token);
+                log.Add($"Downloaded {release.Version} to {start}; installing it");
+            }
+            else
+            {
+                start = await PortableUpdate.DownloadAsync(http, release, folder, report, cancel.Token);
+                log.Add($"Updated to {release.Version} in {Path.GetDirectoryName(start)}; starting it");
+            }
+            restart(start);
         }
         catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or OperationCanceledException
             or InvalidDataException or System.ComponentModel.Win32Exception)

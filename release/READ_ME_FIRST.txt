@@ -1,6 +1,9 @@
 USB-helper {version} for Windows (x64)
 
-No installation and no administrator rights are needed. A network
+This is the portable zip: no installation and no administrator rights
+are needed. (Installed with the .msi instead? Then start USB-helper from
+the Start menu; updates come as .msi files and the steps below do not
+apply.) A network
 connection is used only to check for updates after USB-helper starts;
 without one, it works as normal.
 

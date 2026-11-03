@@ -9,18 +9,19 @@ public class UpdateCheckTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(2);
 
-    // One release as the GitHub API lists it, with the zip and its checksum unless left out.
-    private static string Release(string tag, bool prerelease, bool checksum = true, bool draft = false)
+    // One release as the GitHub API lists it, with the zip (and the .msi, if asked) and their checksums unless left out.
+    private static string Release(string tag, bool prerelease, bool checksum = true, bool draft = false, bool msi = false)
     {
         var version = tag.TrimStart('v');
-        var zip = $"usb-helper-{version}-windows-x64.zip";
-        var assets = new List<string>
+        var assets = new List<string>();
+        foreach (var file in msi ? new[] { "zip", "msi" } : ["zip"])
         {
-            $$"""{"name":"{{zip}}","browser_download_url":"https://github.com/klangche/USB-helper/releases/download/{{tag}}/{{zip}}"}""",
-        };
-        if (checksum)
-        {
-            assets.Add($$"""{"name":"{{zip}}.sha256","browser_download_url":"https://github.com/klangche/USB-helper/releases/download/{{tag}}/{{zip}}.sha256"}""");
+            var name = $"usb-helper-{version}-windows-x64.{file}";
+            assets.Add($$"""{"name":"{{name}}","browser_download_url":"https://github.com/klangche/USB-helper/releases/download/{{tag}}/{{name}}"}""");
+            if (checksum)
+            {
+                assets.Add($$"""{"name":"{{name}}.sha256","browser_download_url":"https://github.com/klangche/USB-helper/releases/download/{{tag}}/{{name}}.sha256"}""");
+            }
         }
         return $$"""{"tag_name":"{{tag}}","draft":{{(draft ? "true" : "false")}},"prerelease":{{(prerelease ? "true" : "false")}},"assets":[{{string.Join(',', assets)}}]}""";
     }
@@ -60,8 +61,8 @@ public class UpdateCheckTests
         var result = await UpdateCheck.FindAsync(feed.Client(), "0.6.0-beta.3", Timeout);
 
         Assert.Equal("0.6.0", result.Stable!.Version);
-        Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-windows-x64.zip", result.Stable.Zip.ToString());
-        Assert.Equal(result.Stable.Zip + ".sha256", result.Stable.Checksum.ToString());
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-windows-x64.zip", result.Stable.Download.ToString());
+        Assert.Equal(result.Stable.Download + ".sha256", result.Stable.Checksum.ToString());
         Assert.Null(result.Beta);
         Assert.Equal("Update check: stable 0.6.0 is newer than 0.6.0-beta.3", result.Log);
     }
@@ -129,6 +130,46 @@ public class UpdateCheckTests
         var result = await UpdateCheck.FindAsync(feed.Client(), "0.5.0", Timeout);
 
         Assert.Equal("0.6.0", result.Stable!.Version);
+    }
+
+    [Fact]
+    public async Task TheMsiInstallIsOfferedOnlyReleasesWithAnMsi()
+    {
+        // Releases before #124 have only the zip.
+        var feed = Feed(
+            Release("v0.7.0-beta.1", prerelease: true, msi: true),
+            Release("v0.6.0", prerelease: false, msi: true),
+            Release("v0.5.1", prerelease: false));
+
+        var result = await UpdateCheck.FindAsync(feed.Client(), "0.5.0", Timeout, UpdateKind.Msi);
+
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-windows-x64.msi", result.Stable!.Download.ToString());
+        Assert.Equal(result.Stable.Download + ".sha256", result.Stable.Checksum.ToString());
+        Assert.Equal("0.7.0-beta.1", result.Beta!.Version);
+        Assert.EndsWith(".msi", result.Beta.Download.ToString());
+    }
+
+    [Fact]
+    public async Task AnMsiInstallIsNotOfferedAZipOnlyRelease()
+    {
+        var result = await UpdateCheck.FindAsync(Feed(Release("v0.6.0", prerelease: false)).Client(), "0.5.0", Timeout, UpdateKind.Msi);
+
+        Assert.Null(result.Stable);
+    }
+
+    [Theory]
+    [InlineData("Programs/USB-helper", UpdateKind.Msi)]
+    [InlineData("Programs/USB-helper/", UpdateKind.Msi)] // AppContext.BaseDirectory ends with a separator
+    [InlineData("Programs/usb-helper/", UpdateKind.Msi)] // Windows paths ignore case
+    [InlineData("Programs/USB-helper-0.6.0/", UpdateKind.Portable)]
+    [InlineData("USB-helper/", UpdateKind.Portable)]
+    public void TheMsiInstallFolderMeansAnMsiInstall(string appFolder, UpdateKind expected)
+    {
+        var localAppData = Path.Combine(Path.GetTempPath(), "LocalAppData");
+
+        var kind = UpdateKinds.For(Path.Combine(localAppData, appFolder.Replace('/', Path.DirectorySeparatorChar)), localAppData);
+
+        Assert.Equal(expected, kind);
     }
 
     [Fact]

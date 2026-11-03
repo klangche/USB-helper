@@ -34,7 +34,7 @@ public sealed class SettingsBehaviourTests
     });
 
     private UpdateViewModel Update(FakeHttp http, SettingsViewModel settings, string current = "0.5.0") =>
-        new(http.Client(), current, Path.GetTempPath(), _ => { }, log, TimeSpan.FromSeconds(2), settings);
+        new(http.Client(), current, UpdateKind.Portable, Path.GetTempPath(), _ => { }, log, TimeSpan.FromSeconds(2), settings);
 
     [Fact]
     public async Task CheckForUpdatesAtStartOffAsksGitHubNothingAtStart()
