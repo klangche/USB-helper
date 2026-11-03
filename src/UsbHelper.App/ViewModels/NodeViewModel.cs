@@ -17,8 +17,8 @@ namespace UsbHelper.App.ViewModels;
 /// hub or device keeps that item's own status.
 /// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
 /// system does not show (#76): its extra hops count for everything behind that port.
-/// Only the host can be collapsed, which hides the whole tree; every item below it is always open (#132). A collapsed
-/// host's name is bold (#100).
+/// Only a controller can be collapsed, which hides its tree; the host and every item below a controller are always open
+/// (#142). A collapsed controller's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
 /// A port the operating system calls USB-C says so; an unknown one says nothing (#114).
 /// After the controllers, a "Displays" group lists each active monitor with its name and output type (#133). It does
@@ -37,6 +37,7 @@ public sealed class NodeViewModel : ObservableObject
     private string? counts;
     private string? portType;
     private bool isExpanded;
+    private bool isController;
     private bool isDisplay;
     private bool displayBelow;
     private bool isHub;
@@ -108,15 +109,15 @@ public sealed class NodeViewModel : ObservableObject
     public bool HasChildren => Children.Count > 0;
 
     /// <summary>
-    /// Whether the children are shown. The user expands and collapses the host with its chevron, a double-click or the
-    /// arrow keys. Every other item stays open: collapsing it is refused here, and the window keeps its row open (#132).
+    /// Whether the children are shown. The user expands and collapses a controller with its chevron, a double-click or
+    /// the arrow keys. Every other item stays open: collapsing it is refused here, and the window keeps its row open (#142).
     /// </summary>
     public bool IsExpanded
     {
         get => isExpanded;
         set
         {
-            if (!value && Id != HostId)
+            if (!value && !isController)
             {
                 return;
             }
@@ -128,10 +129,10 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    /// <summary>The host with children: the view shows its expand/collapse control. No other item has one.</summary>
-    public bool CanExpand => Id == HostId && HasChildren;
+    /// <summary>A controller with children: the view shows its expand/collapse control. No other item has one.</summary>
+    public bool CanExpand => isController && HasChildren;
 
-    /// <summary>The host with children that is not expanded: the view shows its name in bold.</summary>
+    /// <summary>A controller with children that is not expanded: the view shows its name in bold.</summary>
     public bool IsCollapsed => HasChildren && !IsExpanded;
 
     /// <summary>The children are visible, so the item's own trunk is drawn below it.</summary>
@@ -385,6 +386,7 @@ public sealed class NodeViewModel : ObservableObject
         IsLast = last;
         Text = Describe(node, IsDisconnected);
         isHub = node.Kind == UsbNodeKind.Hub;
+        isController = node.Kind == UsbNodeKind.Controller;
         // An unplugged device is no display now.
         IsDisplay = node.IsDisplayLink && !IsDisconnected;
         if (SetField(ref markedHops, PortId == null ? 0 : extraHops.GetValueOrDefault(PortId), nameof(ExtraHops)))

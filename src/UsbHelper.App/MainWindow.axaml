@@ -78,8 +78,8 @@
         <TextBlock DockPanel.Dock="Top" Text="{Binding LoadingStage}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
         <TextBlock DockPanel.Dock="Top" Text="{Binding Notice}" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}"
                    TextWrapping="Wrap" Margin="0,0,0,8" Foreground="#C62828" />
-        <!-- Tree style B (#43): drawn lines instead of indentation. Only the host can be collapsed (#132): its chevron (#91),
-             a double-click or the arrow keys hide or show the whole tree. Everything below it is always open. -->
+        <!-- Tree style B (#43): drawn lines instead of indentation. Only the controllers can be collapsed (#142): a
+             controller's chevron (#91), a double-click or the arrow keys hide or show its tree. Everything else stays open. -->
         <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
              or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">

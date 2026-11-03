@@ -22,7 +22,7 @@ public partial class MainWindow : Window, IMainWindowActions
         InitializeComponent();
         // Before the tree item, which would otherwise take Enter to expand or collapse.
         Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
-        // Only the host collapses (#132): a double-click, arrow key, Enter or subtree collapse closes no row below it.
+        // Only controllers collapse (#142): a double-click, arrow key, Enter or subtree collapse closes no other row.
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
         Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
@@ -155,7 +155,7 @@ public partial class MainWindow : Window, IMainWindowActions
 
     private static void KeepOpen(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is TreeViewItem { DataContext: NodeViewModel node } item && node.Id != NodeViewModel.HostId)
+        if (e.Source is TreeViewItem { DataContext: NodeViewModel node } item && !node.CanExpand)
         {
             item.SetCurrentValue(TreeViewItem.IsExpandedProperty, true);
         }
