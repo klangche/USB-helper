@@ -62,7 +62,10 @@ public sealed record SetupFile(
     /// <exception cref="NotSupportedException">The file has a newer format than this app reads.</exception>
     public static SetupFile FromJson(string json)
     {
-        var format = JsonDocument.Parse(json).RootElement.TryGetProperty("format_version", out var value) ? value.GetInt32() : 0;
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var format = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("format_version", out var value)
+            && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) ? number : 0;
         if (format != CurrentFormat)
         {
             throw new NotSupportedException($"setup.json format_version {format} is not supported; this app reads {CurrentFormat}.");

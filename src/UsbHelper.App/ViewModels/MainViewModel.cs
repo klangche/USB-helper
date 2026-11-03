@@ -261,7 +261,8 @@ public sealed class MainViewModel : ObservableObject
             ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
-        return new SetupFile(appVersion, date, identity, [.. options.Select(option => option.Profile.Id)], controllers, marks, monitors, results);
+        // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, monitors, results);
     }
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>

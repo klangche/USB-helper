@@ -470,7 +470,7 @@ Export full setup. It saves one zip with four files,
 
 - `setup.json`: everything the app detected and found, with a `format_version`:
   the app version, the computer (manufacturer, model, processor, platform
-  profile, computer name), the checked profiles, every controller, hub, port
+  profile), the checked profiles, every controller, hub, port
   and device (name, vendor and product id, USB-C and user-connectable flags),
   your active-cable marks, the monitors and their output type, and each
   checked profile's result with every finding, the unknown ones included.
@@ -480,8 +480,12 @@ Export full setup. It saves one zip with four files,
 
 The export holds device and monitor names and vendor and product ids, but no
 serial numbers: the Windows device paths, which can hold them, are replaced by
-positions in the tree ("1/1/2"). The developers can load `setup.json` in the
-tests as if the app had detected it, so a reported setup becomes a test case.
+positions in the tree ("1/1/2"), and `setup.json` leaves out the computer's
+network name, which is often an asset or service tag. When Windows reports no
+manufacturer and model, the window, and so `screenshot.png` and `tree.txt`,
+name the computer by its network name instead. The developers can load
+`setup.json` in the tests as if the app had detected it, so a reported setup
+becomes a test case.
 
 No profile for your computer yet? Click "Export computer profile" (or File >
 Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It

@@ -77,6 +77,8 @@ public class SetupFileTests
     public void ANewerFormatIsRefused()
     {
         Assert.Throws<NotSupportedException>(() => SetupFile.FromJson("{\"format_version\": 2}"));
+        Assert.Throws<NotSupportedException>(() => SetupFile.FromJson("{\"format_version\": \"one\"}"));
+        Assert.Throws<NotSupportedException>(() => SetupFile.FromJson("[]"));
     }
 
     private static IEnumerable<UsbNode> Flatten(IEnumerable<UsbNode> nodes) => nodes.SelectMany(node => Flatten(node.Children).Prepend(node));

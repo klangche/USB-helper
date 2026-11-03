@@ -119,6 +119,19 @@ public class SetupExportTests
         Assert.DoesNotContain("SERIAL123", Text(Export(KnownSetup())["setup.json"]));
     }
 
+    // A computer name is often an asset or service tag, which is a serial number; matching needs only manufacturer and model.
+    [Fact]
+    public void SetupJsonLeavesOutTheComputerName()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", MachineName: "DESK-5CG1234XYZ"), Monitors);
+        viewModel.Load(Desk());
+
+        var json = Text(Export(viewModel)["setup.json"]);
+
+        Assert.DoesNotContain("5CG1234XYZ", json);
+        Assert.Null(SetupFile.FromJson(json).Computer.MachineName);
+    }
+
     [Fact]
     public void SetupJsonRoundTripsIntoATreeThatEvaluatesTheSame()
     {
