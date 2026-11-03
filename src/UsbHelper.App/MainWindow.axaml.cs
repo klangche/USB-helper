@@ -22,6 +22,8 @@ public partial class MainWindow : Window, IMainWindowActions
         Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
         // Only the host collapses (#132): a double-click, arrow key, Enter or subtree collapse closes no row below it.
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
+        // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
+        Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {

@@ -94,6 +94,33 @@ public class EventLogTests
             Texts(log));
     }
 
+    // #133: the monitors at start, then each one connected or removed.
+    [Fact]
+    public void DisplaysAreLoggedAtStartAndOnEveryChange()
+    {
+        var log = NewLog();
+        DisplayMonitor panel = new("1", null, MonitorOutput.Internal);
+        DisplayMonitor dell = new("2", "DELL U2723QE", MonitorOutput.Hdmi);
+        DisplayMonitor lg = new("3", "LG HDR 4K", MonitorOutput.DisplayPort);
+
+        log.Displays([panel, dell]);
+        log.Displays([panel, dell]);
+        log.Displays([panel, lg]);
+        log.Displays(null);
+        log.Displays(null);
+
+        Assert.Equal(
+            [
+                "Displays read: 2",
+                "Display: unnamed (built-in)",
+                "Display: DELL U2723QE (HDMI)",
+                "Display connected: LG HDR 4K (DisplayPort)",
+                "Display disconnected: DELL U2723QE (HDMI)",
+                "Displays could not be read",
+            ],
+            Texts(log));
+    }
+
     [Fact]
     public void AConnectIsOneEntry()
     {

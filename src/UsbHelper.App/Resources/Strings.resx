@@ -70,6 +70,49 @@
   <data name="DisplayLinkDevice" xml:space="preserve">
     <value>Extended display: DisplayLink driver required</value>
   </data>
+  <data name="DisplaysGroup" xml:space="preserve">
+    <value>Displays</value>
+    <comment>The group under the computer that lists the active monitors (#133).</comment>
+  </data>
+  <data name="MonitorItem" xml:space="preserve">
+    <value>{0} ({1})</value>
+    <comment>A monitor in the Displays group: {0} its name, {1} its output type.</comment>
+  </data>
+  <data name="MonitorUnnamed" xml:space="preserve">
+    <value>Monitor</value>
+    <comment>A monitor that reports no name, often the built-in panel.</comment>
+  </data>
+  <data name="OutputInternal" xml:space="preserve">
+    <value>built-in</value>
+  </data>
+  <data name="OutputHdmi" xml:space="preserve">
+    <value>HDMI</value>
+  </data>
+  <data name="OutputDisplayPort" xml:space="preserve">
+    <value>DisplayPort</value>
+    <comment>DisplayPort, DisplayPort Alt Mode over USB-C included.</comment>
+  </data>
+  <data name="OutputUsbTunnel" xml:space="preserve">
+    <value>DisplayPort over USB4/Thunderbolt</value>
+  </data>
+  <data name="OutputDvi" xml:space="preserve">
+    <value>DVI</value>
+  </data>
+  <data name="OutputVga" xml:space="preserve">
+    <value>VGA</value>
+  </data>
+  <data name="OutputIndirect" xml:space="preserve">
+    <value>indirect, for example DisplayLink</value>
+  </data>
+  <data name="OutputWireless" xml:space="preserve">
+    <value>wireless</value>
+  </data>
+  <data name="OutputVirtual" xml:space="preserve">
+    <value>virtual</value>
+  </data>
+  <data name="OutputOther" xml:space="preserve">
+    <value>other</value>
+  </data>
   <data name="HubHasDisplay" xml:space="preserve">
     <value>has a display</value>
   </data>
