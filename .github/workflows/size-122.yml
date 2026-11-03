@@ -44,7 +44,7 @@ jobs:
           $disk = ($files | ForEach-Object { [math]::Ceiling($_.Length / 4096) * 4096 } | Measure-Object -Sum).Sum
           Compress-Archive -Path app/* -DestinationPath app.zip
           $zip = (Get-Item app.zip).Length
-          'SIZE {0}: files {1}, size {2:N1} MB, on disk {3:N1} MB, zip {4:N1} MB' -f '${{ matrix.name }}', $files.Count, ($size / 1MB), ($disk / 1MB), ($zip / 1MB)
+          'SIZE {0}: files {1}, size {2:N1} MB, on disk {3:N1} MB, zip {4:N1} MB' -f '${{ matrix.name }}', $files.Count, ($size / 1MB), ($disk / 1MB), ($zip / 1MB) | Tee-Object -FilePath result.txt
 
       # The #86 measurement: time to the first window, and until the process goes idle. The first start runs from a
       # freshly unpacked folder, as after a download, so Defender scans the new files.
@@ -79,10 +79,26 @@ jobs:
           $first = Measure-Start (Join-Path $fresh 'UsbHelper.App.exe') 'first start (fresh copy)'
           $exe = (Resolve-Path app/UsbHelper.App.exe).Path
           $times = @(for ($i = 1; $i -le 5; $i++) { Measure-Start $exe "normal start $i" }) | Sort-Object
-          'START ${{ matrix.name }}: first {0} ms, normal min {1} / median {2} / max {3} ms' -f $first, $times[0], $times[2], $times[-1]
+          'START ${{ matrix.name }}: first {0} ms, normal min {1} / median {2} / max {3} ms' -f $first, $times[0], $times[2], $times[-1] | Tee-Object -FilePath result.txt -Append
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: result-${{ matrix.name }}
+          path: result.txt
+          retention-days: 14
 
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: app.zip
           retention-days: 14
+
+  summary:
+    needs: measure
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: result-*
+      - run: cat result-*/result.txt | sort
