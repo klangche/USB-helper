@@ -332,6 +332,11 @@ That version was one `USB-helper.exe` that unpacked the app to
 that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
 update cannot install this version: download it once by hand.
 
+The portable betas 0.6.0-beta.1 to beta.3 had `UsbHelper.exe` at the top of
+the zip (no `app` folder). Their in-app update looks for that file and so
+cannot install this layout; download the zip once by hand. An installed
+(`.msi`) beta updates as normal.
+
 ### Updates
 
 After the window shows, the app asks GitHub Releases (no account or token) for

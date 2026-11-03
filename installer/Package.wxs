@@ -39,8 +39,9 @@
       <!-- Every file of the layout, the app folder included. -->
       <Files Directory="INSTALLFOLDER" Include="!(bindpath.layout)\**" />
 
-      <!-- The Start menu shortcut starts USB-helper.exe, which carries the app icon (#103) and starts app\UsbHelper.exe. A per-user component needs a registry key as its key
-           path; the RemoveFolder entries remove the folders on uninstall when they are empty. -->
+      <!-- The Start menu shortcut starts USB-helper.exe, which carries the app icon (#103) and starts app\UsbHelper.exe.
+           A per-user component needs a registry key as its key path; the RemoveFolder entries remove the folders on
+           uninstall when they are empty. -->
       <Component Id="StartMenu" Directory="ProgramMenuFolder">
         <Shortcut Id="StartMenuShortcut" Name="USB-helper" Description="Live USB tree and BYOD/BYOM checks"
                   Target="[INSTALLFOLDER]USB-helper.exe" WorkingDirectory="INSTALLFOLDER" />

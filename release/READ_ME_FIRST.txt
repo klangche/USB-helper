@@ -30,7 +30,8 @@ need it. To remove USB-helper completely, delete its folders.
 
 From 0.5.0: that version unpacked itself to %LOCALAPPDATA%\USB-helper.
 This version does not use or touch that folder; you can delete it, and
-the old USB-helper.exe.
+the old USB-helper.exe. A portable 0.6.0 beta cannot update itself to
+this version: this download replaces it; delete the old folder.
 
 The hardware database is built into the app; a new version brings
 the latest database. How to add or correct a computer profile:
