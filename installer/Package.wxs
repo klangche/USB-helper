@@ -1,9 +1,10 @@
 <!-- The per-user .msi (#124), built by release.yml with WiX Toolset (version pinned in .config/dotnet-tools.json):
 
-       dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath app=<absolute folder> -d Version=<release version>
+       dotnet wix build installer/Package.wxs -arch x64 -wx -bindpath layout=<absolute folder> -d Version=<release version>
          -d ProductVersion=<release/msi-version.sh output> -o <name>.msi
 
-     <folder> holds the same loose files as the portable zip's USB-helper folder. `wix build` runs no ICE validation;
+     <folder> holds the same files as the portable zip's USB-helper folder (#130): USB-helper.exe, READ_ME_FIRST.txt,
+     LICENSE.txt and the folder "app" with the app, its DLLs and the .NET runtime. `wix build` runs no ICE validation;
      the harvested files are per-user components with file key paths in the user profile, which ICE38/ICE64 would flag
      for a per-machine-style layout. release.yml's "Test MSI" step installs, upgrades and uninstalls each build instead
      and checks that nothing is left behind. No administrator rights: Scope="perUser"
@@ -35,14 +36,14 @@
     <StandardDirectory Id="ProgramMenuFolder" />
 
     <Feature Id="Main">
-      <!-- Every file of the app's folder: the exe, its DLLs, the .NET runtime, READ_ME_FIRST.txt and LICENSE.txt. -->
-      <Files Directory="INSTALLFOLDER" Include="!(bindpath.app)\**" />
+      <!-- Every file of the layout, the app folder included. -->
+      <Files Directory="INSTALLFOLDER" Include="!(bindpath.layout)\**" />
 
-      <!-- The Start menu shortcut takes the exe's own icon (#103). A per-user component needs a registry key as its key
+      <!-- The Start menu shortcut starts USB-helper.exe, which carries the app icon (#103) and starts app\UsbHelper.exe. A per-user component needs a registry key as its key
            path; the RemoveFolder entries remove the folders on uninstall when they are empty. -->
       <Component Id="StartMenu" Directory="ProgramMenuFolder">
         <Shortcut Id="StartMenuShortcut" Name="USB-helper" Description="Live USB tree and BYOD/BYOM checks"
-                  Target="[INSTALLFOLDER]UsbHelper.exe" WorkingDirectory="INSTALLFOLDER" />
+                  Target="[INSTALLFOLDER]USB-helper.exe" WorkingDirectory="INSTALLFOLDER" />
         <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
         <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\klangche\USB-helper" Name="Installed" Type="integer" Value="1" KeyPath="yes" />

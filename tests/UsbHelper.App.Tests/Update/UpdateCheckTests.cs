@@ -172,6 +172,19 @@ public class UpdateCheckTests
         Assert.Equal(expected, kind);
     }
 
+    [Theory]
+    [InlineData("USB-helper/app/", "USB-helper")] // AppContext.BaseDirectory of app\UsbHelper.exe (#130)
+    [InlineData("USB-helper/app", "USB-helper")]
+    [InlineData("bin/Debug/net10.0/", "bin/Debug/net10.0")] // run from source: no app folder
+    public void TheTopFolderHoldsTheAppFolder(string baseDirectory, string expected)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "layout");
+
+        var top = UpdateKinds.TopFolder(Path.Combine(root, baseDirectory.Replace('/', Path.DirectorySeparatorChar)));
+
+        Assert.Equal(Path.Combine(root, expected.Replace('/', Path.DirectorySeparatorChar)), top);
+    }
+
     [Fact]
     public async Task OfflineIsSkipped()
     {

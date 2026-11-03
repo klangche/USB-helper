@@ -15,10 +15,11 @@ without one, it works as normal.
    Or right-click the zip, choose Properties, tick "Unblock", then OK.
 
 2. Unzip it, for example to your Desktop. You get one folder,
-   USB-helper, with the app and its files. Keep the files together;
-   you can move the whole folder anywhere.
+   USB-helper, with USB-helper.exe, these two text files and the
+   folder "app" with the app's files. Keep them together; you can move
+   the whole USB-helper folder anywhere.
 
-3. Start UsbHelper.exe in that folder. If Windows SmartScreen shows a
+3. Start USB-helper.exe in that folder. If Windows SmartScreen shows a
    warning, click "More info", then "Run anyway".
 
 Updates: when a newer version exists, USB-helper shows it at the top of
@@ -31,7 +32,7 @@ From 0.5.0: that version unpacked itself to %LOCALAPPDATA%\USB-helper.
 This version does not use or touch that folder; you can delete it, and
 the old USB-helper.exe.
 
-The hardware database is built into UsbHelper.exe; a new version brings
+The hardware database is built into the app; a new version brings
 the latest database. How to add or correct a computer profile:
 https://github.com/klangche/USB-helper#hardware-database
 

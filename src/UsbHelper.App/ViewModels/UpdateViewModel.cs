@@ -14,8 +14,8 @@ namespace UsbHelper.App.ViewModels;
 /// </summary>
 /// <param name="current">This app's version.</param>
 /// <param name="kind">How this app was installed: which release asset it takes.</param>
-/// <param name="folder">Portable: the folder this app runs from. Msi: the folder the .msi is downloaded to.</param>
-/// <param name="restart">Starts the given exe (portable) or .msi (Msi) and closes this app.</param>
+/// <param name="folder">Portable: the folder of USB-helper.exe (#130). Msi: the folder the .msi is downloaded to.</param>
+/// <param name="restart">Starts the given USB-helper.exe (portable) or .msi (Msi) and closes this app.</param>
 public sealed class UpdateViewModel(HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, EventLog log, TimeSpan timeout)
     : ObservableObject
 {

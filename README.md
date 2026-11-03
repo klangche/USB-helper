@@ -303,7 +303,7 @@ entry's comment and in Help > About.
 
 Download the zip and follow `READ_ME_FIRST.txt` in it. In short: unblock the
 zip once (`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in
-PowerShell, as it is not signed), unzip it, and start `UsbHelper.exe` in the
+PowerShell, as it is not signed), unzip it, and start `USB-helper.exe` in the
 `USB-helper` folder. No installation and no administrator rights are needed,
 and no network connection either (it is used only for the update check below).
 
@@ -311,13 +311,18 @@ The zip holds one folder:
 
 ```
 USB-helper/
-  UsbHelper.exe          the app
-  *.dll, *.json          its libraries and the .NET runtime, as loose files
+  USB-helper.exe         starts the app
   READ_ME_FIRST.txt
   LICENSE.txt
+  app/
+    UsbHelper.exe        the app
+    *.dll, *.json        its libraries and the .NET runtime, as loose files
 ```
 
-Keep the files together; the folder can be moved anywhere. Nothing is
+`USB-helper.exe` is a small native starter (NativeAOT, no .NET runtime of its
+own): it starts `app\UsbHelper.exe` with the same arguments and exits, in a few
+milliseconds. Without the `app` folder next to it, it says so and links to the
+releases. Keep the files together; the folder can be moved anywhere. Nothing is
 unpacked elsewhere. To remove USB-helper, delete its folder.
 
 ### From 0.5.0
@@ -325,8 +330,7 @@ unpacked elsewhere. To remove USB-helper, delete its folder.
 That version was one `USB-helper.exe` that unpacked the app to
 `%LOCALAPPDATA%\USB-helper\<version>`. This version does not use or touch
 that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
-update cannot install this version (it reports that the zip holds no
-`USB-helper.exe` and keeps running 0.5.0): download it once by hand.
+update cannot install this version: download it once by hand.
 
 ### Updates
 
@@ -352,7 +356,7 @@ older) are not offered to an installed app.
 Portable: on a choice, the app downloads that release's zip
 and its SHA-256 file, verifies the zip, unzips its `USB-helper` folder into a
 new folder `USB-helper-<version>` next to the running app's folder (as
-`USB-helper-<version> (2)` if that name is taken), starts `UsbHelper.exe`
+`USB-helper-<version> (2)` if that name is taken), starts `USB-helper.exe`
 there and closes. The old folder stays for the user to delete. The download
 and unzip happen in `USB-helper-<version>.download` next to it, which is
 removed afterwards; a download that fails verification is never unzipped or
@@ -365,7 +369,7 @@ skipped: no answer within 2 s".
 
 ## Usage
 
-Start USB-helper from the Start menu (installer) or `UsbHelper.exe` in the
+Start USB-helper from the Start menu (installer) or `USB-helper.exe` in the
 `USB-helper` folder (portable zip; see Install). The window opens at once and
 shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
@@ -472,7 +476,7 @@ minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
-and the `.msi` (the published app's loose files, see Install),
+and the `.msi` (the starter and the published app's loose files, see Install),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -507,6 +511,14 @@ the next release would get and `N` counts up from 1 for each beta of it
   the SVG, run `src/UsbHelper.App/Assets/make-icon.sh` (needs `rsvg-convert` from
   librsvg and ImageMagick's `convert`; on Windows in WSL or Git Bash) and commit
   both files.
+- `src/UsbHelper.Starter`: `USB-helper.exe` at the top of the zip and the
+  install folder (#130), compiled with NativeAOT (its compiler packages are
+  pinned in the project; update both pins together). It starts
+  `app\UsbHelper.exe` and shows a message from `Strings.resx` when that is
+  missing; tested in `tests/UsbHelper.Starter.Tests`. The app finds the top
+  folder as the parent of its `app` folder (`UpdateKinds.TopFolder`).
+  `release.yml` starts both the unzipped zip and the installed `.msi` through
+  `USB-helper.exe` and waits for the window (`release/start-test.ps1`).
 - `src/UsbHelper.Cli`: prints the detected USB tree, to compare with USBView or
   Device Manager ("Devices by connection"). Windows only:
   `dotnet run --project src/UsbHelper.Cli`. Add `-- --watch` to keep running

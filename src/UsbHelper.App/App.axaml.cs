@@ -54,8 +54,10 @@ public partial class App : Application
         }
 
         // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
-        var kind = UpdateKinds.For(AppContext.BaseDirectory, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : AppContext.BaseDirectory;
+        // The app runs from the app folder below USB-helper.exe (#130).
+        var top = UpdateKinds.TopFolder(AppContext.BaseDirectory);
+        var kind = UpdateKinds.For(top, Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        var folder = kind == UpdateKind.Msi ? Path.Combine(Path.GetTempPath(), "USB-helper-update") : top;
         log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates use the zip");
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log)
         {
