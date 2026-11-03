@@ -15,6 +15,6 @@
     <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
     <TextBlock Text="{x:Static res:Strings.SettingsSavedAt}" TextWrapping="Wrap" Opacity="0.7" />
     <SelectableTextBlock Text="{Binding FilePath}" TextWrapping="Wrap" FontFamily="monospace" Opacity="0.7" />
-    <Button Content="{x:Static res:Strings.AboutClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
+    <Button Content="{x:Static res:Strings.SettingsClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
   </StackPanel>
 </Window>

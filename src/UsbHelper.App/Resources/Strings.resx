@@ -315,4 +315,7 @@ This version keeps running.</value>
   <data name="SettingsSavedAt" xml:space="preserve">
     <value>Changes are saved at once, in:</value>
   </data>
+  <data name="SettingsClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
 </root>

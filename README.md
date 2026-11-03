@@ -468,12 +468,15 @@ File > Settings opens the settings. Each change is saved at once:
   offered, and a newer beta alone counts as up to date.
 - **Remember the checked profiles between starts** (off by default): on, the
   operating systems and computers checked in the two lists are checked again
-  at the next start, instead of only the detected platform profile. Turning
-  it off forgets them.
+  at the next start, instead of only the detected platform profile. If
+  nothing was checked, the detected platform profile is checked, as without
+  the setting. Turning it off forgets them.
 
 The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
 roaming app data folder), the same for every copy of the app, so they survive
-updates and moving the app's folder. Without the file the defaults apply. A
+updates and moving the app's folder. With a roaming Windows profile they
+also follow the user to other computers, remembered profiles included.
+Without the file the defaults apply. A
 file that cannot be read is named in the log with the reason, and the
 defaults apply; it is only replaced when a setting is changed.
 
