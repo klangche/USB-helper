@@ -386,12 +386,13 @@ bug report; File > Export log does the same from the main window. The log
 is kept in memory only and starts empty each time the app starts.
 
 No profile for your computer yet? Click "Export computer profile" (or File >
-Export computer profile) and save the file (`<manufacturer>-<model>.yaml`).
-It holds what the app detected: the manufacturer and model exactly as Windows reports them, the processor, the
-matching platform profile, the USB controllers with their root hub ports, and
-the number of active external displays. It sets no limits, so it uses the
-platform profile's, and the status is `unverified`. Send the file to the
-developers; they add model-specific limits from cited sources.
+Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
+holds what the app detected: the manufacturer and model exactly as Windows
+reports them, the processor, the matching platform profile, the USB
+controllers with their root hub ports, and the number of active external
+displays. It sets no limits, so it uses the platform profile's, and the status
+is `unverified`. Send the file to the developers; they add model-specific
+limits from cited sources.
 
 The menu bar at the top has File (Export computer profile, Export log,
 Settings, Exit) and Help (Check for updates, About USB-helper). Press Alt, or
