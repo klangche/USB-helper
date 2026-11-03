@@ -252,4 +252,43 @@
 
 This version keeps running.</value>
   </data>
+  <data name="MenuFile" xml:space="preserve">
+    <value>_File</value>
+  </data>
+  <data name="MenuExportProfile" xml:space="preserve">
+    <value>_Export computer profile...</value>
+  </data>
+  <data name="MenuExportLog" xml:space="preserve">
+    <value>Export _log...</value>
+  </data>
+  <data name="MenuSettings" xml:space="preserve">
+    <value>_Settings...</value>
+  </data>
+  <data name="MenuExit" xml:space="preserve">
+    <value>E_xit</value>
+  </data>
+  <data name="MenuHelp" xml:space="preserve">
+    <value>_Help</value>
+  </data>
+  <data name="MenuCheckForUpdates" xml:space="preserve">
+    <value>_Check for updates</value>
+  </data>
+  <data name="MenuAbout" xml:space="preserve">
+    <value>_About USB-helper</value>
+  </data>
+  <data name="AboutTitle" xml:space="preserve">
+    <value>About USB-helper</value>
+  </data>
+  <data name="AboutVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="AboutLicense" xml:space="preserve">
+    <value>MIT License. Copyright (c) 2026 Linus Klang.</value>
+  </data>
+  <data name="AboutIconAttribution" xml:space="preserve">
+    <value>The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc., licensed under CC BY 4.0. Changed: square view box and drawn white. USB is a trademark of its owner; the icon stands for USB connections, and no endorsement is implied.</value>
+  </data>
+  <data name="AboutClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
 </root>

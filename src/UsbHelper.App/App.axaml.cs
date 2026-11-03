@@ -54,7 +54,7 @@ public partial class App : Application
 
         var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadExternalDisplays, log)
         {
-            Update = new UpdateViewModel(new HttpClient(), MainViewModel.AppVersion(), AppContext.BaseDirectory, exe => Restart(exe, desktop), log,
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, AppContext.BaseDirectory, exe => Restart(exe, desktop), log,
                 UpdateCheckTimeout),
         };
         _ = LoadInBackground(viewModel, log, desktop);

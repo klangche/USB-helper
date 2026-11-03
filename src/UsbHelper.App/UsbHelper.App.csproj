@@ -23,6 +23,11 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
   </ItemGroup>
 
+  <!-- The icon in the About window. -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\usb-helper.ico" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\UsbHelper.Core\UsbHelper.Core.csproj" />
     <ProjectReference Include="..\UsbHelper.Detection.Windows\UsbHelper.Detection.Windows.csproj" />

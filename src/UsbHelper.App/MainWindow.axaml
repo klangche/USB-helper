@@ -8,9 +8,26 @@
         Width="1100" Height="700"
         Title="{x:Static res:Strings.WindowTitle}">
 
-  <DockPanel Margin="12">
+  <DockPanel>
 
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+    <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) and the update check (#123) come later. -->
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="{x:Static res:Strings.MenuFile}">
+        <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
+        <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuSettings}" IsEnabled="False" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuExit}" Command="{Binding ExitCommand}" />
+      </MenuItem>
+      <MenuItem Header="{x:Static res:Strings.MenuHelp}">
+        <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" IsEnabled="False" />
+        <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuAbout}" Command="{Binding AboutCommand}" />
+      </MenuItem>
+    </Menu>
+
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12">
       <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
       <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
         <DropDownButton.Flyout>
@@ -43,12 +60,12 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <Button Content="{x:Static res:Strings.ExportProfile}" IsEnabled="{Binding CanExport}" Click="ExportProfile" />
+      <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
     <!-- The update notice (#123): shown only when a newer release exists; the window works as normal meanwhile. -->
-    <Border DockPanel.Dock="Top" Margin="0,0,0,12" Padding="8" CornerRadius="4" BorderThickness="1"
+    <Border DockPanel.Dock="Top" Margin="12,0,12,12" Padding="8" CornerRadius="4" BorderThickness="1"
             BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
             IsVisible="{Binding Update.IsOffered, FallbackValue=False}">
       <StackPanel Spacing="6">
@@ -65,10 +82,10 @@
       </StackPanel>
     </Border>
 
-    <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,8"
+    <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-    <Grid ColumnDefinitions="3*,6,2*">
+    <Grid ColumnDefinitions="3*,6,2*" Margin="12,0,12,12">
 
       <DockPanel Grid.Column="0">
         <TextBlock DockPanel.Dock="Top" Text="{Binding LoadingStage}" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />

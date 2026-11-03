@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.AboutWindow"
+        x:DataType="vm:AboutViewModel"
+        Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Title="{x:Static res:Strings.AboutTitle}">
+
+  <StackPanel Margin="16" Spacing="10">
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <!-- The app icon (#103) is white, so it sits on a dark tile to show in the light theme too. -->
+      <Border Background="#202020" CornerRadius="6" Padding="8">
+        <Image Source="/Assets/usb-helper.ico" Width="48" Height="48" />
+      </Border>
+      <StackPanel VerticalAlignment="Center" Spacing="2">
+        <TextBlock Text="{Binding Name}" FontSize="20" FontWeight="SemiBold" />
+        <SelectableTextBlock Text="{Binding VersionText}" />
+      </StackPanel>
+    </StackPanel>
+    <TextBlock Text="{Binding License}" TextWrapping="Wrap" />
+    <TextBlock Text="{Binding IconAttribution}" TextWrapping="Wrap" Opacity="0.8" />
+    <HyperlinkButton Content="{Binding Repository}" NavigateUri="{Binding Repository}" Padding="0" />
+    <Button Content="{x:Static res:Strings.AboutClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
+  </StackPanel>
+</Window>
