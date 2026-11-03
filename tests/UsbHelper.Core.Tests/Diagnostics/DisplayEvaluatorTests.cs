@@ -34,6 +34,60 @@ public class DisplayEvaluatorTests
     private static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? displays) =>
         DiagnosticEvaluator.Evaluate(tree, profile, [], displays);
 
+    private static readonly DisplayMonitor Left = new("L", "LS27A600U", MonitorOutput.DisplayPort);
+    private static readonly DisplayMonitor Right = new("R", "LS27A600U", MonitorOutput.UsbTunnel);
+    private const string NoMst = "No MST on Test laptop: this display is duplicated; use a second USB-C port or DisplayLink.";
+
+    private static DiagnosticReport Evaluate(ResolvedProfile profile, params DisplayMonitor[] monitors) =>
+        DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors);
+
+    // Owner decision in #144: without MST, the first DisplayPort display is judged as usual, every further one is orange.
+    [Fact]
+    public void WithoutMstASecondDisplayPortDisplayIsPotentiallyUnstable()
+    {
+        var report = Evaluate(Profile(maxExternal: "3", displays: "  mst: false"), Left, Right);
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections["L"]);
+        Assert.Equal(ConnectionStatus.Orange, report.Connections["R"]);
+        Assert.Equal(ConnectionStatus.Orange, report.Overall);
+        var finding = Assert.Single(report.Findings, finding => finding.Message == NoMst);
+        Assert.Equal(FactKind.PredictedRisk, finding.Kind);
+        Assert.Equal("R", finding.SubjectId);
+    }
+
+    [Fact]
+    public void UnknownMstGivesNoMstFindingOnlyAnUnknown()
+    {
+        var report = Evaluate(Profile(maxExternal: "3", displays: "  mst: null"), Left, Right);
+
+        Assert.DoesNotContain(report.Findings, finding => finding.Message == NoMst);
+        Assert.False(report.Connections.ContainsKey("R"));
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.Contains("displays.mst", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ADisplayLinkOrHdmiDisplayNeverGetsTheMstMessage()
+    {
+        DisplayMonitor displayLink = new("D", "HP E24", MonitorOutput.Indirect);
+        DisplayMonitor hdmi = new("H", "DELL", MonitorOutput.Hdmi);
+
+        var report = Evaluate(Profile(maxExternal: "3", displays: "  mst: false"), Left, displayLink, hdmi);
+
+        Assert.DoesNotContain(report.Findings, finding => finding.Message == NoMst);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+    }
+
+    [Fact]
+    public void AboveMaxExternalStaysUnstable()
+    {
+        var report = Evaluate(Profile(maxExternal: "1", displays: "  mst: false"), Left, Right);
+
+        Assert.Equal(ConnectionStatus.Purple, report.Overall);
+        Assert.Equal(ConnectionStatus.Orange, report.Connections["R"]);
+        Assert.Contains(report.Findings, finding => finding.Message == NoMst);
+    }
+
     [Fact]
     public void UnknownDisplayCountIsNamedButNotJudged()
     {

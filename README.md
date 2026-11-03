@@ -137,6 +137,7 @@ ports:
       - "Charging only below 15 W."
 displays:
   max_external: 2
+  mst: false     # DisplayPort Multi-Stream Transport; null = unknown
   restrictions:
     - "HDMI and the left front port share one display output."
 ```
@@ -148,7 +149,19 @@ DisplayPort Alt Mode, Thunderbolt, USB4) and compares the count with
 DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
 0x17E9) and checked against the ports' `displaylink` values. Which physical
 port a monitor uses cannot be detected, so the port capabilities and
-restrictions are listed, not matched to monitors. The GUI reads the monitors
+restrictions are listed, not matched to monitors.
+
+`displays.mst` says whether the computer supports DisplayPort Multi-Stream
+Transport, several independent displays on one DisplayPort output. When a
+checked profile says `mst: false` and more than one external DisplayPort
+display is active (DisplayPort, DisplayPort Alt Mode, or DisplayPort over
+USB4/Thunderbolt; DisplayLink, HDMI and built-in displays never count), the
+first one is judged as usual and every further one is potentially unstable
+(orange) with "No MST on <computer>: this display is duplicated; use a second
+USB-C port or DisplayLink." The computer named is the profile's, which need not
+be the one running the app, so a Mac can be planned for on Windows. Above
+`displays.max_external` the result stays unstable (purple). When `mst` is
+unknown, the log says so and nothing is judged. The GUI reads the monitors
 again when Windows reports a display change, and at every USB change and
 profile change. A
 display count is never derived from the number of ports, a USB-C port is never
@@ -244,7 +257,8 @@ unverified, the window does not. With several
 profiles checked, each line shows the worst result of all of them, and each
 profile gets its own overall result: the highest of its lines, its limits and
 its display check (purple above `displays.max_external`, orange for a
-DisplayLink adapter on a computer without DisplayLink support). The findings
+DisplayLink adapter on a computer without DisplayLink support or a further
+DisplayPort display on a computer without MST). The findings
 list then shows only the findings of the strictest checked profile: the one
 with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
 `max_tiers`, then `max_hubs`. An unknown limit counts as higher than any known
@@ -256,7 +270,8 @@ detected fact, a verified database fact, a predicted risk or unknown.
 The findings list shows only real findings: a limit or recommendation
 exceeded, a display problem (more external displays than
 `displays.max_external`, a DisplayLink adapter on a computer without
-DisplayLink support), an operating system error, a disconnected device and a
+DisplayLink support, a further DisplayPort display without MST), an operating
+system error, a disconnected device and a
 reconnected one. Everything else is a note and goes to the log only (see
 Usage): unknown limits and values, unverified limits, limits and port
 capabilities from the database, documented limitations and restrictions, the

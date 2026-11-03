@@ -1137,6 +1137,27 @@ public class MainViewModelTests
         Assert.Empty(Item(viewModel, "MONITOR-HUB").Children);
     }
 
+    // Owner decision in #144: with a Mac-like profile (no MST) checked, the second DisplayPort monitor is orange with
+    // the No MST message; the first stays green.
+    [Fact]
+    public void WithoutMstTheSecondDisplayPortMonitorIsOrange()
+    {
+        var database = DatabaseFolder.Load("Apple", "Mac17,5", status: "verified", name: "MacBook Neo", mst: "false");
+        DisplayMonitor first = new("A", "LS27A600U", MonitorOutput.DisplayPort);
+        DisplayMonitor second = new("B", "LS27A600U", MonitorOutput.DisplayPort);
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("LENOVO", "21JK"), () => [Panel, first, second]);
+        viewModel.Load(Desk);
+
+        viewModel.Computers.Single().IsChecked = true;
+
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "display|A").Status);
+        Assert.Equal(ConnectionStatus.Orange, Item(viewModel, "display|B").Status);
+        Assert.Equal("potentially unstable", Item(viewModel, "display|B").StatusWord);
+        Assert.Null(Item(viewModel, "display|PANEL").Status);
+        Assert.Contains(viewModel.Findings, finding =>
+            finding.Message == "No MST on MacBook Neo: this display is duplicated; use a second USB-C port or DisplayLink.");
+    }
+
     [Fact]
     public void ThereIsNoDisplaysGroupWhenTheMonitorsAreUnknown()
     {

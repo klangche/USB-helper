@@ -427,7 +427,7 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors);
         lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
@@ -447,7 +447,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree);
+                reconnectedIds, extraHops, tree, monitors);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
 

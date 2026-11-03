@@ -322,7 +322,8 @@ public sealed class NodeViewModel : ObservableObject
         {
             group.Text = Strings.DisplaysGroup;
             group.IsLast = true;
-            group.UpdateMonitors(listed, 0);
+            group.UpdateMonitors(listed, 0, report);
+            group.PathStatus = Worst(group.Children.Select(child => child.PathStatus));
         }
         PathStatus = Worst(Children.Select(child => child.PathStatus));
         PaintChildren([]);
@@ -350,7 +351,8 @@ public sealed class NodeViewModel : ObservableObject
 
     // The Displays group or a USB node's linked monitors (#143): one item per monitor from index start on, after the
     // USB children, in the operating system's order. An item is kept while its monitor is.
-    private void UpdateMonitors(IReadOnlyList<DisplayMonitor> monitors, int start)
+    // A monitor's status comes from the display rules, such as "No MST" (#144); none when no rule judges it.
+    private void UpdateMonitors(IReadOnlyList<DisplayMonitor> monitors, int start, DiagnosticReport report)
     {
         for (var i = 0; i < monitors.Count; i++)
         {
@@ -368,6 +370,8 @@ public sealed class NodeViewModel : ObservableObject
             }
             item.Text = string.Format(CultureInfo.CurrentCulture, Strings.MonitorItem, monitor.Name ?? Strings.MonitorUnnamed, OutputText(monitor.Output));
             item.IsLast = i == monitors.Count - 1;
+            item.Status = report.Connections.TryGetValue(monitor.Id, out var status) ? status : null;
+            item.PathStatus = item.Status;
         }
         while (Children.Count > start + monitors.Count)
         {
@@ -430,7 +434,7 @@ public sealed class NodeViewModel : ObservableObject
         var monitors = linked.GetValueOrDefault(node.Id) ?? [];
         UpdateChildren(wanted, report, extraHops, linked, node.Kind == UsbNodeKind.Port ? node.Id : null,
             Children.Count(child => child.IsMonitorItem), monitors.Count > 0);
-        UpdateMonitors(monitors, wanted.Count);
+        UpdateMonitors(monitors, wanted.Count, report);
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
         {

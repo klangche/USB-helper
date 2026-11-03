@@ -23,14 +23,15 @@ public static class DiagnosticEvaluator
     /// <param name="wholeTree">See <see cref="Evaluate"/>.</param>
     public static SystemsReport EvaluateAll(
         IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyList<DisplayMonitor>? monitors = null)
     {
         if (profiles.Count == 0)
         {
-            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops, wholeTree);
+            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops, wholeTree, monitors);
             return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
         }
-        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops, wholeTree))).ToList();
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops, wholeTree, monitors))).ToList();
         var connections = results
             .SelectMany(result => result.Report.Connections)
             .GroupBy(line => line.Key, line => line.Value)
@@ -47,9 +48,11 @@ public static class DiagnosticEvaluator
     /// All controllers, when <paramref name="tree"/> is only some of them: the hub count is the whole computer's (owner
     /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
     /// </param>
+    /// <param name="monitors">The active monitors, for the MST rule (#144); their statuses join the connections by monitor id.</param>
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null)
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyList<DisplayMonitor>? monitors = null)
     {
         var findings = new List<Finding>();
         var computer = profile?.Find("name")?.Scalar as string ?? profile?.Find("model")?.Scalar as string ?? "This computer";
@@ -177,6 +180,10 @@ public static class DiagnosticEvaluator
         }
 
         var (displays, displayContribution) = DisplayEvaluator.Evaluate(tree, profile, externalDisplays, computer, findings);
+        foreach (var (monitor, status) in DisplayEvaluator.Mst(profile, monitors ?? [], computer, findings))
+        {
+            connections[monitor] = status;
+        }
 
         var overall = connections.Values
             .Concat(new[] { hubs, tiers, hops }.Select(Contribution))

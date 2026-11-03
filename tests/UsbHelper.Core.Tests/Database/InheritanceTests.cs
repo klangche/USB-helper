@@ -47,6 +47,21 @@ public class InheritanceTests
         Assert.Equal("computers/c.yaml", maxExternal.File);
     }
 
+    // #144: displays.mst loads and inherits like the other display fields.
+    [Fact]
+    public void DisplaysMstLoadsAndIsInherited()
+    {
+        using var db = new TestDatabase()
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\ndisplays:\n  mst: false\n")
+            .WriteComputer("computers/c.yaml", "test.c");
+
+        var mst = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.mst")!;
+
+        Assert.Equal(ValueKind.Boolean, mst.Kind);
+        Assert.Equal(false, mst.Scalar);
+        Assert.Equal("platforms/test-platform.yaml", mst.File);
+    }
+
     [Fact]
     public void FieldDefinedNowhereIsMissing()
     {
