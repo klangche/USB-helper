@@ -24,14 +24,16 @@ public sealed class UpdateViewModelTests : IDisposable
 
     public void Dispose() => Directory.Delete(parent, recursive: true);
 
-    private static string Download(string tag) =>
-        $"https://github.com/klangche/USB-helper/releases/download/{tag}/usb-helper-{tag[1..]}-windows-x64.zip";
+    private static string Download(string tag, string file = "zip") =>
+        $"https://github.com/klangche/USB-helper/releases/download/{tag}/usb-helper-{tag[1..]}-windows-x64.{file}";
 
     private static string ReleaseJson(string tag, bool prerelease) =>
         $$"""
         {"tag_name":"{{tag}}","draft":false,"prerelease":{{(prerelease ? "true" : "false")}},"assets":[
           {"name":"usb-helper-{{tag[1..]}}-windows-x64.zip","browser_download_url":"{{Download(tag)}}"},
-          {"name":"usb-helper-{{tag[1..]}}-windows-x64.zip.sha256","browser_download_url":"{{Download(tag)}}.sha256"}]}
+          {"name":"usb-helper-{{tag[1..]}}-windows-x64.zip.sha256","browser_download_url":"{{Download(tag)}}.sha256"},
+          {"name":"usb-helper-{{tag[1..]}}-windows-x64.msi","browser_download_url":"{{Download(tag, "msi")}}"},
+          {"name":"usb-helper-{{tag[1..]}}-windows-x64.msi.sha256","browser_download_url":"{{Download(tag, "msi")}}.sha256"}]}
         """;
 
     private static byte[] Zip(string text)
@@ -61,6 +63,8 @@ public sealed class UpdateViewModelTests : IDisposable
             [Download("v0.6.0") + ".sha256"] = Checksum(badChecksum ? betaZip : stableZip),
             [Download("v0.7.0-beta.1")] = betaZip,
             [Download("v0.7.0-beta.1") + ".sha256"] = Checksum(betaZip),
+            [Download("v0.6.0", "msi")] = StableMsi,
+            [Download("v0.6.0", "msi") + ".sha256"] = Checksum(badChecksum ? betaZip : StableMsi),
         };
         return new FakeHttp(async (request, cancel) =>
         {
@@ -77,10 +81,59 @@ public sealed class UpdateViewModelTests : IDisposable
         });
     }
 
+    private static readonly byte[] StableMsi = Encoding.UTF8.GetBytes("msi 0.6.0");
+
     private static byte[] Checksum(byte[] zip) => Encoding.ASCII.GetBytes($"{Convert.ToHexStringLower(SHA256.HashData(zip))}  x.zip\n");
 
     private UpdateViewModel Model(FakeHttp http, string current = "0.5.0") =>
-        new(http.Client(), current, app, restarted.Add, log, TimeSpan.FromSeconds(2));
+        new(http.Client(), current, UpdateKind.Portable, app, restarted.Add, log, TimeSpan.FromSeconds(2));
+
+    // An app installed by the .msi (#124): it downloads into this folder and hands the .msi to restart.
+    private UpdateViewModel MsiModel(FakeHttp http) =>
+        new(http.Client(), "0.5.0", UpdateKind.Msi, Path.Combine(parent, "download"), restarted.Add, log, TimeSpan.FromSeconds(2));
+
+    [Fact]
+    public async Task AnMsiInstallDownloadsTheVerifiedMsiAndRunsIt()
+    {
+        var model = MsiModel(GitHub());
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: true);
+
+        var msi = Path.Combine(parent, "download", "usb-helper-0.6.0-windows-x64.msi");
+        Assert.Equal([msi], restarted);
+        Assert.Equal("msi 0.6.0", File.ReadAllText(msi));
+        Assert.Equal($"Downloaded 0.6.0 to {msi}; installing it", log.Entries[^1].Text);
+        // The installed app is never unzipped next to itself.
+        Assert.Equal(["USB-helper", "download"], Directory.GetDirectories(parent).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task AnMsiInstallRemovesTheMsiOfAnEarlierUpdate()
+    {
+        // About 80 MB each: the .msi of the last update would otherwise stay in %TEMP% for good.
+        Directory.CreateDirectory(Path.Combine(parent, "download"));
+        File.WriteAllText(Path.Combine(parent, "download", "usb-helper-0.5.0-windows-x64.msi"), "msi 0.5.0");
+        var model = MsiModel(GitHub());
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: true);
+
+        Assert.Equal(["usb-helper-0.6.0-windows-x64.msi"], Directory.GetFiles(Path.Combine(parent, "download")).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public async Task AnMsiWithABadChecksumIsDeletedAndNotRun()
+    {
+        var model = MsiModel(GitHub(badChecksum: true));
+        await model.CheckAsync();
+
+        await model.InstallAsync(stable: true);
+
+        Assert.Empty(restarted);
+        Assert.Empty(Directory.GetFiles(Path.Combine(parent, "download")));
+        Assert.StartsWith("The update could not be installed: usb-helper-0.6.0-windows-x64.msi does not match its SHA-256.", model.Status);
+    }
 
     [Fact]
     public async Task TheCheckRunsInTheBackgroundAndShowsNothingUntilItHasAnAnswer()

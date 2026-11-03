@@ -5,8 +5,8 @@ using System.Text.Json;
 
 namespace UsbHelper.App.Update;
 
-/// <summary>A release the app can update to: its zip and the zip's SHA-256 file.</summary>
-public sealed record Release(string Version, Uri Zip, Uri Checksum);
+/// <summary>A release the app can update to: its zip or .msi (<see cref="UpdateKind"/>) and that file's SHA-256 file.</summary>
+public sealed record Release(string Version, Uri Download, Uri Checksum);
 
 /// <summary>
 /// The newest stable release and the newest beta, each only when newer than this version; the log line; and why the
@@ -27,7 +27,8 @@ public static class UpdateCheck
     /// <summary>The newest stable release, however many betas came after it; 404 while there is none.</summary>
     public const string LatestUrl = "https://api.github.com/repos/klangche/USB-helper/releases/latest";
 
-    public static async Task<UpdateCheckResult> FindAsync(HttpClient http, string current, TimeSpan timeout)
+    /// <param name="kind">Which asset a release must have to count: the zip, or the .msi for an .msi install.</param>
+    public static async Task<UpdateCheckResult> FindAsync(HttpClient http, string current, TimeSpan timeout, UpdateKind kind = UpdateKind.Portable)
     {
         using var cancel = new CancellationTokenSource(timeout);
         try
@@ -39,7 +40,7 @@ public static class UpdateCheck
             using var stable = await latest;
             var all = releases.RootElement.EnumerateArray().ToList();
             var stables = stable == null ? all : [.. all, stable.RootElement];
-            return Compare(Newest(stables, prerelease: false), Newest(all, prerelease: true), current);
+            return Compare(Newest(stables, prerelease: false, kind), Newest(all, prerelease: true, kind), current);
         }
         catch (GitHubException e)
         {
@@ -92,8 +93,8 @@ public static class UpdateCheck
         return new UpdateCheckResult(newerStable, newerBeta, log);
     }
 
-    // The highest version of one kind that is published (not a draft) and has its zip and checksum.
-    private static (ReleaseVersion, Release)? Newest(IEnumerable<JsonElement> releases, bool prerelease)
+    // The highest stable or beta version that is published (not a draft) and has its zip or .msi, and that file's checksum.
+    private static (ReleaseVersion, Release)? Newest(IEnumerable<JsonElement> releases, bool prerelease, UpdateKind kind)
     {
         (ReleaseVersion, Release)? newest = null;
         foreach (var release in releases)
@@ -103,13 +104,13 @@ public static class UpdateCheck
             {
                 continue;
             }
-            var zipName = $"usb-helper-{version}-windows-x64.zip";
+            var fileName = $"usb-helper-{version}-windows-x64.{kind.Extension()}";
             var assets = release.GetProperty("assets").EnumerateArray()
                 .ToDictionary(asset => asset.GetProperty("name").GetString() ?? "", asset => asset.GetProperty("browser_download_url").GetString() ?? "");
-            if (assets.TryGetValue(zipName, out var zip) && assets.TryGetValue(zipName + ".sha256", out var checksum)
+            if (assets.TryGetValue(fileName, out var file) && assets.TryGetValue(fileName + ".sha256", out var checksum)
                 && (newest is null || version.CompareTo(newest.Value.Item1) > 0))
             {
-                newest = (version, new Release(version.ToString(), new Uri(zip), new Uri(checksum)));
+                newest = (version, new Release(version.ToString(), new Uri(file), new Uri(checksum)));
             }
         }
         return newest;

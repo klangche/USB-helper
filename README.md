@@ -267,21 +267,45 @@ findings; they have no connection line of their own.
 
 ## Platforms
 
-- Windows x64: first target. Portable, no installation, no administrator
-  rights. The network is used only for the optional update check at start;
-  without it, the app works as normal.
+- Windows x64: first target. A per-user installer (`.msi`) or a portable zip,
+  both without administrator rights. The network is used only for the optional
+  update check at start; without it, the app works as normal.
 - macOS and Linux: planned, with the same GUI and diagnostics.
 
 ## Install
 
-Windows x64: download `usb-helper-<version>-windows-x64.zip` from the
-[releases](https://github.com/klangche/USB-helper/releases) and follow
-`READ_ME_FIRST.txt` in the zip. In short: unblock the zip once
-(`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in PowerShell,
-as it is not signed), unzip it, and start `UsbHelper.exe` in the `USB-helper`
-folder. No installation and no administrator rights are needed, and no
-network connection either (it is used only for the update check below).
+Windows x64: each [release](https://github.com/klangche/USB-helper/releases)
+has two downloads with the same app: an installer,
+`usb-helper-<version>-windows-x64.msi`, and a portable zip,
+`usb-helper-<version>-windows-x64.zip`. Neither needs administrator rights.
 Releases marked pre-release (`-beta.N`) are test builds of the next version.
+
+### Installer (.msi)
+
+Download the `.msi` and open it. It installs for the current user only, with
+no administrator rights and no UAC prompt, to
+`%LOCALAPPDATA%\Programs\USB-helper`, and adds USB-helper to the Start menu
+and to Apps & features (Settings > Apps > Installed apps). As the `.msi` is not
+signed, Windows SmartScreen may warn first: click "More info", then "Run
+anyway". A newer `.msi` (stable or beta) upgrades the installed one in place;
+an older one does not install over a newer one. Settings live in
+`%APPDATA%\USB-helper` and stay through upgrades. To uninstall, use Apps &
+features, or `msiexec /x usb-helper-<version>-windows-x64.msi`.
+
+Windows Installer versions have no pre-release part, so Apps & features shows
+an MSI version (`release/msi-version.sh`): `X.Y.Z` is `X.Y.(Z*1000+999)` and
+`X.Y.Z-beta.N` is `X.Y.(Z*1000+N)`. For example 0.6.0-beta.2 is 0.6.2 and
+0.6.0 is 0.6.999, so every beta sorts before its release and after the
+release before it. Pull request builds are 0.0.0. The real version is in the
+entry's comment and in Help > About.
+
+### Portable zip
+
+Download the zip and follow `READ_ME_FIRST.txt` in it. In short: unblock the
+zip once (`Unblock-File -Path .\usb-helper-<version>-windows-x64.zip` in
+PowerShell, as it is not signed), unzip it, and start `UsbHelper.exe` in the
+`USB-helper` folder. No installation and no administrator rights are needed,
+and no network connection either (it is used only for the update check below).
 
 The zip holds one folder:
 
@@ -296,21 +320,36 @@ USB-helper/
 Keep the files together; the folder can be moved anywhere. Nothing is
 unpacked elsewhere. To remove USB-helper, delete its folder.
 
-From 0.5.0: that version was one `USB-helper.exe` that unpacked the app to
+### From 0.5.0
+
+That version was one `USB-helper.exe` that unpacked the app to
 `%LOCALAPPDATA%\USB-helper\<version>`. This version does not use or touch
 that folder; delete it and the old `USB-helper.exe` by hand. The 0.5.0
 update cannot install this version (it reports that the zip holds no
 `USB-helper.exe` and keeps running 0.5.0): download it once by hand.
 
-Updates: after the window shows, the app asks GitHub Releases (no account or
-token) for the newest stable release and the newest beta, in the background:
-the window works as normal meanwhile. Only releases with a published SHA-256
-file (`usb-helper-<version>-windows-x64.zip.sha256`) count, so that every
-download can be verified. If either is newer than the running version, a
-notice at the top of the window shows "Update to stable X", "Update to beta
-Y" (whichever are newer) and "Skip"; otherwise nothing is shown. With no
-network, no answer within 2 seconds, a GitHub error or its rate limit, the
-check is skipped silently. On a choice, the app downloads that release's zip
+### Updates
+
+After the window shows, the app asks GitHub Releases (no account or token) for
+the newest stable release and the newest beta, in the background: the window
+works as normal meanwhile. Only releases with a published SHA-256 file
+(`usb-helper-<version>-windows-x64.zip.sha256`, or `.msi.sha256` for an
+installed app) count, so that every download can be verified. If either is
+newer than the running version, a notice at the top of the window shows
+"Update to stable X", "Update to beta Y" (whichever are newer) and "Skip";
+otherwise nothing is shown. With no network, no answer within 2 seconds, a
+GitHub error or its rate limit, the check is skipped silently.
+
+Installed by the `.msi` (the app runs from
+`%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
+release's `.msi` and its SHA-256 file to `%TEMP%\USB-helper-update`, verifies
+it, runs it (`msiexec /i ... /passive /norestart`: a progress bar, no
+questions, never a restart of the computer) and
+closes, so the installer can replace its files. Start USB-helper again from
+the Start menu when it is done. Releases from before the `.msi` (0.5.0 and
+older) are not offered to an installed app.
+
+Portable: on a choice, the app downloads that release's zip
 and its SHA-256 file, verifies the zip, unzips its `USB-helper` folder into a
 new folder `USB-helper-<version>` next to the running app's folder (as
 `USB-helper-<version> (2)` if that name is taken), starts `UsbHelper.exe`
@@ -326,8 +365,9 @@ skipped: no answer within 2 s".
 
 ## Usage
 
-Start `UsbHelper.exe` in the `USB-helper` folder (see Install). The window
-opens at once and shows what it is reading
+Start USB-helper from the Start menu (installer) or `UsbHelper.exe` in the
+`USB-helper` folder (portable zip; see Install). The window opens at once and
+shows what it is reading
 ("Loading database...", "Reading USB devices...", "Reading displays..."); the
 profiles and the tree fill in as they arrive. The window shows the USB tree.
 Its root is this computer, named after its computer profile when one matches,
@@ -432,7 +472,7 @@ minor version, a `!` such as `Changed!:` the major version; titles with none of
 these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
-(the published app's loose files in a `USB-helper` folder, see Install),
+and the `.msi` (the published app's loose files, see Install),
 creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
 request titles since the last release. Every merge into `dev` publishes a
 pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
@@ -454,6 +494,13 @@ the next release would get and `N` counts up from 1 for each beta of it
   notice (`ViewModels/UpdateViewModel`) are tested in `tests/UsbHelper.App.Tests`
   against a fake release feed. `release.yml` publishes `<zip>.sha256` with every
   release and beta for the update check.
+- `installer/Package.wxs`: the per-user `.msi`, built in `release.yml` with
+  WiX Toolset (the `wix` .NET tool, pinned in `.config/dotnet-tools.json`;
+  `dotnet tool restore`, then `dotnet wix build`, Windows only). It packs the
+  same files as the zip. Its `UpgradeCode` must never change: it is how a newer
+  `.msi` finds the installed one. `release.yml` installs, upgrades and
+  uninstalls every `.msi` it builds as a check. `release/msi-version.sh` maps
+  release versions to MSI versions, tested by `release/msi-version.test.sh`.
 - `src/UsbHelper.App/Assets`: the app icon. `usb-helper.svg` is the source;
   `usb-helper.ico` (16 to 256 pixels) is generated from it and is the exe icon
   (`ApplicationIcon`), which Avalonia also uses for every window. After changing
