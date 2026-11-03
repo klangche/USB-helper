@@ -1,0 +1,163 @@
+using System.Reflection;
+using System.Xml.Linq;
+using UsbHelper.App.Resources;
+using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Detection;
+
+namespace UsbHelper.App.Tests;
+
+public class MenuTests
+{
+    private static readonly XNamespace Avalonia = "https://github.com/avaloniaui";
+
+    // Records what the window was asked to do.
+    private sealed class FakeWindow : IMainWindowActions
+    {
+        public List<string> Calls { get; } = [];
+
+        public void ExportProfile() => Calls.Add(nameof(ExportProfile));
+
+        public void ExportLog() => Calls.Add(nameof(ExportLog));
+
+        public void ShowAbout() => Calls.Add(nameof(ShowAbout));
+
+        public void Exit() => Calls.Add(nameof(Exit));
+    }
+
+    private static MainViewModel Loaded(ComputerIdentity identity, FakeWindow window)
+    {
+        var viewModel = new MainViewModel(null, [], identity) { Window = window };
+        viewModel.Load([], 0);
+        return viewModel;
+    }
+
+    private static readonly ComputerIdentity Known = new("LENOVO", "21K5");
+
+    [Fact]
+    public void EachMenuCommandAsksTheWindowForItsAction()
+    {
+        var window = new FakeWindow();
+        var viewModel = Loaded(Known, window);
+
+        viewModel.ExportProfileCommand.Execute(null);
+        viewModel.ExportLogCommand.Execute(null);
+        viewModel.AboutCommand.Execute(null);
+        viewModel.ExitCommand.Execute(null);
+
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowAbout", "Exit"], window.Calls);
+    }
+
+    [Fact]
+    public void ExportProfileIsEnabledExactlyWhenTheButtonWasBefore()
+    {
+        var viewModel = new MainViewModel(null, [], Known) { Window = new FakeWindow() };
+        var changed = 0;
+        viewModel.ExportProfileCommand.CanExecuteChanged += (_, _) => changed++;
+        Assert.False(viewModel.CanExport);
+        Assert.False(viewModel.ExportProfileCommand.CanExecute(null)); // Still loading.
+
+        viewModel.Load([], 0);
+
+        Assert.True(viewModel.CanExport);
+        Assert.True(viewModel.ExportProfileCommand.CanExecute(null));
+        Assert.True(changed > 0);
+        // No manufacturer or model: no profile id, so no export.
+        Assert.False(Loaded(new ComputerIdentity(null, "21K5"), new FakeWindow()).ExportProfileCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void TheMenuAndTheButtonExportTheProfileWithTheSameCommand()
+    {
+        var window = MainWindowXaml();
+        var button = window.Descendants(Avalonia + "Button")
+            .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.ExportProfile}");
+        Assert.Equal("{Binding ExportProfileCommand}", (string?)button.Attribute("Command"));
+        Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
+    }
+
+    [Fact]
+    public void TheMenuHasFileAndHelpWithTheirItems()
+    {
+        var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
+        var top = menu.Elements(Avalonia + "MenuItem").Select(Key).ToList();
+        Assert.Equal(["MenuFile", "MenuHelp"], top);
+        Assert.Equal(["MenuExportProfile", "MenuExportLog", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
+        Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));
+    }
+
+    [Fact]
+    public void SettingsAndCheckForUpdatesAreDisabledUntilTheyExist()
+    {
+        var window = MainWindowXaml();
+        Assert.Equal("False", (string?)MenuItem(window, "MenuSettings").Attribute("IsEnabled"));
+        Assert.Equal("False", (string?)MenuItem(window, "MenuCheckForUpdates").Attribute("IsEnabled"));
+    }
+
+    [Fact]
+    public void EveryMenuItemHasItsOwnAccessKey()
+    {
+        var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
+        AssertAccessKeys(menu.Elements(Avalonia + "MenuItem").Select(Key));
+        foreach (var top in menu.Elements(Avalonia + "MenuItem"))
+        {
+            AssertAccessKeys(top.Elements(Avalonia + "MenuItem").Select(Key));
+        }
+    }
+
+    private static void AssertAccessKeys(IEnumerable<string> keys)
+    {
+        var accessKeys = keys.Select(key =>
+        {
+            var text = Strings.ResourceManager.GetString(key, Strings.Culture);
+            Assert.NotNull(text);
+            var index = text.IndexOf('_');
+            Assert.True(index >= 0 && index < text.Length - 1, $"{key}: \"{text}\" has no access key");
+            return char.ToUpperInvariant(text[index + 1]);
+        }).ToList();
+        Assert.Equal(accessKeys.Count, accessKeys.Distinct().Count());
+    }
+
+    [Fact]
+    public void AboutShowsTheRunningVersion()
+    {
+        var running = typeof(MainViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+            .InformationalVersion.Split('+')[0];
+        var about = new AboutViewModel();
+        Assert.Equal(running, about.Version);
+        Assert.Contains(running, about.VersionText);
+    }
+
+    [Fact]
+    public void AboutNamesTheLicenseTheIconAttributionAndTheRepository()
+    {
+        var about = new AboutViewModel();
+        Assert.Equal("USB-helper", about.Name);
+        Assert.Contains("MIT", about.License);
+        Assert.Contains("Font Awesome", about.IconAttribution);
+        Assert.Contains("CC BY 4.0", about.IconAttribution);
+        Assert.Equal(new Uri("https://github.com/klangche/USB-helper"), about.Repository);
+    }
+
+    private static string Key(XElement item) =>
+        ((string?)item.Attribute("Header"))?.Replace("{x:Static res:Strings.", "").TrimEnd('}') ?? "";
+
+    private static List<string> Items(XElement menu, string key) =>
+        menu.Elements(Avalonia + "MenuItem").Single(item => Key(item) == key)
+            .Elements(Avalonia + "MenuItem").Select(Key).ToList();
+
+    private static XElement MenuItem(XElement window, string key) =>
+        window.Descendants(Avalonia + "MenuItem").Single(item => Key(item) == key);
+
+    private static XElement MainWindowXaml()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
+        {
+            var candidate = Path.Combine(directory.FullName, "src", "UsbHelper.App", "MainWindow.axaml");
+            if (File.Exists(candidate))
+            {
+                return XElement.Load(candidate);
+            }
+        }
+        throw new FileNotFoundException("MainWindow.axaml");
+    }
+}
