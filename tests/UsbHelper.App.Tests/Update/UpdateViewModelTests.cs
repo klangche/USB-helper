@@ -41,8 +41,11 @@ public sealed class UpdateViewModelTests : IDisposable
         using var memory = new MemoryStream();
         using (var zip = new ZipArchive(memory, ZipArchiveMode.Create, leaveOpen: true))
         {
-            using var entry = zip.CreateEntry($"USB-helper/{PortableUpdate.ExeName}").Open();
-            entry.Write(Encoding.UTF8.GetBytes(text));
+            foreach (var path in new[] { "USB-helper/USB-helper.exe", "USB-helper/app/UsbHelper.exe" })
+            {
+                using var entry = zip.CreateEntry(path).Open();
+                entry.Write(Encoding.UTF8.GetBytes(text));
+            }
         }
         return memory.ToArray();
     }
@@ -282,7 +285,7 @@ public sealed class UpdateViewModelTests : IDisposable
 
         await model.InstallAsync(stable: false);
 
-        var exe = Path.Combine(parent, "USB-helper-0.7.0-beta.1", PortableUpdate.ExeName);
+        var exe = Path.Combine(parent, "USB-helper-0.7.0-beta.1", "USB-helper.exe");
         Assert.Equal([exe], restarted);
         Assert.Equal("app 0.7.0-beta.1", File.ReadAllText(exe));
         Assert.Equal($"Updated to 0.7.0-beta.1 in {Path.GetDirectoryName(exe)}; starting it", log.Entries[^1].Text);
