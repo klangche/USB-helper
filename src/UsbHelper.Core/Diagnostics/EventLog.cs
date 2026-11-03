@@ -174,8 +174,7 @@ public sealed class EventLog(TimeProvider? clock = null)
         {
             if (links.GetValueOrDefault(monitor.Id) != nodeId)
             {
-                var node = Below(tree).FirstOrDefault(item => item.Id == nodeId);
-                Add($"Display under a USB device: {monitor} under {node?.Name ?? nodeId} (same Windows container)");
+                Add($"Display under a USB device: {monitor} under {UsbTree.Find(tree, nodeId)?.Name ?? nodeId} (same Windows container)");
             }
         }
         foreach (var monitor in placement.Unlinked.Where(monitor => links.ContainsKey(monitor.Id)))
@@ -184,8 +183,6 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
         links = current;
     }
-
-    private static IEnumerable<UsbNode> Below(IEnumerable<UsbNode> nodes) => nodes.SelectMany(node => Below(node.Children).Prepend(node));
 
     public void ProfileChecked(string label, bool isChecked) => Add($"Profile {(isChecked ? "checked" : "unchecked")}: {label}");
 

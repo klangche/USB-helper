@@ -421,7 +421,9 @@ links nothing, and a monitor without a match stays in the group. The log says
 when a monitor is shown under a USB node and when that ends. While a
 DisplayLink device is connected, indirect monitors
 are not listed in the group: they stay under their DisplayLink device.
-Selecting the group or a monitor does not change what the status field covers.
+Selecting the group or a monitor in it does not change what the status field
+covers; a monitor shown under a USB node selects that node's controller, like
+anything else under it.
 The group follows monitors as they are connected and removed, and the log
 lists the monitors at start and each one connected or removed. A port in the
 tree that Windows reports as a USB-C connector (from its port connector
