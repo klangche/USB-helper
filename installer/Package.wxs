@@ -43,7 +43,9 @@
     <!-- Starts USB-helper.exe as the installing user (WixShellExec, from the Util extension). The app's own update runs
          the .msi with /passive and LAUNCHAPPONEXIT=1 (src/UsbHelper.App/Update/MsiInstall.cs): no last page, so the
          new version starts right after the install instead. -->
-    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]USB-helper.exe" />
+    <!-- Set once INSTALLFOLDER is resolved (CostFinalize), in the UI sequence for the last page and in the execute
+         sequence for LAUNCHAPPONEXIT. -->
+    <SetProperty Id="WixShellExecTarget" Value="[INSTALLFOLDER]USB-helper.exe" After="CostFinalize" Sequence="both" />
     <CustomAction Id="LaunchApplication" DllEntry="WixShellExec" Impersonate="yes" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" />
     <InstallExecuteSequence>
       <Custom Action="LaunchApplication" After="InstallFinalize" Condition="LAUNCHAPPONEXIT = 1 AND NOT REMOVE" />
