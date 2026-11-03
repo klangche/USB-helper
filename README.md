@@ -9,9 +9,9 @@ Status: first version for Windows; computer profiles still to be added.
 ## Features
 
 - Live USB tree with drawn tree lines from one root for the computer (the
-  host): controllers, hubs, occupied ports and devices. The whole tree is
-  always open; only the computer's row has a chevron, which hides or shows the
-  whole tree, and its name is bold while the tree is hidden. Updated on connect and
+  host): controllers, hubs, occupied ports and devices. Each controller has a
+  chevron that hides or shows its tree; at start only the busiest controller is
+  open, and a collapsed controller's name is bold. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -398,12 +398,15 @@ stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
-out. Every controller, hub and port is always open, including hubs built into
-the computer. Only the computer's row (the host) can be collapsed: click its
+out. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
-the whole tree; while it is hidden the computer's name is bold. The choice is
-kept while the app runs. A DisplayLink device is shown as a display: a "Display"
-badge and "Extended display: DisplayLink driver required" before its name;
+its tree; while it is hidden the controller's name is bold. At start only the
+selected controller (see below), the one with the most connected hubs and
+devices, is open, and only when it has any. The computer's row, the Displays
+group and everything below a controller, hubs built into the computer
+included, are always open. The choice is kept while the app runs. A
+DisplayLink device is shown as a display: a "Display" badge and "Extended
+display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". After the controllers, a
 "Displays" group lists each active monitor with its name and output type, for
 example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in

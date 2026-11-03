@@ -66,6 +66,8 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
+    // The controllers' first open or collapsed state is set once, when they first arrive.
+    private bool controllersShown;
     // The last refresh's monitors and its result for all controllers, for the setup export.
     private IReadOnlyList<DisplayMonitor>? monitors;
     private SystemsReport lastReport = DiagnosticEvaluator.EvaluateAll([], [], []);
@@ -454,6 +456,18 @@ public sealed class MainViewModel : ObservableObject
         else
         {
             Roots[0].UpdateHost(HostName, tree, lines, extraHops, monitors ?? []);
+        }
+        // Owner decision in #142: when the controllers first arrive, only the selected one, the busiest, is open, and only
+        // when it has devices. After that the user's choices are kept.
+        if (!controllersShown && tree.Count > 0)
+        {
+            controllersShown = true;
+            var busiest = tree.FirstOrDefault(controller => controller.Id == selectedControllerId);
+            var open = busiest != null && TopologyCounts.Depths([busiest]).Count > 0 ? busiest.Id : null;
+            foreach (var controller in Roots[0].Children.Where(item => item.CanExpand))
+            {
+                controller.IsExpanded = controller.Id == open;
+            }
         }
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
