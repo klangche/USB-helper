@@ -20,11 +20,13 @@ check "v0.1.0" "$(last $'v0.1.0\nv0.2.0-beta.1\nv0.2.0-beta.2\n')" "last release
 check "" "$(last $'v0.1.0-beta.1\n')" "last release, only beta tags"
 check "v0.10.0" "$(last $'v0.9.0\nv0.10.0\nv0.2.0\n')" "last release by version, not by text"
 check "v1.0.0" "$(last $'v0.9.0\nv1.0.0\nother\nv2\n')" "last release ignores other tags"
+check "v0.1.0" "$(last $'v0.1.0\nmacos-trial\n')" "last release ignores the macos-trial tag"
 
 check "0.2.0-beta.1" "$(beta 0.2.0 '')" "first beta, no tags"
 check "0.2.0-beta.1" "$(beta 0.2.0 $'v0.1.0\nv0.1.1-beta.1\n')" "first beta of a version"
 check "0.2.0-beta.3" "$(beta 0.2.0 $'v0.1.0\nv0.2.0-beta.1\nv0.2.0-beta.2\n')" "next beta counts up"
 check "0.2.0-beta.2" "$(beta 0.2.0 $'v0.2.0-beta.1\nv0.2.0-beta.1x\nv10.2.0-beta.1\n')" "only exact beta tags count"
+check "0.2.0-beta.2" "$(beta 0.2.0 $'v0.2.0-beta.1\nmacos-trial\n')" "beta count ignores the macos-trial tag"
 
 if ((failed)); then
   exit 1

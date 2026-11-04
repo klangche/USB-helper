@@ -295,7 +295,7 @@ findings; they have no connection line of their own.
   both without administrator rights. The network is used only for the optional
   update check at start; without it, the app works as normal.
 - macOS: experimental universal builds for Apple silicon and Intel are
-  available from GitHub Actions; live diagnostics are still in development.
+  available as the `macos-trial` pre-release; live diagnostics are still in development.
   Linux: planned.
 
 ## Install
@@ -357,12 +357,14 @@ unpacked elsewhere. To remove USB-helper, delete its folder, and
 
 ### macOS universal disk image
 
-macOS trial builds are available as artifacts from the [macOS trial
-workflow](https://github.com/klangche/USB-helper/actions/workflows/macos.yml).
-Open a successful run, download its `macos-trial-<run ID>` artifact, unzip it,
-then open the `.dmg` and drag `USB-helper.app` to the Applications folder. These are
-unsigned test builds, not GitHub releases; artifacts expire and are not offered
-by the app's update check. If Gatekeeper blocks the app and you trust this
+The latest macOS trial build is the pre-release [macOS
+trial](https://github.com/klangche/USB-helper/releases/tag/macos-trial) on the
+releases page. Download `usb-helper-<version>-macos-universal.dmg` from it
+directly (not a zip), open it, and drag `USB-helper.app` to the Applications
+folder. It is replaced on every push to `dev`. These are unsigned test builds,
+not releases: they are never marked Latest and the app's update check ignores
+them. (The workflow's artifacts are zip-wrapped by GitHub, which macOS may
+block; use the release.) If Gatekeeper blocks the app and you trust this
 download, run this command in Terminal after installing; it clears quarantine
 only from USB-helper.app and does not change Gatekeeper settings or any other
 files:
@@ -603,8 +605,8 @@ defaults apply; it is only replaced when a setting is changed.
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions: every pull request is built
-and tested on Windows; a separate macOS workflow builds trial artifacts for
-pull requests and `dev`. Pull requests go to the `dev` branch. When `dev` is
+and tested on Windows; a separate macOS workflow builds trial dmg artifacts for
+pull requests and `dev`, and keeps the `macos-trial` pre-release current. Pull requests go to the `dev` branch. When `dev` is
 ready, one pull request from `dev` to `main` is merged with a merge commit
 (not squash or rebase, so every pull request since the last release stays
 visible; `dev` is kept), and that merge is released automatically by
@@ -622,8 +624,10 @@ the pull request titles since the last release. Every merge into `dev`
 publishes a pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is
 the version the next release would get and `N` counts up from 1 for each beta
 of it (`release/beta-version.sh`).
-The macOS workflow does not create release tags or GitHub releases. macOS
-release behavior is deferred until the trial is accepted.
+The macOS workflow publishes only one pre-release, with the tag `macos-trial`
+(never Latest; not a version tag, so the Windows versioning and update check
+ignore it); its dmg is replaced on every push to `dev`. Other macOS release
+behavior is deferred until the trial is accepted.
 Beta tags never count as a release (`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
