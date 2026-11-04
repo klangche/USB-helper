@@ -1,9 +1,11 @@
 using System.Reflection;
 using System.Xml.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
+using InputKey = Avalonia.Input.Key;
 
 namespace UsbHelper.App.Tests;
 
@@ -91,10 +93,27 @@ public class MenuTests
         var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
 
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
-        Assert.Equal(["File", "Help"], top.Select(item => item.Header));
+        Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
         Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
+    }
+
+    [Fact]
+    public void TheMacHelpMenuIsNotNamedExactlyHelpSoMacOsAddsNoSearchField()
+    {
+        Assert.NotEqual("Help", MacNativeMenu.HelpTitle);
+        Assert.Equal("Help", MacNativeMenu.HelpTitle.TrimEnd('\u200B'));
+    }
+
+    [Fact]
+    public void TheMacAppMenuHasQuitOnly()
+    {
+        var menu = MacNativeMenu.CreateAppMenu(() => { });
+
+        var item = Assert.IsType<NativeMenuItem>(Assert.Single(menu.Items));
+        Assert.Equal("Quit USB-helper", item.Header);
+        Assert.Equal(new KeyGesture(InputKey.Q, KeyModifiers.Meta), item.Gesture);
     }
 
     [Fact]
