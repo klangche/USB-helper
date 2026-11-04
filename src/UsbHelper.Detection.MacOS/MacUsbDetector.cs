@@ -13,16 +13,19 @@ public sealed class MacUsbDetector : IUsbDetector
 
     internal static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(300);
 
-    private readonly IUsbNotificationSource _notifications;
+    private readonly IUsbNotificationSource? _notifications;
 
     internal MacUsbDetector(IIoRegistryReader reader, IUsbNotificationSource? notifications = null)
     {
         _reader = reader;
-        _notifications = notifications ?? (OperatingSystem.IsMacOS() ? new IoKitNotificationSource() : throw new PlatformNotSupportedException("macOS only."));
+        _notifications = notifications;
     }
 
     public IReadOnlyList<UsbNode> Enumerate() => UsbTreeBuilder.Build(_reader.ReadControllers());
 
-    public IDisposable Watch(IReadOnlyList<UsbNode> tree, Action<IReadOnlyList<UsbChange>> onChanges) =>
-        new MacUsbWatcher(_notifications, Enumerate, tree, onChanges, DebounceInterval);
+    public IDisposable Watch(IReadOnlyList<UsbNode> tree, Action<IReadOnlyList<UsbChange>> onChanges)
+    {
+        var notifications = _notifications ?? (OperatingSystem.IsMacOS() ? new IoKitNotificationSource() : throw new PlatformNotSupportedException("macOS only."));
+        return new MacUsbWatcher(notifications, Enumerate, tree, onChanges, DebounceInterval);
+    }
 }
