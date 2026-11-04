@@ -617,10 +617,11 @@ these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
 and the `.msi` (the starter and the published app's loose files, see Install),
-and publishes a GitHub release with notes from the pull request titles since
-the last release. Every merge into `dev` publishes a pre-release (beta) the
-same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version the next release would
-get and `N` counts up from 1 for each beta of it (`release/beta-version.sh`).
+creates the stable tag `vX.Y.Z`, and publishes a GitHub release with notes from
+the pull request titles since the last release. Every merge into `dev`
+publishes a pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is
+the version the next release would get and `N` counts up from 1 for each beta
+of it (`release/beta-version.sh`).
 The macOS workflow does not create release tags or GitHub releases. macOS
 release behavior is deferred until the trial is accepted.
 Beta tags never count as a release (`release/last-release.sh`).
