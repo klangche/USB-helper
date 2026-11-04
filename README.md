@@ -294,7 +294,9 @@ findings; they have no connection line of their own.
 - Windows x64: first target. A per-user installer (`.msi`) or a portable zip,
   both without administrator rights. The network is used only for the optional
   update check at start; without it, the app works as normal.
-- macOS and Linux: planned, with the same GUI and diagnostics.
+- macOS: experimental universal builds for Apple silicon and Intel are
+  available from GitHub Actions; live diagnostics are still in development.
+  Linux: planned.
 
 ## Install
 
@@ -302,7 +304,7 @@ Windows x64: each [release](https://github.com/klangche/USB-helper/releases)
 has two downloads with the same app: an installer,
 `usb-helper-<version>-windows-x64.msi`, and a portable zip,
 `usb-helper-<version>-windows-x64.zip`. Neither needs administrator rights.
-Releases marked pre-release (`-beta.N`) are test builds of the next version.
+Releases marked pre-release are test builds of the next version.
 
 ### Installer (.msi)
 
@@ -353,6 +355,24 @@ releases. Keep the files together; the folder can be moved anywhere. Nothing is
 unpacked elsewhere. To remove USB-helper, delete its folder, and
 `%APPDATA%\USB-helper` if you want its settings gone too (see Settings).
 
+### macOS universal disk image
+
+macOS trial builds are available as artifacts from the [macOS trial
+workflow](https://github.com/klangche/USB-helper/actions/workflows/macos.yml).
+Open a successful run, download its `macos-trial-<run ID>` artifact, unzip it,
+then open the `.dmg` and drag `USB-helper.app` to the Applications folder. These are
+unsigned test builds, not GitHub releases; artifacts expire and are not offered
+by the app's update check. If Gatekeeper blocks the app and you trust this
+download, run this command in Terminal after installing; it clears quarantine
+only from USB-helper.app and does not change Gatekeeper settings or any other
+files:
+
+```
+xattr -dr com.apple.quarantine /Applications/USB-helper.app
+```
+
+The disk image also includes `READ_ME_FIRST.txt` and the license.
+
 ### From 0.5.0
 
 That version was one `USB-helper.exe` that unpacked the app to
@@ -397,7 +417,8 @@ Portable: on a choice, the app opens that release's page on GitHub in the
 browser and keeps running; it does not download, unzip or replace itself.
 Download the new zip there and unzip it as under Install. The log
 (#87) lists the check's result, for example "Update check: beta
-0.7.0-beta.2 is newer than 0.6.0", "Opened the release page of 0.7.0-beta.2",
+0.7.0-beta.2 is newer than 0.6.0", "Opened the release page of
+0.7.0-beta.2",
 "Update skipped" or "Update check skipped: no answer within 2 s".
 
 ## Usage
@@ -582,7 +603,8 @@ defaults apply; it is only replaced when a setting is changed.
 
 C# on .NET 10, Avalonia for the GUI, YamlDotNet for the database, xUnit for
 tests. Builds and releases run on GitHub Actions: every pull request is built
-and tested on Windows. Pull requests go to the `dev` branch. When `dev` is
+and tested on Windows; a separate macOS workflow builds trial artifacts for
+pull requests and `dev`. Pull requests go to the `dev` branch. When `dev` is
 ready, one pull request from `dev` to `main` is merged with a merge commit
 (not squash or rebase, so every pull request since the last release stays
 visible; `dev` is kept), and that merge is released automatically by
@@ -595,12 +617,13 @@ these prefixes make no release). Versions start at 0.1.0. While the version is
 0.x, a `!` bumps only the minor version; a pull request titled
 `Release 1.0.0: ...` makes 1.0.0. The workflow then builds the portable zip
 and the `.msi` (the starter and the published app's loose files, see Install),
-creates the tag `vX.Y.Z` and publishes a GitHub release with notes from the pull
-request titles since the last release. Every merge into `dev` publishes a
-pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version
-the next release would get and `N` counts up from 1 for each beta of it
-(`release/beta-version.sh`). Beta tags never count as a release
-(`release/last-release.sh`).
+and publishes a GitHub release with notes from the pull request titles since
+the last release. Every merge into `dev` publishes a pre-release (beta) the
+same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is the version the next release would
+get and `N` counts up from 1 for each beta of it (`release/beta-version.sh`).
+The macOS workflow does not create release tags or GitHub releases. macOS
+release behavior is deferred until the trial is accepted.
+Beta tags never count as a release (`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.
