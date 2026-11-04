@@ -357,13 +357,12 @@ unpacked elsewhere. To remove USB-helper, delete its folder, and
 
 ### macOS universal disk image
 
-Every beta (pre-release `vX.Y.Z-beta.N`, see Releases) also carries
+Every release and every beta (pre-release `vX.Y.Z-beta.N`, see Releases) also carries
 `usb-helper-<version>-macos-universal.dmg` and its `.sha256`, built from the
-same commit and version as the Windows files. Download the dmg from the beta's
+same commit and version as the Windows files. Download the dmg from the release's
 page (not a zip), open it, and drag `USB-helper.app` to the Applications
-folder. Stable releases have no macOS file yet. These are unsigned test
-builds, and the app's update check ignores them. The dmg is added
-a little after the Windows files; if the macOS build failed, the beta has none. If Gatekeeper blocks the app and you trust this
+folder. These are unsigned builds, and the app's update check ignores them. The dmg is added
+a little after the Windows files; if the macOS build failed, the release has none. If Gatekeeper blocks the app and you trust this
 download, run this command in Terminal after installing; it clears quarantine
 only from USB-helper.app and does not change Gatekeeper settings or any other
 files:
@@ -622,10 +621,11 @@ the pull request titles since the last release. Every merge into `dev`
 publishes a pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is
 the version the next release would get and `N` counts up from 1 for each beta
 of it (`release/beta-version.sh`).
-Each beta also gets the macOS dmg as an extra asset. A separate job in
-`.github/workflows/macos.yml` waits for the beta release of the same commit,
+Each release and each beta also gets the macOS dmg as an extra asset. A separate job in
+`.github/workflows/macos.yml` waits for the release (on `main`) or beta (on `dev`) of the same commit,
 builds the dmg with that version and attaches it, so a slow macOS runner never
-delays or fails the Windows release; if that job fails, re-run it. Stable releases from `main` have no macOS asset yet.
+delays or fails the Windows release; if that job fails, re-run it. To add the dmg
+to an existing release, run that workflow by hand with its tag (for example `v0.7.0`).
 Beta tags never count as a release (`release/last-release.sh`).
 
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
