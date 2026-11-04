@@ -69,6 +69,20 @@ public class RealDatabaseTests
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
 
+    [Fact]
+    public void MacBookPro16M1MaxIsSelectedByExactModelAndKeepsUnknownsNull()
+    {
+        var mac = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", "MacBookPro18,2")];
+
+        Assert.Equal("Apple M1 Max", mac.Find("chip")!.Scalar);
+        Assert.Equal(4L, mac.Find("displays.max_external")!.Scalar);
+        Assert.Equal(4L, mac.Find("ports.thunderbolt4.thunderbolt")!.Scalar);
+        Assert.Null(mac.Find("limits.max_hubs")!.Scalar);
+        Assert.Null(mac.Find("limits.max_tiers")!.Scalar);
+        Assert.Equal(5L, mac.Find("limits.max_hops")!.Scalar);
+        Assert.NotEmpty(mac.Find("sources")!.Items);
+    }
+
     // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd until researched (#75).
     [Fact]
     public void AsusRogStrixG713RWInheritsWindowsAmd()
