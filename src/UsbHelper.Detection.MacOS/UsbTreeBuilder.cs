@@ -32,7 +32,39 @@ internal static class UsbTreeBuilder
         return path;
     }
 
-    private sealed record Placed(RegistryEntry Entry, long LocationId, IReadOnlyList<int> Path);
+    private sealed record Placed(RegistryEntry Entry, long LocationId, IReadOnlyList<int> Path)
+    {
+        /// <summary>Ports the hub's own port entries list, so a hub with nothing connected still has its ports.</summary>
+        public IReadOnlySet<int> HubPorts { get; } = PortsOf(Entry);
+    }
+
+    // A port entry says "PortNumber" on the host controller and "port" on a hub; both sit below the hub, not below the devices on it.
+    private static long? PortNumberOf(RegistryEntry entry) => entry.GetNumber("PortNumber") ?? entry.GetNumber("port");
+
+    private static HashSet<int> PortsOf(RegistryEntry hub)
+    {
+        var numbers = new HashSet<int>();
+        void Walk(RegistryEntry entry)
+        {
+            foreach (var child in entry.Children)
+            {
+                if (child.IsUsbDevice)
+                {
+                    continue;
+                }
+
+                if (PortNumberOf(child) is { } number and > 0)
+                {
+                    numbers.Add((int)number);
+                }
+
+                Walk(child);
+            }
+        }
+
+        Walk(hub);
+        return numbers;
+    }
 
     private static UsbNode Controller(RegistryEntry controller, int index)
     {
@@ -79,17 +111,19 @@ internal static class UsbTreeBuilder
                 }
                 // A device with a location but no port is the controller's root hub entry: its children are collected below.
             }
-            else if (entry.GetNumber("PortNumber") is { } number and > 0)
-            {
-                portNumbers.Add((int)number);
-            }
             else if (entry.ClassName.EndsWith("HubPort", StringComparison.Ordinal) && entry.GetNumber("locationID") is { } portLocation)
             {
                 // A hub port exists whether or not something is plugged in; without it an unplugged device has no port to show.
                 hubPorts.Add(PortPath(portLocation));
             }
+            else if (PortNumberOf(entry) is { } number and > 0)
+            {
+                portNumbers.Add((int)number);
+            }
 
-            Collect(entry.Children, devices, hubPorts, portNumbers, ref unplaced);
+            // Ports below a hub on a port belong to that hub, not to the root hub.
+            var below = entry.IsUsbDevice && entry.GetNumber("locationID") is { } at && PortPath(at).Count > 0 ? new SortedSet<int>() : portNumbers;
+            Collect(entry.Children, devices, hubPorts, below, ref unplaced);
         }
     }
 
@@ -119,7 +153,7 @@ internal static class UsbTreeBuilder
         {
             var below = devices.Select(d => d.Path).Concat(hubPorts)
                 .Where(path => path.Count == placed.Path.Count + 1 && path.Take(placed.Path.Count).SequenceEqual(placed.Path));
-            children = below.Select(path => path[^1]).Distinct().Order()
+            children = below.Select(path => path[^1]).Concat(placed.HubPorts).Distinct().Order()
                 .Select(number => Port(id, placed.Path, number, devices, hubPorts)).ToList();
         }
 

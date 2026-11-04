@@ -11,7 +11,7 @@ internal sealed class IoRegistryReader : IIoRegistryReader
 
     // Only these properties are read; a serial number or UUID is never touched.
     private static readonly string[] Keys =
-        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber"];
+        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber", "port"];
 
     public IReadOnlyList<RegistryEntry> ReadControllers()
     {
