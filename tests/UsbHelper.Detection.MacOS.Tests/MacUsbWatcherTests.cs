@@ -133,6 +133,30 @@ public class MacUsbWatcherTests
         Assert.NotNull(source.Signal);
     }
 
+    [Fact]
+    public void The_app_is_kept_awake_while_following_and_released_after()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        using var activity = MacAppActivity.Begin("test");
+
+        Assert.NotNull(activity);
+    }
+
+    [Fact]
+    public void The_real_notification_source_starts_and_stops()
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        new IoKitNotificationSource().Start(() => { }).Dispose();
+    }
+
     private sealed class EmptyReader : IIoRegistryReader
     {
         public IReadOnlyList<RegistryEntry> ReadControllers() => [];

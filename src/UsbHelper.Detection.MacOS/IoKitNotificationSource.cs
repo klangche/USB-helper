@@ -24,6 +24,7 @@ internal sealed class IoKitNotificationSource : IUsbNotificationSource
         private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private volatile bool _stop;
         private GCHandle _self;
+        private MacAppActivity? _activity;
 
         public Subscription(Action onSignal)
         {
@@ -45,11 +46,14 @@ internal sealed class IoKitNotificationSource : IUsbNotificationSource
                 _self.Free();
                 throw;
             }
+
+            _activity = MacAppActivity.Begin("Following USB changes");
         }
 
         public void Dispose()
         {
             _stop = true;
+            _activity?.Dispose();
             _thread.Join();
             _self.Free();
         }
