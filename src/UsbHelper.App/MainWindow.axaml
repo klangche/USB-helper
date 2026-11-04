@@ -11,7 +11,7 @@
   <DockPanel>
 
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
-    <Menu DockPanel.Dock="Top">
+    <Menu x:Name="MenuBar" DockPanel.Dock="Top">
       <MenuItem Header="{x:Static res:Strings.MenuFile}">
         <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />

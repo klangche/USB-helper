@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <!-- UsbHelper.exe in the release zip's USB-helper folder (#123). Not USB-helper.exe: the 0.5.0 launcher's update
          would take an exe of that name for a new launcher. The namespace stays the project's. -->
     <AssemblyName>UsbHelper</AssemblyName>
@@ -9,11 +9,16 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- The exe icon. Avalonia also makes it every window's icon. Assets/make-icon.sh generates it from the SVG. -->
+    <!-- The exe icon on Windows; on every system Avalonia makes it each window's icon. Assets/make-icon.sh generates it from the SVG. -->
     <ApplicationIcon>Assets\usb-helper.ico</ApplicationIcon>
     <!-- Published builds are compiled ahead of time, so the app starts without waiting for the JIT compiler. -->
     <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <!-- Windows only (#160): no console window and the Windows manifest. Other systems get a plain executable. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <OutputType>WinExe</OutputType>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +35,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UsbHelper.Core\UsbHelper.Core.csproj" />
+    <!-- Plain managed code with P/Invoke: it builds on every system, and only runs when the app picks it on Windows. -->
     <ProjectReference Include="..\UsbHelper.Detection.Windows\UsbHelper.Detection.Windows.csproj" />
+    <!-- Same for macOS: it uses IOKit only when the app picks it on macOS. -->
+    <ProjectReference Include="..\UsbHelper.Detection.MacOS\UsbHelper.Detection.MacOS.csproj" />
   </ItemGroup>
 
   <ItemGroup>

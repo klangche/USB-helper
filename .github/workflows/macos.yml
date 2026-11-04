@@ -1,0 +1,123 @@
+name: macOS trial builds
+
+on:
+  pull_request:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore --locked-mode
+
+      - run: dotnet build --no-restore -c Release
+
+      - run: dotnet format --verify-no-changes --no-restore
+
+      - run: dotnet test --no-build -c Release
+
+      - name: Publish ARM64 app
+        run: >-
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-arm64 --self-contained
+          -p:DebugType=none -p:Version=0.0.0-ci -o publish/osx-arm64
+
+      - name: Publish x64 app
+        run: >-
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-x64 --self-contained
+          -p:DebugType=none -p:Version=0.0.0-ci -o publish/osx-x64
+
+      - name: Build universal app package
+        run: bash release/build-macos-package.sh publish/osx-arm64 publish/osx-x64 0.0.0-ci package
+
+      - name: Test package layout
+        run: bash release/macos-package.test.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-trial-${{ github.run_id }}
+          path: |
+            package/usb-helper-*.dmg
+            package/usb-helper-*.dmg.sha256
+
+  # The dmg of a beta. It is attached to the beta release of this commit after the Windows release workflow has
+  # published it, in its own workflow so a macOS runner queue never delays or fails the Windows release.
+  # The runs of this workflow are not serialized; a failed or cancelled run is visible and can be re-run.
+  beta-release:
+    if: github.event_name == 'push' && github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.find.outputs.tag }}
+    steps:
+      - name: Wait for the beta release of this commit
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for _ in $(seq 1 60); do
+            tag=$(gh api "repos/$GH_REPO/releases?per_page=20" --jq "[.[] | select(.target_commitish == \"$GITHUB_SHA\" and .prerelease and (.tag_name | test(\"^v[0-9]+\\\\.[0-9]+\\\\.[0-9]+-beta\\\\.[0-9]+\$\")))] | first | .tag_name // empty")
+            if [ -n "$tag" ]; then
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "::error::No beta release of $GITHUB_SHA appeared within an hour (did the Windows release fail or make no beta?)."
+          exit 1
+
+  beta-dmg:
+    needs: beta-release
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore --locked-mode
+
+      - name: Publish ARM64 app
+        run: >-
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-arm64 --self-contained
+          -p:DebugType=none "-p:Version=${TAG#v}" -o publish/osx-arm64
+        env:
+          TAG: ${{ needs.beta-release.outputs.tag }}
+
+      - name: Publish x64 app
+        run: >-
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-x64 --self-contained
+          -p:DebugType=none "-p:Version=${TAG#v}" -o publish/osx-x64
+        env:
+          TAG: ${{ needs.beta-release.outputs.tag }}
+
+      - name: Build and test the disk image
+        env:
+          TAG: ${{ needs.beta-release.outputs.tag }}
+        run: |
+          bash release/build-macos-package.sh publish/osx-arm64 publish/osx-x64 "${TAG#v}" package
+          bash release/macos-package.test.sh
+
+      - name: Attach the dmg to the beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.beta-release.outputs.tag }}
+        run: gh release upload "$TAG" package/usb-helper-*-macos-universal.dmg package/usb-helper-*-macos-universal.dmg.sha256 --clobber

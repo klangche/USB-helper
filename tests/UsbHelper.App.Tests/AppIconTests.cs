@@ -25,6 +25,13 @@ public class AppIconTests
     }
 
     [Fact]
+    public void MacIconIsAnIcnsFile()
+    {
+        var icns = File.ReadAllBytes(Path.Combine(AppSource(), "Assets", "usb-helper.icns"));
+        Assert.Equal("icns", Encoding.ASCII.GetString(icns, 0, 4));
+    }
+
+    [Fact]
     public void EveryWindowShowsTheIcon()
     {
         // Avalonia builds the exe icon (ApplicationIcon) into the app under this name and gives it to every window.

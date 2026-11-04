@@ -390,4 +390,7 @@ This version keeps running.</value>
   <data name="UpdatePortableNote" xml:space="preserve">
     <value>Opens the release page in your browser: download the new zip there.</value>
   </data>
+  <data name="UpdateMacOsNote" xml:space="preserve">
+    <value>Opens the release page in your browser. Quit USB-helper, open the new .dmg there and drag USB-helper.app to Applications, replacing the old one.</value>
+  </data>
 </root>

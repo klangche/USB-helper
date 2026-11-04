@@ -1,11 +1,11 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.Versioning;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using UsbHelper.App.Platform;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
 using UsbHelper.App.Update;
@@ -13,7 +13,6 @@ using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
-using UsbHelper.Detection.Windows;
 
 namespace UsbHelper.App;
 
@@ -28,6 +27,10 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (OperatingSystem.IsMacOS())
+            {
+                MacNativeMenu.SetAppMenu(this, () => desktop.TryShutdown());
+            }
             var viewModel = Start(desktop);
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
             if (viewModel.Update is { } update) // set on Windows only
@@ -48,23 +51,24 @@ public partial class App : Application
         var log = new EventLog();
         log.Add("USB-helper started");
         var settings = SettingsViewModel.Load(SettingsFile.Default, log);
-        if (!OperatingSystem.IsWindows())
+        var platform = PlatformServices.Current();
+        if (!platform.IsSupported)
         {
-            var unavailable = new MainViewModel(new ComputerIdentity(null, null, MachineName: Environment.MachineName), log: log, settings: settings);
-            _ = LoadUnavailable(unavailable, log);
+            var unavailable = new MainViewModel(platform.ReadIdentity(), log: log, settings: settings);
+            _ = LoadUnavailable(unavailable, log, platform);
             return unavailable;
         }
 
         // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
         // The app runs from the app folder below USB-helper.exe (#130).
-        var kind = UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates open the release page");
-        var viewModel = new MainViewModel(WindowsComputerIdentity.Read(), ReadMonitors, log, settings)
+        var kind = OperatingSystem.IsMacOS() ? UpdateKind.MacOs : UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable or macOS; updates open the release page");
+        var viewModel = new MainViewModel(platform.ReadIdentity(), platform.ReadMonitors, log, settings)
         {
             Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
                 msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
-        _ = LoadInBackground(viewModel, log, desktop);
+        _ = LoadInBackground(viewModel, log, desktop, platform);
         return viewModel;
     }
 
@@ -88,12 +92,12 @@ public partial class App : Application
         desktop.Shutdown();
     }
 
-    private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log)
+    private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log, PlatformServices platform)
     {
         await LoadDatabase(viewModel, log);
         viewModel.IsLoading = false;
         viewModel.Notice = Strings.DetectionUnavailable;
-        log.Add("USB detection is not available on this operating system"); // After the database result, as on Windows.
+        log.Add($"USB detection is not available on {platform.Name} yet"); // After the database result, as on Windows.
     }
 
     // The database is built into the app (#102); every problem ends up in the window's database error list.
@@ -115,11 +119,10 @@ public partial class App : Application
     }
 
     // Each stage runs off the UI thread, so the window stays responsive and shows what it is reading.
-    [SupportedOSPlatform("windows")]
-    private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop)
+    private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop, PlatformServices platform)
     {
         await LoadDatabase(viewModel, log);
-        var detector = new WindowsUsbDetector();
+        var detector = platform.Detector;
         IReadOnlyList<UsbNode> tree;
         try
         {
@@ -127,7 +130,7 @@ public partial class App : Application
             tree = await Task.Run(detector.Enumerate);
             log.Add("Reading displays");
             viewModel.ReadingDisplays();
-            var monitors = await Task.Run(ReadMonitors);
+            var monitors = await Task.Run(platform.ReadMonitors);
             viewModel.Load(tree, monitors);
         }
         catch (Exception e)
@@ -149,20 +152,6 @@ public partial class App : Application
             // The tree stays visible; it just does not follow changes.
             log.Add($"Live updates are off: {e.Message}");
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.LiveUpdatesOff, e.Message);
-        }
-    }
-
-    // Unknown rather than a guess when Windows cannot report the display configuration.
-    [SupportedOSPlatform("windows")]
-    private static IReadOnlyList<DisplayMonitor>? ReadMonitors()
-    {
-        try
-        {
-            return WindowsDisplayReader.ReadMonitors();
-        }
-        catch (Win32Exception)
-        {
-            return null;
         }
     }
 }

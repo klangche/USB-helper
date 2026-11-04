@@ -1,8 +1,11 @@
 using System.Reflection;
 using System.Xml.Linq;
+using Avalonia.Controls;
+using Avalonia.Input;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
+using InputKey = Avalonia.Input.Key;
 
 namespace UsbHelper.App.Tests;
 
@@ -82,6 +85,47 @@ public class MenuTests
             .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.ExportProfile}");
         Assert.Equal("{Binding ExportProfileCommand}", (string?)button.Attribute("Command"));
         Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
+    }
+
+    [Fact]
+    public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit()
+    {
+        var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
+
+        var top = menu.Items.OfType<NativeMenuItem>().ToList();
+        Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
+        List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
+        Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
+    }
+
+    [Fact]
+    public void TheMacHelpMenuIsNotNamedExactlyHelpSoMacOsAddsNoSearchField()
+    {
+        Assert.NotEqual("Help", MacNativeMenu.HelpTitle);
+        Assert.Equal("Help", MacNativeMenu.HelpTitle.TrimEnd('\u200B'));
+    }
+
+    [Fact]
+    public void TheMacAppMenuHasQuitOnlyEvenWhenAvaloniaAddedItsOwnFirst()
+    {
+        var app = new Avalonia.Application();
+        // What Avalonia.Native does while the platform starts.
+        NativeMenu.SetMenu(app, [new NativeMenuItem("About Avalonia")]);
+
+        MacNativeMenu.SetAppMenu(app, () => { });
+
+        var item = Assert.IsType<NativeMenuItem>(Assert.Single(NativeMenu.GetMenu(app)!.Items));
+        Assert.Equal("Quit USB-helper", item.Header);
+        Assert.Equal(new KeyGesture(InputKey.Q, KeyModifiers.Meta), item.Gesture);
+    }
+
+    [Fact]
+    public void TheWindowMenuStaysInTheWindowXaml()
+    {
+        // The window menu is hidden only on macOS, in code; the Windows XAML keeps it visible.
+        var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
+        Assert.Null(menu.Attribute("IsVisible"));
     }
 
     [Fact]

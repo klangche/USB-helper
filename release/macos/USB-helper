@@ -1,0 +1,11 @@
+#!/bin/sh
+resources=$(CDPATH= cd -- "$(dirname "$0")/../Resources" && pwd)
+case "$(uname -m)" in
+  arm64) runtime=osx-arm64 ;;
+  x86_64) runtime=osx-x64 ;;
+  *)
+    echo "USB-helper does not support this Mac architecture." >&2
+    exit 1
+    ;;
+esac
+exec "$resources/$runtime/UsbHelper" "$@"

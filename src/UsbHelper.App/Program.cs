@@ -13,5 +13,7 @@ class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            // macOS: no Services, Hide or About Avalonia items (#180); the app menu is MacNativeMenu.SetAppMenu.
+            .With(new MacOSPlatformOptions { DisableDefaultApplicationMenuItems = true })
             .LogToTrace();
 }
