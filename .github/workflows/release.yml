@@ -99,8 +99,6 @@ jobs:
 
       - run: dotnet test --no-restore -c Release
 
-      - run: dotnet restore src/UsbHelper.App -r win-x64 --locked-mode
-
       # Loose files (#123): the exe, its DLLs and the .NET runtime in one folder, ReadyToRun, not trimmed. No single file:
       # nothing is extracted or unpacked at start.
       - name: Publish app
@@ -108,8 +106,6 @@ jobs:
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
           -p:DebugType=none
           -p:Version=${{ needs.version.outputs.version }} -o publish
-
-      - run: dotnet restore src/UsbHelper.Starter -r win-x64 --locked-mode
 
       # USB-helper.exe (#130): NativeAOT, so it starts app\UsbHelper.exe within milliseconds and needs no .NET runtime.
       - name: Publish starter
