@@ -68,6 +68,21 @@ public class UsbTreeBuilderTests
     }
 
     [Fact]
+    public void Hub_with_nothing_connected_keeps_its_ports_and_is_readable()
+    {
+        var hubPort = new RegistryEntry("AppleUSB20HubPort", "port", false, new Dictionary<string, object> { ["port"] = new byte[] { 1, 0, 0, 0 } }, []);
+        var hubPort2 = new RegistryEntry("AppleUSB20HubPort", "port", false, new Dictionary<string, object> { ["port"] = new byte[] { 2, 0, 0, 0 } }, []);
+        var driver = new RegistryEntry("AppleUSB20Hub", "driver", false, new Dictionary<string, object>(), [hubPort, hubPort2]);
+        var hub = Device(0x01100000, 0x2109, 0x2812, "USB 2.0 Hub", deviceClass: 9) with { Children = [driver] };
+        var tree = UsbTreeBuilder.Build([Controller(0x01000000, Port("hs", 1, hub))]);
+
+        var hubNode = tree[0].Children[0].Children[0].Children[0];
+        Assert.Equal([1, 2], hubNode.Children.Select(p => p.PortNumber));
+        Assert.Empty(UsbHelper.Core.Topology.TopologyCounts.Unreadable(tree));
+        Assert.Single(tree[0].Children[0].Children);
+    }
+
+    [Fact]
     public void Hub_gets_ports_for_its_devices_from_the_location_path()
     {
         var hub = Device(0x01100000, 0x2109, 0x2812, "USB3.0 Hub", deviceClass: 9);
