@@ -71,6 +71,49 @@ internal static partial class IoKit
     [LibraryImport(CoreFoundationLib)]
     private static partial void CFRelease(IntPtr value);
 
+    public const string FirstMatchNotification = "IOServiceFirstMatch";
+    public const string TerminatedNotification = "IOServiceTerminate";
+
+    [LibraryImport(IoKitLib)]
+    public static partial IntPtr IONotificationPortCreate(uint mainPort);
+
+    [LibraryImport(IoKitLib)]
+    public static partial void IONotificationPortDestroy(IntPtr port);
+
+    [LibraryImport(IoKitLib)]
+    public static partial IntPtr IONotificationPortGetRunLoopSource(IntPtr port);
+
+    [LibraryImport(IoKitLib, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial IntPtr IOServiceMatching(string className);
+
+    [LibraryImport(IoKitLib, EntryPoint = "IOServiceAddMatchingNotification", StringMarshalling = StringMarshalling.Utf8)]
+    private static unsafe partial int IOServiceAddMatchingNotification(
+        IntPtr port, string type, IntPtr matching, delegate* unmanaged<IntPtr, uint, void> callback, IntPtr refcon, out uint iterator);
+
+    /// <summary>Registers the callback; IOKit takes over <paramref name="matching"/>.</summary>
+    public static unsafe int AddNotification(IntPtr port, string type, IntPtr matching, IntPtr refcon, out uint iterator) =>
+        IOServiceAddMatchingNotification(port, type, matching, IoKitNotificationSource.CallbackPointer, refcon, out iterator);
+
+    [LibraryImport(CoreFoundationLib)]
+    private static partial IntPtr CFRunLoopGetCurrent();
+
+    [LibraryImport(CoreFoundationLib)]
+    private static partial void CFRunLoopAddSource(IntPtr loop, IntPtr source, IntPtr mode);
+
+    [LibraryImport(CoreFoundationLib)]
+    private static partial void CFRunLoopRemoveSource(IntPtr loop, IntPtr source, IntPtr mode);
+
+    [LibraryImport(CoreFoundationLib)]
+    private static partial int CFRunLoopRunInMode(IntPtr mode, double seconds, [MarshalAs(UnmanagedType.U1)] bool returnAfterSourceHandled);
+
+    private static readonly IntPtr DefaultMode = CFStringCreateWithCString(IntPtr.Zero, "kCFRunLoopDefaultMode", Utf8);
+
+    public static void AddToCurrentRunLoop(IntPtr source) => CFRunLoopAddSource(CFRunLoopGetCurrent(), source, DefaultMode);
+
+    public static void RemoveFromCurrentRunLoop(IntPtr source) => CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, DefaultMode);
+
+    public static void RunCurrentLoop(double seconds) => CFRunLoopRunInMode(DefaultMode, seconds, false);
+
     public static string? ClassName(uint entry) => CName(buffer => IOObjectGetClass(entry, buffer));
 
     public static string? EntryName(uint entry) => CName(buffer => IORegistryEntryGetName(entry, buffer));

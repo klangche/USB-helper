@@ -11,11 +11,18 @@ public sealed class MacUsbDetector : IUsbDetector
     {
     }
 
-    internal MacUsbDetector(IIoRegistryReader reader) => _reader = reader;
+    internal static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(300);
+
+    private readonly IUsbNotificationSource _notifications;
+
+    internal MacUsbDetector(IIoRegistryReader reader, IUsbNotificationSource? notifications = null)
+    {
+        _reader = reader;
+        _notifications = notifications ?? (OperatingSystem.IsMacOS() ? new IoKitNotificationSource() : throw new PlatformNotSupportedException("macOS only."));
+    }
 
     public IReadOnlyList<UsbNode> Enumerate() => UsbTreeBuilder.Build(_reader.ReadControllers());
 
-    /// <summary>Added by the change-detection step (#157).</summary>
     public IDisposable Watch(IReadOnlyList<UsbNode> tree, Action<IReadOnlyList<UsbChange>> onChanges) =>
-        throw new NotSupportedException("macOS change detection is not implemented yet.");
+        new MacUsbWatcher(_notifications, Enumerate, tree, onChanges, DebounceInterval);
 }
