@@ -72,9 +72,10 @@ internal static class UsbTreeBuilder
         var id = location is { } loc ? $"usb-controller-{loc:x8}" : $"usb-controller-unknown{index}";
 
         var devices = new List<Placed>();
+        var hubPorts = new List<IReadOnlyList<int>>();
         var portNumbers = new SortedSet<int>();
         var unplaced = 0;
-        Collect(controller.Children, devices, portNumbers, ref unplaced);
+        Collect(controller.Children, devices, hubPorts, portNumbers, ref unplaced);
 
         foreach (var device in devices)
         {
@@ -82,7 +83,7 @@ internal static class UsbTreeBuilder
         }
 
         var rootHubId = id + "|roothub";
-        var ports = portNumbers.Select(number => Port(rootHubId, [], number, devices)).ToList();
+        var ports = portNumbers.Select(number => Port(rootHubId, [], number, devices, hubPorts)).ToList();
         var problem = controller.Error != null ? $"Could not read the controller: {controller.Error}"
             : unplaced > 0 ? $"{unplaced} USB device(s) could not be placed because they report no location."
             : null;
@@ -92,7 +93,7 @@ internal static class UsbTreeBuilder
         };
     }
 
-    private static void Collect(IReadOnlyList<RegistryEntry> entries, List<Placed> devices, SortedSet<int> portNumbers, ref int unplaced)
+    private static void Collect(IReadOnlyList<RegistryEntry> entries, List<Placed> devices, List<IReadOnlyList<int>> hubPorts, SortedSet<int> portNumbers, ref int unplaced)
     {
         foreach (var entry in entries)
         {
@@ -110,6 +111,11 @@ internal static class UsbTreeBuilder
                 }
                 // A device with a location but no port is the controller's root hub entry: its children are collected below.
             }
+            else if (entry.ClassName.EndsWith("HubPort", StringComparison.Ordinal) && entry.GetNumber("locationID") is { } portLocation)
+            {
+                // A hub port exists whether or not something is plugged in; without it an unplugged device has no port to show.
+                hubPorts.Add(PortPath(portLocation));
+            }
             else if (PortNumberOf(entry) is { } number and > 0)
             {
                 portNumbers.Add((int)number);
@@ -117,22 +123,22 @@ internal static class UsbTreeBuilder
 
             // Ports below a hub on a port belong to that hub, not to the root hub.
             var below = entry.IsUsbDevice && entry.GetNumber("locationID") is { } at && PortPath(at).Count > 0 ? new SortedSet<int>() : portNumbers;
-            Collect(entry.Children, devices, below, ref unplaced);
+            Collect(entry.Children, devices, hubPorts, below, ref unplaced);
         }
     }
 
-    private static UsbNode Port(string hubId, IReadOnlyList<int> hubPath, int number, List<Placed> devices)
+    private static UsbNode Port(string hubId, IReadOnlyList<int> hubPath, int number, List<Placed> devices, List<IReadOnlyList<int>> hubPorts)
     {
         var id = $"{hubId}|port{number}";
         var path = hubPath.Append(number).ToList();
         var occupant = devices.FirstOrDefault(d => d.Path.SequenceEqual(path));
-        return new UsbNode(id, UsbNodeKind.Port, $"Port {number}", occupant == null ? [] : [Occupant(occupant, devices)])
+        return new UsbNode(id, UsbNodeKind.Port, $"Port {number}", occupant == null ? [] : [Occupant(occupant, devices, hubPorts)])
         {
             PortNumber = number,
         };
     }
 
-    private static UsbNode Occupant(Placed placed, List<Placed> devices)
+    private static UsbNode Occupant(Placed placed, List<Placed> devices, List<IReadOnlyList<int>> hubPorts)
     {
         var entry = placed.Entry;
         var id = $"usb-device-{placed.LocationId:x8}";
@@ -145,9 +151,10 @@ internal static class UsbTreeBuilder
         IReadOnlyList<UsbNode> children = [];
         if (isHub)
         {
-            var below = devices.Where(d => d.Path.Count == placed.Path.Count + 1 && d.Path.Take(placed.Path.Count).SequenceEqual(placed.Path));
-            children = below.Select(d => d.Path[^1]).Concat(placed.HubPorts).Distinct().Order()
-                .Select(number => Port(id, placed.Path, number, devices)).ToList();
+            var below = devices.Select(d => d.Path).Concat(hubPorts)
+                .Where(path => path.Count == placed.Path.Count + 1 && path.Take(placed.Path.Count).SequenceEqual(placed.Path));
+            children = below.Select(path => path[^1]).Concat(placed.HubPorts).Distinct().Order()
+                .Select(number => Port(id, placed.Path, number, devices, hubPorts)).ToList();
         }
 
         return new UsbNode(id, isHub ? UsbNodeKind.Hub : UsbNodeKind.Device, name, children)
