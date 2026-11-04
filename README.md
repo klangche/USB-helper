@@ -362,7 +362,7 @@ trial](https://github.com/klangche/USB-helper/releases/tag/macos-trial) on the
 releases page. Download `usb-helper-<version>-macos-universal.dmg` from it
 directly (not a zip), open it, and drag `USB-helper.app` to the Applications
 folder. It is replaced on every push to `dev`. These are unsigned test builds,
-not releases: they are never marked Latest and the app's update check ignores
+not stable releases: they are never marked Latest and the app's update check ignores
 them. (The workflow's artifacts are zip-wrapped by GitHub, which macOS may
 block; use the release.) If Gatekeeper blocks the app and you trust this
 download, run this command in Terminal after installing; it clears quarantine
