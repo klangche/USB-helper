@@ -49,3 +49,29 @@ jobs:
           path: |
             package/usb-helper-*.dmg
             package/usb-helper-*.dmg.sha256
+
+  # An isolated pre-release for downloading the dmg directly (artifacts are zip-wrapped, which macOS blocks).
+  # The tag macos-trial is not vX.Y.Z[-beta.N], so the Windows version scripts and the updater ignore it.
+  # To drop macOS: delete this job, then the macos-trial release and tag.
+  trial-release:
+    needs: macos
+    if: github.event_name != 'pull_request' && github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    concurrency: macos-trial-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: macos-trial-*
+          merge-multiple: true
+
+      - name: Replace the macos-trial pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete macos-trial --cleanup-tag --yes || true
+          gh release create macos-trial usb-helper-*-macos-universal.dmg usb-helper-*-macos-universal.dmg.sha256 \
+            --target "$GITHUB_SHA" --title "macOS trial (unsigned)" --prerelease --latest=false \
+            --notes "Unsigned macOS trial build of $GITHUB_SHA, not a release. Open the .dmg, drag USB-helper.app to Applications, and read READ_ME_FIRST.txt in the disk image. Replaced on every push to dev."
