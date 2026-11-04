@@ -32,6 +32,12 @@ public partial class MainWindow : Window, IMainWindowActions
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.Window = this;
+                if (OperatingSystem.IsMacOS())
+                {
+                    // macOS shows the menu in the system menu bar, not in the window (#178); Windows keeps the window menu.
+                    MenuBar.IsVisible = false;
+                    NativeMenu.SetMenu(this, MacNativeMenu.Create(viewModel));
+                }
                 if (viewModel.Update is { } update)
                 {
                     update.PropertyChanged += (_, e) =>

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Xml.Linq;
+using Avalonia.Controls;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
@@ -82,6 +83,27 @@ public class MenuTests
             .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.ExportProfile}");
         Assert.Equal("{Binding ExportProfileCommand}", (string?)button.Attribute("Command"));
         Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
+    }
+
+    [Fact]
+    public void TheMacMenuBarHasTheWindowMenusWithoutAccessKeysOrExit()
+    {
+        var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
+
+        var top = menu.Items.OfType<NativeMenuItem>().ToList();
+        Assert.Equal(["File", "Edit", "Help"], top.Select(item => item.Header));
+        List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
+        Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Copy tree as text"], Headers(1));
+        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(2));
+    }
+
+    [Fact]
+    public void TheWindowMenuStaysInTheWindowXaml()
+    {
+        // The window menu is hidden only on macOS, in code; the Windows XAML keeps it visible.
+        var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
+        Assert.Null(menu.Attribute("IsVisible"));
     }
 
     [Fact]
