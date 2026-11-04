@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -27,6 +28,10 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (OperatingSystem.IsMacOS())
+            {
+                NativeMenu.SetMenu(this, MacNativeMenu.CreateAppMenu(() => desktop.TryShutdown()));
+            }
             var viewModel = Start(desktop);
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
             if (viewModel.Update is { } update) // set on Windows only

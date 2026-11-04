@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 
@@ -11,6 +12,18 @@ namespace UsbHelper.App;
 /// </summary>
 public static class MacNativeMenu
 {
+    // macOS treats a menu titled exactly "Help" as the help menu and adds a search field to it (#180). A zero-width space
+    // after the title looks the same but is not recognised.
+    public const string HelpTitle = "Help\u200B";
+
+    /// <summary>The application menu with Quit only: no About Avalonia, Services, Hide or Show All (#180).</summary>
+    public static NativeMenu CreateAppMenu(Action quit)
+    {
+        var item = new NativeMenuItem("Quit USB-helper") { Gesture = new KeyGesture(Key.Q, KeyModifiers.Meta) };
+        item.Click += (_, _) => quit();
+        return [item];
+    }
+
     public static NativeMenu Create(MainViewModel viewModel) =>
     [
         Top(Strings.MenuFile,
@@ -21,7 +34,7 @@ public static class MacNativeMenu
             Item(Strings.MenuCopyTree, viewModel.CopyTreeCommand),
             new NativeMenuItemSeparator(),
             Item(Strings.MenuSettings, viewModel.SettingsCommand)),
-        Top(Strings.MenuHelp,
+        Top(HelpTitle,
             viewModel.Update is { } update ? Item(Strings.MenuCheckForUpdates, update.CheckNow) : new NativeMenuItem(Label(Strings.MenuCheckForUpdates)) { IsEnabled = false },
             new NativeMenuItemSeparator(),
             Item(Strings.MenuAbout, viewModel.AboutCommand)),
