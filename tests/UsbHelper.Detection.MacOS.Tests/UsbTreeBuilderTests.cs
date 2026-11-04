@@ -83,6 +83,25 @@ public class UsbTreeBuilderTests
         Assert.Equal("Unknown USB device", hubNode.Children[1].Children[0].Name);
     }
 
+    private static RegistryEntry HubPort(long location) =>
+        new("AppleUSB30HubPort", "port", false, new Dictionary<string, object> { ["locationID"] = location }, []);
+
+    [Fact]
+    public void Hub_keeps_its_empty_ports_so_an_unplugged_device_has_a_port_to_show_on()
+    {
+        var hub = Device(0x01100000, 0x2109, 0x2812, "Hub", deviceClass: 9);
+        var stick = Device(0x01120000, 1, 2, "Stick");
+
+        var plugged = UsbTreeBuilder.Build([Controller(0x01000000, Port("hs", 1, hub), HubPort(0x01110000), HubPort(0x01120000), stick)]);
+        var unplugged = UsbTreeBuilder.Build([Controller(0x01000000, Port("hs", 1, hub), HubPort(0x01110000), HubPort(0x01120000))]);
+
+        var hubNode = unplugged[0].Children[0].Children[0].Children[0];
+        Assert.Equal([1, 2], hubNode.Children.Select(p => p.PortNumber));
+        Assert.All(hubNode.Children, p => Assert.Empty(p.Children));
+        Assert.Equal("usb-device-01100000|port2", hubNode.Children[1].Id);
+        Assert.Equal("usb-device-01100000|port2", plugged[0].Children[0].Children[0].Children[0].Children[1].Id);
+    }
+
     [Fact]
     public void Ids_are_the_same_on_repeated_reads()
     {
