@@ -107,11 +107,15 @@ public class MenuTests
     }
 
     [Fact]
-    public void TheMacAppMenuHasQuitOnly()
+    public void TheMacAppMenuHasQuitOnlyEvenWhenAvaloniaAddedItsOwnFirst()
     {
-        var menu = MacNativeMenu.CreateAppMenu(() => { });
+        var app = new Avalonia.Application();
+        // What Avalonia.Native does while the platform starts.
+        NativeMenu.SetMenu(app, [new NativeMenuItem("About Avalonia")]);
 
-        var item = Assert.IsType<NativeMenuItem>(Assert.Single(menu.Items));
+        MacNativeMenu.SetAppMenu(app, () => { });
+
+        var item = Assert.IsType<NativeMenuItem>(Assert.Single(NativeMenu.GetMenu(app)!.Items));
         Assert.Equal("Quit USB-helper", item.Header);
         Assert.Equal(new KeyGesture(InputKey.Q, KeyModifiers.Meta), item.Gesture);
     }

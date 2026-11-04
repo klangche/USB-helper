@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using UsbHelper.App.Resources;
@@ -16,12 +17,25 @@ public static class MacNativeMenu
     // after the title looks the same but is not recognised.
     public const string HelpTitle = "Help\u200B";
 
-    /// <summary>The application menu with Quit only: no About Avalonia, Services, Hide or Show All (#180).</summary>
-    public static NativeMenu CreateAppMenu(Action quit)
+    /// <summary>
+    /// Makes the application menu Quit only: no About Avalonia, Services, Hide or Show All (#180, #181). Avalonia.Native
+    /// builds its default "About Avalonia" menu while the platform starts, before the app's own code runs, and exports it
+    /// then; a menu set on the application afterwards is never exported. So the existing menu is changed in place, which
+    /// the exporter follows.
+    /// </summary>
+    public static void SetAppMenu(Application app, Action quit)
     {
         var item = new NativeMenuItem("Quit USB-helper") { Gesture = new KeyGesture(Key.Q, KeyModifiers.Meta) };
         item.Click += (_, _) => quit();
-        return [item];
+        if (NativeMenu.GetMenu(app) is { } menu)
+        {
+            menu.Items.Clear();
+            menu.Items.Add(item);
+        }
+        else
+        {
+            NativeMenu.SetMenu(app, [item]);
+        }
     }
 
     public static NativeMenu Create(MainViewModel viewModel) =>
