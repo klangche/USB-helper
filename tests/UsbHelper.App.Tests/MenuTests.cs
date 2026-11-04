@@ -86,16 +86,15 @@ public class MenuTests
     }
 
     [Fact]
-    public void TheMacMenuBarHasTheWindowMenusWithoutAccessKeysOrExit()
+    public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit()
     {
         var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
 
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
-        Assert.Equal(["File", "Edit", "Help"], top.Select(item => item.Header));
+        Assert.Equal(["File", "Help"], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
-        Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Settings..."], Headers(0));
-        Assert.Equal(["Copy tree as text"], Headers(1));
-        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(2));
+        Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
     }
 
     [Fact]
