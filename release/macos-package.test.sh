@@ -17,11 +17,13 @@ printf 'managed assembly' > "$arm64/UsbHelper.dll"
 cp "$arm64/UsbHelper.dll" "$x64/UsbHelper.dll"
 cat > "$bin/lipo" <<'EOF'
 #!/usr/bin/env bash
-if [[ $1 == -verify_arch ]]; then
-  [[ -f ${*: -1} ]]
-else
-  exit 2
+if [[ $# == 3 && -f $1 && $2 == -verify_arch ]]; then
+  case "$3" in
+    arm64|x86_64) exit 0 ;;
+  *) exit 2 ;;
+  esac
 fi
+exit 2
 EOF
 cat > "$bin/uname" <<'EOF'
 #!/usr/bin/env bash

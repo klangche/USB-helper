@@ -43,7 +43,7 @@ for runtime in osx-arm64 osx-x64; do
     echo "The $runtime publish output has no executable UsbHelper apphost." >&2
     exit 1
   fi
-  lipo -verify_arch "$architecture" "$apphost"
+  lipo "$apphost" -verify_arch "$architecture"
   cp -R "$source" "$resources/$runtime"
 done
 
