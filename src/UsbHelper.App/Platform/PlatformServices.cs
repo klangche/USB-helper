@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.Versioning;
 using UsbHelper.Core.Detection;
+using UsbHelper.Detection.MacOS;
 using UsbHelper.Detection.Windows;
 
 namespace UsbHelper.App.Platform;
@@ -19,15 +20,20 @@ public sealed record PlatformServices(
     Func<ComputerIdentity> ReadIdentity,
     Func<IReadOnlyList<DisplayMonitor>?> ReadMonitors)
 {
-    public static PlatformServices Current() => OperatingSystem.IsWindows() ? Windows() : Unsupported();
+    public static PlatformServices Current() =>
+        OperatingSystem.IsWindows() ? Windows() : OperatingSystem.IsMacOS() ? MacOS() : Unsupported();
 
     [SupportedOSPlatform("windows")]
     public static PlatformServices Windows() => new(
         "Windows", IsSupported: true, new WindowsUsbDetector(), WindowsComputerIdentity.Read, ReadWindowsMonitors);
 
+    [SupportedOSPlatform("macos")]
+    public static PlatformServices MacOS() => new(
+        "macOS", IsSupported: true, new MacUsbDetector(), MacComputerIdentity.Read, ReadMacMonitors);
+
     /// <summary>
-    /// Placeholder until macOS detection exists (#156-#158) and for any other operating system: it reports that detection
-    /// is not available and never returns made-up data.
+    /// For any operating system without detection: it reports that detection is not available and never returns
+    /// made-up data.
     /// </summary>
     public static PlatformServices Unsupported() => new(
         OperatingSystem.IsMacOS() ? "macOS" : "this operating system", IsSupported: false,
@@ -42,6 +48,20 @@ public sealed record PlatformServices(
             return WindowsDisplayReader.ReadMonitors();
         }
         catch (Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    // Unknown rather than a guess when System Information cannot report the displays.
+    [SupportedOSPlatform("macos")]
+    private static IReadOnlyList<DisplayMonitor>? ReadMacMonitors()
+    {
+        try
+        {
+            return new MacDisplayReader().ReadMonitors();
+        }
+        catch (InvalidOperationException)
         {
             return null;
         }

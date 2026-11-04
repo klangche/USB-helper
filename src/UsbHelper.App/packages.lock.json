@@ -209,6 +209,12 @@
           "YamlDotNet": "[18.1.0, )"
         }
       },
+      "usbhelper.detection.macos": {
+        "type": "Project",
+        "dependencies": {
+          "UsbHelper.Core": "[1.0.0, )"
+        }
+      },
       "usbhelper.detection.windows": {
         "type": "Project",
         "dependencies": {
