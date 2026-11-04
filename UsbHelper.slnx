@@ -3,12 +3,14 @@
     <Project Path="src/UsbHelper.App/UsbHelper.App.csproj" />
     <Project Path="src/UsbHelper.Cli/UsbHelper.Cli.csproj" />
     <Project Path="src/UsbHelper.Core/UsbHelper.Core.csproj" />
+    <Project Path="src/UsbHelper.Detection.MacOS/UsbHelper.Detection.MacOS.csproj" />
     <Project Path="src/UsbHelper.Detection.Windows/UsbHelper.Detection.Windows.csproj" />
     <Project Path="src/UsbHelper.Starter/UsbHelper.Starter.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/UsbHelper.App.Tests/UsbHelper.App.Tests.csproj" />
     <Project Path="tests/UsbHelper.Core.Tests/UsbHelper.Core.Tests.csproj" />
+    <Project Path="tests/UsbHelper.Detection.MacOS.Tests/UsbHelper.Detection.MacOS.Tests.csproj" />
     <Project Path="tests/UsbHelper.Detection.Windows.Tests/UsbHelper.Detection.Windows.Tests.csproj" />
     <Project Path="tests/UsbHelper.Starter.Tests/UsbHelper.Starter.Tests.csproj" />
   </Folder>
