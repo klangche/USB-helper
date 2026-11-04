@@ -5,8 +5,9 @@ using UsbHelper.App.ViewModels;
 namespace UsbHelper.App;
 
 /// <summary>
-/// The same File, Edit and Help items as the window's menu, for macOS's system menu bar (#178). Quit and the application
-/// menu come from macOS itself, so there is no Exit item.
+/// The window menu's items for macOS's system menu bar (#178). Quit and the application menu come from macOS itself, so
+/// there is no Exit item. There is no Edit menu (#179): macOS adds AutoFill, Start Dictation, Emoji &amp; Symbols and Writing
+/// Tools to any menu titled Edit, and "Copy tree as text" is the only item, so it sits in File instead.
 /// </summary>
 public static class MacNativeMenu
 {
@@ -17,8 +18,9 @@ public static class MacNativeMenu
             Item(Strings.MenuExportLog, viewModel.ExportLogCommand),
             Item(Strings.MenuExportSetup, viewModel.ExportSetupCommand),
             new NativeMenuItemSeparator(),
+            Item(Strings.MenuCopyTree, viewModel.CopyTreeCommand),
+            new NativeMenuItemSeparator(),
             Item(Strings.MenuSettings, viewModel.SettingsCommand)),
-        Top(Strings.MenuEdit, Item(Strings.MenuCopyTree, viewModel.CopyTreeCommand)),
         Top(Strings.MenuHelp,
             viewModel.Update is { } update ? Item(Strings.MenuCheckForUpdates, update.CheckNow) : new NativeMenuItem(Label(Strings.MenuCheckForUpdates)) { IsEnabled = false },
             new NativeMenuItemSeparator(),
