@@ -281,6 +281,31 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task AMacOsAppOpensTheReleasePageAndExplainsHowToReplaceTheApp()
+    {
+        var tag = "v0.7.0-beta.1";
+        var dmg = $"https://github.com/klangche/USB-helper/releases/download/{tag}/usb-helper-0.7.0-beta.1-macos-universal.dmg";
+        var release = $$"""{"tag_name":"{{tag}}","draft":false,"prerelease":true,"assets":[{"name":"usb-helper-0.7.0-beta.1-macos-universal.dmg","browser_download_url":"{{dmg}}"},{"name":"usb-helper-0.7.0-beta.1-macos-universal.dmg.sha256","browser_download_url":"{{dmg}}.sha256"}]}""";
+        var github = new FakeHttp((request, _) => Task.FromResult(request.RequestUri!.ToString() switch
+        {
+            UpdateCheck.ReleasesUrl => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent($"[{release}]", Encoding.UTF8, "application/json") },
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+        }));
+        var model = new UpdateViewModel(github.Client(), "0.6.0", UpdateKind.MacOs, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
+        await model.CheckAsync();
+        Assert.Contains("Quit USB-helper", model.Note);
+        Assert.Contains("drag USB-helper.app to Applications", model.Note);
+
+        await model.InstallAsync(stable: false);
+
+        Assert.Equal([new Uri("https://github.com/klangche/USB-helper/releases/tag/v0.7.0-beta.1")], opened);
+        Assert.Empty(restarted);
+        Assert.DoesNotContain(github.Requests, url => url.ToString().Contains("/releases/download/", StringComparison.Ordinal));
+        Assert.Empty(Directory.GetFiles(app)); // the running app is never touched
+        Assert.False(model.IsOffered);
+    }
+
+    [Fact]
     public async Task AnMsiInstallHasNoNote()
     {
         var model = MsiModel(GitHub());

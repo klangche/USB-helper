@@ -40,6 +40,8 @@ hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/nu
 trap 'hdiutil detach "$mountpoint" -quiet; rm -rf "$temporary"' EXIT
 [[ -f $mountpoint/USB-helper.app/Contents/Info.plist ]]
 [[ -f $mountpoint/USB-helper.app/Contents/MacOS/USB-helper ]]
+[[ $(plutil -extract CFBundleName raw "$mountpoint/USB-helper.app/Contents/Info.plist") == USB-helper ]]
+[[ $(plutil -extract CFBundleDisplayName raw "$mountpoint/USB-helper.app/Contents/Info.plist") == USB-helper ]]
 [[ -s $mountpoint/USB-helper.app/Contents/Resources/usb-helper.icns ]]
 [[ $(plutil -extract CFBundleIconFile raw "$mountpoint/USB-helper.app/Contents/Info.plist") == usb-helper ]]
 [[ -f $mountpoint/USB-helper.app/Contents/Resources/osx-arm64/UsbHelper.dll ]]

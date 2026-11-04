@@ -239,4 +239,84 @@ public class UpdateCheckTests
         Assert.Null(result.Stable);
         Assert.StartsWith("Update check skipped: ", result.Log);
     }
+
+    // A release with exactly these assets, each with the URL GitHub gives it.
+    private static string WithAssets(string tag, bool prerelease, params string[] names)
+    {
+        var assets = names.Select(name => $$"""{"name":"{{name}}","browser_download_url":"https://github.com/klangche/USB-helper/releases/download/{{tag}}/{{name}}"}""");
+        return $$"""{"tag_name":"{{tag}}","draft":false,"prerelease":{{(prerelease ? "true" : "false")}},"assets":[{{string.Join(',', assets)}}]}""";
+    }
+
+    private static string Mac(string tag, bool prerelease, bool dmg = true, bool checksum = true)
+    {
+        var name = $"usb-helper-{tag.TrimStart('v')}-macos-universal.dmg";
+        return WithAssets(tag, prerelease, [.. dmg ? new[] { name } : [], .. checksum ? new[] { name + ".sha256" } : []]);
+    }
+
+    [Fact]
+    public async Task AMacOsAppIsOfferedTheDmgOfTheNewestStableAndBeta()
+    {
+        var feed = Feed(
+            Mac("v0.7.0-beta.2", prerelease: true),
+            Mac("v0.6.0", prerelease: false),
+            Mac("v0.5.1", prerelease: false));
+
+        var result = await UpdateCheck.FindAsync(feed.Client(), "0.5.0", Timeout, UpdateKind.MacOs);
+
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/download/v0.6.0/usb-helper-0.6.0-macos-universal.dmg", result.Stable!.Download.ToString());
+        Assert.Equal(result.Stable.Download + ".sha256", result.Stable.Checksum.ToString());
+        Assert.Equal("https://github.com/klangche/USB-helper/releases/tag/v0.6.0", result.Stable.Page.ToString());
+        Assert.Equal("0.7.0-beta.2", result.Beta!.Version);
+    }
+
+    [Fact]
+    public async Task AMacOsAppSkipsABetaWithoutItsDmgOrChecksum()
+    {
+        // Like beta.9, whose macOS job was cancelled: the Windows files alone are not a macOS update.
+        var feed = Feed(
+            Release("v0.7.0-beta.3", prerelease: true),
+            Mac("v0.7.0-beta.2", prerelease: true, dmg: false),
+            Mac("v0.7.0-beta.1", prerelease: true, checksum: false),
+            Mac("v0.6.0", prerelease: false, checksum: false));
+
+        var result = await UpdateCheck.FindAsync(feed.Client(), "0.5.0", Timeout, UpdateKind.MacOs);
+
+        Assert.Null(result.Stable);
+        Assert.Null(result.Beta);
+    }
+
+    [Fact]
+    public async Task AMacOsAppTakesAnEarlierBetaWhenTheNewestHasNoDmg()
+    {
+        var feed = Feed(Release("v0.7.0-beta.9", prerelease: true), Mac("v0.7.0-beta.8", prerelease: true));
+
+        var result = await UpdateCheck.FindAsync(feed.Client(), "0.6.0", Timeout, UpdateKind.MacOs);
+
+        Assert.Equal("0.7.0-beta.8", result.Beta!.Version);
+    }
+
+    [Theory]
+    [InlineData(UpdateKind.Portable)]
+    [InlineData(UpdateKind.Msi)]
+    public async Task WindowsUpdatesIgnoreMacOsAssets(UpdateKind kind)
+    {
+        var feed = Feed(Mac("v0.7.0-beta.2", prerelease: true), Mac("v0.6.0", prerelease: false));
+
+        var result = await UpdateCheck.FindAsync(feed.Client(), "0.5.0", Timeout, kind);
+
+        Assert.Null(result.Stable);
+        Assert.Null(result.Beta);
+    }
+
+    [Fact]
+    public async Task AWindowsUpdateStillFindsItsFilesOnAReleaseThatAlsoHasTheDmg()
+    {
+        var both = WithAssets("v0.6.0", false,
+            "usb-helper-0.6.0-macos-universal.dmg", "usb-helper-0.6.0-macos-universal.dmg.sha256",
+            "usb-helper-0.6.0-windows-x64.zip", "usb-helper-0.6.0-windows-x64.zip.sha256");
+
+        var result = await UpdateCheck.FindAsync(Feed(both).Client(), "0.5.0", Timeout);
+
+        Assert.EndsWith("windows-x64.zip", result.Stable!.Download.ToString());
+    }
 }

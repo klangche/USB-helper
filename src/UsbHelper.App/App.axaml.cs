@@ -57,8 +57,8 @@ public partial class App : Application
 
         // Installed by the .msi (#124) or unzipped (#123): the update takes the matching release asset.
         // The app runs from the app folder below USB-helper.exe (#130).
-        var kind = UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable; updates open the release page");
+        var kind = OperatingSystem.IsMacOS() ? UpdateKind.MacOs : UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable or macOS; updates open the release page");
         var viewModel = new MainViewModel(platform.ReadIdentity(), platform.ReadMonitors, log, settings)
         {
             Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
