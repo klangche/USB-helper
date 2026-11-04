@@ -1,0 +1,40 @@
+inherits: macos-apple-silicon
+manufacturer: Apple Inc.
+model: MacBookPro18,2
+name: MacBook Pro (16-inch, 2021)
+chip: Apple M1 Max
+
+limits:
+  max_hubs: null
+  max_tiers: null
+
+displays:
+  max_external: 4
+  restrictions:
+    - "Apple: up to three external displays at up to 6K and one at up to 4K (60 Hz) with the M1 Max, in addition to the built-in display. The HDMI port drives one display."
+
+ports:
+  thunderbolt4:
+    usb: usb-c
+    thunderbolt: 4
+    usb4: true
+    displayport_alt_mode: true
+    native_displayport: true
+    limitations:
+      - "Three identical Thunderbolt 4 (USB-C) ports; support charging, DisplayPort, Thunderbolt 4 and USB 4. Which physical port is which is not recorded."
+  hdmi:
+    hdmi: true
+    limitations:
+      - "One HDMI output for a single display."
+
+notes:
+  - "MacBook Pro (16-inch, 2021) with M1 Max. Model identifier MacBookPro18,2 read from the owner's Mac (system_profiler SPHardwareDataType, 2026-11-04)."
+  - "The same Apple specification page covers the M1 Pro variant (MacBookPro18,1), which allows only two external displays. This profile is for MacBookPro18,2, the M1 Max."
+  - "Hub, tier and hop limits are not published by Apple: max_hubs and max_tiers stay unknown; max_hops and recommended_hops are inherited from macos-apple-silicon (tested in practice, not a specification)."
+
+sources:
+  - "https://support.apple.com/en-us/111901 (Apple, 'MacBook Pro (16-inch, 2021) - Technical Specifications': ports, external display support, chip)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-04
