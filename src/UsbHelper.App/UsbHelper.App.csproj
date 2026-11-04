@@ -37,6 +37,8 @@
     <ProjectReference Include="..\UsbHelper.Core\UsbHelper.Core.csproj" />
     <!-- Plain managed code with P/Invoke: it builds on every system, and only runs when the app picks it on Windows. -->
     <ProjectReference Include="..\UsbHelper.Detection.Windows\UsbHelper.Detection.Windows.csproj" />
+    <!-- Same for macOS: it uses IOKit only when the app picks it on macOS. -->
+    <ProjectReference Include="..\UsbHelper.Detection.MacOS\UsbHelper.Detection.MacOS.csproj" />
   </ItemGroup>
 
   <ItemGroup>

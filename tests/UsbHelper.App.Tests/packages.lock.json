@@ -298,6 +298,7 @@
           "Avalonia.Fonts.Inter": "[12.1.4, )",
           "Avalonia.Themes.Fluent": "[12.1.4, )",
           "UsbHelper.Core": "[1.0.0, )",
+          "UsbHelper.Detection.MacOS": "[1.0.0, )",
           "UsbHelper.Detection.Windows": "[1.0.0, )"
         }
       },
@@ -305,6 +306,12 @@
         "type": "Project",
         "dependencies": {
           "YamlDotNet": "[18.1.0, )"
+        }
+      },
+      "usbhelper.detection.macos": {
+        "type": "Project",
+        "dependencies": {
+          "UsbHelper.Core": "[1.0.0, )"
         }
       },
       "usbhelper.detection.windows": {

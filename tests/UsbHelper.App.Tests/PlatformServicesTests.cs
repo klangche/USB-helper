@@ -1,4 +1,6 @@
 using UsbHelper.App.Platform;
+using UsbHelper.Core.Database;
+using UsbHelper.Detection.MacOS;
 
 namespace UsbHelper.App.Tests;
 
@@ -30,11 +32,21 @@ public class PlatformServicesTests
     }
 
     [Fact]
-    public void CurrentIsSupportedOnlyOnWindows()
+    public void CurrentIsSupportedOnWindowsAndMacOS()
     {
         var platform = PlatformServices.Current();
 
-        Assert.Equal(OperatingSystem.IsWindows(), platform.IsSupported);
+        Assert.Equal(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(), platform.IsSupported);
         Assert.Equal(OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsMacOS() ? "macOS" : "this operating system", platform.Name);
+    }
+
+    [Theory]
+    [InlineData("MacBookPro18,2", "Apple M1 Max")]
+    [InlineData("Mac17,5", "Apple A18 Pro")]
+    public void MacIdentityFindsTheBundledComputerProfile(string model, string chip)
+    {
+        var identity = MacComputerIdentity.Build(model, chip, appleSilicon: true, "Mac");
+
+        Assert.True(EmbeddedDatabase.Load().Computers.ContainsKey(ComputerProfileId.From(identity.Manufacturer!, identity.Model!)));
     }
 }

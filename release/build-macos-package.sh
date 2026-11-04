@@ -49,6 +49,7 @@ done
 
 sed "s/__CORE_VERSION__/$core_version/g" "$script_dir/macos/Info.plist" > "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist"
+cp "$script_dir/../src/UsbHelper.App/Assets/usb-helper.icns" "$resources/usb-helper.icns"
 cp "$script_dir/macos/USB-helper" "$app/Contents/MacOS/USB-helper"
 chmod +x "$app/Contents/MacOS/USB-helper"
 stage="$temporary/package"
@@ -68,6 +69,7 @@ mounted=1
 for entry in \
   USB-helper.app/Contents/Info.plist \
   USB-helper.app/Contents/MacOS/USB-helper \
+  USB-helper.app/Contents/Resources/usb-helper.icns \
   USB-helper.app/Contents/Resources/osx-arm64/UsbHelper \
   USB-helper.app/Contents/Resources/osx-x64/UsbHelper \
   LICENSE.txt \
