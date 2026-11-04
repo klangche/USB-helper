@@ -10,7 +10,7 @@ namespace UsbHelper.App.ViewModels;
 /// shows and never blocks it; when a newer stable release or beta exists, the popup offers each with "Skip". Help > Check
 /// for updates (<see cref="CheckNow"/>) runs it again and also says when there is nothing newer or the check failed. A
 /// picked release: an .msi install downloads and verifies the .msi (#124) and hands it to <paramref name="restart"/>; the
-/// portable app opens the release's page in the browser and does not download or replace itself (#131).
+/// portable and macOS apps open the release's page in the browser and do not download or replace themselves (#131, #163): on macOS the user quits the app and replaces USB-helper.app from the .dmg.
 /// </summary>
 /// <param name="current">This app's version.</param>
 /// <param name="kind">How this app was installed: which release asset it takes.</param>
@@ -81,8 +81,9 @@ public sealed class UpdateViewModel(
     /// <summary>The beta choice's text, or null when no newer beta exists.</summary>
     public string? BetaText => found?.Beta is { } beta ? string.Format(CultureInfo.CurrentCulture, Strings.UpdateToBeta, beta.Version) : null;
 
-    /// <summary>The portable app's hint that a choice opens the release page; null for an .msi install or with nothing to choose.</summary>
-    public string? Note => kind == UpdateKind.Portable && (found?.Stable != null || found?.Beta != null) ? Strings.UpdatePortableNote : null;
+    /// <summary>The hint that a choice opens the release page (portable, macOS); null for an .msi install or with nothing to choose.</summary>
+    public string? Note => !kind.OpensReleasePage() || (found?.Stable == null && found?.Beta == null) ? null
+        : kind == UpdateKind.MacOs ? Strings.UpdateMacOsNote : Strings.UpdatePortableNote;
 
     /// <summary>The download's progress, or why the update failed.</summary>
     public string? Status
@@ -159,7 +160,7 @@ public sealed class UpdateViewModel(
     }
 
     /// <summary>
-    /// The picked release. Portable: opens its page and closes the popup. Msi: downloads, verifies and runs it; a failure
+    /// The picked release. Portable and macOS: opens its page and closes the popup. Msi: downloads, verifies and runs it; a failure
     /// is shown in <see cref="Status"/> and this app keeps running.
     /// </summary>
     public async Task InstallAsync(bool stable)
@@ -168,7 +169,7 @@ public sealed class UpdateViewModel(
         {
             return;
         }
-        if (kind == UpdateKind.Portable)
+        if (kind.OpensReleasePage())
         {
             openPage(release.Page);
             log.Add($"Opened the release page of {release.Version}");

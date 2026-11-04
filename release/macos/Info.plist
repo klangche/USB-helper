@@ -8,6 +8,8 @@
   <string>usb-helper</string>
   <key>CFBundleIdentifier</key>
   <string>com.klangche.usbhelper</string>
+  <key>CFBundleDisplayName</key>
+  <string>USB-helper</string>
   <key>CFBundleName</key>
   <string>USB-helper</string>
   <key>CFBundlePackageType</key>

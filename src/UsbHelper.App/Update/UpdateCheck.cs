@@ -6,8 +6,8 @@ using System.Text.Json;
 namespace UsbHelper.App.Update;
 
 /// <summary>
-/// A release the app can update to: its zip or .msi (<see cref="UpdateKind"/>), that file's SHA-256 file, and its page on
-/// GitHub, which the portable app opens instead of downloading (#131).
+/// A release the app can update to: its zip, .msi or macOS .dmg (<see cref="UpdateKind"/>), that file's SHA-256 file, and its page on
+/// GitHub, which the portable and macOS apps open instead of downloading (#131).
 /// </summary>
 public sealed record Release(string Version, Uri Download, Uri Checksum, Uri Page);
 
@@ -33,7 +33,7 @@ public static class UpdateCheck
     // A release's page is this plus its tag.
     private const string ReleasePages = "https://github.com/klangche/USB-helper/releases/tag/";
 
-    /// <param name="kind">Which asset a release must have to count: the zip, or the .msi for an .msi install.</param>
+    /// <param name="kind">Which asset a release must have to count: the zip, the .msi for an .msi install, or the .dmg on macOS.</param>
     public static async Task<UpdateCheckResult> FindAsync(HttpClient http, string current, TimeSpan timeout, UpdateKind kind = UpdateKind.Portable)
     {
         using var cancel = new CancellationTokenSource(timeout);
@@ -99,7 +99,7 @@ public static class UpdateCheck
         return new UpdateCheckResult(newerStable, newerBeta, log);
     }
 
-    // The highest stable or beta version that is published (not a draft) and has its zip or .msi, and that file's checksum.
+    // The highest stable or beta version that is published (not a draft) and has its zip, .msi or .dmg, and that file's checksum.
     private static (ReleaseVersion, Release)? Newest(IEnumerable<JsonElement> releases, bool prerelease, UpdateKind kind)
     {
         (ReleaseVersion, Release)? newest = null;
@@ -110,7 +110,7 @@ public static class UpdateCheck
             {
                 continue;
             }
-            var fileName = $"usb-helper-{version}-windows-x64.{kind.Extension()}";
+            var fileName = kind.AssetName(version.ToString());
             var assets = release.GetProperty("assets").EnumerateArray()
                 .ToDictionary(asset => asset.GetProperty("name").GetString() ?? "", asset => asset.GetProperty("browser_download_url").GetString() ?? "");
             if (assets.TryGetValue(fileName, out var file) && assets.TryGetValue(fileName + ".sha256", out var checksum)
