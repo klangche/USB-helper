@@ -91,6 +91,15 @@ public class MenuTests
         Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
     }
 
+    // #199: the room or system name field uses PlaceholderText; Watermark is obsolete in Avalonia (AVLN5001).
+    [Fact]
+    public void TheRoomNameFieldUsesPlaceholderText()
+    {
+        var box = MainWindowXaml().Descendants(Avalonia + "TextBox").Single(element => (string?)element.Attribute("Text") == "{Binding RoomName}");
+        Assert.Equal("{x:Static res:Strings.RoomName}", (string?)box.Attribute("PlaceholderText"));
+        Assert.Null(box.Attribute("Watermark"));
+    }
+
     // #189: the toolbar button says "Export" and makes the full setup export, like File > Export full setup.
     [Fact]
     public void TheToolbarExportButtonMakesTheFullSetupExport()
