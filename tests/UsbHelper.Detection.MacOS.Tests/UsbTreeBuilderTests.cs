@@ -118,26 +118,21 @@ public class UsbTreeBuilderTests
     }
 
     // #187, from the owner's capture on a MacBookPro18,2: "PortNumber" is the USB-C receptacle (1-3), the same on its
-    // hs and ss entry; the place on the root hub is "port" and the locationID nibble.
-    private static RegistryEntry RootPort(string className, long receptacle, int port, long location, params RegistryEntry[] children) =>
-        new(className, "port", false, new Dictionary<string, object>
-        {
-            ["PortNumber"] = receptacle,
-            ["usb-port-number"] = new byte[] { (byte)port, 0, 0, 0 },
-            ["port"] = new byte[] { (byte)port, 0, 0, 0 },
-            ["locationID"] = location,
-        }, children);
+    // hs and ss entry; the place on the root hub is the locationID nibble. "port" is CFData, which the reader does not
+    // decode, so the entry holds only what IoRegistryReader really returns.
+    private static RegistryEntry RootPort(string className, long receptacle, long location, params RegistryEntry[] children) =>
+        new(className, "port", false, new Dictionary<string, object> { ["PortNumber"] = receptacle, ["locationID"] = location }, children);
 
     [Fact]
     public void Every_apple_silicon_controller_has_root_ports_1_and_2_whatever_its_receptacle()
     {
         var tree = UsbTreeBuilder.Build(
         [
-            Controller(0, RootPort("AppleUSB20XHCIARMPort", 1, 1, 0x00100000), RootPort("AppleT8103USB30XHCIPort", 1, 2, 0x00200000)),
+            Controller(0, RootPort("AppleUSB20XHCIARMPort", 1, 0x00100000), RootPort("AppleT8103USB30XHCIPort", 1, 0x00200000)),
             Controller(0x02000000,
-                RootPort("AppleUSB20XHCIARMPort", 3, 1, 0x02100000, Device(0x02100000, 0x0BDA, 0x5411, "USB2.1 Hub", deviceClass: 9)),
-                RootPort("AppleT8103USB30XHCIPort", 3, 2, 0x02200000, Device(0x02200000, 0x0BDA, 0x0411, "USB3.2 Hub", deviceClass: 9))),
-            Controller(0x01000000, RootPort("AppleUSB20XHCIARMPort", 2, 1, 0x01100000), RootPort("AppleT8103USB30XHCIPort", 2, 2, 0x01200000)),
+                RootPort("AppleUSB20XHCIARMPort", 3, 0x02100000, Device(0x02100000, 0x0BDA, 0x5411, "USB2.1 Hub", deviceClass: 9)),
+                RootPort("AppleT8103USB30XHCIPort", 3, 0x02200000, Device(0x02200000, 0x0BDA, 0x0411, "USB3.2 Hub", deviceClass: 9))),
+            Controller(0x01000000, RootPort("AppleUSB20XHCIARMPort", 2, 0x01100000), RootPort("AppleT8103USB30XHCIPort", 2, 0x01200000)),
         ]);
 
         Assert.All(tree, controller => Assert.Equal([1, 2], controller.Children[0].Children.Select(p => p.PortNumber)));
