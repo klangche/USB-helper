@@ -376,6 +376,21 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(LimitState.Exceeded, exceeded.Hubs.State);
     }
 
+    // #185: the ASUS run where the hub on port 2 failed enumeration showed "Hubs: 3" as if it were exact.
+    [Fact]
+    public void UnidentifiedDeviceMakesCountsUnknown()
+    {
+        var failed = Device("UNKNOWN", problem: "Windows stopped this device because it reported problems (code 43).");
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("HUB", Hub("HUB2"), failed)))];
+
+        var report = Evaluate(tree, Profile());
+
+        Assert.Equal(LimitState.Unknown, report.Hubs.State);
+        Assert.Equal(LimitState.Unknown, report.Tiers.State);
+        Assert.Contains(new Finding(FactKind.Unknown, "UNKNOWN", "UNKNOWN",
+            "This device could not be identified, so it may be a hub; the hub count and depths are at least what is shown."), report.Findings);
+    }
+
     [Fact]
     public void DevicesBehindUnreadableHubAreUnknownNotDisconnected()
     {

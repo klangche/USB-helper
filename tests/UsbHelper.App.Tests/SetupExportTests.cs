@@ -96,11 +96,33 @@ public class SetupExportTests
         Assert.Contains(log.Entries, entry => entry.Text == "Setup exported");
     }
 
+    // #186: exports on the same day must not overwrite each other; the room or system name tells them apart.
     [Fact]
-    public void TheFileNameNamesTheComputerAndTheDate()
+    public void TheFileNameHasTheDateAndTimeAndNoRoomWhenNoneIsEntered()
     {
-        Assert.Equal("usb-helper-setup-Dell-Inc.-Latitude-7450-2026-11-03.zip", NewViewModel().SetupFileName(Date));
-        Assert.Equal("usb-helper-setup-computer-2026-11-03.zip", new MainViewModel(new ComputerIdentity(null, null)).SetupFileName(Date));
+        var viewModel = NewViewModel();
+
+        Assert.Equal("usb-helper_2026-11-03_18-02-41.zip", viewModel.SetupFileName(new DateTime(2026, 11, 3, 18, 2, 41)));
+        viewModel.RoomName = "   ";
+        Assert.Equal("usb-helper_2026-11-03_18-02-41.zip", viewModel.SetupFileName(new DateTime(2026, 11, 3, 18, 2, 41)));
+    }
+
+    [Fact]
+    public void TheFileNameHasTheRoomOrSystemName()
+    {
+        var viewModel = NewViewModel();
+        viewModel.RoomName = " Room 4.12 ";
+
+        Assert.Equal("usb-helper_Room 4.12_2026-11-03_09-05-07.zip", viewModel.SetupFileName(new DateTime(2026, 11, 3, 9, 5, 7)));
+    }
+
+    [Fact]
+    public void CharactersNotAllowedInFileNamesBecomeDashes()
+    {
+        var viewModel = NewViewModel();
+        viewModel.RoomName = "B2/Lab:3*?\"<>|\t";
+
+        Assert.Equal("usb-helper_B2-Lab-3-------_2026-11-03_09-05-07.zip", viewModel.SetupFileName(new DateTime(2026, 11, 3, 9, 5, 7)));
     }
 
     [Fact]

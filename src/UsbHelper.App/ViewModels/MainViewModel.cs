@@ -239,9 +239,26 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Export full setup (#135).</summary>
     public RelayCommand ExportSetupCommand { get; }
 
-    /// <summary><c>usb-helper-setup-&lt;manufacturer&gt;-&lt;model&gt;-&lt;date&gt;.zip</c>; the save dialog lets the user change it.</summary>
-    public string SetupFileName(DateOnly date) =>
-        $"usb-helper-setup-{Path.GetFileNameWithoutExtension(ComputerProfileExport.FileName(identity))}-{date:yyyy-MM-dd}.zip";
+    /// <summary>The room or system name the user typed (#186), for the setup export's file name. Not saved between runs.</summary>
+    public string RoomName
+    {
+        get => roomName;
+        set => SetField(ref roomName, value ?? "");
+    }
+
+    private string roomName = "";
+
+    /// <summary>
+    /// <c>usb-helper_&lt;room or system name&gt;_YYYY-MM-DD_HH-mm-ss.zip</c>, or without the name when none is entered (#186);
+    /// the save dialog lets the user change it. Characters a file name cannot hold become <c>-</c>.
+    /// </summary>
+    public string SetupFileName(DateTime time)
+    {
+        var invalid = Path.GetInvalidFileNameChars().Concat(['\\', '/', ':', '*', '?', '"', '<', '>', '|']).ToHashSet();
+        var room = new string(RoomName.Select(c => invalid.Contains(c) || char.IsControl(c) ? '-' : c).ToArray()).Trim();
+        var stamp = time.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture);
+        return room.Length == 0 ? $"usb-helper_{stamp}.zip" : $"usb-helper_{room}_{stamp}.zip";
+    }
 
     /// <summary>
     /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's

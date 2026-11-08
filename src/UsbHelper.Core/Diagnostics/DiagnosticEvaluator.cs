@@ -64,8 +64,9 @@ public static class DiagnosticEvaluator
         var unreadable = TopologyCounts.Unreadable(tree).ToList();
         foreach (var node in unreadable)
         {
-            findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name,
-                "What is connected behind it cannot be read, so the hub count and depths are at least what is shown."));
+            findings.Add(new Finding(FactKind.Unknown, node.Id, node.Name, TopologyCounts.IsUnidentified(node)
+                ? "This device could not be identified, so it may be a hub; the hub count and depths are at least what is shown."
+                : "What is connected behind it cannot be read, so the hub count and depths are at least what is shown."));
         }
         foreach (var hub in TopologyCounts.PossiblyBuiltIn(tree))
         {

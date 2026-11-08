@@ -52,20 +52,26 @@
       <DropDownButton Content="{x:Static res:Strings.Computers}">
         <DropDownButton.Flyout>
           <Flyout Placement="BottomEdgeAlignedLeft">
-            <ScrollViewer MaxHeight="480">
-              <ItemsControl ItemsSource="{Binding Computers}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ProfileOption">
-                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
+            <!-- The profile export of this computer sits on top of the list (#189). -->
+            <StackPanel Spacing="4">
+              <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" HorizontalAlignment="Stretch" />
+              <Separator />
+              <ScrollViewer MaxHeight="480">
+                <ItemsControl ItemsSource="{Binding Computers}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ProfileOption">
+                      <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </StackPanel>
           </Flyout>
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" />
+      <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
+      <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
 
