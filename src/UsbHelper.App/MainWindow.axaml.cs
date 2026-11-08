@@ -110,7 +110,7 @@ public partial class MainWindow : Window, IMainWindowActions
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = Strings.ExportSetupTitle,
-                SuggestedFileName = viewModel.SetupFileName(DateOnly.FromDateTime(DateTime.Now)),
+                SuggestedFileName = viewModel.SetupFileName(DateTime.Now),
                 DefaultExtension = "zip",
                 FileTypeChoices = [new FilePickerFileType("Zip") { Patterns = ["*.zip"] }],
             });

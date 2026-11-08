@@ -327,6 +327,9 @@ This version keeps running.</value>
   <data name="MenuExportSetup" xml:space="preserve">
     <value>Export full set_up...</value>
   </data>
+  <data name="RoomName" xml:space="preserve">
+    <value>Room or system name</value>
+  </data>
   <data name="ExportSetupTitle" xml:space="preserve">
     <value>Save the full setup</value>
   </data>
