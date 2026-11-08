@@ -38,8 +38,10 @@ internal static class UsbTreeBuilder
         public IReadOnlySet<int> HubPorts { get; } = PortsOf(Entry);
     }
 
-    // A port entry says "PortNumber" on the host controller and "port" on a hub; both sit below the hub, not below the devices on it.
-    private static long? PortNumberOf(RegistryEntry entry) => entry.GetNumber("PortNumber") ?? entry.GetNumber("port");
+    // A port entry's place on its hub is "port", the same number as its locationID nibble. On Apple silicon a root port
+    // also has "PortNumber", which is the USB-C receptacle and is the same on its USB 2 and USB 3 entry (#187), so it is
+    // only a fallback. Port entries sit below the hub, not below the devices on it.
+    private static long? PortNumberOf(RegistryEntry entry) => entry.GetNumber("port") ?? entry.GetNumber("PortNumber");
 
     private static HashSet<int> PortsOf(RegistryEntry hub)
     {
