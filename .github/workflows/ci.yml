@@ -23,3 +23,59 @@ jobs:
 
       - name: Print detected USB tree
         run: dotnet run --project src/UsbHelper.Cli -c Release --no-build
+
+      # The Windows download is win-x64 only; Windows on ARM runs it through emulation (#192). This is the same build,
+      # so the windows-arm job starts exactly what ships.
+      - name: Publish the win-x64 app and starter
+        shell: pwsh
+        run: |
+          dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained -p:DebugType=none -o publish
+          dotnet publish src/UsbHelper.Starter --no-restore -c Release -r win-x64 -p:DebugType=none -o starter
+          # The same layout as release.yml: no .pdb files (#122), USB-helper.exe next to app.
+          New-Item -ItemType Directory win-x64/app | Out-Null
+          Copy-Item publish/* win-x64/app -Recurse -Exclude *.pdb
+          Copy-Item starter/USB-helper.exe win-x64
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: win-x64
+          path: win-x64
+
+  # Windows on ARM64 (#192): the tests natively, then the shipped win-x64 build started through emulation.
+  windows-arm:
+    needs: build
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Runner and .NET are ARM64
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw "Expected an ARM64 runner, got $env:PROCESSOR_ARCHITECTURE." }
+          dotnet --info | Select-String 'RID'
+
+      # Not --locked-mode: on an ARM64 host the SDK adds win-arm64 to the AOT and ReadyToRun projects' runtime
+      # identifiers, which the lock files (release targets only) do not list. The build job restores in locked mode and
+      # builds what ships; this job only runs the tests and starts that build.
+      - run: dotnet restore
+
+      - run: dotnet test --no-restore -c Release
+
+      - name: Print detected USB tree
+        run: dotnet run --project src/UsbHelper.Cli -c Release --no-restore
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: win-x64
+          path: win-x64
+
+      - name: Start test (win-x64 build on ARM64)
+        shell: pwsh
+        run: |
+          . release/start-test.ps1
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw "Expected an ARM64 runner, got $env:PROCESSOR_ARCHITECTURE." }
+          Test-Start "$PWD\win-x64\USB-helper.exe"
