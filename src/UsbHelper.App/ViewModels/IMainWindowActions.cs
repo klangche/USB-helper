@@ -18,6 +18,12 @@ public interface IMainWindowActions
     /// <summary>Takes a screenshot of the window, asks where to save the full setup export, then writes it.</summary>
     void ExportSetup();
 
+    /// <summary>
+    /// Asks whether to refresh only, or refresh and clear the log (#206), then calls
+    /// <see cref="MainViewModel.RequestRefresh"/>; nothing on cancel.
+    /// </summary>
+    void ConfirmRefresh();
+
     /// <summary>Puts <paramref name="text"/> on the clipboard.</summary>
     void CopyText(string text);
 }

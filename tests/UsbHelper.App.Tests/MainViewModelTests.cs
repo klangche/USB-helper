@@ -1474,4 +1474,79 @@ public class LogViewModelTests
 
         Assert.Equal(["Database not loaded: 1 errors", "Database error: base.yaml:2: bad"], log.Entries.Select(entry => entry.Text));
     }
+
+    // #206: Refresh reads the tree again and keeps the log and the disconnected devices.
+    [Fact]
+    public void RefreshKeepsTheLogAndTheDisconnectedDevices()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+        IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
+        viewModel.Load(mouseGone, monitors: []);
+        var entries = log.Entries.Count;
+
+        viewModel.RequestRefresh(clearLog: false);
+
+        Assert.Equal(1, asked);
+        Assert.True(viewModel.IsLoading);
+        Assert.Equal(entries + 1, log.Entries.Count);
+        Assert.Equal("Refresh", log.Entries[^1].Text);
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.Contains(viewModel.Disconnected, item => item.Text.Contains("MOUSE", StringComparison.Ordinal));
+    }
+
+    // #206: Refresh and clear log is a fresh start: an empty log and no disconnected devices.
+    [Fact]
+    public void RefreshAndClearLogStartsAFreshSession()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+        IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.NotEmpty(viewModel.Disconnected);
+
+        viewModel.RequestRefresh(clearLog: true);
+
+        Assert.Equal(1, asked);
+        Assert.Equal(["Refresh: log and disconnected devices cleared"], log.Entries.Select(entry => entry.Text));
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.Empty(viewModel.Disconnected);
+    }
+
+    // #206: the log window follows a cleared log.
+    [Fact]
+    public void TheLogWindowEmptiesWhenTheLogIsCleared()
+    {
+        var log = new EventLog();
+        log.Add("Started");
+        var window = new LogViewModel(log);
+
+        log.Clear();
+        log.Add("Refresh");
+
+        Assert.Equal([log.Entries[0].ToString()], window.Lines);
+    }
+
+    // #206: a second refresh while the first one is still reading does nothing, so two reads never overlap.
+    [Fact]
+    public void ASecondRefreshWhileReadingIsIgnored()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.RequestRefresh(clearLog: true);
+
+        Assert.Equal(1, asked);
+        Assert.Equal("Refresh", log.Entries[^1].Text);
+    }
 }

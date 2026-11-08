@@ -111,6 +111,43 @@ public sealed class MainViewModel : ObservableObject
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
         CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
+        RefreshCommand = new RelayCommand(() => Window?.ConfirmRefresh(), () => !IsLoading);
+    }
+
+    /// <summary>File > Refresh and the toolbar's Refresh button (#206): the window asks what to clear.</summary>
+    public RelayCommand RefreshCommand { get; }
+
+    /// <summary>
+    /// Raised by <see cref="RequestRefresh"/>: whoever reads the USB tree reads it again and calls
+    /// <see cref="Load(IReadOnlyList{UsbNode}, IReadOnlyList{DisplayMonitor})"/>.
+    /// </summary>
+    public event Action? RefreshRequested;
+
+    /// <summary>
+    /// Reads the USB tree and the displays again (#206). With <paramref name="clearLog"/> it is a fresh start: the log is
+    /// emptied and the disconnected and reconnected devices are forgotten. Cable marks and checked profiles stay.
+    /// Does nothing when nobody reads the tree (an operating system without detection), or while a read is running, so
+    /// two reads never overlap.
+    /// </summary>
+    public void RequestRefresh(bool clearLog)
+    {
+        if (RefreshRequested is null || IsLoading)
+        {
+            return;
+        }
+        if (clearLog)
+        {
+            log.Clear();
+            history.Reset();
+            log.Add("Refresh: log and disconnected devices cleared");
+        }
+        else
+        {
+            log.Add("Refresh");
+        }
+        LoadingStage = Strings.ReadingDevices;
+        IsLoading = true;
+        RefreshRequested();
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
@@ -311,6 +348,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(CanExport)); // Not before the USB tree is known.
                 ExportProfileCommand.Refresh();
+                RefreshCommand.Refresh();
             }
         }
     }

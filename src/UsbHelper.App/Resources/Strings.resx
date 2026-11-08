@@ -52,6 +52,27 @@
   <data name="WordDisconnected" xml:space="preserve">
     <value>disconnected</value>
   </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="MenuRefresh" xml:space="preserve">
+    <value>_Refresh...</value>
+  </data>
+  <data name="RefreshTitle" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="RefreshQuestion" xml:space="preserve">
+    <value>Read the USB devices and displays again. Clear the log and the disconnected devices too, for a fresh start?</value>
+  </data>
+  <data name="RefreshOnly" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="RefreshAndClear" xml:space="preserve">
+    <value>Refresh and clear log</value>
+  </data>
+  <data name="RefreshCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="Export" xml:space="preserve">
     <value>Export</value>
   </data>

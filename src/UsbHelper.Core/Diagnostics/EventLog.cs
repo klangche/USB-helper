@@ -34,6 +34,23 @@ public sealed class EventLog(TimeProvider? clock = null)
     /// <summary>Raised on the caller's thread for every new entry.</summary>
     public event Action<LogEntry>? Added;
 
+    /// <summary>Raised on the caller's thread when the log is cleared.</summary>
+    public event Action? Cleared;
+
+    /// <summary>
+    /// Empties the log (#206, "Refresh and clear log"), and forgets which findings, displays and links were logged, so
+    /// they are logged again when they show.
+    /// </summary>
+    public void Clear()
+    {
+        entries.Clear();
+        findings = [];
+        displays = null;
+        displaysLogged = false;
+        links = [];
+        Cleared?.Invoke();
+    }
+
     public void Add(string text)
     {
         var entry = new LogEntry(clock.GetLocalNow(), text);

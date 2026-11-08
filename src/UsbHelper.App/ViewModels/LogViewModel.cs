@@ -15,6 +15,7 @@ public sealed class LogViewModel
         this.log = log;
         Lines = [.. log.Entries.Select(entry => entry.ToString())];
         log.Added += entry => Lines.Add(entry.ToString());
+        log.Cleared += Lines.Clear;
     }
 
     public ObservableCollection<string> Lines { get; }

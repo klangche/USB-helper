@@ -144,6 +144,8 @@ public class TreeTextTests
 
         public void ExportSetup() { }
 
+        public void ConfirmRefresh() { }
+
         public void ExportProfile() { }
 
         public void ExportLog() { }

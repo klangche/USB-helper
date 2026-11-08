@@ -281,4 +281,23 @@ public class EventLogTests
             + "2026-11-02 09:31:00  Finding (p, unknown): Latitude 7450: limits.max_hubs is unknown." + Environment.NewLine,
             log.Export());
     }
+
+    // #206: "Refresh and clear log" starts a fresh log; what was logged before is logged again when it shows.
+    [Fact]
+    public void ClearEmptiesTheLogAnnouncesItAndLogsFindingsAgain()
+    {
+        var log = NewLog();
+        var cleared = 0;
+        log.Cleared += () => cleared++;
+        var finding = ((string?)null, new Finding(FactKind.Unknown, "HUB", "HUB", "Something is unknown."));
+        log.Add("Started");
+        log.Findings([finding]);
+
+        log.Clear();
+
+        Assert.Empty(log.Entries);
+        Assert.Equal(1, cleared);
+        log.Findings([finding]);
+        Assert.Single(log.Entries);
+    }
 }
