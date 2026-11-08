@@ -70,7 +70,7 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <TextBox Text="{Binding RoomName}" Watermark="{x:Static res:Strings.RoomName}" Width="220" />
+      <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
