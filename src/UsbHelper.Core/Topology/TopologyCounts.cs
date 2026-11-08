@@ -40,11 +40,21 @@ public static class TopologyCounts
     /// True when what is behind <paramref name="node"/> could not be read: a hub without ports, a controller without a
     /// root hub, or a port with an error and nothing on it. What is behind it is unknown, so the counts are then
     /// minimums. A working hub always has at least one port, and a port with a connection error still shows the device
-    /// that caused it.
+    /// that caused it. That device is unreadable too when it could not be identified (#185): no vendor and product id,
+    /// and a problem or a placeholder id, so it may be a hub.
     /// </summary>
     public static bool CannotBeRead(UsbNode node) =>
-        node.Children.Count == 0
-        && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null));
+        (node.Children.Count == 0
+            && (node.Kind is UsbNodeKind.Hub or UsbNodeKind.Controller || (node.Kind == UsbNodeKind.Port && node.Problem != null)))
+        || IsUnidentified(node);
+
+    /// <summary>
+    /// A device the operating system could not identify (#185): no vendor and product id, and a problem or a placeholder
+    /// id (one with <c>|</c>, see <see cref="UsbNode.Id"/>). It may be a hub.
+    /// </summary>
+    public static bool IsUnidentified(UsbNode node) =>
+        node.Kind == UsbNodeKind.Device && node.VendorId == null && node.ProductId == null
+        && (node.Problem != null || node.Id.Contains('|', StringComparison.Ordinal));
 
     /// <summary>
     /// Hubs counted as external although the operating system does not say whether their port is built into the

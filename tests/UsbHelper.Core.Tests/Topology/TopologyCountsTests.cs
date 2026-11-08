@@ -216,6 +216,25 @@ public class TopologyCountsTests
         Assert.Empty(TopologyCounts.Unreadable(Machine(Device("MOUSE"), null)));
     }
 
+    // #185: Windows could not identify the device on a port that failed enumeration, so it may be a hub.
+    [Fact]
+    public void UnidentifiedDeviceMakesTheCountsMinimums()
+    {
+        var failed = Device(@"USB\VID_0000&PID_0002\5&1", problem: "Windows stopped this device because it reported problems (code 43).");
+        var placeholder = Device("ROOT|port2|device");
+
+        Assert.Equal([failed.Id], TopologyCounts.Unreadable(Machine(failed)).Select(node => node.Id));
+        Assert.Equal([placeholder.Id], TopologyCounts.Unreadable(Machine(placeholder)).Select(node => node.Id));
+    }
+
+    [Fact]
+    public void IdentifiedDeviceWithAProblemIsReadable()
+    {
+        var known = Device("CAMERA", problem: "The drivers for this device are not installed (code 28).") with { VendorId = 0x2E1A, ProductId = 0x4C06 };
+
+        Assert.Empty(TopologyCounts.Unreadable(Machine(known, Device("MOUSE"))));
+    }
+
     [Fact]
     public void RootHubsAndControllersHaveNoDepth()
     {
