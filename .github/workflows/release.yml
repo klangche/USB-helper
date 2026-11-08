@@ -182,7 +182,7 @@ jobs:
           Build-Msi '${{ needs.version.outputs.version }}' $env:MSI_VERSION "$env:NAME.msi"
           "$env:NAME.msi: ProductVersion $env:MSI_VERSION, $([math]::Round((Get-Item "$env:NAME.msi").Length / 1MB, 1)) MB"
           # The last page's "Launch USB-helper" exists and is ticked by default (#147), and the launch action is in.
-          dotnet wix msi decompile "$env:NAME.msi" -o decompiled.wxs
+          dotnet wix msi decompile "$env:NAME.msi" -o decompiled.wxs -x decompiled
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           [xml] $package = Get-Content decompiled.wxs -Raw
           $properties = @{}
@@ -191,6 +191,14 @@ jobs:
           if ($properties['WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT'] -ne 'Launch USB-helper') { throw "The last page has no Launch USB-helper box." }
           if (-not $package.SelectNodes("//*[local-name()='CustomAction' and @Id='LaunchApplication']").Count) { throw "No LaunchApplication action." }
           "Last page: '$($properties['WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT'])', ticked by default"
+          # The setup windows show the app icon (#204): the .msi carries installer/dialog.bmp and banner.bmp.
+          foreach ($image in @(@('WixUI_Bmp_Dialog', 'installer/dialog.bmp'), @('WixUI_Bmp_Banner', 'installer/banner.bmp'))) {
+            $binary = $package.SelectSingleNode("//*[local-name()='Binary' and @Id='$($image[0])']")
+            if (-not $binary) { throw "The .msi has no $($image[0])." }
+            $file = @($binary.SourceFile, (Join-Path decompiled $binary.SourceFile)) | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) } | Select-Object -First 1
+            if (-not $file -or (Get-FileHash $file).Hash -ne (Get-FileHash $image[1]).Hash) { throw "$($image[0]) in the .msi is not $($image[1]) ($($binary.SourceFile))." }
+          }
+          "Setup images: installer/dialog.bmp and installer/banner.bmp"
 
       # Installs the .msi as the runner's user, checks the files, the Start menu shortcut and the Apps & features entry,
       # checks that nothing starts by itself, starts the app through the shortcut's target, upgrades it with a newer build
