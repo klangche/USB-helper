@@ -58,7 +58,10 @@ jobs:
           if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw "Expected an ARM64 runner, got $env:PROCESSOR_ARCHITECTURE." }
           dotnet --info | Select-String 'RID'
 
-      - run: dotnet restore --locked-mode
+      # Not --locked-mode: on an ARM64 host the SDK adds win-arm64 to the AOT and ReadyToRun projects' runtime
+      # identifiers, which the lock files (release targets only) do not list. The build job restores in locked mode and
+      # builds what ships; this job only runs the tests and starts that build.
+      - run: dotnet restore
 
       - run: dotnet test --no-restore -c Release
 
