@@ -10,8 +10,8 @@
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="{x:Static res:Strings.RefreshQuestion}" TextWrapping="Wrap" />
     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-      <Button x:Name="RefreshOnly" Content="{x:Static res:Strings.RefreshOnly}" IsDefault="True" Click="RefreshOnlyClick" />
-      <Button x:Name="RefreshAndClear" Content="{x:Static res:Strings.RefreshAndClear}" Click="RefreshAndClearClick" />
+      <Button Content="{x:Static res:Strings.RefreshOnly}" IsDefault="True" Click="RefreshOnlyClick" />
+      <Button Content="{x:Static res:Strings.RefreshAndClear}" Click="RefreshAndClearClick" />
       <Button Content="{x:Static res:Strings.RefreshCancel}" IsCancel="True" Click="CancelClick" />
     </StackPanel>
   </StackPanel>

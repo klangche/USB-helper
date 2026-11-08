@@ -119,19 +119,19 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>
     /// Raised by <see cref="RequestRefresh"/>: whoever reads the USB tree reads it again and calls
-    /// <see cref="Load(IReadOnlyList{UsbNode}, IReadOnlyList{DisplayMonitor})"/>. The argument says whether the log was
-    /// cleared.
+    /// <see cref="Load(IReadOnlyList{UsbNode}, IReadOnlyList{DisplayMonitor})"/>.
     /// </summary>
-    public event Action<bool>? RefreshRequested;
+    public event Action? RefreshRequested;
 
     /// <summary>
     /// Reads the USB tree and the displays again (#206). With <paramref name="clearLog"/> it is a fresh start: the log is
     /// emptied and the disconnected and reconnected devices are forgotten. Cable marks and checked profiles stay.
-    /// Does nothing when nobody reads the tree (an operating system without detection).
+    /// Does nothing when nobody reads the tree (an operating system without detection), or while a read is running, so
+    /// two reads never overlap.
     /// </summary>
     public void RequestRefresh(bool clearLog)
     {
-        if (RefreshRequested is null)
+        if (RefreshRequested is null || IsLoading)
         {
             return;
         }
@@ -147,7 +147,7 @@ public sealed class MainViewModel : ObservableObject
         }
         LoadingStage = Strings.ReadingDevices;
         IsLoading = true;
-        RefreshRequested(clearLog);
+        RefreshRequested();
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>

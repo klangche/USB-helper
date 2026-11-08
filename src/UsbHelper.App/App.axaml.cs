@@ -141,7 +141,7 @@ public partial class App : Application
                 }
             }));
         }
-        viewModel.RefreshRequested += cleared => { _ = Read(); };
+        viewModel.RefreshRequested += () => _ = Read();
         await Read();
     }
 

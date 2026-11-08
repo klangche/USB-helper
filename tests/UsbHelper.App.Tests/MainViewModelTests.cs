@@ -1481,8 +1481,8 @@ public class LogViewModelTests
     {
         var log = new EventLog();
         var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
-        var asked = new List<bool>();
-        viewModel.RefreshRequested += asked.Add;
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
         viewModel.Load(Desk, monitors: []);
         IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
         viewModel.Load(mouseGone, monitors: []);
@@ -1490,7 +1490,7 @@ public class LogViewModelTests
 
         viewModel.RequestRefresh(clearLog: false);
 
-        Assert.Equal([false], asked);
+        Assert.Equal(1, asked);
         Assert.True(viewModel.IsLoading);
         Assert.Equal(entries + 1, log.Entries.Count);
         Assert.Equal("Refresh", log.Entries[^1].Text);
@@ -1504,8 +1504,8 @@ public class LogViewModelTests
     {
         var log = new EventLog();
         var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
-        var asked = new List<bool>();
-        viewModel.RefreshRequested += asked.Add;
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
         viewModel.Load(Desk, monitors: []);
         IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
         viewModel.Load(mouseGone, monitors: []);
@@ -1513,7 +1513,7 @@ public class LogViewModelTests
 
         viewModel.RequestRefresh(clearLog: true);
 
-        Assert.Equal([true], asked);
+        Assert.Equal(1, asked);
         Assert.Equal(["Refresh: log and disconnected devices cleared"], log.Entries.Select(entry => entry.Text));
         viewModel.Load(mouseGone, monitors: []);
         Assert.Empty(viewModel.Disconnected);
@@ -1531,5 +1531,22 @@ public class LogViewModelTests
         log.Add("Refresh");
 
         Assert.Equal([log.Entries[0].ToString()], window.Lines);
+    }
+
+    // #206: a second refresh while the first one is still reading does nothing, so two reads never overlap.
+    [Fact]
+    public void ASecondRefreshWhileReadingIsIgnored()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.RequestRefresh(clearLog: true);
+
+        Assert.Equal(1, asked);
+        Assert.Equal("Refresh", log.Entries[^1].Text);
     }
 }
