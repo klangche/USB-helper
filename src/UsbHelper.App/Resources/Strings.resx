@@ -52,6 +52,9 @@
   <data name="WordDisconnected" xml:space="preserve">
     <value>disconnected</value>
   </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
   <data name="ExportProfile" xml:space="preserve">
     <value>Export computer profile</value>
   </data>

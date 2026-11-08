@@ -77,14 +77,30 @@ public class MenuTests
         Assert.False(Loaded(new ComputerIdentity(null, "21K5"), new FakeWindow()).ExportProfileCommand.CanExecute(null));
     }
 
+    // #189: the profile export sits at the top of the Computers drop-down and in the File menu.
     [Fact]
-    public void TheMenuAndTheButtonExportTheProfileWithTheSameCommand()
+    public void TheComputersDropDownStartsWithTheProfileExportAndTheFileMenuKeepsIt()
     {
         var window = MainWindowXaml();
-        var button = window.Descendants(Avalonia + "Button")
-            .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.ExportProfile}");
-        Assert.Equal("{Binding ExportProfileCommand}", (string?)button.Attribute("Command"));
+        var computers = window.Descendants(Avalonia + "DropDownButton")
+            .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Computers}");
+        var items = computers.Descendants(Avalonia + "Flyout").Single().Elements().Single().Elements().ToList();
+        Assert.Equal(["Button", "Separator", "ScrollViewer"], items.Select(element => element.Name.LocalName));
+        Assert.Equal("{x:Static res:Strings.ExportProfile}", (string?)items[0].Attribute("Content"));
+        Assert.Equal("{Binding ExportProfileCommand}", (string?)items[0].Attribute("Command"));
         Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
+    }
+
+    // #189: the toolbar button says "Export" and makes the full setup export, like File > Export full setup.
+    [Fact]
+    public void TheToolbarExportButtonMakesTheFullSetupExport()
+    {
+        var window = MainWindowXaml();
+        var buttons = window.Descendants(Avalonia + "Button").Where(element => !element.Ancestors(Avalonia + "DropDownButton").Any()).ToList();
+        var export = buttons.Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Export}");
+        Assert.Equal("{Binding ExportSetupCommand}", (string?)export.Attribute("Command"));
+        Assert.DoesNotContain(buttons, element => (string?)element.Attribute("Command") == "{Binding ExportProfileCommand}");
+        Assert.Equal("{Binding ExportSetupCommand}", (string?)MenuItem(window, "MenuExportSetup").Attribute("Command"));
     }
 
     [Fact]
