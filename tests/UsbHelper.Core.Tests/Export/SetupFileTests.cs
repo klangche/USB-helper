@@ -44,6 +44,29 @@ public class SetupFileTests
         Assert.Equal("1/1/1|device", Flatten(anonymous).Last().Id);
     }
 
+    // #193: a companion port id is a Windows hub id, which can hold a serial number; it gets the companion's position.
+    [Fact]
+    public void CompanionPortIdsGetTheCompanionsPositionAndTheBusIsKept()
+    {
+        var root = Hub("ROOT", null, null);
+        root = root with
+        {
+            Children =
+            [
+                root.Children[0] with { Bus = UsbBus.Usb2, CompanionPortId = "ROOT|port2" },
+                root.Children[1] with { Bus = UsbBus.Usb3, CompanionPortId = $@"USB\VID_1234\{Serial}|port4" },
+            ],
+        };
+
+        var (anonymous, _) = SetupFile.Anonymize([Controller("C1", root)], new Dictionary<string, int>());
+
+        var ports = Flatten(anonymous).Where(node => node.Kind == UsbNodeKind.Port).ToList();
+        Assert.Equal("1/1/2", ports[0].CompanionPortId);
+        Assert.Equal(UsbBus.Usb2, ports[0].Bus);
+        Assert.Null(ports[1].CompanionPortId); // Not in the tree: dropped, never exported as it was.
+        Assert.Equal(UsbBus.Usb3, ports[1].Bus);
+    }
+
     // Container ids (#143) identify physical devices; the export keeps only which ones are equal.
     [Fact]
     public void ContainerIdsAreReplacedButStillLink()

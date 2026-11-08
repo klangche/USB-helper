@@ -9,6 +9,16 @@ public enum UsbNodeKind
 }
 
 /// <summary>
+/// The bus a port is on (#191). A USB 3 hub is two hubs in one box, a USB 2 hub on the USB 2 bus and a SuperSpeed hub
+/// on the USB 3 bus, and each bus has its own tree and limits.
+/// </summary>
+public enum UsbBus
+{
+    Usb2,
+    Usb3,
+}
+
+/// <summary>
 /// One element of the detected USB tree. A controller has its root hub as child, a hub has its ports,
 /// a port has the hub or device connected to it (none when empty).
 /// </summary>
@@ -30,6 +40,18 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
 
     /// <summary>Set for ports only: true when the operating system calls it a USB-C connector, false when not, null when it does not say.</summary>
     public bool? UsbC { get; init; }
+
+    /// <summary>
+    /// Set for ports only: the bus the port is on, or null when the operating system does not say or says both (#193).
+    /// Never inferred from a name or a speed.
+    /// </summary>
+    public UsbBus? Bus { get; init; }
+
+    /// <summary>
+    /// Set for ports only: the id of the port on the other bus that belongs to the same connector (the USB 2 port of a
+    /// USB 3 connector, or the other way round), or null when the operating system names none (#193).
+    /// </summary>
+    public string? CompanionPortId { get; init; }
 
     public ushort? VendorId { get; init; }
 

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using UsbHelper.Core.Detection;
 using static UsbHelper.Detection.Windows.NativeMethods;
 
 namespace UsbHelper.Detection.Windows;
@@ -173,7 +174,7 @@ internal static class WindowsUsbReader
                 childHub = ReadHub(hubName, devNodes);
             }
         }
-        var (userConnectable, usbC) = ReadConnector(hub, port);
+        var (userConnectable, usbC, companion) = ReadConnector(hub, port);
         return new RawPort(
             port,
             status,
@@ -185,17 +186,29 @@ internal static class WindowsUsbReader
         {
             UserConnectable = userConnectable,
             UsbC = usbC,
+            Bus = ReadBus(hub, port),
+            CompanionPortNumber = companion?.Port,
+            CompanionHubName = companion?.HubName,
         };
     }
 
+    // Null when Windows does not say, for example before Windows 8 or when the hub driver does not answer (#193).
+    private static UsbBus? ReadBus(SafeFileHandle hub, int port)
+    {
+        var buffer = PortProtocols.Request(port);
+        return DeviceIoControl(hub, IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX_V2, buffer, buffer.Length, buffer, buffer.Length, out var returned, IntPtr.Zero)
+            ? PortProtocols.Bus(buffer, returned)
+            : null;
+    }
+
     // Nulls when Windows does not say, for example before Windows 8 or when the hub driver does not answer.
-    private static (bool? UserConnectable, bool? UsbC) ReadConnector(SafeFileHandle hub, int port)
+    private static (bool? UserConnectable, bool? UsbC, (int Port, string HubName)? Companion) ReadConnector(SafeFileHandle hub, int port)
     {
         var buffer = new byte[PortConnectorPropertiesSize];
         BitConverter.TryWriteBytes(buffer, (uint)port);
         return DeviceIoControl(hub, IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, buffer, buffer.Length, buffer, buffer.Length, out var returned, IntPtr.Zero)
-            ? (PortConnector.IsUserConnectable(buffer, returned), PortConnector.IsTypeC(buffer, returned))
-            : (null, null);
+            ? (PortConnector.IsUserConnectable(buffer, returned), PortConnector.IsTypeC(buffer, returned), PortConnector.Companion(buffer, returned))
+            : (null, null, null);
     }
 
     // All present devices enumerated by the USB bus driver: hubs and the devices on their ports.
