@@ -44,4 +44,43 @@ public class PortConnectorTests
     {
         Assert.Null(PortConnector.IsTypeC(Properties(0x8), bytesReturned: 8));
     }
+
+    // #193: CompanionPortNumber at offset 14, CompanionHubSymbolicLinkName (UTF-16, null-terminated) from offset 16.
+    private static (byte[] Buffer, int Returned) WithCompanion(ushort port, string hubName)
+    {
+        var buffer = Properties(0x1);
+        BitConverter.TryWriteBytes(buffer.AsSpan(12), (ushort)1);
+        BitConverter.TryWriteBytes(buffer.AsSpan(14), port);
+        var name = System.Text.Encoding.Unicode.GetBytes(hubName + "\0");
+        var full = new byte[16 + name.Length];
+        buffer.AsSpan(0, 16).CopyTo(full);
+        name.CopyTo(full, 16);
+        BitConverter.TryWriteBytes(full.AsSpan(4), (uint)full.Length);
+        return (full, full.Length);
+    }
+
+    [Fact]
+    public void ReadsTheCompanionPort()
+    {
+        var (buffer, returned) = WithCompanion(13, "USB#ROOT_HUB30#4&1a2b&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}");
+
+        Assert.Equal((13, "USB#ROOT_HUB30#4&1a2b&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}"), PortConnector.Companion(buffer, returned));
+    }
+
+    [Fact]
+    public void NoCompanionWhenThePortNumberIsZeroOrTheAnswerIsShort()
+    {
+        var (buffer, returned) = WithCompanion(0, "USB#ROOT_HUB30#4&1a2b&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}");
+
+        Assert.Null(PortConnector.Companion(buffer, returned));
+        Assert.Null(PortConnector.Companion(Properties(0x1), bytesReturned: 12));
+    }
+
+    [Fact]
+    public void NoCompanionWithoutAHubName()
+    {
+        var (buffer, returned) = WithCompanion(13, "");
+
+        Assert.Null(PortConnector.Companion(buffer, returned));
+    }
 }

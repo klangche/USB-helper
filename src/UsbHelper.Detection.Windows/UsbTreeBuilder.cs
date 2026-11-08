@@ -51,6 +51,11 @@ internal static class UsbTreeBuilder
             PortNumber = port.Number,
             UserConnectable = port.UserConnectable,
             UsbC = port.UsbC,
+            Bus = port.Bus,
+            // The companion's hub id is its instance id, as for every hub with a device node (#193).
+            CompanionPortId = port.CompanionPortNumber is { } number && port.CompanionHubName is { } hubName
+                ? $"{HubName.ToInstanceId(hubName).ToUpperInvariant()}|port{number}"
+                : null,
             Problem = port.Error == null ? ConnectionProblem(port.ConnectionStatus) : $"Could not read the port: {port.Error}",
         };
     }

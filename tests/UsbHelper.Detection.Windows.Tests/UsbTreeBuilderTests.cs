@@ -30,6 +30,21 @@ public class UsbTreeBuilderTests
         Assert.All(rootHub.Children, port => Assert.Empty(port.Children));
     }
 
+    // #193: the bus and the companion port come from the port; the companion's id is its hub's instance id and port.
+    [Fact]
+    public void PortHasItsBusAndCompanion()
+    {
+        var usb2 = EmptyPort(1) with { Bus = UsbBus.Usb2, CompanionPortNumber = 13, CompanionHubName = "USB#ROOT_HUB30#4&1a2b&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}" };
+        var unknown = EmptyPort(2);
+
+        var ports = BuildSingle(usb2, unknown).Children[0].Children;
+
+        Assert.Equal(UsbBus.Usb2, ports[0].Bus);
+        Assert.Equal(RootHubNode.InstanceId + "|port13", ports[0].CompanionPortId);
+        Assert.Null(ports[1].Bus);
+        Assert.Null(ports[1].CompanionPortId);
+    }
+
     [Fact]
     public void PortIdIsHubIdAndPortNumber()
     {
