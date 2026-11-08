@@ -1,3 +1,5 @@
+using UsbHelper.Core.Detection;
+
 namespace UsbHelper.Detection.Windows;
 
 /// <summary>A device node from SetupAPI.</summary>
@@ -36,4 +38,13 @@ internal sealed record RawPort(
 
     /// <summary>Whether the port is USB-C, from IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, or null when Windows does not say.</summary>
     public bool? UsbC { get; init; }
+
+    /// <summary>The bus, from IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX_V2, or null when Windows does not say (#193).</summary>
+    public UsbBus? Bus { get; init; }
+
+    /// <summary>The companion port's number, from IOCTL_USB_GET_PORT_CONNECTOR_PROPERTIES, or null when there is none.</summary>
+    public int? CompanionPortNumber { get; init; }
+
+    /// <summary>The companion port's hub, as a symbolic link name, or null when there is none.</summary>
+    public string? CompanionHubName { get; init; }
 }

@@ -75,14 +75,22 @@ public sealed record SetupFile(
 
     /// <summary>
     /// The tree with every id replaced by its position ("1/1/2": controller 1, its first child, that child's second
-    /// child), and the marks moved to the new port ids. Windows ids are device paths, which can hold serial numbers. A
+    /// child), and the marks and companion port ids moved to the new port ids. Windows ids are device paths, which can hold serial numbers. A
     /// placeholder for a hub or device Windows could not identify keeps its form: its port's id, then "|device".
     /// </summary>
     public static (IReadOnlyList<UsbNode> Tree, IReadOnlyDictionary<string, int> Marks) Anonymize(
         IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
         var ids = new Dictionary<string, string>();
-        var anonymous = tree.Select((controller, i) => Renamed(controller, null, null, (i + 1).ToString(CultureInfo.InvariantCulture), ids)).ToList();
+        var renamed = tree.Select((controller, i) => Renamed(controller, null, null, (i + 1).ToString(CultureInfo.InvariantCulture), ids)).ToList();
+        // A companion port id (#193) is a hub id too: it gets the companion's new id, or is dropped when the companion
+        // is not in the tree, so no original id is exported.
+        UsbNode Companions(UsbNode node) => node with
+        {
+            CompanionPortId = node.CompanionPortId is { } companion ? ids.GetValueOrDefault(companion) : null,
+            Children = [.. node.Children.Select(Companions)],
+        };
+        var anonymous = renamed.Select(Companions).ToList();
         var marks = extraHops.Where(mark => ids.ContainsKey(mark.Key)).ToDictionary(mark => ids[mark.Key], mark => mark.Value);
         return (anonymous, marks);
     }
