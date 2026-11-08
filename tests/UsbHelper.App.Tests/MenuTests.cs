@@ -84,9 +84,10 @@ public class MenuTests
         var window = MainWindowXaml();
         var computers = window.Descendants(Avalonia + "DropDownButton")
             .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Computers}");
-        var first = computers.Descendants().First(element => element.Attribute("Command") != null);
-        Assert.Equal("{x:Static res:Strings.ExportProfile}", (string?)first.Attribute("Content"));
-        Assert.Equal("{Binding ExportProfileCommand}", (string?)first.Attribute("Command"));
+        var items = computers.Descendants(Avalonia + "Flyout").Single().Elements().Single().Elements().ToList();
+        Assert.Equal(["Button", "Separator", "ScrollViewer"], items.Select(element => element.Name.LocalName));
+        Assert.Equal("{x:Static res:Strings.ExportProfile}", (string?)items[0].Attribute("Content"));
+        Assert.Equal("{Binding ExportProfileCommand}", (string?)items[0].Attribute("Command"));
         Assert.Equal("{Binding ExportProfileCommand}", (string?)MenuItem(window, "MenuExportProfile").Attribute("Command"));
     }
 
@@ -95,7 +96,7 @@ public class MenuTests
     public void TheToolbarExportButtonMakesTheFullSetupExport()
     {
         var window = MainWindowXaml();
-        var buttons = window.Descendants(Avalonia + "Button").Where(element => element.Ancestors(Avalonia + "DropDownButton").All(_ => false)).ToList();
+        var buttons = window.Descendants(Avalonia + "Button").Where(element => !element.Ancestors(Avalonia + "DropDownButton").Any()).ToList();
         var export = buttons.Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Export}");
         Assert.Equal("{Binding ExportSetupCommand}", (string?)export.Attribute("Command"));
         Assert.DoesNotContain(buttons, element => (string?)element.Attribute("Command") == "{Binding ExportProfileCommand}");
