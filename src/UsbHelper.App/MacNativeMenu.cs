@@ -41,6 +41,8 @@ public static class MacNativeMenu
     public static NativeMenu Create(MainViewModel viewModel) =>
     [
         Top(Strings.MenuFile,
+            Item(Strings.MenuRefresh, viewModel.RefreshCommand),
+            new NativeMenuItemSeparator(),
             Item(Strings.MenuExportProfile, viewModel.ExportProfileCommand),
             Item(Strings.MenuExportLog, viewModel.ExportLogCommand),
             Item(Strings.MenuExportSetup, viewModel.ExportSetupCommand),

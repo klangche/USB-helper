@@ -158,4 +158,21 @@ public class SessionHistoryTests
 
         Assert.Equal("ROOT|port3", Assert.Single(history.Missing(gone)).PortId);
     }
+
+    // #206: "Refresh and clear log" forgets disconnected and reconnected devices.
+    [Fact]
+    public void ResetForgetsMissingAndReconnectedDevices()
+    {
+        var history = new SessionHistory();
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+        history.Record(WithHub);
+        history.Record(HubUnplugged);
+
+        history.Reset();
+        history.Record(HubUnplugged);
+
+        Assert.Empty(history.Missing(HubUnplugged));
+        Assert.Empty(history.Reconnected(HubUnplugged));
+    }
 }

@@ -31,6 +31,8 @@ public class MenuTests
         public void CopyText(string text) => Calls.Add(nameof(CopyText));
 
         public void ExportSetup() => Calls.Add(nameof(ExportSetup));
+
+        public void ConfirmRefresh() => Calls.Add(nameof(ConfirmRefresh));
     }
 
     private static MainViewModel Loaded(ComputerIdentity identity, FakeWindow window)
@@ -100,6 +102,21 @@ public class MenuTests
         Assert.Null(box.Attribute("Watermark"));
     }
 
+    // #206: a Refresh button and File > Refresh both ask the window, which then asks the user what to clear.
+    [Fact]
+    public void TheRefreshButtonAndMenuItemAskTheWindow()
+    {
+        var window = MainWindowXaml();
+        var button = window.Descendants(Avalonia + "Button")
+            .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Refresh}");
+        Assert.Equal("{Binding RefreshCommand}", (string?)button.Attribute("Command"));
+        Assert.Equal("{Binding RefreshCommand}", (string?)MenuItem(window, "MenuRefresh").Attribute("Command"));
+
+        var fake = new FakeWindow();
+        Loaded(Known, fake).RefreshCommand.Execute(null);
+        Assert.Equal(["ConfirmRefresh"], fake.Calls);
+    }
+
     // #189: the toolbar button says "Export" and makes the full setup export, like File > Export full setup.
     [Fact]
     public void TheToolbarExportButtonMakesTheFullSetupExport()
@@ -120,7 +137,7 @@ public class MenuTests
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
-        Assert.Equal(["Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
     }
 
@@ -159,7 +176,7 @@ public class MenuTests
         var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
         var top = menu.Elements(Avalonia + "MenuItem").Select(Key).ToList();
         Assert.Equal(["MenuFile", "MenuEdit", "MenuHelp"], top);
-        Assert.Equal(["MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
+        Assert.Equal(["MenuRefresh", "MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
         Assert.Equal(["MenuCopyTree"], Items(menu, "MenuEdit"));
         Assert.Equal("{Binding CopyTreeCommand}", (string?)MenuItem(MainWindowXaml(), "MenuCopyTree").Attribute("Command"));
         Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));
