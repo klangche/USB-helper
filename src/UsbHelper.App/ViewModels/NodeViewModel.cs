@@ -502,7 +502,7 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    // Compact (#217): "USB 2.0: 3 hubs, tier 4, hop 2 · USB 3.x: 1 hub, tier 3, hop 1", per bus when the operating system
+    // Compact (#217): "USB2.0: 3 hubs, tier 4, hop 2 · USB3.x: 1 hub, tier 3, hop 1", per bus when the operating system
     // reports any bus (#195), and only the buses with something on them; else one line for both buses. "≥" on every
     // number when a hub, port or bus could not be read. Null when nothing is connected.
     private static string? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
