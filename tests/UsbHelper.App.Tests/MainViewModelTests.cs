@@ -269,7 +269,7 @@ public class MainViewModelTests
         Assert.Equal(NodeViewModel.HostId, host.Id);
         Assert.False(host.HasLine);
         Assert.Null(host.Status);
-        Assert.Null(host.Counts);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), host.Counts); // #210.
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
@@ -471,6 +471,34 @@ public class MainViewModelTests
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C2").Counts);
         Assert.Null(Item(viewModel, "ROOT").Counts);
+    }
+
+    // Owner decision in #208: the host shows the hubs of all controllers and the deepest tier and hop of any of them.
+    [Fact]
+    public void TheHostShowsTotalHubsAndTheDeepestTierAndHop()
+    {
+        var viewModel = NewViewModel();
+        // C1: 1 hub, tier 3, hop 1. C2: DOCK tier 2, INNER tier 3, D tier 4 with 2 hops; 2 hubs.
+        var dock = new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", Hub("DOCK", Hub("INNER", Device("D"))))]);
+
+        viewModel.Load([.. Desk, dock]);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 3, 4, 2), Item(viewModel, NodeViewModel.HostId).Counts);
+
+        Item(viewModel, "KEYBOARD").ExtraHops = 2; // KEYBOARD: tier 5, hop 3.
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 3, 5, 3), Item(viewModel, NodeViewModel.HostId).Counts);
+    }
+
+    [Fact]
+    public void TheHostCountsAreMinimumsWhenAHubOnAnyControllerCannotBeRead()
+    {
+        var viewModel = NewViewModel();
+        var broken = new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", new UsbNode("BAD", UsbNodeKind.Hub, "BAD", []))]);
+
+        viewModel.Load([.. Desk, broken]);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsAtLeast, 2, 3, 1), Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]

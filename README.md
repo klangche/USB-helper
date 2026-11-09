@@ -10,8 +10,9 @@ Status: first version for Windows; computer profiles still to be added.
 
 - Live USB tree with drawn tree lines from one root for the computer (the
   host): controllers, hubs, occupied ports and devices. Each controller has a
-  chevron that hides or shows its tree; at start only the busiest controller is
-  open, and a collapsed controller's name is bold. Updated on connect and
+  chevron that hides or shows its tree; only the busiest controller is open,
+  and the tree follows a dock or hub plugged in later until you choose
+  yourself. A collapsed controller's name is bold. Updated on connect and
   disconnect without rebuilding the whole tree. Hubs and devices show the
   product name they report, falling back to the Windows name. Every line, from
   the computer down, takes the worst status of everything below it, so one
@@ -31,7 +32,9 @@ Status: first version for Windows; computer profiles still to be added.
   and on the clipboard with Edit > Copy tree as text.
 - Export full setup: one zip with everything detected (`setup.json`), the
   tree as text, a screenshot and the log, without serial numbers.
-- Per controller: its hub count, deepest tier and deepest hop.
+- Per controller: its hub count, deepest tier and deepest hop. The computer's
+  row shows the same for all controllers: hubs summed, the deepest tier and
+  hop of any controller.
 - Hub count, tier depth and hop depth, counted from the computer's own port
   and each checked against the computer model's own limits.
 - Active cables and extenders that the operating system does not show can be
@@ -438,11 +441,17 @@ stay green. The short line into each hub and device keeps that item's own
 status colour, with the result word after its name. Empty ports are left
 out. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
-its tree; while it is hidden the controller's name is bold. At start only the
-selected controller (see below), the one with the most connected hubs and
-devices, is open, and only when it has any. The computer's row, the Displays
-group and everything below a controller, hubs built into the computer
-included, are always open. The choice is kept while the app runs. A
+its tree; while it is hidden the controller's name is bold. Only the
+selected controller (see below) is open, and only when it has devices,
+connected or disconnected. The computer's row, the Displays group and
+everything below a controller, hubs built into the computer included, are
+always open. Until you select an item or open or close a controller, the
+tree follows what is plugged in: a controller that gains hubs or devices and
+then has more than the selected one is selected and opened, and the others
+are collapsed. A selected controller that loses devices stays selected, so a
+brief drop does not jump away and its disconnected devices stay in view; a
+tie never switches. After your own choice, it is kept while the app runs;
+Refresh follows again, starting from the busiest controller. A
 DisplayLink device is shown as a display: a "Display" badge and "Extended
 display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". After the controllers, a
@@ -466,13 +475,16 @@ tree that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, deepest tier and deepest
-hop. Next to the tree is a
+hop; the computer's row shows the hubs of all controllers and the deepest
+tier and hop of any of them, "at least" when a hub or port could not be read.
+Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
 and the findings cover one USB
 controller's tree, named under "Status". At start, and when that controller
 disappears, the controller with the most connected hubs and devices (built-in
-hubs not counted) is selected; on a tie the first in the tree. Click another
+hubs not counted) is selected; on a tie the first in the tree. Until you
+choose, a controller that grows past it is selected (see above). Click another
 controller, or anything under it, to switch; click the computer at the top to
 cover all controllers. The hub count is always the whole computer's. The tree
 and the disconnected list always show everything. At start, the platform
@@ -556,7 +568,7 @@ for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
 as plain text, the same text the log gets, for pasting into an email:
 
 ```
-Dell Inc. Latitude 7450
+Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)
 |-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
