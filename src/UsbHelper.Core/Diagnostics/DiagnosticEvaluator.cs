@@ -159,7 +159,7 @@ public static class DiagnosticEvaluator
                 if (countedHub && hubs.State == LimitState.Exceeded
                     && (busesOver == null || hubBuses.GetValueOrDefault(node.Id) is not { } hubBus || busesOver.Any(over => over.Bus == hubBus)))
                 {
-                    status = ConnectionStatus.Purple; // Every hub counts toward the exceeded hub count.
+                    status = ConnectionStatus.Purple; // This hub counts toward a bus over the hub limit.
                 }
                 if (node.Problem != null || port.Problem != null)
                 {

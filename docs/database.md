@@ -158,9 +158,11 @@ to the bus of the port it is plugged into, and `max_hubs` is checked against
 the bus with the most hubs, not the sum of both halves. The bus comes from the
 operating system only (macOS: the port's class, Windows: the protocols the port
 reports), never from a name or a speed. A hub or device on a port whose bus is
-not reported is in neither bus's count, so the counts are then "at least" and
-the log says why. When no bus is reported at all, both buses are counted
-together, as before.
+not reported is in neither bus's count, so the counts are then "at least". All
+hubs together are an upper bound for each bus: while they are within
+`max_hubs`, the limit is within; above it, the limit is unknown and the log
+says why. When no bus is reported at all, both buses are counted together, as
+before.
 
 A profile may also set `recommended_hops`: hop depths above it still work up to
 `max_hops`, but less reliably.
