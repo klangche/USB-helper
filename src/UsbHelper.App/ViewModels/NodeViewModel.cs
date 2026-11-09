@@ -35,7 +35,7 @@ public sealed class NodeViewModel : ObservableObject
     private string trunkAboveColor = StatusColors.Trunk;
     private string? trunkBelowColor;
     private string trunkColor = StatusColors.Trunk;
-    private string? counts;
+    private CountsText? counts;
     private string? portType;
     private bool isExpanded;
     private bool isController;
@@ -266,13 +266,37 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// For a controller: its hub count, deepest tier and deepest hop. For the host: the same over all controllers, hubs
-    /// summed (#208). Null for everything else.
+    /// As text: for a controller, its hub count, with the hubs per bus in brackets (USB2 first, then USB3), and its deepest tier
+    /// and deepest hop (#217). For the host: the same over all controllers, hubs summed (#208). Null for everything else
+    /// and for a controller with nothing connected.
     /// </summary>
-    public string? Counts
+    public string? Counts => counts?.ToString();
+
+    /// <summary>The counts up to the USB2 number: the hub count, plus " (" when a bus is known.</summary>
+    public string? CountsHead => counts?.Head;
+
+    /// <summary>The USB2 hub count in the brackets; null when no bus is known.</summary>
+    public string? CountsUsb2 => counts?.Usb2;
+
+    /// <summary>The USB3 hub count in the brackets; null when no bus is known.</summary>
+    public string? CountsUsb3 => counts?.Usb3;
+
+    /// <summary>The counts after the USB3 number.</summary>
+    public string? CountsTail => counts?.Tail;
+
+    public bool HasCountsPerBus => counts?.Usb2 != null;
+
+    private void SetCounts(CountsText? value)
     {
-        get => counts;
-        private set => SetField(ref counts, value);
+        if (counts == value)
+        {
+            return;
+        }
+        counts = value;
+        foreach (var name in new[] { nameof(Counts), nameof(CountsHead), nameof(CountsUsb2), nameof(CountsUsb3), nameof(CountsTail), nameof(HasCountsPerBus) })
+        {
+            OnPropertyChanged(name);
+        }
     }
 
     public string LineColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
@@ -323,7 +347,7 @@ public sealed class NodeViewModel : ObservableObject
     {
         Text = name;
         IsLast = true;
-        Counts = controllers.Count == 0 ? null : TreeCounts(controllers, extraHops);
+        SetCounts(TreeCounts(controllers, extraHops));
         // A monitor linked to a USB node is shown under it (#143); the others are in the Displays group. A DisplayLink
         // monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed again.
         // Windows does not say which indirect monitor hangs off which adapter.
@@ -441,7 +465,7 @@ public sealed class NodeViewModel : ObservableObject
         Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Connections.TryGetValue(node.Id, out var value)
             ? value
             : null;
-        Counts = node.Kind == UsbNodeKind.Controller ? TreeCounts([node], extraHops) : null;
+        SetCounts(node.Kind == UsbNodeKind.Controller ? TreeCounts([node], extraHops) : null);
         DepthText = !IsDisconnected && node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Depths.TryGetValue(node.Id, out var depth)
             ? string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, depth.Tier, depth.Hops)
             : null;
@@ -502,24 +526,41 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    // Per bus when the operating system reports any bus (#195), else hubs of both buses together as before.
-    private static string TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
+    // "Hubs: 4 (3+1), deepest tier: 4, deepest hop: 2" (#217): the hubs of both buses together and, in brackets, per bus
+    // in a fixed order, USB2 first, then USB3 (#195). The deepest tier and hop are of any bus. Without any known bus
+    // there are no brackets. "At least" when a hub, port or bus could not be read; a hub on a port whose bus is unknown
+    // is in the total but on neither bus. Null when nothing is connected.
+    private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
-        var unreadable = TopologyCounts.Unreadable(tree).Any();
-        var perBus = TopologyCounts.PerBus(tree, extraHops);
-        if (perBus.AnyBusKnown)
-        {
-            return string.Format(CultureInfo.CurrentCulture,
-                unreadable || perBus.BusUnknown ? Strings.ControllerCountsPerBusAtLeast : Strings.ControllerCountsPerBus,
-                perBus.Usb2.Hubs, perBus.Usb2.DeepestTier, perBus.Usb2.DeepestHops,
-                perBus.Usb3.Hubs, perBus.Usb3.DeepestTier, perBus.Usb3.DeepestHops);
-        }
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
-        return string.Format(CultureInfo.CurrentCulture,
-            unreadable ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,
-            TopologyCounts.HubCount(tree),
+        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
+        if (!depths.Any() && !atLeast)
+        {
+            return null;
+        }
+        var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, TopologyCounts.HubCount(tree));
+        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth,
             depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
             depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max());
+        return perBus.AnyBusKnown
+            ? new CountsText(hubs, perBus.Usb2.Hubs.ToString(CultureInfo.CurrentCulture), perBus.Usb3.Hubs.ToString(CultureInfo.CurrentCulture), depth)
+            : new CountsText(hubs, null, null, depth);
+    }
+
+    /// <summary>
+    /// The counts in pieces, so the window can show "(3+1)" with the hubs of each bus coloured and explained on hover.
+    /// The text (tree as text, log, export) names the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), ...".
+    /// </summary>
+    private sealed record CountsText(string Hubs, string? Usb2, string? Usb3, string Depth)
+    {
+        public string Head => Usb2 == null ? Hubs : Hubs + " (";
+
+        public string Tail => Usb2 == null ? Depth : ")" + Depth;
+
+        public override string ToString() => Usb2 == null
+            ? Hubs + Depth
+            : Hubs + string.Format(CultureInfo.CurrentCulture, Strings.CountsPerBusText, Usb2, Usb3) + Depth;
     }
 
     private static string Describe(UsbNode node, bool isDisconnected)
