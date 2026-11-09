@@ -555,7 +555,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        var expected = "USB 2: 2 hubs, tier 4, hop 2 · USB 3: 1 hub, tier 3, hop 1";
+        var expected = "USB 2.0: 2 hubs, tier 4, hop 2 · USB 3.x: 1 hub, tier 3, hop 1";
         Assert.Equal(expected, Item(viewModel, "C1").Counts);
         Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
     }
@@ -569,7 +569,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("USB 2: ≥1 hub, tier ≥3, hop ≥1 · USB 3: ≥1 hub, tier ≥3, hop ≥1", Item(viewModel, "C1").Counts);
+        Assert.Equal("USB 2.0: ≥1 hub, tier ≥3, hop ≥1 · USB 3.x: ≥1 hub, tier ≥3, hop ≥1", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -582,7 +582,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal("USB 2: 1 hub, tier 3, hop 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("USB 2.0: 1 hub, tier 3, hop 1", Item(viewModel, "C1").Counts);
         Assert.Null(Item(viewModel, "C2").Counts);
     }
 

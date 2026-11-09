@@ -249,10 +249,10 @@
     <value> · </value>
   </data>
   <data name="BusUsb2" xml:space="preserve">
-    <value>USB 2</value>
+    <value>USB 2.0</value>
   </data>
   <data name="BusUsb3" xml:space="preserve">
-    <value>USB 3</value>
+    <value>USB 3.x</value>
   </data>
   <data name="NodeDepthTip" xml:space="preserve">
     <value>Tier {0}, hubs in front: {1}</value>
