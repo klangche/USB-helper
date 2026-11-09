@@ -139,6 +139,53 @@ public class UsbTreeBuilderTests
         Assert.Equal(["USB2.1 Hub", "USB3.2 Hub"], tree[1].Children[0].Children.Select(p => p.Children[0].Name));
     }
 
+    // #194, from the owner's capture on an M1 Pro/Max (AppleT6000USBXHCI, comment on #194, 2026-11-09): the class name
+    // of a port entry gives its bus.
+    private static RegistryEntry Entry(string className, long location, params RegistryEntry[] children) =>
+        new(className, className, false, new Dictionary<string, object> { ["locationID"] = location }, children);
+
+    private static RegistryEntry Hub(long location, string name, string driver, string portClass, long[] ports, params RegistryEntry[] devices) =>
+        Device(location, 0x0BDA, 0x5411, name, deviceClass: 9) with
+        {
+            Children = [new RegistryEntry(driver, driver, false, new Dictionary<string, object>(), [.. ports.Select(port => Entry(portClass, port)), .. devices])],
+        };
+
+    [Fact]
+    public void Apple_silicon_ports_get_their_bus_from_the_class_name()
+    {
+        var usb2 = Hub(0x00100000, "USB2.1 Hub", "AppleUSB20Hub", "AppleUSB20HubPort", [0x00110000, 0x00120000, 0x00130000, 0x00140000],
+            Hub(0x00110000, "USB 2.0 Hub", "AppleUSB20Hub", "AppleUSB20HubPort", [0x00111000, 0x00112000, 0x00113000, 0x00114000]));
+        var usb3 = Hub(0x00200000, "USB3.2 Hub", "AppleUSB30Hub", "AppleUSB30HubPort", [0x00210000, 0x00220000, 0x00230000, 0x00240000],
+            Device(0x00240000, 0x0BDA, 0x8153, "USB 10/100/1000 LAN"));
+        var tree = UsbTreeBuilder.Build(
+        [
+            Controller(0, RootPort("AppleUSB20XHCIARMPort", 1, 0x00100000, usb2), RootPort("AppleT8103USB30XHCIPort", 1, 0x00200000, usb3)),
+        ]);
+
+        var root = tree[0].Children[0].Children;
+        Assert.Equal([UsbBus.Usb2, UsbBus.Usb3], root.Select(port => port.Bus));
+        var hub2 = root[0].Children[0];
+        var hub3 = root[1].Children[0];
+        Assert.Equal("USB2.1 Hub", hub2.Name);
+        Assert.Equal("USB3.2 Hub", hub3.Name);
+        Assert.All(hub2.Children, port => Assert.Equal(UsbBus.Usb2, port.Bus));
+        Assert.All(hub2.Children[0].Children[0].Children, port => Assert.Equal(UsbBus.Usb2, port.Bus));
+        Assert.Equal(4, hub2.Children[0].Children[0].Children.Count);
+        Assert.All(hub3.Children, port => Assert.Equal(UsbBus.Usb3, port.Bus));
+        Assert.Equal("USB 10/100/1000 LAN", hub3.Children[3].Children[0].Name);
+    }
+
+    [Fact]
+    public void A_port_class_the_app_does_not_know_has_an_unknown_bus()
+    {
+        var tree = UsbTreeBuilder.Build(
+        [
+            Controller(0, RootPort("AppleT9999USB40XHCIPort", 1, 0x00100000), RootPort("AppleUSB20XHCIARMPort", 1, 0x00200000)),
+        ]);
+
+        Assert.Equal([null, UsbBus.Usb2], tree[0].Children[0].Children.Select(port => port.Bus));
+    }
+
     [Fact]
     public void Ids_are_the_same_on_repeated_reads()
     {
