@@ -159,8 +159,8 @@ for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
 as plain text, the same text the log gets, for pasting into an email:
 
 ```
-Dell Inc. Latitude 7450 (Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 5, deepest hop: 3)
-|-- Controller (Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 5, deepest hop: 3)
+Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)
+|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
 |           `-- [+2 hops] Dock - stable

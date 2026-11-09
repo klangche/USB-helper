@@ -272,7 +272,7 @@ public sealed class NodeViewModel : ObservableObject
     /// </summary>
     public string? Counts => counts?.ToString();
 
-    /// <summary>The counts before the USB2 number, or all of them when no bus is known.</summary>
+    /// <summary>The counts up to the USB2 number: the hub count, plus " (" when a bus is known.</summary>
     public string? CountsHead => counts?.Head;
 
     /// <summary>The USB2 hub count in the brackets; null when no bus is known.</summary>
