@@ -197,7 +197,8 @@ status per checked profile; when several apply, the first in this list wins:
    device; or the hub or device disconnected and came back since the app
    started, however long or short the drop, until it leaves again or is
    cleared; or its tier or hop depth is above the profile's `max_tiers` or
-   `max_hops`; or it is a hub and the hub count is above `max_hubs`.
+   `max_hops`; or it is a hub on a bus whose hub count is above `max_hubs`
+   (a hub whose bus is not reported counts as on every bus over the limit).
 3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
    within `max_hops`.
 4. Grey (unknown): no profile is checked, or the profile has none of these

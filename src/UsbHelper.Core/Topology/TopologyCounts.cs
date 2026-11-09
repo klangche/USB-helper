@@ -59,17 +59,11 @@ public static class TopologyCounts
     }
 
     /// <summary>
-    /// The hub count to check against <c>limits.max_hubs</c>, which applies per bus (#195): the larger bus's count when any
-    /// bus is known, with <c>Incomplete</c> set when some hub's bus is unknown. When no bus is known at all, the hubs of
-    /// both buses are counted together, as before #195.
+    /// The bus of the port each counted hub and device is plugged into, by id; null when the operating system does not
+    /// report it.
     /// </summary>
-    public static (int Hubs, bool Incomplete) HubsPerBusLimit(IReadOnlyList<UsbNode> tree)
-    {
-        var counts = PerBus(tree);
-        return counts.AnyBusKnown
-            ? (Math.Max(counts.Usb2.Hubs, counts.Usb3.Hubs), counts.BusUnknown)
-            : (HubCount(tree), false);
-    }
+    public static IReadOnlyDictionary<string, UsbBus?> Buses(IReadOnlyList<UsbNode> tree) =>
+        Counted(tree, null).ToDictionary(entry => entry.Node.Id, entry => entry.Bus);
 
     /// <summary>
     /// Tier and hop depth of every connected hub and device, by id. Root hubs, built-in hubs and controllers are not

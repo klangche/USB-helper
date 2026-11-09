@@ -17,7 +17,8 @@ that model's profile from a reviewed, cited hardware database.
   yourself. Refresh starts following again.
 - **Counts per USB bus.** Each controller and the computer's row show hubs,
   deepest tier and deepest hop for USB 2 and USB 3, the two halves of a USB 3
-  hub kept apart. Every hub and device shows its own tier and hops on hover.
+  hub kept apart. Every hub and device shows its own tier and the hubs in
+  front of it on hover.
 - **Checks against limits** of the computer model and its platform: hub count,
   tier depth, hop depth and recommended hops, each line coloured green
   (stable), orange (potentially unstable), purple (unstable), red (missing) or

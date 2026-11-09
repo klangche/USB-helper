@@ -77,13 +77,26 @@ public static class DiagnosticEvaluator
         var depths = TopologyCounts.Depths(tree, extraHops);
         var computerTree = wholeTree ?? tree;
         // limits.max_hubs applies per bus (#195): the two halves of a USB 3 hub are one hub on each bus, not two hubs.
-        var (hubsOnBus, busIncomplete) = TopologyCounts.HubsPerBusLimit(computerTree);
-        if (busIncomplete)
+        // Checked against the bus with the most hubs. A hub on a port whose bus is unknown is in neither bus; the total of
+        // all hubs is an upper bound for each bus, so the result is open only when that total is above the limit.
+        // Without any known bus, all hubs are counted together as before.
+        var perBus = TopologyCounts.PerBus(computerTree);
+        var totalHubs = TopologyCounts.HubCount(computerTree);
+        var hubLimit = profile?.Find("limits.max_hubs")?.Scalar as long?;
+        var busOpen = perBus.AnyBusKnown && perBus.BusUnknown && totalHubs > hubLimit;
+        if (busOpen)
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
                 "The operating system does not say which bus some ports are on, so the hubs on them are in neither bus's count; the counts per bus are at least what is shown."));
         }
-        var hubs = Check(profile, "limits.max_hubs", hubsOnBus, busIncomplete || TopologyCounts.Unreadable(computerTree).Any());
+        var hubs = Check(profile, "limits.max_hubs",
+            perBus.AnyBusKnown ? Math.Max(perBus.Usb2.Hubs, perBus.Usb3.Hubs) : totalHubs,
+            busOpen || TopologyCounts.Unreadable(computerTree).Any());
+        // The buses over the limit, so only their hubs are marked; null means every counted hub (no bus known).
+        var busesOver = !perBus.AnyBusKnown ? null
+            : new[] { (Bus: UsbBus.Usb2, Counts: perBus.Usb2), (Bus: UsbBus.Usb3, Counts: perBus.Usb3) }
+                .Where(bus => bus.Counts.Hubs > hubLimit).ToList();
+        var hubBuses = TopologyCounts.Buses(computerTree);
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
         var maxHops = depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max();
         var hops = Check(profile, "limits.max_hops", maxHops, incomplete);
@@ -99,7 +112,15 @@ public static class DiagnosticEvaluator
         }
         if (hubs.State == LimitState.Exceeded)
         {
-            findings.Add(Risk(ComputerId, computer, unverified => $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{unverified(hubs)}."));
+            if (busesOver == null)
+            {
+                findings.Add(Risk(ComputerId, computer, unverified => $"{hubs.Actual} external hubs are connected; {hubs.Field} is {hubs.Limit}{unverified(hubs)}."));
+            }
+            foreach (var (bus, counts) in busesOver ?? [])
+            {
+                findings.Add(Risk(ComputerId, computer, unverified =>
+                    $"{counts.Hubs} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {hubs.Field} is {hubs.Limit}{unverified(hubs)}."));
+            }
         }
 
         // Owner decision in #39: stability is judged on the limits the profile knows; an unknown limit is a finding,
@@ -134,7 +155,9 @@ public static class DiagnosticEvaluator
                         $"Hop depth {depth.Hops} exceeds the recommended {recommendedHops.Field} {recommendedHops.Limit}{unverified(recommendedHops)}; "
                         + $"{hops.Field} is {(hops.Limit == null ? "unknown" : $"{hops.Limit}{unverified(hops)}")}."));
                 }
-                if (countedHub && hubs.State == LimitState.Exceeded)
+                // Only hubs on a bus over the limit; a hub whose bus is unknown may be on it.
+                if (countedHub && hubs.State == LimitState.Exceeded
+                    && (busesOver == null || hubBuses.GetValueOrDefault(node.Id) is not { } hubBus || busesOver.Any(over => over.Bus == hubBus)))
                 {
                     status = ConnectionStatus.Purple; // Every hub counts toward the exceeded hub count.
                 }

@@ -664,12 +664,38 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
-    public void UnknownBusMakesTheHubLimitUnknownAndSaysWhy()
+    public void OnlyHubsOnTheBusOverTheLimitAreUnstable()
+    {
+        // Review of #216: USB 2 has 6 hubs and is over a limit of 5; USB 3 has 2 and is within.
+        var report = Evaluate(TesterMac(), Profile(hubs: "5"));
+
+        Assert.All(new[] { "H1", "H2", "H3", "H4", "H5", "H6" }, hub => Assert.Equal(ConnectionStatus.Purple, report.Connections[hub]));
+        Assert.All(new[] { "S1", "S2" }, hub => Assert.NotEqual(ConnectionStatus.Purple, report.Connections[hub]));
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("6 hubs are on the USB 2 bus; limits.max_hubs is 5", StringComparison.Ordinal));
+    }
+
+    // A root hub with a USB 2 hub, a USB 3 hub, and on port 3, whose bus is not reported, a hub with a mouse.
+    private static IReadOnlyList<UsbNode> WithUnknownBus()
     {
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
-        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] };
+        return [Controller("C1", root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] })];
+    }
 
-        var report = Evaluate([Controller("C1", root)], Profile());
+    [Fact]
+    public void UnknownBusIsWithinWhenAllHubsTogetherAreWithin()
+    {
+        // 3 hubs in all can never put one bus over 5.
+        var report = Evaluate(WithUnknownBus(), Profile(hubs: "5"));
+
+        Assert.Equal((1, LimitState.Within), (report.Hubs.Actual, report.Hubs.State));
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("which bus", StringComparison.Ordinal));
+        Assert.Equal(ConnectionStatus.Green, report.Connections["UNKNOWN-BUS"]);
+    }
+
+    [Fact]
+    public void UnknownBusLeavesTheHubLimitOpenWhenAllHubsTogetherCouldBeOver()
+    {
+        var report = Evaluate(WithUnknownBus(), Profile(hubs: "2"));
 
         Assert.Equal((1, LimitState.Unknown), (report.Hubs.Actual, report.Hubs.State));
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.Contains("which bus", StringComparison.Ordinal));
@@ -681,4 +707,3 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(new ConnectionDepth(3, 1), Evaluate(Desk, Profile()).Depths["KEYBOARD"]);
     }
 }
-

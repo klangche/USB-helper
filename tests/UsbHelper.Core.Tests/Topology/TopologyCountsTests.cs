@@ -284,7 +284,8 @@ public class TopologyCountsTests
         Assert.False(counts.BusUnknown);
         Assert.True(counts.AnyBusKnown);
         Assert.Equal(8, TopologyCounts.HubCount(TesterMac()));
-        Assert.Equal((6, false), TopologyCounts.HubsPerBusLimit(TesterMac()));
+        Assert.Equal(UsbBus.Usb3, TopologyCounts.Buses(TesterMac())["S2"]);
+        Assert.Equal(UsbBus.Usb2, TopologyCounts.Buses(TesterMac())["HEADSET"]);
     }
 
     [Fact]
@@ -297,7 +298,6 @@ public class TopologyCountsTests
 
         Assert.Equal(new BusCounts(1, 3, 1), counts.Usb2);
         Assert.Equal(new BusCounts(1, 3, 1), counts.Usb3);
-        Assert.Equal((1, false), TopologyCounts.HubsPerBusLimit(tree));
     }
 
     [Fact]
@@ -312,7 +312,7 @@ public class TopologyCountsTests
         Assert.Equal(1, counts.Usb2.Hubs);
         Assert.Equal(1, counts.Usb3.Hubs);
         Assert.True(counts.BusUnknown);
-        Assert.Equal((1, true), TopologyCounts.HubsPerBusLimit(tree));
+        Assert.Null(TopologyCounts.Buses(tree)["UNKNOWN-BUS"]);
     }
 
     [Fact]
@@ -322,7 +322,6 @@ public class TopologyCountsTests
 
         Assert.False(TopologyCounts.PerBus(tree).AnyBusKnown);
         Assert.True(TopologyCounts.PerBus(tree).BusUnknown);
-        Assert.Equal((2, false), TopologyCounts.HubsPerBusLimit(tree));
     }
 
     [Fact]
@@ -337,4 +336,3 @@ public class TopologyCountsTests
         Assert.Equal(new BusCounts(2, 5, 3), counts.Usb3);
     }
 }
-

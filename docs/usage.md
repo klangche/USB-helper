@@ -14,7 +14,8 @@ computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
-status colour, with the result word after its name. Empty ports are left
+status colour, with the result word after its name. Hubs and devices show
+the product name they report, falling back to the Windows name. Empty ports are left
 out. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
 its tree; while it is hidden the controller's name is bold. Only the
@@ -54,12 +55,12 @@ tree that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, deepest tier and deepest
-hop per bus, for example "USB 2: 2 hubs, tier 4, hop 2 · USB 3: 1 hubs, tier
-3, hop 1"; the computer's row shows the same over all controllers, hubs summed
+hop per bus, for example "USB 2 hubs: 2, deepest tier: 4, deepest hop: 2 ·
+USB 3 hubs: 1, deepest tier: 3, deepest hop: 1"; the computer's row shows the same over all controllers, hubs summed
 per bus. When the operating system reports no bus at all, one line counts both
 buses together ("Hubs: 3, deepest tier: 4, deepest hop: 2"). The counts say
 "at least" when a hub, port or bus could not be read. Hovering a hub or device
-shows its own depth, for example "Tier 4, 2 hubs in front".
+shows its own depth, for example "Tier 4, hubs in front: 2".
 Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
