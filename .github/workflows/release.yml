@@ -224,7 +224,12 @@ jobs:
             if ($process.ExitCode) { Get-Content msi.log -ErrorAction SilentlyContinue | Select-Object -Last 40; throw "msiexec $arguments exited with $($process.ExitCode)." }
           }
           function Files($path) { (Get-ChildItem $path -Recurse -File).FullName.Substring($path.Length) | Sort-Object }
-          Msiexec "/i $env:NAME.msi /qn /l*v msi.log"
+          # Like the app's own update (#222): each .msi runs from the update folder, and the installed version's .msi stays
+          # there while the next one installs; Windows Installer may need it to remove that version.
+          $updates = "$env:RUNNER_TEMP\USB-helper-installer"
+          New-Item -ItemType Directory -Force $updates | Out-Null
+          Copy-Item "$env:NAME.msi" "$updates\first.msi"
+          Msiexec "/i $updates\first.msi /qn /l*v msi.log"
           # Without LAUNCHAPPONEXIT (and with no last page under /qn) nothing starts.
           Assert-NotRunning $folder 'install without LAUNCHAPPONEXIT'
           if (Compare-Object (Files $folder) (Files "$PWD\layout")) { throw "$folder does not hold the same files as the zip's USB-helper folder." }
@@ -239,14 +244,19 @@ jobs:
           . release/build-msi.ps1
           $parts = $env:MSI_VERSION.Split('.')
           $newer = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
-          Build-Msi upgrade-test $newer upgrade-test.msi
-          Msiexec "/i upgrade-test.msi /qn LAUNCHAPPONEXIT=1 /l*v msi.log"
+          Build-Msi upgrade-test $newer "$updates\upgrade-test.msi"
+          Msiexec "/i $updates\upgrade-test.msi /qn LAUNCHAPPONEXIT=1 /l*v msi.log"
           if ((Entries).Count -ne 1 -or (Entries)[0].DisplayVersion -ne $newer) { throw "The newer .msi did not upgrade in place." }
           "Upgraded to $newer"
           Wait-Window $folder 'started by the .msi with LAUNCHAPPONEXIT=1'
-          Msiexec "/x upgrade-test.msi /qn /l*v msi.log"
+          # The next update removes the older .msi; then uninstall by product code, as Apps & features does, without
+          # naming any .msi. Before #222 the app's update emptied its folder, so the installed version's .msi was gone.
+          Remove-Item "$updates\first.msi"
+          $code = [regex]::Match((Entries)[0].UninstallString, '\{[0-9A-Fa-f-]+\}').Value
+          if (-not $code) { throw "No product code in $((Entries)[0].UninstallString)." }
+          Msiexec "/x $code /qn /l*v msi.log"
           if ((Test-Path $folder) -or (Test-Path $shortcut) -or (Entries).Count) { throw "Uninstall left the folder, the shortcut or the entry." }
-          "Uninstalled"
+          "Uninstalled by product code $code"
 
       # The app's update check (#111, #124) verifies a download against these files (sha256sum format, LF).
       - name: Checksums
