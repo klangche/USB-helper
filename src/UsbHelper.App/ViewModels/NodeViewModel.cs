@@ -549,7 +549,7 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The counts in pieces, so the window can show "(3+1)" with the hubs of each bus coloured and explained on hover.
+    /// The counts in pieces, so the window can show "(3+1)" with the hubs of each bus in bold; hovering shows the text.
     /// The text (tree as text, log, export) names the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), ...".
     /// </summary>
     private sealed record CountsText(string Hubs, string? Usb2, string? Usb3, string Depth)

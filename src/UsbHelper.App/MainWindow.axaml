@@ -216,17 +216,17 @@
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <!-- "Hubs: 4 (3+1), ...": the USB2 hubs in the text colour, the USB3 hubs in blue (#217). -->
-                  <!-- The plain text is dimmed; the USB3 number is not, so its blue stays readable. -->
-                  <StackPanel Orientation="Horizontal"
+                  <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB2 first (#217); hovering shows the full text,
+                       as in the tree as text: "Hubs: 4 (USB2: 3, USB3: 1), ...". -->
+                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding Counts}"
                               IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <TextBlock Text="{Binding CountsHead}" Opacity="0.7" />
-                    <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}" ToolTip.Tip="{x:Static res:Strings.CountsPerBusTip}">
-                      <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" Opacity="0.7" />
-                      <TextBlock Text="+" Opacity="0.7" />
-                      <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" Foreground="#2F80ED" />
+                    <TextBlock Text="{Binding CountsHead}" />
+                    <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}">
+                      <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
+                      <TextBlock Text="+" />
+                      <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" />
                     </StackPanel>
-                    <TextBlock Text="{Binding CountsTail}" Opacity="0.7" />
+                    <TextBlock Text="{Binding CountsTail}" />
                   </StackPanel>
                 </StackPanel>
               </DockPanel>
