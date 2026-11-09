@@ -1420,6 +1420,41 @@ public class MainViewModelTests
         Assert.True(Item(viewModel, "C1").IsExpanded); // It still shows the disconnected devices.
     }
 
+    // #212: disconnected devices count, so a dropped dock keeps its place against a small new device elsewhere.
+    [Fact]
+    public void ADroppedTreeKeepsItsPlaceUntilABiggerTreeArrives()
+    {
+        var viewModel = TwoControllers(EmptySecond, Desk[0]);
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        viewModel.Apply([Plug("ROOT2", 1, Device("STICK"))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 2, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
+    // #68 stays: the busiest pick at start and on Refresh counts connected hubs and devices only (#212 review).
+    [Fact]
+    public void RefreshPicksTheControllerWithConnectedDevicesOverADroppedTree()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        viewModel.RefreshRequested += () => { };
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.Load([Phone, new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)])], monitors: []);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
     [Fact]
     public void AControllerThatGrowsSwitchesOnlyWhenItHasMoreThanTheSelectedOne()
     {
