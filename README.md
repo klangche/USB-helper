@@ -448,11 +448,13 @@ everything below a controller, hubs built into the computer included, are
 always open. Until you select an item or open or close a controller, the
 tree follows what is plugged in: a controller that gains hubs or devices and
 then has more than the selected one is selected and opened, and the others
-are collapsed. Disconnected devices count too, so a dropped dock keeps its
-place until a bigger tree arrives or its disconnected devices are cleared. A selected controller that loses devices stays selected, so a
-brief drop does not jump away and its disconnected devices stay in view; a
-tie never switches. After your own choice, it is kept while the app runs;
-Refresh follows again, starting from the busiest controller. A
+are collapsed. Here disconnected devices count too, so a dropped dock keeps
+its place until a bigger tree arrives or its disconnected devices are
+cleared. A selected controller that loses devices stays selected, so a brief
+drop does not jump away and its disconnected devices stay in view; a tie
+never switches. After your own choice, it is kept while the app runs;
+Refresh follows again, starting from the busiest controller by connected
+hubs and devices. A
 DisplayLink device is shown as a display: a "Display" badge and "Extended
 display: DisplayLink driver required" before its name;
 every hub above it says it "has a display". After the controllers, a

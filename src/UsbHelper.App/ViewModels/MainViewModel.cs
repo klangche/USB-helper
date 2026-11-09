@@ -515,13 +515,14 @@ public sealed class MainViewModel : ObservableObject
         // Owner decision in #208: while following, a controller that grew and now has strictly more connected hubs and
         // devices than the selected one is selected; several: the biggest, on a tie the first. The selected controller
         // stays when it shrinks, so a brief drop does not jump away and its disconnected devices stay in view.
-        // #212: a controller's size counts its disconnected devices too, so a dropped dock keeps its place against a small
-        // device plugged in elsewhere.
+        // #212: for following, a controller's size counts its disconnected devices too, so a dropped dock keeps its place
+        // against a small device plugged in elsewhere. The busiest pick above (#68) counts connected ones only.
+        var connected = tree.ToDictionary(controller => controller.Id, controller => TopologyCounts.Depths([controller]).Count);
         var sizes = tree.ToDictionary(controller => controller.Id,
-            controller => TopologyCounts.Depths([controller]).Count + missing.Count(device => device.AncestorIds.Contains(controller.Id)));
+            controller => connected[controller.Id] + missing.Count(device => device.AncestorIds.Contains(controller.Id)));
         if (!allControllers && tree.All(controller => controller.Id != selectedControllerId))
         {
-            selectedControllerId = tree.MaxBy(controller => sizes[controller.Id])?.Id;
+            selectedControllerId = tree.MaxBy(controller => connected[controller.Id])?.Id;
         }
         else if (following && selectedControllerId != null)
         {

@@ -1440,6 +1440,21 @@ public class MainViewModelTests
         Assert.Equal("C2", viewModel.SelectedControllerId);
     }
 
+    // #68 stays: the busiest pick at start and on Refresh counts connected hubs and devices only (#212 review).
+    [Fact]
+    public void RefreshPicksTheControllerWithConnectedDevicesOverADroppedTree()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        viewModel.RefreshRequested += () => { };
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.Load([Phone, new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)])], monitors: []);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
     [Fact]
     public void AControllerThatGrowsSwitchesOnlyWhenItHasMoreThanTheSelectedOne()
     {
