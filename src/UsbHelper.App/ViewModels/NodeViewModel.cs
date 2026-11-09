@@ -263,7 +263,10 @@ public sealed class NodeViewModel : ObservableObject
         private set => SetField(ref portType, value);
     }
 
-    /// <summary>For a controller: its hub count, deepest tier and deepest hop. Null for everything else.</summary>
+    /// <summary>
+    /// For a controller: its hub count, deepest tier and deepest hop. For the host: the same over all controllers, hubs
+    /// summed (#208). Null for everything else.
+    /// </summary>
     public string? Counts
     {
         get => counts;
@@ -299,6 +302,7 @@ public sealed class NodeViewModel : ObservableObject
     {
         Text = name;
         IsLast = true;
+        Counts = controllers.Count == 0 ? null : TreeCounts(controllers, extraHops);
         // A monitor linked to a USB node is shown under it (#143); the others are in the Displays group. A DisplayLink
         // monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed again.
         // Windows does not say which indirect monitor hangs off which adapter.
@@ -416,7 +420,7 @@ public sealed class NodeViewModel : ObservableObject
         Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Connections.TryGetValue(node.Id, out var value)
             ? value
             : null;
-        Counts = node.Kind == UsbNodeKind.Controller ? ControllerCounts(node, extraHops) : null;
+        Counts = node.Kind == UsbNodeKind.Controller ? TreeCounts([node], extraHops) : null;
         PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
         var wanted = node.Children
@@ -474,9 +478,8 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    private static string ControllerCounts(UsbNode controller, IReadOnlyDictionary<string, int> extraHops)
+    private static string TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
-        IReadOnlyList<UsbNode> tree = [controller];
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
         return string.Format(CultureInfo.CurrentCulture,
             TopologyCounts.Unreadable(tree).Any() ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,

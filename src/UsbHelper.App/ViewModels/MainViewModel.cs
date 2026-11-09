@@ -66,8 +66,15 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedControllerId;
     // The host is selected: the status covers all controllers.
     private bool allControllers;
-    // The controllers' first open or collapsed state is set once, when they first arrive.
-    private bool controllersShown;
+    // Owner decision in #208: until the user selects an item or opens or closes a controller, the selection and the open
+    // controller follow what is plugged in. Refresh follows again.
+    private bool following = true;
+    // Set while the app itself opens and closes controllers, so that is not taken for the user's choice.
+    private bool laying;
+    // Connected hubs and devices per controller id at the last refresh, to see which controller grew.
+    private Dictionary<string, int> controllerSizes = [];
+    // The controller items whose open or closed state is watched for the user's choice.
+    private readonly HashSet<NodeViewModel> watched = [];
     // The last refresh's monitors and its result for all controllers, for the setup export.
     private IReadOnlyList<DisplayMonitor>? monitors;
     private SystemsReport lastReport = DiagnosticEvaluator.EvaluateAll([], [], []);
@@ -145,6 +152,12 @@ public sealed class MainViewModel : ObservableObject
         {
             log.Add("Refresh");
         }
+        // #208: the fresh read picks the busiest controller again, as at start, and follows from there.
+        following = true;
+        allControllers = false;
+        selectedControllerId = null;
+        controllerSizes = [];
+        SelectedNode = null;
         LoadingStage = Strings.ReadingDevices;
         IsLoading = true;
         RefreshRequested();
@@ -370,7 +383,12 @@ public sealed class MainViewModel : ObservableObject
         {
             // The Displays group and its monitors belong to no controller (#133): clicking them keeps the scope. A monitor
             // shown under a USB node (#143) is part of that controller's tree, like anything else under it.
-            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0 && !IsDisplay(value))
+            if (!SetField(ref selectedNode, value) || value == null)
+            {
+                return;
+            }
+            following = false; // #208: selecting anything, a monitor too, stops following.
+            if (Roots.Count > 0 && !IsDisplay(value))
             {
                 // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
                 allControllers = value == Roots[0];
@@ -494,10 +512,22 @@ public sealed class MainViewModel : ObservableObject
         // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
         // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a
         // tie the first.
+        // Owner decision in #208: while following, a controller that grew and now has strictly more connected hubs and
+        // devices than the selected one is selected; several: the biggest, on a tie the first. The selected controller
+        // stays when it shrinks, so a brief drop does not jump away and its disconnected devices stay in view.
+        var sizes = tree.ToDictionary(controller => controller.Id, controller => TopologyCounts.Depths([controller]).Count);
         if (!allControllers && tree.All(controller => controller.Id != selectedControllerId))
         {
-            selectedControllerId = tree.MaxBy(controller => TopologyCounts.Depths([controller]).Count)?.Id;
+            selectedControllerId = tree.MaxBy(controller => sizes[controller.Id])?.Id;
         }
+        else if (following && selectedControllerId != null)
+        {
+            var current = sizes[selectedControllerId];
+            selectedControllerId = tree
+                .Where(controller => sizes[controller.Id] > controllerSizes.GetValueOrDefault(controller.Id) && sizes[controller.Id] > current)
+                .MaxBy(controller => sizes[controller.Id])?.Id ?? selectedControllerId;
+        }
+        controllerSizes = sizes;
         var selected = tree.FirstOrDefault(controller => controller.Id == SelectedControllerId);
         report = selected == null
             ? all
@@ -516,17 +546,29 @@ public sealed class MainViewModel : ObservableObject
         {
             Roots[0].UpdateHost(HostName, tree, lines, extraHops, placement);
         }
-        // Owner decision in #142: when the controllers first arrive, only the selected one, the busiest, is open, and only
-        // when it has devices. After that the user's choices are kept.
-        if (!controllersShown && tree.Count > 0)
+        // Owner decisions in #142 and #208: while following, only the selected controller is open, and only when it has
+        // devices, connected or disconnected. Once the user opens or closes a controller, their choices are kept.
+        if (following)
         {
-            controllersShown = true;
-            var busiest = tree.FirstOrDefault(controller => controller.Id == selectedControllerId);
-            var open = busiest != null && TopologyCounts.Depths([busiest]).Count > 0 ? busiest.Id : null;
+            var open = selected != null && (sizes[selected.Id] > 0 || missing.Any(device => device.AncestorIds.Contains(selected.Id)))
+                ? selected.Id
+                : null;
+            laying = true;
             foreach (var controller in Roots[0].Children.Where(item => item.CanExpand))
             {
                 controller.IsExpanded = controller.Id == open;
             }
+            laying = false;
+        }
+        foreach (var controller in Roots[0].Children.Where(item => item.Id != NodeViewModel.DisplaysId && watched.Add(item)))
+        {
+            controller.PropertyChanged += (sender, e) =>
+            {
+                if (!laying && e.PropertyName == nameof(NodeViewModel.IsExpanded) && sender is NodeViewModel { CanExpand: true })
+                {
+                    following = false;
+                }
+            };
         }
         OnPropertyChanged(nameof(OverallText));
         OnPropertyChanged(nameof(OverallColor));
