@@ -216,8 +216,17 @@
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <TextBlock Text="{Binding Counts}" Opacity="0.7"
-                             IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  <!-- "Hubs: 4 (3+1), ...": the USB2 hubs in the text colour, the USB3 hubs in blue (#217). -->
+                  <StackPanel Orientation="Horizontal" Opacity="0.7"
+                              IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding CountsHead}" />
+                    <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}" ToolTip.Tip="{x:Static res:Strings.CountsPerBusTip}">
+                      <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
+                      <TextBlock Text="+" />
+                      <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" Foreground="#2F80ED" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CountsTail}" />
+                  </StackPanel>
                 </StackPanel>
               </DockPanel>
             </TreeDataTemplate>

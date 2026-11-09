@@ -55,15 +55,18 @@ tree that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, deepest tier and deepest
-hop per bus, for example "USB2.0: 3 hubs, tier 4, hop 2 · USB3.x: 1 hub,
-tier 3, hop 1"; only the buses with something on them are named, and a
-controller with nothing connected shows no counts. The computer's row shows
-the same over all controllers, hubs summed per bus. "USB2.0" is the USB 2.0
-tree and "USB3.x" the SuperSpeed tree (USB 3.0, 3.1 and 3.2): a USB 3 hub has
-a half on each, and each tree has its own chain. When the operating system
-reports no bus at all, one line counts both buses together ("3 hubs, tier 4,
-hop 2"). Every number has a "≥" (at least) when a hub, port or bus could not
-be read. Hovering a hub or device
+hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop: 2". The
+numbers in brackets are the hubs per bus, always in the same order: USB2 first
+(the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), the USB3
+number in blue; hovering them says so. A USB 3 hub has a half on each bus, and
+each bus has its own chain. The deepest tier and hop are those of any bus. The
+computer's row shows the same over all controllers, and a controller with
+nothing connected shows no counts. Copy tree as text, the log and the export
+name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4, deepest
+hop: 2". When the operating system reports no bus at all, there are no
+brackets. The counts say "at least" when a hub, port or bus could not be read;
+a hub on a port whose bus is not reported is in the total but on neither bus.
+Hovering a hub or device
 shows its own depth, for example "Tier 4, hubs in front: 2".
 Next to the tree is a
 summary with the overall result, the status field, disconnected and
@@ -156,8 +159,8 @@ for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
 as plain text, the same text the log gets, for pasting into an email:
 
 ```
-Dell Inc. Latitude 7450 (1 hub, tier 5, hop 3)
-|-- Controller (1 hub, tier 5, hop 3)
+Dell Inc. Latitude 7450 (Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 5, deepest hop: 3)
+|-- Controller (Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 5, deepest hop: 3)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
 |           `-- [+2 hops] Dock - stable
