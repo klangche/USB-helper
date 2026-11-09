@@ -14,7 +14,10 @@ namespace UsbHelper.App.ViewModels;
 /// </summary>
 /// <param name="current">This app's version.</param>
 /// <param name="kind">How this app was installed: which release asset it takes.</param>
-/// <param name="folder">The folder the .msi is downloaded to (Msi only).</param>
+/// <param name="folder">
+/// The folder the .msi is downloaded to and kept in (Msi only). It must outlast the install: Windows Installer may need
+/// the installed version's .msi again to remove it, at the next update or an uninstall from Apps (#222).
+/// </param>
 /// <param name="restart">Runs the given .msi and closes this app (Msi only).</param>
 /// <param name="openPage">Opens a release page in the browser (portable only).</param>
 /// <param name="settings">Whether to check at start and to offer betas (#126); the defaults when null.</param>
@@ -187,13 +190,18 @@ public sealed class UpdateViewModel(
                     Status = string.Format(CultureInfo.CurrentCulture, Strings.UpdateDownloading, release.Version, percent);
                 }
             });
-            // Only this update's .msi stays: an earlier one (about 80 MB) is no longer needed once it installed.
-            if (Directory.Exists(folder))
-            {
-                Directory.Delete(folder, recursive: true);
-            }
+            // Windows Installer may need the installed version's .msi to remove it during this upgrade or a later
+            // uninstall (#222), so that one stays. Older ones (about 80 MB each) are no longer installed and go.
             Directory.CreateDirectory(folder);
             var msi = Path.Combine(folder, release.Download.Segments[^1]);
+            var installed = Path.Combine(folder, MsiName(current));
+            foreach (var old in Directory.GetFiles(folder, "*.msi"))
+            {
+                if (!string.Equals(old, installed, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(old);
+                }
+            }
             await VerifiedDownload.DownloadAsync(http, release, msi, ((IProgress<int>)progress).Report, cancel.Token);
             log.Add($"Downloaded {release.Version} to {msi}; installing it");
             restart(msi);
@@ -206,4 +214,7 @@ public sealed class UpdateViewModel(
             Status = string.Format(CultureInfo.CurrentCulture, Strings.UpdateFailed, e.Message);
         }
     }
+
+    /// <summary>The .msi file name of a version, as the release assets name it.</summary>
+    public static string MsiName(string version) => $"usb-helper-{version}-windows-x64.msi";
 }

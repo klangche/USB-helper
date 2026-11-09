@@ -106,12 +106,28 @@ seconds, a GitHub error or its rate limit, the check is skipped silently.
 
 Installed by the `.msi` (the app runs from
 `%LOCALAPPDATA%\Programs\USB-helper`): on a choice, the app downloads that
-release's `.msi` and its SHA-256 file to `%TEMP%\USB-helper-update`, verifies
-it, runs it (`msiexec /i ... /passive /norestart LAUNCHAPPONEXIT=1`: a
-progress bar, no questions, never a restart of the computer) and closes, so
+release's `.msi` and its SHA-256 file to `%LOCALAPPDATA%\USB-helper-installer`,
+verifies it, runs it (`msiexec /i ... /passive /norestart LAUNCHAPPONEXIT=1`:
+a progress bar, no questions, never a restart of the computer) and closes, so
 the installer can replace its files. When the install is done, the installer
 starts the new version (`LAUNCHAPPONEXIT=1`). Releases from before the `.msi`
 (0.5.0 and older) are not offered to an installed app.
+
+Windows Installer may need the installed version's `.msi` again to remove that
+version, at the next update or an uninstall from Apps & features. So that
+folder keeps the installed version's `.msi` (about 80 MB) and the newest one,
+and each update deletes only older ones. Delete the folder by hand after
+uninstalling if you want the space back.
+
+Updated to 0.8.0 or older by the app itself? Those versions kept the `.msi` in
+`%TEMP%\USB-helper-update` and deleted it before the next update, so removing
+that version (by an update or from Apps) asks for "a network resource that is
+unavailable" (#222). Put the `.msi` it names back, then click OK, for example
+for 0.8.0:
+
+```
+New-Item -ItemType Directory -Force "$env:TEMP\USB-helper-update" | Out-Null; Invoke-WebRequest "https://github.com/klangche/USB-helper/releases/download/v0.8.0/usb-helper-0.8.0-windows-x64.msi" -OutFile "$env:TEMP\USB-helper-update\usb-helper-0.8.0-windows-x64.msi"
+```
 
 A `.msi` download that fails verification is never run; the window shows why
 and the current version keeps running. A download that stalls is given up
