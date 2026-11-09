@@ -236,6 +236,15 @@
   <data name="ControllerCountsAtLeast" xml:space="preserve">
     <value>Hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} (a hub or port could not be read)</value>
   </data>
+  <data name="ControllerCountsPerBus" xml:space="preserve">
+    <value>USB 2 hubs: {0}, deepest tier: {1}, deepest hop: {2} · USB 3 hubs: {3}, deepest tier: {4}, deepest hop: {5}</value>
+  </data>
+  <data name="ControllerCountsPerBusAtLeast" xml:space="preserve">
+    <value>USB 2 hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} · USB 3 hubs: at least {3}, deepest tier: at least {4}, deepest hop: at least {5} (a hub, port or bus could not be read)</value>
+  </data>
+  <data name="NodeDepthTip" xml:space="preserve">
+    <value>Tier {0}, hubs in front: {1}</value>
+  </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>
   </data>
