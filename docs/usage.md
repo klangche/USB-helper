@@ -57,8 +57,8 @@ ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, deepest tier and deepest
 hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop: 2". The
 numbers in brackets are the hubs per bus, always in the same order: USB2 first
-(the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), the USB3
-number in blue; hovering them says so. A USB 3 hub has a half on each bus, and
+(the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), and
+hovering the counts shows them in full, as in the tree as text. A USB 3 hub has a half on each bus, and
 each bus has its own chain. The deepest tier and hop are those of any bus. The
 computer's row shows the same over all controllers, and a controller with
 nothing connected shows no counts. Copy tree as text, the log and the export
