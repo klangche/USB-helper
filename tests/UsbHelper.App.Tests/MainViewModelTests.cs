@@ -1451,6 +1451,18 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void AfterTheUserSelectsAMonitorTheControllerIsNotSwitched()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, Dell]);
+        viewModel.Load([EmptyFirst, EmptySecond]);
+        viewModel.SelectedNode = DisplaysGroup(viewModel)!.Children[1];
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
     public void AfterTheUserOpensOrClosesAControllerNothingIsSwitchedOrOpened()
     {
         var viewModel = TwoControllers(Phone, Desk[0]);

@@ -383,9 +383,13 @@ public sealed class MainViewModel : ObservableObject
         {
             // The Displays group and its monitors belong to no controller (#133): clicking them keeps the scope. A monitor
             // shown under a USB node (#143) is part of that controller's tree, like anything else under it.
-            if (SetField(ref selectedNode, value) && value != null && Roots.Count > 0 && !IsDisplay(value))
+            if (!SetField(ref selectedNode, value) || value == null)
             {
-                following = false;
+                return;
+            }
+            following = false; // #208: selecting anything, a monitor too, stops following.
+            if (Roots.Count > 0 && !IsDisplay(value))
+            {
                 // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
                 allControllers = value == Roots[0];
                 selectedControllerId = Roots[0].Children.FirstOrDefault(controller => Contains(controller, value))?.Id;
