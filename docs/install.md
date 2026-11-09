@@ -119,15 +119,22 @@ folder keeps the installed version's `.msi` (about 80 MB) and the newest one,
 and each update deletes only older ones. Delete the folder by hand after
 uninstalling if you want the space back.
 
-Updated to 0.8.0 or older by the app itself? Those versions kept the `.msi` in
-`%TEMP%\USB-helper-update` and deleted it before the next update, so removing
-that version (by an update or from Apps) asks for "a network resource that is
-unavailable" (#222). Put the `.msi` it names back, then click OK, for example
-for 0.8.0:
+Installed by the in-app update of 0.8.0 or older? That covers every version
+those updates installed, including 0.8.1 when 0.8.0 installed it. Their `.msi`
+is in `%TEMP%\USB-helper-update`, which those updates emptied before the next
+download and which Windows' own temp cleanup can empty too (#222). Removing that
+version, by an update or from Apps, then asks for "a network resource that is
+unavailable" and names the `.msi`. Leave the prompt open, put that `.msi` back
+and click OK, for example for 0.8.0:
 
 ```
 New-Item -ItemType Directory -Force "$env:TEMP\USB-helper-update" | Out-Null; Invoke-WebRequest "https://github.com/klangche/USB-helper/releases/download/v0.8.0/usb-helper-0.8.0-windows-x64.msi" -OutFile "$env:TEMP\USB-helper-update\usb-helper-0.8.0-windows-x64.msi"
 ```
+
+If the prompt was cancelled, USB-helper may be missing from Apps while parts of
+it stay registered. Running the current `.msi` again shows the same prompt for
+the old `.msi`; put that one back as above and click OK. Other ways out have not
+been tested.
 
 A `.msi` download that fails verification is never run; the window shows why
 and the current version keeps running. A download that stalls is given up

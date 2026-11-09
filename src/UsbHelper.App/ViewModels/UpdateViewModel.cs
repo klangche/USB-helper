@@ -199,7 +199,15 @@ public sealed class UpdateViewModel(
             {
                 if (!string.Equals(old, installed, StringComparison.OrdinalIgnoreCase))
                 {
-                    File.Delete(old);
+                    try
+                    {
+                        File.Delete(old);
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                    {
+                        // Only space: a leftover never blocks the update. The next update tries again.
+                        log.Add($"Could not delete {old}: {e.Message}");
+                    }
                 }
             }
             await VerifiedDownload.DownloadAsync(http, release, msi, ((IProgress<int>)progress).Report, cancel.Token);
@@ -216,5 +224,5 @@ public sealed class UpdateViewModel(
     }
 
     /// <summary>The .msi file name of a version, as the release assets name it.</summary>
-    public static string MsiName(string version) => $"usb-helper-{version}-windows-x64.msi";
+    private static string MsiName(string version) => $"usb-helper-{version}-windows-x64.msi";
 }

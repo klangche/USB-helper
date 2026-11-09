@@ -250,7 +250,7 @@ jobs:
           "Upgraded to $newer"
           Wait-Window $folder 'started by the .msi with LAUNCHAPPONEXIT=1'
           # The next update removes the older .msi; then uninstall by product code, as Apps & features does, without
-          # naming any .msi. Before #222 the update folder was emptied first and this asked for a network location.
+          # naming any .msi. Before #222 the app's update emptied its folder, so the installed version's .msi was gone.
           Remove-Item "$updates\first.msi"
           $code = [regex]::Match((Entries)[0].UninstallString, '\{[0-9A-Fa-f-]+\}').Value
           if (-not $code) { throw "No product code in $((Entries)[0].UninstallString)." }
