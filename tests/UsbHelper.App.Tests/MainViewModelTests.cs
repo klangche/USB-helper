@@ -532,6 +532,58 @@ public class MainViewModelTests
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C1").Counts);
     }
 
+    // #195: a USB 3 hub is one hub on each bus; the line shows both buses instead of adding the halves up.
+    private static UsbNode RootWithBuses(string id, UsbNode usb2Hub, UsbNode usb3Hub)
+    {
+        static UsbNode OnBus(UsbNode hub, UsbBus bus) => hub with
+        {
+            Children = hub.Children.Select(port => port with
+            {
+                Bus = bus,
+                Children = port.Children.Select(child => child.Kind == UsbNodeKind.Hub ? OnBus(child, bus) : child).ToList(),
+            }).ToList(),
+        };
+        var root = Hub(id, OnBus(usb2Hub, UsbBus.Usb2), OnBus(usb3Hub, UsbBus.Usb3));
+        return root with { Children = [root.Children[0] with { Bus = UsbBus.Usb2 }, root.Children[1] with { Bus = UsbBus.Usb3 }] };
+    }
+
+    [Fact]
+    public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        var expected = string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsPerBus, 2, 4, 2, 1, 3, 1);
+        Assert.Equal(expected, Item(viewModel, "C1").Counts);
+        Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
+    }
+
+    [Fact]
+    public void PerBusCountsAreMinimumsWhenAPortsBusIsUnknown()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN", Device("MOUSE")))] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsPerBusAtLeast, 1, 3, 1, 1, 3, 1), Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
+    public void EachHubAndDeviceSaysItsTierAndTheHubsInFront()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").RowTip);
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").RowTip);
+        Assert.Null(Item(viewModel, "C1").DepthText);
+        Assert.Null(Item(viewModel, "ROOT|port1").DepthText);
+    }
+
     [Fact]
     public void ControllerCountsAreMinimumsWhenAHubCannotBeRead()
     {

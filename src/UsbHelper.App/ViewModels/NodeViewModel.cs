@@ -43,6 +43,7 @@ public sealed class NodeViewModel : ObservableObject
     private bool displayBelow;
     private bool isHub;
     private int markedHops;
+    private string? depthText;
     private readonly Action<string, int> mark;
 
     private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, int> mark)
@@ -177,6 +178,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(LineColor));
                 OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(RowTip));
                 OnPropertyChanged(nameof(StatusWord));
                 OnPropertyChanged(nameof(HasStatus));
                 OnPropertyChanged(nameof(ElbowColor));
@@ -276,6 +278,25 @@ public sealed class NodeViewModel : ObservableObject
     public string LineColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
 
     public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
+
+    /// <summary>
+    /// For a counted hub or device: "Tier N, N hubs in front" (#195), so a tester cannot read the hop the other way.
+    /// Null for everything else.
+    /// </summary>
+    public string? DepthText
+    {
+        get => depthText;
+        private set
+        {
+            if (SetField(ref depthText, value))
+            {
+                OnPropertyChanged(nameof(RowTip));
+            }
+        }
+    }
+
+    /// <summary>The row's tooltip: the status and, below it, the depth.</summary>
+    public string? RowTip => StatusText == null ? DepthText : DepthText == null ? StatusText : $"{StatusText}\n{DepthText}";
 
     /// <summary>
     /// The host item, the top of the tree without a line, with <paramref name="controllers"/> and then the Displays
@@ -421,6 +442,9 @@ public sealed class NodeViewModel : ObservableObject
             ? value
             : null;
         Counts = node.Kind == UsbNodeKind.Controller ? TreeCounts([node], extraHops) : null;
+        DepthText = !IsDisconnected && node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Depths.TryGetValue(node.Id, out var depth)
+            ? string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, depth.Tier, depth.Hops)
+            : null;
         PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
         var wanted = node.Children
@@ -478,11 +502,21 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
+    // Per bus when the operating system reports any bus (#195), else hubs of both buses together as before.
     private static string TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
+        var unreadable = TopologyCounts.Unreadable(tree).Any();
+        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        if (perBus.AnyBusKnown)
+        {
+            return string.Format(CultureInfo.CurrentCulture,
+                unreadable || perBus.BusUnknown ? Strings.ControllerCountsPerBusAtLeast : Strings.ControllerCountsPerBus,
+                perBus.Usb2.Hubs, perBus.Usb2.DeepestTier, perBus.Usb2.DeepestHops,
+                perBus.Usb3.Hubs, perBus.Usb3.DeepestTier, perBus.Usb3.DeepestHops);
+        }
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
         return string.Format(CultureInfo.CurrentCulture,
-            TopologyCounts.Unreadable(tree).Any() ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,
+            unreadable ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,
             TopologyCounts.HubCount(tree),
             depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
             depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max());

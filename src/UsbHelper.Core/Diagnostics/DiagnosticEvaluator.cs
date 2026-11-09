@@ -76,7 +76,14 @@ public static class DiagnosticEvaluator
         var incomplete = unreadable.Count > 0;
         var depths = TopologyCounts.Depths(tree, extraHops);
         var computerTree = wholeTree ?? tree;
-        var hubs = Check(profile, "limits.max_hubs", TopologyCounts.HubCount(computerTree), TopologyCounts.Unreadable(computerTree).Any());
+        // limits.max_hubs applies per bus (#195): the two halves of a USB 3 hub are one hub on each bus, not two hubs.
+        var (hubsOnBus, busIncomplete) = TopologyCounts.HubsPerBusLimit(computerTree);
+        if (busIncomplete)
+        {
+            findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
+                "The operating system does not say which bus some ports are on, so the hubs on them are in neither bus's count; the counts per bus are at least what is shown."));
+        }
+        var hubs = Check(profile, "limits.max_hubs", hubsOnBus, busIncomplete || TopologyCounts.Unreadable(computerTree).Any());
         var tiers = Check(profile, "limits.max_tiers", depths.Values.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(), incomplete);
         var maxHops = depths.Values.Select(depth => depth.Hops).DefaultIfEmpty(0).Max();
         var hops = Check(profile, "limits.max_hops", maxHops, incomplete);
@@ -192,7 +199,7 @@ public static class DiagnosticEvaluator
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings);
+        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths };
     }
 
     private static LimitCheck Check(ResolvedProfile? profile, string field, int actual, bool incomplete)

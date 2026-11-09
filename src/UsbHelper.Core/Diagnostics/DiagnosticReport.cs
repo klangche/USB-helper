@@ -19,4 +19,8 @@ public sealed record DiagnosticReport(
     LimitCheck Hops,
     DisplayCheck Displays,
     IReadOnlyList<MissingDevice> Missing,
-    IReadOnlyList<Finding> Findings);
+    IReadOnlyList<Finding> Findings)
+{
+    /// <summary>Tier and hop of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
+    public IReadOnlyDictionary<string, Topology.ConnectionDepth> Depths { get; init; } = new Dictionary<string, Topology.ConnectionDepth>();
+}

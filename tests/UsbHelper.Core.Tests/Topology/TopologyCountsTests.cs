@@ -272,4 +272,69 @@ public class TopologyCountsTests
         Assert.Equal(["MOUSE"], TopologyCounts.Depths(after).Keys);
         Assert.Equal(0, TopologyCounts.HubCount(after));
     }
+
+    [Fact]
+    public void TesterMacIsCountedPerBus()
+    {
+        // #195 check: the Mac16,13 tester log's USB 2 side has 6 hubs, tier 5, hop 3; its USB 3 side 2 hubs, tier 3, hop 1.
+        var counts = TopologyCounts.PerBus(TesterMac());
+
+        Assert.Equal(new BusCounts(6, 5, 3), counts.Usb2);
+        Assert.Equal(new BusCounts(2, 3, 1), counts.Usb3);
+        Assert.False(counts.BusUnknown);
+        Assert.True(counts.AnyBusKnown);
+        Assert.Equal(8, TopologyCounts.HubCount(TesterMac()));
+        Assert.Equal((6, false), TopologyCounts.HubsPerBusLimit(TesterMac()));
+    }
+
+    [Fact]
+    public void BothHalvesOfOneUsb3HubCountOncePerBus()
+    {
+        // A USB 3 hub is a USB 2 hub on the USB 2 port and a SuperSpeed hub on the USB 3 port of one connector.
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
+
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(new BusCounts(1, 3, 1), counts.Usb2);
+        Assert.Equal(new BusCounts(1, 3, 1), counts.Usb3);
+        Assert.Equal((1, false), TopologyCounts.HubsPerBusLimit(tree));
+    }
+
+    [Fact]
+    public void HubOnPortWithUnknownBusIsInNeitherBusAndMakesCountsMinimums()
+    {
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] };
+        IReadOnlyList<UsbNode> tree = [Controller("C1", root)];
+
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(1, counts.Usb2.Hubs);
+        Assert.Equal(1, counts.Usb3.Hubs);
+        Assert.True(counts.BusUnknown);
+        Assert.Equal((1, true), TopologyCounts.HubsPerBusLimit(tree));
+    }
+
+    [Fact]
+    public void WithoutAnyKnownBusTheHubLimitCountsAllHubsAsBefore()
+    {
+        var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))));
+
+        Assert.False(TopologyCounts.PerBus(tree).AnyBusKnown);
+        Assert.True(TopologyCounts.PerBus(tree).BusUnknown);
+        Assert.Equal((2, false), TopologyCounts.HubsPerBusLimit(tree));
+    }
+
+    [Fact]
+    public void CableMarkDeepensOnlyItsOwnBus()
+    {
+        var tree = TesterMac();
+        var usb3RootPort = tree[0].Children[0].Children[1].Id;
+
+        var counts = TopologyCounts.PerBus(tree, new Dictionary<string, int> { [usb3RootPort] = 2 });
+
+        Assert.Equal(new BusCounts(6, 5, 3), counts.Usb2);
+        Assert.Equal(new BusCounts(2, 5, 3), counts.Usb3);
+    }
 }
+

@@ -167,7 +167,7 @@
           </TreeView.Styles>
           <TreeView.ItemTemplate>
             <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-              <DockPanel Height="24" ToolTip.Tip="{Binding StatusText}">
+              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}">
                 <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
                                HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
                                TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"

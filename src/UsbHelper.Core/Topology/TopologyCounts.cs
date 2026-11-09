@@ -7,6 +7,20 @@ namespace UsbHelper.Core.Topology;
 /// <param name="Hops">Hubs between the computer's own port and the node.</param>
 public sealed record ConnectionDepth(int Tier, int Hops);
 
+/// <summary>Hub count and deepest tier and hop on one bus.</summary>
+public sealed record BusCounts(int Hubs, int DeepestTier, int DeepestHops);
+
+/// <summary>
+/// The counts per bus (#195). A USB 3 hub is two hubs in one box, one on each bus, and each bus has its own tree and
+/// limits, so the halves are not added up.
+/// </summary>
+/// <param name="BusUnknown">
+/// True when a counted hub or device is on a port whose bus the operating system does not report. It is in neither
+/// bus's numbers, so they are then minimums.
+/// </param>
+/// <param name="AnyBusKnown">True when at least one counted hub or device is on a port with a known bus.</param>
+public sealed record PerBusCounts(BusCounts Usb2, BusCounts Usb3, bool BusUnknown, bool AnyBusKnown);
+
 /// <summary>
 /// The counting rules for the three topology limits (owner decisions in #2 and #39).
 /// Example: laptop port, dock hub, monitor hub, keyboard: the keyboard is tier 4 with 2 hops, and there are 2 hubs.
@@ -23,6 +37,39 @@ public static class TopologyCounts
 {
     /// <summary>Number of external hubs connected to the computer. Root hubs and built-in hubs are not counted.</summary>
     public static int HubCount(IReadOnlyList<UsbNode> tree) => Counted(tree, null).Count(entry => entry.Node.Kind == UsbNodeKind.Hub);
+
+    /// <summary>
+    /// Hubs and deepest tier and hop per bus. A hub or device belongs to the bus of the port it is plugged into. One on a
+    /// port with an unknown bus is left out of both and sets <see cref="PerBusCounts.BusUnknown"/>: never guessed.
+    /// </summary>
+    /// <param name="extraHops">Extra hops per port id, for active cables and extenders the operating system does not show.</param>
+    public static PerBusCounts PerBus(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops = null)
+    {
+        var entries = Counted(tree, extraHops).ToList();
+        BusCounts On(UsbBus bus)
+        {
+            var onBus = entries.Where(entry => entry.Bus == bus).ToList();
+            return new BusCounts(
+                onBus.Count(entry => entry.Node.Kind == UsbNodeKind.Hub),
+                onBus.Select(entry => entry.Depth.Tier).DefaultIfEmpty(0).Max(),
+                onBus.Select(entry => entry.Depth.Hops).DefaultIfEmpty(0).Max());
+        }
+        return new PerBusCounts(On(UsbBus.Usb2), On(UsbBus.Usb3),
+            entries.Any(entry => entry.Bus == null), entries.Any(entry => entry.Bus != null));
+    }
+
+    /// <summary>
+    /// The hub count to check against <c>limits.max_hubs</c>, which applies per bus (#195): the larger bus's count when any
+    /// bus is known, with <c>Incomplete</c> set when some hub's bus is unknown. When no bus is known at all, the hubs of
+    /// both buses are counted together, as before #195.
+    /// </summary>
+    public static (int Hubs, bool Incomplete) HubsPerBusLimit(IReadOnlyList<UsbNode> tree)
+    {
+        var counts = PerBus(tree);
+        return counts.AnyBusKnown
+            ? (Math.Max(counts.Usb2.Hubs, counts.Usb3.Hubs), counts.BusUnknown)
+            : (HubCount(tree), false);
+    }
 
     /// <summary>
     /// Tier and hop depth of every connected hub and device, by id. Root hubs, built-in hubs and controllers are not
@@ -63,12 +110,12 @@ public static class TopologyCounts
     public static IEnumerable<UsbNode> PossiblyBuiltIn(IReadOnlyList<UsbNode> tree) =>
         tree.SelectMany(controller => controller.Children).SelectMany(PossiblyBuiltInBelow);
 
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops) =>
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? extraHops) =>
         tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, builtIn: true, extraHops));
 
     // hubsAbove counts the hub itself, every counted hub above it, root hub included, and every marked extra hop above
     // it. builtIn: the hub is the root hub or built into the computer, so its ports may be the computer's own.
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth)> Below(UsbNode hub, int hubsAbove, bool builtIn, IReadOnlyDictionary<string, int>? extraHops)
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus)> Below(UsbNode hub, int hubsAbove, bool builtIn, IReadOnlyDictionary<string, int>? extraHops)
     {
         foreach (var port in hub.Children)
         {
@@ -83,7 +130,7 @@ public static class TopologyCounts
                     }
                     continue;
                 }
-                yield return (connected, new ConnectionDepth(Tier: above + 1, Hops: above - 1));
+                yield return (connected, new ConnectionDepth(Tier: above + 1, Hops: above - 1), port.Bus);
                 if (connected.Kind == UsbNodeKind.Hub)
                 {
                     foreach (var entry in Below(connected, above + 1, builtIn: false, extraHops))

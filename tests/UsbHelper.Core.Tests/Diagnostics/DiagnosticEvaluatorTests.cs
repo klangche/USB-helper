@@ -2,6 +2,7 @@ using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Tests.Database;
+using UsbHelper.Core.Topology;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Diagnostics;
@@ -652,4 +653,32 @@ public class DiagnosticEvaluatorTests
 
         Assert.DoesNotContain(names, name => name.Contains("Speed") || name.Contains("Bandwidth") || name.Contains("Throughput"));
     }
+
+    [Fact]
+    public void HubLimitAppliesPerBus()
+    {
+        // #195: 8 hubs in all, 6 on the USB 2 bus. A limit of 6 per bus is met; 5 is exceeded by the USB 2 bus.
+        var withinSix = Evaluate(TesterMac(), Profile(hubs: "6")).Hubs;
+        Assert.Equal((6, LimitState.Within), (withinSix.Actual, withinSix.State));
+        Assert.Equal(LimitState.Exceeded, Evaluate(TesterMac(), Profile(hubs: "5")).Hubs.State);
+    }
+
+    [Fact]
+    public void UnknownBusMakesTheHubLimitUnknownAndSaysWhy()
+    {
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] };
+
+        var report = Evaluate([Controller("C1", root)], Profile());
+
+        Assert.Equal((1, LimitState.Unknown), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.Contains("which bus", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReportCarriesEveryDepth()
+    {
+        Assert.Equal(new ConnectionDepth(3, 1), Evaluate(Desk, Profile()).Depths["KEYBOARD"]);
+    }
 }
+
