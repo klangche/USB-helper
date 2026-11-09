@@ -35,8 +35,8 @@ public class TreeTextTests
     }
 
     private static readonly string Golden = string.Join(Environment.NewLine,
-        "Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)", // All controllers (#210).
-        "|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)", // The marked line counts.
+        "Dell Inc. Latitude 7450 (1 hub, tier 5, hop 3)", // All controllers (#210).
+        "|-- Controller (1 hub, tier 5, hop 3)", // The marked line counts.
         "|   `-- ROOT (has a display)",
         "|       |-- Port 1 [USB-C]",
         "|       |   `-- [+2 hops] HUB - unknown", // No profile is checked, so every result is unknown.

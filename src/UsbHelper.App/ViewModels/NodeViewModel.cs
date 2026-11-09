@@ -266,7 +266,7 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// For a controller: its hub count, deepest tier and deepest hop. For the host: the same over all controllers, hubs
+    /// For a controller: its hub count, deepest tier and deepest hop, compact (#217). For the host: the same over all controllers, hubs
     /// summed (#208). Null for everything else.
     /// </summary>
     public string? Counts
@@ -323,7 +323,7 @@ public sealed class NodeViewModel : ObservableObject
     {
         Text = name;
         IsLast = true;
-        Counts = controllers.Count == 0 ? null : TreeCounts(controllers, extraHops);
+        Counts = TreeCounts(controllers, extraHops);
         // A monitor linked to a USB node is shown under it (#143); the others are in the Displays group. A DisplayLink
         // monitor stays under its USB device (#92): while one is connected, indirect monitors are not listed again.
         // Windows does not say which indirect monitor hangs off which adapter.
@@ -502,24 +502,39 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    // Per bus when the operating system reports any bus (#195), else hubs of both buses together as before.
-    private static string TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
+    // Compact (#217): "USB 2: 3 hubs, tier 4, hop 2 · USB 3: 1 hub, tier 3, hop 1", per bus when the operating system
+    // reports any bus (#195), and only the buses with something on them; else one line for both buses. "≥" on every
+    // number when a hub, port or bus could not be read. Null when nothing is connected.
+    private static string? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
-        var unreadable = TopologyCounts.Unreadable(tree).Any();
+        var atLeast = TopologyCounts.Unreadable(tree).Any();
         var perBus = TopologyCounts.PerBus(tree, extraHops);
         if (perBus.AnyBusKnown)
         {
-            return string.Format(CultureInfo.CurrentCulture,
-                unreadable || perBus.BusUnknown ? Strings.ControllerCountsPerBusAtLeast : Strings.ControllerCountsPerBus,
-                perBus.Usb2.Hubs, perBus.Usb2.DeepestTier, perBus.Usb2.DeepestHops,
-                perBus.Usb3.Hubs, perBus.Usb3.DeepestTier, perBus.Usb3.DeepestHops);
+            atLeast |= perBus.BusUnknown;
+            return string.Join(Strings.CountsSeparator,
+                new[] { (Name: Strings.BusUsb2, Counts: perBus.Usb2), (Name: Strings.BusUsb3, Counts: perBus.Usb3) }
+                    .Where(bus => bus.Counts.DeepestTier > 0)
+                    .Select(bus => string.Format(CultureInfo.CurrentCulture, Strings.CountsOnBus, bus.Name, CountsLine(bus.Counts, atLeast))));
         }
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
-        return string.Format(CultureInfo.CurrentCulture,
-            unreadable ? Strings.ControllerCountsAtLeast : Strings.ControllerCounts,
+        if (!depths.Any() && !atLeast)
+        {
+            return null;
+        }
+        return CountsLine(new BusCounts(
             TopologyCounts.HubCount(tree),
             depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
-            depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max());
+            depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max()), atLeast);
+    }
+
+    private static string CountsLine(BusCounts counts, bool atLeast)
+    {
+        string Number(int value) => atLeast
+            ? string.Format(CultureInfo.CurrentCulture, Strings.CountsAtLeast, value)
+            : value.ToString(CultureInfo.CurrentCulture);
+        var hubs = string.Format(CultureInfo.CurrentCulture, counts.Hubs == 1 ? Strings.CountsOneHub : Strings.CountsHubs, Number(counts.Hubs));
+        return string.Format(CultureInfo.CurrentCulture, Strings.CountsLine, hubs, Number(counts.DeepestTier), Number(counts.DeepestHops));
     }
 
     private static string Describe(UsbNode node, bool isDisconnected)

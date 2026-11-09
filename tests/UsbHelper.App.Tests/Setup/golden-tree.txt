@@ -1,5 +1,5 @@
-Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 4, deepest hop: 2)
-|-- Intel USB 3.2 controller (Hubs: 1, deepest tier: 4, deepest hop: 2)
+Dell Inc. Latitude 7450 (1 hub, tier 4, hop 2)
+|-- Intel USB 3.2 controller (1 hub, tier 4, hop 2)
 |   `-- ROOT (has a display)
 |       |-- Port 1 [USB-C]
 |       |   `-- [+1 hops] DOCK - unknown (has a display)

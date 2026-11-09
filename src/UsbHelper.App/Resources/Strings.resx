@@ -230,17 +230,29 @@
   <data name="NodeProblem" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
-  <data name="ControllerCounts" xml:space="preserve">
-    <value>Hubs: {0}, deepest tier: {1}, deepest hop: {2}</value>
+  <data name="CountsLine" xml:space="preserve">
+    <value>{0}, tier {1}, hop {2}</value>
   </data>
-  <data name="ControllerCountsAtLeast" xml:space="preserve">
-    <value>Hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} (a hub or port could not be read)</value>
+  <data name="CountsOneHub" xml:space="preserve">
+    <value>{0} hub</value>
   </data>
-  <data name="ControllerCountsPerBus" xml:space="preserve">
-    <value>USB 2 hubs: {0}, deepest tier: {1}, deepest hop: {2} · USB 3 hubs: {3}, deepest tier: {4}, deepest hop: {5}</value>
+  <data name="CountsHubs" xml:space="preserve">
+    <value>{0} hubs</value>
   </data>
-  <data name="ControllerCountsPerBusAtLeast" xml:space="preserve">
-    <value>USB 2 hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} · USB 3 hubs: at least {3}, deepest tier: at least {4}, deepest hop: at least {5} (a hub, port or bus could not be read)</value>
+  <data name="CountsAtLeast" xml:space="preserve">
+    <value>≥{0}</value>
+  </data>
+  <data name="CountsOnBus" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="CountsSeparator" xml:space="preserve">
+    <value> · </value>
+  </data>
+  <data name="BusUsb2" xml:space="preserve">
+    <value>USB 2</value>
+  </data>
+  <data name="BusUsb3" xml:space="preserve">
+    <value>USB 3</value>
   </data>
   <data name="NodeDepthTip" xml:space="preserve">
     <value>Tier {0}, hubs in front: {1}</value>

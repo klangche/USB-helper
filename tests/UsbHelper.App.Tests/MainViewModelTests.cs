@@ -269,7 +269,7 @@ public class MainViewModelTests
         Assert.Equal(NodeViewModel.HostId, host.Id);
         Assert.False(host.HasLine);
         Assert.Null(host.Status);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), host.Counts); // #210.
+        Assert.Equal("1 hub, tier 3, hop 1", host.Counts); // #210.
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
@@ -468,8 +468,8 @@ public class MainViewModelTests
         viewModel.Load(tree);
 
         // C1: HUB is tier 2, hop 0; KEYBOARD behind it is tier 3, hop 1.
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C2").Counts);
+        Assert.Equal("1 hub, tier 3, hop 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("0 hubs, tier 2, hop 0", Item(viewModel, "C2").Counts);
         Assert.Null(Item(viewModel, "ROOT").Counts);
     }
 
@@ -483,11 +483,11 @@ public class MainViewModelTests
 
         viewModel.Load([.. Desk, dock]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 3, 4, 2), Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("3 hubs, tier 4, hop 2", Item(viewModel, NodeViewModel.HostId).Counts);
 
         Item(viewModel, "KEYBOARD").ExtraHops = 2; // KEYBOARD: tier 5, hop 3.
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 3, 5, 3), Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("3 hubs, tier 5, hop 3", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -498,7 +498,7 @@ public class MainViewModelTests
 
         viewModel.Load([.. Desk, broken]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsAtLeast, 2, 3, 1), Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("≥2 hubs, tier ≥3, hop ≥1", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -529,7 +529,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C1").Counts);
+        Assert.Equal("0 hubs, tier 2, hop 0", Item(viewModel, "C1").Counts);
     }
 
     // #195: a USB 3 hub is one hub on each bus; the line shows both buses instead of adding the halves up.
@@ -555,7 +555,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        var expected = string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsPerBus, 2, 4, 2, 1, 3, 1);
+        var expected = "USB 2: 2 hubs, tier 4, hop 2 · USB 3: 1 hub, tier 3, hop 1";
         Assert.Equal(expected, Item(viewModel, "C1").Counts);
         Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
     }
@@ -569,7 +569,21 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsPerBusAtLeast, 1, 3, 1, 1, 3, 1), Item(viewModel, "C1").Counts);
+        Assert.Equal("USB 2: ≥1 hub, tier ≥3, hop ≥1 · USB 3: ≥1 hub, tier ≥3, hop ≥1", Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
+    public void ABusWithNothingOnItAndAnEmptyControllerShowNoCounts()
+    {
+        // #217: only the buses in use are named, and an empty controller shows no counts at all.
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", (UsbNode?)null));
+        root = root with { Children = [root.Children[0], root.Children[1] with { Children = [] }] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
+
+        Assert.Equal("USB 2: 1 hub, tier 3, hop 1", Item(viewModel, "C1").Counts);
+        Assert.Null(Item(viewModel, "C2").Counts);
     }
 
     [Fact]
@@ -592,7 +606,7 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsAtLeast, 1, 2, 0), Item(viewModel, "C1").Counts);
+        Assert.Equal("≥1 hub, tier ≥2, hop ≥0", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -713,7 +727,7 @@ public class MainViewModelTests
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), Item(viewModel, "HUB").MarkBadge);
         Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
         Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 8, 6), Item(viewModel, "C1").Counts);
+        Assert.Equal("1 hub, tier 8, hop 6", Item(viewModel, "C1").Counts);
 
         viewModel.Apply([]); // The mark lasts while the app runs.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
@@ -723,7 +737,7 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(Item(viewModel, "HUB").IsUserMarked);
         Assert.Null(Item(viewModel, "HUB").MarkBadge);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
+        Assert.Equal("1 hub, tier 3, hop 1", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
