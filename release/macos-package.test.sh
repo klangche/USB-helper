@@ -47,15 +47,19 @@ trap 'hdiutil detach "$mountpoint" -quiet; rm -rf "$temporary"' EXIT
 [[ -f $mountpoint/USB-helper.app/Contents/Resources/osx-arm64/UsbHelper.dll ]]
 [[ -f $mountpoint/USB-helper.app/Contents/Resources/osx-x64/UsbHelper.dll ]]
 [[ -f $mountpoint/LICENSE.txt && -f $mountpoint/READ_ME_FIRST.txt ]]
+# The app icon on the mounted disk (#204): the icon file, and the custom-icon flag (0x0400) in the root's Finder flags.
+cmp -s "$mountpoint/.VolumeIcon.icns" "$root/src/UsbHelper.App/Assets/usb-helper.icns"
+finder_info=$(xattr -px com.apple.FinderInfo "$mountpoint" | tr -d ' \n')
+[[ ${finder_info:16:4} == 0400 ]]
 [[ -L $mountpoint/Applications && $(readlink "$mountpoint/Applications") == /Applications ]]
 read_first="$mountpoint/READ_ME_FIRST.txt"
 quarantine_command='xattr -dr com.apple.quarantine /Applications/USB-helper.app'
 grep -Fq "USB-helper 0.8.0-ci" "$read_first"
 [[ $(grep -Fxc "   $quarantine_command" "$read_first") == 1 ]]
-[[ $(grep -Fxc "$quarantine_command" "$root/README.md") == 1 ]]
+[[ $(grep -Fxc "$quarantine_command" "$root/docs/install.md") == 1 ]]
 grep -Fq 'only from USB-helper.app' "$read_first"
 grep -Fq 'does not change Gatekeeper' "$read_first"
-grep -Fq 'only from USB-helper.app and does not change' "$root/README.md"
+grep -Fq 'only from USB-helper.app and does not change' "$root/docs/install.md"
 if grep -Eiq 'sudo|spctl|xattr.*[*?]' "$read_first"; then
   echo "READ_ME_FIRST contains an unsafe quarantine instruction." >&2
   exit 1

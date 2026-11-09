@@ -75,6 +75,14 @@ public sealed class SessionHistory
     public IReadOnlyList<MissingDevice> Reconnected(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => reconnected.Contains(device.Node.Id) && UsbTree.Find(tree, device.Node.Id) != null).ToList();
 
+    /// <summary>Forgets everything (#206, "Refresh and clear log"), as if the session had just started.</summary>
+    public void Reset()
+    {
+        seen.Clear();
+        gone.Clear();
+        reconnected.Clear();
+    }
+
     /// <summary>Forgets a missing or reconnected device, so it is no longer reported.</summary>
     public void Clear(string id)
     {

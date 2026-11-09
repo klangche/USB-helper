@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.RefreshWindow"
+        Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Title="{x:Static res:Strings.RefreshTitle}">
+
+  <!-- #206: refresh only, or a fresh start with an empty log and no disconnected devices. -->
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="{x:Static res:Strings.RefreshQuestion}" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="{x:Static res:Strings.RefreshOnly}" IsDefault="True" Click="RefreshOnlyClick" />
+      <Button Content="{x:Static res:Strings.RefreshAndClear}" Click="RefreshAndClearClick" />
+      <Button Content="{x:Static res:Strings.RefreshCancel}" IsCancel="True" Click="CancelClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

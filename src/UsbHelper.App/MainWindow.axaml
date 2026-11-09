@@ -13,6 +13,8 @@
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
     <Menu x:Name="MenuBar" DockPanel.Dock="Top">
       <MenuItem Header="{x:Static res:Strings.MenuFile}">
+        <MenuItem Header="{x:Static res:Strings.MenuRefresh}" Command="{Binding RefreshCommand}" InputGesture="F5" />
+        <Separator />
         <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportSetup}" Command="{Binding ExportSetupCommand}" />
@@ -71,6 +73,7 @@
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
       <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
+      <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
     </StackPanel>
@@ -164,7 +167,7 @@
           </TreeView.Styles>
           <TreeView.ItemTemplate>
             <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-              <DockPanel Height="24" ToolTip.Tip="{Binding StatusText}">
+              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}">
                 <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
                                HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
                                TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"
@@ -213,8 +216,18 @@
                   <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <TextBlock Text="{Binding Counts}" Opacity="0.7"
-                             IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                  <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB2 first (#217); hovering shows the full text,
+                       as in the tree as text: "Hubs: 4 (USB2: 3, USB3: 1), ...". -->
+                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding Counts}"
+                              IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding CountsHead}" />
+                    <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}">
+                      <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
+                      <TextBlock Text="+" />
+                      <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CountsTail}" />
+                  </StackPanel>
                 </StackPanel>
               </DockPanel>
             </TreeDataTemplate>

@@ -52,6 +52,27 @@
   <data name="WordDisconnected" xml:space="preserve">
     <value>disconnected</value>
   </data>
+  <data name="Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="MenuRefresh" xml:space="preserve">
+    <value>_Refresh...</value>
+  </data>
+  <data name="RefreshTitle" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="RefreshQuestion" xml:space="preserve">
+    <value>Read the USB devices and displays again. Clear the log and the disconnected devices too, for a fresh start?</value>
+  </data>
+  <data name="RefreshOnly" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="RefreshAndClear" xml:space="preserve">
+    <value>Refresh and clear log</value>
+  </data>
+  <data name="RefreshCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="Export" xml:space="preserve">
     <value>Export</value>
   </data>
@@ -209,11 +230,23 @@
   <data name="NodeProblem" xml:space="preserve">
     <value>{0}: {1}</value>
   </data>
-  <data name="ControllerCounts" xml:space="preserve">
-    <value>Hubs: {0}, deepest tier: {1}, deepest hop: {2}</value>
+  <data name="CountsHubs" xml:space="preserve">
+    <value>Hubs: {0}</value>
   </data>
-  <data name="ControllerCountsAtLeast" xml:space="preserve">
-    <value>Hubs: at least {0}, deepest tier: at least {1}, deepest hop: at least {2} (a hub or port could not be read)</value>
+  <data name="CountsHubsAtLeast" xml:space="preserve">
+    <value>Hubs: at least {0}</value>
+  </data>
+  <data name="CountsDepth" xml:space="preserve">
+    <value>, deepest tier: {0}, deepest hop: {1}</value>
+  </data>
+  <data name="CountsDepthAtLeast" xml:space="preserve">
+    <value>, deepest tier: at least {0}, deepest hop: at least {1}</value>
+  </data>
+  <data name="CountsPerBusText" xml:space="preserve">
+    <value> (USB2: {0}, USB3: {1})</value>
+  </data>
+  <data name="NodeDepthTip" xml:space="preserve">
+    <value>Tier {0}, hubs in front: {1}</value>
   </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>

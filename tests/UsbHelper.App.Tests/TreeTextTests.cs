@@ -35,7 +35,7 @@ public class TreeTextTests
     }
 
     private static readonly string Golden = string.Join(Environment.NewLine,
-        "Dell Inc. Latitude 7450",
+        "Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)", // All controllers (#210).
         "|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)", // The marked line counts.
         "|   `-- ROOT (has a display)",
         "|       |-- Port 1 [USB-C]",
@@ -143,6 +143,8 @@ public class TreeTextTests
         public void CopyText(string text) => Copied.Add(text);
 
         public void ExportSetup() { }
+
+        public void ConfirmRefresh() { }
 
         public void ExportProfile() { }
 

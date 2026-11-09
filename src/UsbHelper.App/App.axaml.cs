@@ -118,10 +118,37 @@ public partial class App : Application
         viewModel.LoadDatabase(database, errors);
     }
 
-    // Each stage runs off the UI thread, so the window stays responsive and shows what it is reading.
+    // Each stage runs off the UI thread, so the window stays responsive and shows what it is reading. Refresh (#206)
+    // reads the tree again the same way and replaces the change watcher with one that follows the new tree.
     private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop, PlatformServices platform)
     {
         await LoadDatabase(viewModel, log);
+        IDisposable? watch = null;
+        var generation = 0;
+        desktop.Exit += (_, _) => watch?.Dispose();
+        async Task Read()
+        {
+            watch?.Dispose();
+            watch = null;
+            // Changes the old watcher already posted belong to the old tree: they are dropped.
+            var current = ++generation;
+            viewModel.Notice = null;
+            watch = await ReadTree(viewModel, log, platform, changes => Dispatcher.UIThread.Post(() =>
+            {
+                if (current == generation)
+                {
+                    viewModel.Apply(changes);
+                }
+            }));
+        }
+        viewModel.RefreshRequested += () => _ = Read();
+        await Read();
+    }
+
+    // Reads the USB tree and the displays, shows them, and starts following changes. The watcher, or null when the
+    // tree could not be read or changes cannot be followed.
+    private static async Task<IDisposable?> ReadTree(MainViewModel viewModel, EventLog log, PlatformServices platform, Action<IReadOnlyList<UsbChange>> onChanges)
+    {
         var detector = platform.Detector;
         IReadOnlyList<UsbNode> tree;
         try
@@ -139,19 +166,20 @@ public partial class App : Application
             log.Add($"USB detection failed: {e.Message}");
             viewModel.IsLoading = false;
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.DetectionFailed, e.Message);
-            return;
+            return null;
         }
         try
         {
-            var watch = detector.Watch(tree, changes => Dispatcher.UIThread.Post(() => viewModel.Apply(changes)));
-            desktop.Exit += (_, _) => watch.Dispose();
+            var watch = detector.Watch(tree, onChanges);
             log.Add("Following USB changes");
+            return watch;
         }
         catch (Exception e) when (e is Win32Exception or InvalidOperationException)
         {
             // The tree stays visible; it just does not follow changes.
             log.Add($"Live updates are off: {e.Message}");
             viewModel.Notice = string.Format(CultureInfo.CurrentCulture, Strings.LiveUpdatesOff, e.Message);
+            return null;
         }
     }
 }

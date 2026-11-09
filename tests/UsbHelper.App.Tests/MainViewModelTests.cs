@@ -269,7 +269,7 @@ public class MainViewModelTests
         Assert.Equal(NodeViewModel.HostId, host.Id);
         Assert.False(host.HasLine);
         Assert.Null(host.Status);
-        Assert.Null(host.Counts);
+        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", host.Counts); // #210.
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
@@ -468,9 +468,37 @@ public class MainViewModelTests
         viewModel.Load(tree);
 
         // C1: HUB is tier 2, hop 0; KEYBOARD behind it is tier 3, hop 1.
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C2").Counts);
+        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, deepest tier: 2, deepest hop: 0", Item(viewModel, "C2").Counts);
         Assert.Null(Item(viewModel, "ROOT").Counts);
+    }
+
+    // Owner decision in #208: the host shows the hubs of all controllers and the deepest tier and hop of any of them.
+    [Fact]
+    public void TheHostShowsTotalHubsAndTheDeepestTierAndHop()
+    {
+        var viewModel = NewViewModel();
+        // C1: 1 hub, tier 3, hop 1. C2: DOCK tier 2, INNER tier 3, D tier 4 with 2 hops; 2 hubs.
+        var dock = new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", Hub("DOCK", Hub("INNER", Device("D"))))]);
+
+        viewModel.Load([.. Desk, dock]);
+
+        Assert.Equal("Hubs: 3, deepest tier: 4, deepest hop: 2", Item(viewModel, NodeViewModel.HostId).Counts);
+
+        Item(viewModel, "KEYBOARD").ExtraHops = 2; // KEYBOARD: tier 5, hop 3.
+
+        Assert.Equal("Hubs: 3, deepest tier: 5, deepest hop: 3", Item(viewModel, NodeViewModel.HostId).Counts);
+    }
+
+    [Fact]
+    public void TheHostCountsAreMinimumsWhenAHubOnAnyControllerCannotBeRead()
+    {
+        var viewModel = NewViewModel();
+        var broken = new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", new UsbNode("BAD", UsbNodeKind.Hub, "BAD", []))]);
+
+        viewModel.Load([.. Desk, broken]);
+
+        Assert.Equal("Hubs: at least 2, deepest tier: at least 3, deepest hop: at least 1", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -501,7 +529,79 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 0, 2, 0), Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, deepest tier: 2, deepest hop: 0", Item(viewModel, "C1").Counts);
+    }
+
+    // #195: a USB 3 hub is one hub on each bus; the line shows both buses instead of adding the halves up.
+    private static UsbNode RootWithBuses(string id, UsbNode usb2Hub, UsbNode usb3Hub)
+    {
+        static UsbNode OnBus(UsbNode hub, UsbBus bus) => hub with
+        {
+            Children = hub.Children.Select(port => port with
+            {
+                Bus = bus,
+                Children = port.Children.Select(child => child.Kind == UsbNodeKind.Hub ? OnBus(child, bus) : child).ToList(),
+            }).ToList(),
+        };
+        var root = Hub(id, OnBus(usb2Hub, UsbBus.Usb2), OnBus(usb3Hub, UsbBus.Usb3));
+        return root with { Children = [root.Children[0] with { Bus = UsbBus.Usb2 }, root.Children[1] with { Bus = UsbBus.Usb3 }] };
+    }
+
+    [Fact]
+    public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        var expected = "Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 2";
+        Assert.Equal(expected, Item(viewModel, "C1").Counts);
+        Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
+        // The window shows "Hubs: 3 (2+1), deepest tier: 4, deepest hop: 2", USB2 first, then USB3 (#217).
+        var controller = Item(viewModel, "C1");
+        Assert.Equal(("Hubs: 3 (", "2", "1", "), deepest tier: 4, deepest hop: 2"),
+            (controller.CountsHead, controller.CountsUsb2, controller.CountsUsb3, controller.CountsTail));
+        Assert.True(controller.HasCountsPerBus);
+        Assert.False(Item(viewModel, "ROOT").HasCountsPerBus);
+    }
+
+    [Fact]
+    public void PerBusCountsAreMinimumsWhenAPortsBusIsUnknown()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN", Device("MOUSE")))] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal("Hubs: at least 3 (USB2: 1, USB3: 1), deepest tier: at least 3, deepest hop: at least 1", Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
+    public void ABusWithNothingOnItAndAnEmptyControllerShowNoCounts()
+    {
+        // #217: only the buses in use are named, and an empty controller shows no counts at all.
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", (UsbNode?)null));
+        root = root with { Children = [root.Children[0], root.Children[1] with { Children = [] }] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
+
+        Assert.Equal("Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
+        Assert.Null(Item(viewModel, "C2").Counts);
+    }
+
+    [Fact]
+    public void EachHubAndDeviceSaysItsTierAndTheHubsInFront()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").RowTip);
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").RowTip);
+        Assert.Null(Item(viewModel, "C1").DepthText);
+        Assert.Null(Item(viewModel, "ROOT|port1").DepthText);
     }
 
     [Fact]
@@ -512,7 +612,7 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
 
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCountsAtLeast, 1, 2, 0), Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 1, deepest tier: at least 2, deepest hop: at least 0", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -633,7 +733,7 @@ public class MainViewModelTests
         Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), Item(viewModel, "HUB").MarkBadge);
         Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
         Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 8, 6), Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1, deepest tier: 8, deepest hop: 6", Item(viewModel, "C1").Counts);
 
         viewModel.Apply([]); // The mark lasts while the app runs.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
@@ -643,7 +743,7 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(Item(viewModel, "HUB").IsUserMarked);
         Assert.Null(Item(viewModel, "HUB").MarkBadge);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.ControllerCounts, 1, 3, 1), Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -1357,6 +1457,151 @@ public class MainViewModelTests
         Assert.True(Item(viewModel, "C2").IsExpanded);
     }
 
+    // Owner decision in #208: until the user acts, a controller that grows past the selected one is selected and opened.
+    private static readonly UsbNode EmptyFirst = new("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)]);
+
+    private static readonly UsbNode EmptySecond = new("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", null, null)]);
+
+    private static UsbChange Plug(string hubId, int port, UsbNode node) => new(UsbChangeKind.Added, hubId, Port(hubId, port, node));
+
+    [Fact]
+    public void ADockPluggedInAfterStartIsSelectedAndOpened()
+    {
+        var viewModel = TwoControllers(EmptyFirst, EmptySecond);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+    }
+
+    [Fact]
+    public void TheSelectedControllerStaysSelectedWhenItShrinks()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+
+        // The hub with the keyboard, then the mouse drop out: C1 has fewer devices than C2, but nothing grew.
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded); // It still shows the disconnected devices.
+    }
+
+    // #212: disconnected devices count, so a dropped dock keeps its place against a small new device elsewhere.
+    [Fact]
+    public void ADroppedTreeKeepsItsPlaceUntilABiggerTreeArrives()
+    {
+        var viewModel = TwoControllers(EmptySecond, Desk[0]);
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        viewModel.Apply([Plug("ROOT2", 1, Device("STICK"))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 2, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
+    // #68 stays: the busiest pick at start and on Refresh counts connected hubs and devices only (#212 review).
+    [Fact]
+    public void RefreshPicksTheControllerWithConnectedDevicesOverADroppedTree()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        viewModel.RefreshRequested += () => { };
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.Load([Phone, new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)])], monitors: []);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
+    public void AControllerThatGrowsSwitchesOnlyWhenItHasMoreThanTheSelectedOne()
+    {
+        // C1: hub, keyboard and mouse (3). C2: phone (1) and three free ports.
+        var phone = new UsbNode("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("PHONE"), null, null, null)]);
+        var viewModel = TwoControllers(phone, Desk[0]);
+
+        viewModel.Apply([Plug("ROOT2", 2, Device("STICK"))]);
+        viewModel.Apply([Plug("ROOT2", 3, Device("CARD"))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId); // 3 against 3: a tie does not switch.
+
+        viewModel.Apply([Plug("ROOT2", 4, Device("DISK"))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+    }
+
+    [Fact]
+    public void AfterTheUserSelectsAnItemTheControllerIsNotSwitched()
+    {
+        var viewModel = TwoControllers(EmptyFirst, EmptySecond);
+        viewModel.SelectedNode = Item(viewModel, "C1");
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
+    public void AfterTheUserSelectsAMonitorTheControllerIsNotSwitched()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), () => [Panel, Dell]);
+        viewModel.Load([EmptyFirst, EmptySecond]);
+        viewModel.SelectedNode = DisplaysGroup(viewModel)!.Children[1];
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
+    public void AfterTheUserOpensOrClosesAControllerNothingIsSwitchedOrOpened()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        Item(viewModel, "C2").IsExpanded = true;
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+    }
+
+    [Fact]
+    public void RefreshFollowsAgainFromTheBusiestController()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        viewModel.RefreshRequested += () => { };
+        viewModel.SelectedNode = Item(viewModel, "C2");
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.Load([Phone, Desk[0]], monitors: []);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.Null(viewModel.SelectedNode);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
     // The Displays group (#133) stays open and has no control.
     [Fact]
     public void TheDisplaysGroupCannotCollapse()
@@ -1473,5 +1718,80 @@ public class LogViewModelTests
         _ = new MainViewModel(null, [new DatabaseError("base.yaml", 2, "bad")], new ComputerIdentity(null, null), log: log);
 
         Assert.Equal(["Database not loaded: 1 errors", "Database error: base.yaml:2: bad"], log.Entries.Select(entry => entry.Text));
+    }
+
+    // #206: Refresh reads the tree again and keeps the log and the disconnected devices.
+    [Fact]
+    public void RefreshKeepsTheLogAndTheDisconnectedDevices()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+        IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
+        viewModel.Load(mouseGone, monitors: []);
+        var entries = log.Entries.Count;
+
+        viewModel.RequestRefresh(clearLog: false);
+
+        Assert.Equal(1, asked);
+        Assert.True(viewModel.IsLoading);
+        Assert.Equal(entries + 1, log.Entries.Count);
+        Assert.Equal("Refresh", log.Entries[^1].Text);
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.Contains(viewModel.Disconnected, item => item.Text.Contains("MOUSE", StringComparison.Ordinal));
+    }
+
+    // #206: Refresh and clear log is a fresh start: an empty log and no disconnected devices.
+    [Fact]
+    public void RefreshAndClearLogStartsAFreshSession()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+        IReadOnlyList<UsbNode> mouseGone = [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), null)])];
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.NotEmpty(viewModel.Disconnected);
+
+        viewModel.RequestRefresh(clearLog: true);
+
+        Assert.Equal(1, asked);
+        Assert.Equal(["Refresh: log and disconnected devices cleared"], log.Entries.Select(entry => entry.Text));
+        viewModel.Load(mouseGone, monitors: []);
+        Assert.Empty(viewModel.Disconnected);
+    }
+
+    // #206: the log window follows a cleared log.
+    [Fact]
+    public void TheLogWindowEmptiesWhenTheLogIsCleared()
+    {
+        var log = new EventLog();
+        log.Add("Started");
+        var window = new LogViewModel(log);
+
+        log.Clear();
+        log.Add("Refresh");
+
+        Assert.Equal([log.Entries[0].ToString()], window.Lines);
+    }
+
+    // #206: a second refresh while the first one is still reading does nothing, so two reads never overlap.
+    [Fact]
+    public void ASecondRefreshWhileReadingIsIgnored()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        var asked = 0;
+        viewModel.RefreshRequested += () => asked++;
+        viewModel.Load(Desk, monitors: []);
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.RequestRefresh(clearLog: true);
+
+        Assert.Equal(1, asked);
+        Assert.Equal("Refresh", log.Entries[^1].Text);
     }
 }

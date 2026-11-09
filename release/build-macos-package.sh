@@ -61,15 +61,28 @@ sed "s/{version}/$version/g" "$script_dir/macos/READ_ME_FIRST.txt" > "$stage/REA
 
 name="usb-helper-$version-macos-universal.dmg"
 archive="$output/$name"
-hdiutil create -volname USB-helper -srcfolder "$stage" -ov -format UDZO "$archive"
-hdiutil verify "$archive"
+# The app icon on the mounted disk (#204): .VolumeIcon.icns in the root, and the custom-icon flag (kHasCustomIcon, 0x0400
+# in the Finder flags) on the root folder. The flag can only be set on a mounted, writable disk, so the image is made
+# writable first, then compressed.
+cp "$script_dir/../src/UsbHelper.App/Assets/usb-helper.icns" "$stage/.VolumeIcon.icns"
+writable="$temporary/writable.dmg"
+hdiutil create -volname USB-helper -srcfolder "$stage" -ov -format UDRW "$writable"
 mkdir "$mountpoint"
+hdiutil attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable" >/dev/null
+mounted=1
+xattr -wx com.apple.FinderInfo 0000000000000000040000000000000000000000000000000000000000000000 "$mountpoint"
+hdiutil detach "$mountpoint" -quiet
+mounted=0
+rm -f "$archive"
+hdiutil convert "$writable" -format UDZO -o "$archive"
+hdiutil verify "$archive"
 hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
 mounted=1
 for entry in \
   USB-helper.app/Contents/Info.plist \
   USB-helper.app/Contents/MacOS/USB-helper \
   USB-helper.app/Contents/Resources/usb-helper.icns \
+  .VolumeIcon.icns \
   USB-helper.app/Contents/Resources/osx-arm64/UsbHelper \
   USB-helper.app/Contents/Resources/osx-x64/UsbHelper \
   LICENSE.txt \

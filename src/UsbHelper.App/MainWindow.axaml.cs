@@ -92,6 +92,14 @@ public partial class MainWindow : Window, IMainWindowActions
         }
     }
 
+    async void IMainWindowActions.ConfirmRefresh()
+    {
+        if (DataContext is MainViewModel viewModel && await new RefreshWindow().ShowDialog<bool?>(this) is { } clearLog)
+        {
+            viewModel.RequestRefresh(clearLog);
+        }
+    }
+
     void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
