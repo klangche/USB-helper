@@ -65,12 +65,17 @@ public partial class App : Application
         log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable or macOS; updates open the release page");
         var viewModel = new MainViewModel(platform.ReadIdentity(), platform.ReadMonitors, log, settings)
         {
-            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, Path.Combine(Path.GetTempPath(), "USB-helper-update"),
+            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, UpdateFolder,
                 msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
         _ = LoadInBackground(viewModel, log, desktop, platform);
         return viewModel;
     }
+
+    // The .msi of an update is kept here, not in %TEMP%, which Windows empties: Windows Installer needs the installed
+    // version's .msi to remove it at the next upgrade or an uninstall from Apps (#222).
+    private static string UpdateFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "USB-helper-installer");
 
     // GitHub's answer within this time, or the check is skipped (#111).
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);

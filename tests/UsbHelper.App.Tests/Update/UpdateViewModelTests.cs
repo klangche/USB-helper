@@ -98,17 +98,22 @@ public sealed class UpdateViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task AnMsiInstallRemovesTheMsiOfAnEarlierUpdate()
+    public async Task AnMsiInstallKeepsTheInstalledVersionsMsiAndRemovesOlderOnes()
     {
-        // About 80 MB each: the .msi of the last update would otherwise stay in %TEMP% for good.
-        Directory.CreateDirectory(Path.Combine(parent, "download"));
-        File.WriteAllText(Path.Combine(parent, "download", "usb-helper-0.5.0-windows-x64.msi"), "msi 0.5.0");
+        // #222: Windows Installer needs the installed version's .msi (0.5.0, running) to remove it during the upgrade and
+        // at an uninstall from Apps; deleting it made both ask for a network location. Older ones (about 80 MB) go.
+        var download = Path.Combine(parent, "download");
+        Directory.CreateDirectory(download);
+        File.WriteAllText(Path.Combine(download, "usb-helper-0.4.0-windows-x64.msi"), "msi 0.4.0");
+        File.WriteAllText(Path.Combine(download, "usb-helper-0.5.0-windows-x64.msi"), "msi 0.5.0");
         var model = MsiModel(GitHub());
         await model.CheckAsync();
 
         await model.InstallAsync(stable: true);
 
-        Assert.Equal(["usb-helper-0.6.0-windows-x64.msi"], Directory.GetFiles(Path.Combine(parent, "download")).Select(Path.GetFileName));
+        Assert.Equal(["usb-helper-0.5.0-windows-x64.msi", "usb-helper-0.6.0-windows-x64.msi"],
+            Directory.GetFiles(download).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal("msi 0.5.0", File.ReadAllText(Path.Combine(download, "usb-helper-0.5.0-windows-x64.msi")));
     }
 
     [Fact]
