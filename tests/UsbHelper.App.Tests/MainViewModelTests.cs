@@ -1357,6 +1357,104 @@ public class MainViewModelTests
         Assert.True(Item(viewModel, "C2").IsExpanded);
     }
 
+    // Owner decision in #208: until the user acts, a controller that grows past the selected one is selected and opened.
+    private static readonly UsbNode EmptyFirst = new("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", null, null)]);
+
+    private static readonly UsbNode EmptySecond = new("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", null, null)]);
+
+    private static UsbChange Plug(string hubId, int port, UsbNode node) => new(UsbChangeKind.Added, hubId, Port(hubId, port, node));
+
+    [Fact]
+    public void ADockPluggedInAfterStartIsSelectedAndOpened()
+    {
+        var viewModel = TwoControllers(EmptyFirst, EmptySecond);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+    }
+
+    [Fact]
+    public void TheSelectedControllerStaysSelectedWhenItShrinks()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+
+        // The hub with the keyboard, then the mouse drop out: C1 has fewer devices than C2, but nothing grew.
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 1, null))]);
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded); // It still shows the disconnected devices.
+    }
+
+    [Fact]
+    public void AControllerThatGrowsSwitchesOnlyWhenItHasMoreThanTheSelectedOne()
+    {
+        // C1: hub, keyboard and mouse (3). C2: phone (1) and three free ports.
+        var phone = new UsbNode("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("PHONE"), null, null, null)]);
+        var viewModel = TwoControllers(phone, Desk[0]);
+
+        viewModel.Apply([Plug("ROOT2", 2, Device("STICK"))]);
+        viewModel.Apply([Plug("ROOT2", 3, Device("CARD"))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId); // 3 against 3: a tie does not switch.
+
+        viewModel.Apply([Plug("ROOT2", 4, Device("DISK"))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+        Assert.True(Item(viewModel, "C1").IsCollapsed);
+    }
+
+    [Fact]
+    public void AfterTheUserSelectsAnItemTheControllerIsNotSwitched()
+    {
+        var viewModel = TwoControllers(EmptyFirst, EmptySecond);
+        viewModel.SelectedNode = Item(viewModel, "C1");
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+    }
+
+    [Fact]
+    public void AfterTheUserOpensOrClosesAControllerNothingIsSwitchedOrOpened()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        Item(viewModel, "C2").IsExpanded = true;
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsExpanded);
+    }
+
+    [Fact]
+    public void RefreshFollowsAgainFromTheBusiestController()
+    {
+        var viewModel = TwoControllers(Phone, Desk[0]);
+        viewModel.RefreshRequested += () => { };
+        viewModel.SelectedNode = Item(viewModel, "C2");
+
+        viewModel.RequestRefresh(clearLog: false);
+        viewModel.Load([Phone, Desk[0]], monitors: []);
+
+        Assert.Equal("C1", viewModel.SelectedControllerId);
+        Assert.Null(viewModel.SelectedNode);
+        Assert.True(Item(viewModel, "C1").IsExpanded);
+        Assert.True(Item(viewModel, "C2").IsCollapsed);
+
+        viewModel.Apply([Plug("ROOT2", 1, Hub("DOCK", Device("D1"), Device("D2"), Device("D3")))]);
+
+        Assert.Equal("C2", viewModel.SelectedControllerId);
+    }
+
     // The Displays group (#133) stays open and has no control.
     [Fact]
     public void TheDisplaysGroupCannotCollapse()
