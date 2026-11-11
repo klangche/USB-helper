@@ -37,12 +37,12 @@
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
         "resolved": "10.0.15",
-        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w=="
+        "contentHash": "MjeBT/P5YgUuXfwSbI3ms+F5DkQ2+ilynoHE2jA/Kto//MaE/wtP5EveCAL8abpxFGw9tlHNTAV1j60Wh1oLqg=="
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Transitive",
         "resolved": "10.0.15",
-        "contentHash": "qEJwxr8bM3gwRwmEH1rnzeDfSu1LamhO/fickIUULUdBCpLhk16kIQhsaxPvSkXuwPceqrfLaOW/o4KGrGrk6Q=="
+        "contentHash": "u0WnRcZgBZYHlVFpbe/3Adpmb9rmNJ8/fmEwqc/xjB7fFppq+gfaLJd3Sdaw+J02zV0eP/T9dneQ3Dv5jWw6bw=="
       },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
@@ -115,7 +115,7 @@
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
         "resolved": "10.0.15",
-        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
+        "contentHash": "MjeBT/P5YgUuXfwSbI3ms+F5DkQ2+ilynoHE2jA/Kto//MaE/wtP5EveCAL8abpxFGw9tlHNTAV1j60Wh1oLqg==",
         "dependencies": {
           "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
@@ -130,7 +130,7 @@
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
         "resolved": "10.0.15",
-        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
+        "contentHash": "MjeBT/P5YgUuXfwSbI3ms+F5DkQ2+ilynoHE2jA/Kto//MaE/wtP5EveCAL8abpxFGw9tlHNTAV1j60Wh1oLqg==",
         "dependencies": {
           "runtime.osx-x64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
@@ -145,7 +145,7 @@
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
         "resolved": "10.0.15",
-        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
+        "contentHash": "MjeBT/P5YgUuXfwSbI3ms+F5DkQ2+ilynoHE2jA/Kto//MaE/wtP5EveCAL8abpxFGw9tlHNTAV1j60Wh1oLqg==",
         "dependencies": {
           "runtime.win-x64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
