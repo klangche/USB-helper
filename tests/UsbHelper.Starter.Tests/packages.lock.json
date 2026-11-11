@@ -36,13 +36,13 @@
       },
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "CDQ/+XRT1JT/0u87j9exR1AociehKUzxae4KCOWxCQ1PIKbYS0F8ovxaCrqRlkylGmbhywKxV/zbbrEhWa5NXg=="
+        "resolved": "10.0.15",
+        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w=="
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "YlTamXppEQls6DYWt7RdUuwWDb0lyw/vXCaGeQpLCpsLmfwGuCkOz/vIGgMTV7ECsJcavkCOkxZXv9s8rdAHkQ=="
+        "resolved": "10.0.15",
+        "contentHash": "qEJwxr8bM3gwRwmEH1rnzeDfSu1LamhO/fickIUULUdBCpLhk16kIQhsaxPvSkXuwPceqrfLaOW/o4KGrGrk6Q=="
       },
       "Microsoft.TestPlatform.ObjectModel": {
         "type": "Transitive",
@@ -106,54 +106,54 @@
       "USB-helper": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.DotNet.ILCompiler": "[10.0.14, )",
-          "Microsoft.NET.ILLink.Tasks": "[10.0.14, )"
+          "Microsoft.DotNet.ILCompiler": "[10.0.15, )",
+          "Microsoft.NET.ILLink.Tasks": "[10.0.15, )"
         }
       }
     },
     "net10.0/osx-arm64": {
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "CDQ/+XRT1JT/0u87j9exR1AociehKUzxae4KCOWxCQ1PIKbYS0F8ovxaCrqRlkylGmbhywKxV/zbbrEhWa5NXg==",
+        "resolved": "10.0.15",
+        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
         "dependencies": {
-          "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "10.0.14"
+          "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
       },
       "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "t4T2d4Ye79r1GTjP9JuJHkA874jiKCvdhcsj8HAUD5U2XF8GpjRsT6YSusy67My5V12iydckl0D4qC9iZsmpvQ=="
+        "resolved": "10.0.15",
+        "contentHash": "wVs87dP8Vxxb9o8AEpSy0uR00v5WV/Al5ZIGAdDBa+RQfqyHyJP0pXPpHo7QNwdoVzuVTFJC+RmC9ZjhMub8bg=="
       }
     },
     "net10.0/osx-x64": {
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "CDQ/+XRT1JT/0u87j9exR1AociehKUzxae4KCOWxCQ1PIKbYS0F8ovxaCrqRlkylGmbhywKxV/zbbrEhWa5NXg==",
+        "resolved": "10.0.15",
+        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
         "dependencies": {
-          "runtime.osx-x64.Microsoft.DotNet.ILCompiler": "10.0.14"
+          "runtime.osx-x64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
       },
       "runtime.osx-x64.Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "2uoolFgVVvr3jIXykcpiPWAnNgSbYcC1Gpr0DeWpTSEew+dHmwX07Fqn9qzcQEiFWO1j+spkdi9iqiQhCU+qJg=="
+        "resolved": "10.0.15",
+        "contentHash": "PGFXOoh8yadGYCPOYAhAdf6ngkOJqkVdVtjVjBGNr1rOZP51/5s3Uu4gmIoBKbfo/0y+ULTxsckf65CwFJPmKA=="
       }
     },
     "net10.0/win-x64": {
       "Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "CDQ/+XRT1JT/0u87j9exR1AociehKUzxae4KCOWxCQ1PIKbYS0F8ovxaCrqRlkylGmbhywKxV/zbbrEhWa5NXg==",
+        "resolved": "10.0.15",
+        "contentHash": "v2Af++Hej0URUOq3llWEFj1vgs2j4eOFGQEypKz1gWs7TrUWONedRgi4ghp5+80SgmqOx1fNAvScrRFLCC5L+w==",
         "dependencies": {
-          "runtime.win-x64.Microsoft.DotNet.ILCompiler": "10.0.14"
+          "runtime.win-x64.Microsoft.DotNet.ILCompiler": "10.0.15"
         }
       },
       "runtime.win-x64.Microsoft.DotNet.ILCompiler": {
         "type": "Transitive",
-        "resolved": "10.0.14",
-        "contentHash": "B28xsyrO3PRFGL9yd1lLWdX3/wATFkaxPFM3VmGOFG8pfx7jDeb1Yz09v6n+z0jNEPAlQLqOx2noOXw8aytYNw=="
+        "resolved": "10.0.15",
+        "contentHash": "WEtOJ41ItA7fJ+pqQFYgCmZxiX5d6AByfLWbifqEjyjkfFXmD9/T9V7xTwrvh5OxkJkBhnZsygcdU0Al9MNcVw=="
       }
     }
   }
