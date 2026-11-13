@@ -82,21 +82,38 @@ internal static class ReportSamples
         Row(2, [false], true, "DELL U2723QE (HDMI)"),
     ];
 
-    private static IReadOnlyList<ReportProfile> Profiles() =>
+    // Two computers and two platforms: one shared limitation, one each of their own, a limit not in the database, and a
+    // stable profile.
+    public static IReadOnlyList<ReportProfile> Profiles() =>
     [
-        new("Dell Latitude 7450", ConnectionStatus.Orange,
+        new("Dell Latitude 7450", ConnectionStatus.Purple,
         [
-            new("External hubs", 2, 2, LimitState.Within),
-            new("Deepest tier", 5, 4, LimitState.Within),
-            new("Most hops", 3, 3, LimitState.Within),
-            new("External displays", 2, 1, LimitState.Within),
+            new("External hubs", 4, 2, ConnectionStatus.Green),
+            new("Deepest tier", 5, 4, ConnectionStatus.Green),
+            new("Most hops", 2, 3, ConnectionStatus.Purple),
+            new("External displays", 2, 1, ConnectionStatus.Green),
         ]),
-        new("Windows on Intel", ConnectionStatus.Grey,
+        new("HP EliteBook 840 G10", ConnectionStatus.Purple,
         [
-            new("External hubs", null, 2, LimitState.Unknown),
-            new("Deepest tier", 7, 4, LimitState.Within),
-            new("Most hops", null, 3, LimitState.Unknown),
-            new("External displays", null, 1, LimitState.Unknown),
+            new("External hubs", 4, 2, ConnectionStatus.Green),
+            new("Deepest tier", 5, 4, ConnectionStatus.Green),
+            new("Most hops", 2, 3, ConnectionStatus.Purple),
+            new("External displays", 3, 1, ConnectionStatus.Green),
+        ]),
+        new("Windows on Intel", ConnectionStatus.Orange,
+        [
+            new("External hubs", null, 2, ConnectionStatus.Grey),
+            new("Deepest tier", 7, 4, ConnectionStatus.Green),
+            new("Most hops", 5, 3, ConnectionStatus.Green),
+            new("External displays", 4, 1, ConnectionStatus.Green),
+            new("Recommended hops", 2, 3, ConnectionStatus.Orange),
+        ]),
+        new("macOS on Apple silicon", ConnectionStatus.Green,
+        [
+            new("External hubs", null, 2, ConnectionStatus.Grey),
+            new("Deepest tier", 7, 4, ConnectionStatus.Green),
+            new("Most hops", 5, 3, ConnectionStatus.Green),
+            new("External displays", 2, 1, ConnectionStatus.Green),
         ]),
     ];
 
@@ -105,7 +122,7 @@ internal static class ReportSamples
         new(FactKind.DetectedFact, null, "Jabra Speak2 75", "Disconnected at 14:02 and reconnected on the same port."),
         new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Computer", "At most 2 external displays on the computer's own outputs (verified)."),
         new(FactKind.PredictedRisk, "Dell Latitude 7450", "Crestron TSW-1070 touch panel",
-            "3 hops reaches the recommended maximum of 3; an extra hub or active cable on this path may make it unstable."),
+            "Hop depth 3 exceeds the limit of 2 hops; remove a hub or the active cable on this path."),
         new(FactKind.PredictedRisk, "Dell Latitude 7450", "DisplayLink USB Graphics",
             "A DisplayLink adapter needs its driver; without it the extended display stays dark."),
         new(FactKind.Unknown, "Windows on Intel", "Computer", "The hub limit of this platform is unknown."),
@@ -113,10 +130,21 @@ internal static class ReportSamples
 
     public static ReportModel Full(string? logoPath) => new(
         Company, logoPath, Room, "0.9.0-beta.3", new DateTime(2026, 11, 13, 14, 5, 0),
-        new ComputerIdentity("Dell Inc.", "Latitude 7450"), ConnectionStatus.Orange,
+        new ComputerIdentity("Dell Inc.", "Latitude 7450"), ConnectionStatus.Purple,
         new ReportCounts(2, 2, 1, 4, 3, false, 1), Profiles(),
         [new("Monitor", "built-in", null), new("DELL U2723QE", "HDMI", null), new("Monitor", "indirect, for example DisplayLink", "DisplayLink USB Graphics")],
         DeskTree(), Findings());
+
+    /// <summary>Two computers and two platforms, every limit known and kept.</summary>
+    public static ReportModel AllStable(string? logoPath) => Full(logoPath) with
+    {
+        Overall = ConnectionStatus.Green,
+        Profiles = [.. Profiles().Select(profile => profile with
+        {
+            Overall = ConnectionStatus.Green,
+            Checks = [.. profile.Checks.Select(check => check with { Limit = check.Limit ?? 6, Status = ConnectionStatus.Green })],
+        })],
+    };
 
     public static ReportModel NoRoom(string? logoPath) => Full(logoPath) with { RoomName = null };
 

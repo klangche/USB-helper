@@ -37,12 +37,13 @@ public sealed record ReportModel(
 /// <param name="ExternalDisplays">Null when unknown.</param>
 public sealed record ReportCounts(int Hubs, int? Usb2Hubs, int? Usb3Hubs, int DeepestTier, int DeepestHop, bool AtLeast, int? ExternalDisplays);
 
-/// <summary>One checked profile: its result and its hub, tier, hop and display checks.</summary>
+/// <summary>One checked profile: its result and its hub, tier, hop and display checks; no checks without a profile.</summary>
 public sealed record ReportProfile(string Label, ConnectionStatus Overall, IReadOnlyList<ReportCheck> Checks);
 
-/// <param name="Limit">Null when the profile does not know it.</param>
+/// <param name="Limit">Null when the profile does not know it, or when the check has none (disconnected devices).</param>
 /// <param name="Measured">Null when unknown.</param>
-public sealed record ReportCheck(string Name, long? Limit, int? Measured, LimitState State);
+/// <param name="Status">Green within the limit, grey when unknown, otherwise the problem's status as the app shows it.</param>
+public sealed record ReportCheck(string Name, long? Limit, int? Measured, ConnectionStatus Status);
 
 /// <param name="ConnectedTo">The USB hub or device the monitor is part of; null when it is linked to none.</param>
 public sealed record ReportDisplay(string Monitor, string Output, string? ConnectedTo);

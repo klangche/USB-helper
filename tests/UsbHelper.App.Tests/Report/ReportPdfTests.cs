@@ -37,6 +37,61 @@ public class ReportPdfTests
         Assert.Contains($"Page 1 of {pages.Count}", pages[0]);
     }
 
+    // The Results section: from its heading to the next one.
+    private static string Results(ReportModel model)
+    {
+        var all = string.Join("\n", PageTexts(Pdf(model)));
+        var start = all.IndexOf("\nResults\n", StringComparison.Ordinal);
+        return all[start..all.IndexOf("\nDisplays\n", start, StringComparison.Ordinal)];
+    }
+
+    [Fact]
+    public void The_results_list_every_checked_profile_and_group_shared_limitations()
+    {
+        var results = Results(ReportSamples.Full(null));
+
+        Assert.All(ReportSamples.Profiles().Select(profile => profile.Label), label => Assert.Contains(label, results));
+        Assert.Contains("\nmacOS on Apple silicon Stable\n", results);
+        Assert.Contains("\nLimitations\n", results);
+        // One row for the limitation both computers share, before the less severe one.
+        Assert.Contains("\nMost hops 3 2 Unstable Dell Latitude 7450\nHP EliteBook 840 G10\nRecommended hops 3 2 Potentially unstable Windows on Intel\n", results);
+        Assert.Single(results.Split('\n'), line => line.StartsWith("Most hops", StringComparison.Ordinal));
+        Assert.DoesNotContain("Stable for all checked profiles", results);
+    }
+
+    [Fact]
+    public void Limits_not_in_the_database_are_only_in_the_grey_note()
+    {
+        var results = Results(ReportSamples.Full(null));
+
+        Assert.Contains("Not in the database: External hubs (Windows on Intel, macOS on Apple silicon)", results);
+        Assert.DoesNotContain(results.Split('\n'), line => line.StartsWith("External hubs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void When_every_profile_is_stable_the_results_say_so_without_a_table()
+    {
+        var results = Results(ReportSamples.AllStable(null));
+
+        Assert.Contains("Stable for all checked profiles", results);
+        Assert.DoesNotContain("Limitations", results);
+        Assert.DoesNotContain("Not in the database", results);
+    }
+
+    [Fact]
+    public void Without_a_checked_profile_the_results_say_so()
+    {
+        var results = Results(ReportSamples.Full(null) with
+        {
+            Overall = ConnectionStatus.Grey,
+            Profiles = [new ReportProfile("No profile checked", ConnectionStatus.Grey, [])],
+        });
+
+        Assert.Contains("\nNo profile checked Unknown", results);
+        Assert.DoesNotContain("Stable", results);
+        Assert.DoesNotContain("Limitations", results);
+    }
+
     [Fact]
     public void Without_a_room_name_the_header_says_so()
     {
@@ -153,12 +208,13 @@ public class ReportPdfTests
             ("no-branding", ReportSamples.NoBranding()),
             ("long-tree", ReportSamples.LongTree(logo)),
             ("png-logo", ReportSamples.Full(ReportSamples.WritePngLogo())),
+            ("all-stable", ReportSamples.AllStable(logo)),
         })
         {
             File.WriteAllBytes(Path.Combine(folder, $"{name}.pdf"), Pdf(model));
         }
 
-        Assert.Equal(5, Directory.GetFiles(folder, "*.pdf").Length);
+        Assert.Equal(6, Directory.GetFiles(folder, "*.pdf").Length);
     }
 
     private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);
@@ -188,7 +244,8 @@ public class ReportPdfTests
         Assert.Equal("Latitude 7450", model.Computer.Model);
         Assert.Equal(1, model.Counts.Hubs);
         Assert.Equal(2, model.Profiles.Count); // The detected platform's profile is checked at start.
-        Assert.All(model.Profiles, profile => Assert.Equal(4, profile.Checks.Count));
+        Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "Most hops", "External displays"],
+            profile.Checks.Take(4).Select(check => check.Name)));
         Assert.Equal(new ReportDisplay("DELL U2723QE", "HDMI", null), Assert.Single(model.Displays!));
         Assert.Contains(model.Tree, row => row.Text == "KEYBOARD" && row.Level == 6 && row.Status != null);
         Assert.Contains(model.Tree, row => row.Text == "Port 1" && row.PortType == "USB-C");

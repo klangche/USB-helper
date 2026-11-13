@@ -356,13 +356,9 @@ public sealed class MainViewModel : ObservableObject
         var perBus = TopologyCounts.PerBus(tree, extraHops);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
         IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
-        var profiles = reports.Select((result, i) => new ReportProfile(setup.Results[i].Profile == null ? Strings.ReportNoProfile : setup.Results[i].Label, result.Overall,
-            [
-                new ReportCheck(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, result.Hubs.State),
-                new ReportCheck(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, result.Tiers.State),
-                new ReportCheck(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, result.Hops.State),
-                new ReportCheck(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, result.Displays.State),
-            ])).ToList();
+        var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
+            ? new ReportProfile(Strings.ReportNoProfile, result.Overall, [])
+            : new ReportProfile(setup.Results[i].Label, result.Overall, ReportChecks(result))).ToList();
         var placement = MonitorPlacement.Place(tree, monitors ?? []);
         var items = Flat(Roots[0]).ToDictionary(item => item.Id, item => item.Text);
         var displays = monitors?.Select(monitor => new ReportDisplay(monitor.Name ?? Strings.MonitorUnnamed, NodeViewModel.OutputText(monitor.Output),
@@ -372,6 +368,34 @@ public sealed class MainViewModel : ObservableObject
             new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
                 counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings);
+    }
+
+    // A profile's checks as the app judges them. The recommended depth only when it is known and the maximum is kept,
+    // the same as the tree's lines; disconnected devices only when there are.
+    private static List<ReportCheck> ReportChecks(DiagnosticReport result)
+    {
+        static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
+        {
+            LimitState.Within => ConnectionStatus.Green,
+            LimitState.Exceeded => exceeded,
+            _ => ConnectionStatus.Grey,
+        };
+        var checks = new List<ReportCheck>
+        {
+            new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
+            new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
+            new(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, Status(result.Hops.State)),
+            new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
+        };
+        if (result.RecommendedHops is { Limit: not null } recommended && result.Hops.State != LimitState.Exceeded)
+        {
+            checks.Add(new(Strings.LimitRecommendedHops, recommended.Limit, recommended.Actual, Status(recommended.State, ConnectionStatus.Orange)));
+        }
+        if (result.Missing.Count > 0)
+        {
+            checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
+        }
+        return checks;
     }
 
     private static IEnumerable<NodeViewModel> Flat(NodeViewModel item) => item.Children.SelectMany(Flat).Prepend(item);

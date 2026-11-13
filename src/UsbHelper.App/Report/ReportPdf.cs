@@ -41,7 +41,7 @@ public static class ReportPdf
         using var logo = model.LogoPath == null ? null : Logo.Load(model.LogoPath);
         Header(layout, model, logo);
         Summary(layout, model);
-        Checks(layout, model);
+        Results(layout, model);
         Displays(layout, model);
         ReportTree.Place(layout, model.Tree);
         Findings(layout, model);
@@ -165,7 +165,12 @@ public static class ReportPdf
             var explanation = StatusColors.Text(model.Overall);
             if (explanation.IndexOf(": ", StringComparison.Ordinal) is var colon and > 0)
             {
-                Caption.Draw(canvas, Capitalized(explanation[(colon + 2)..]), right, top + 46);
+                var lineY = top + 46;
+                foreach (var line in Caption.Wrap(Capitalized(explanation[(colon + 2)..]), ReportLayout.Right - right))
+                {
+                    Caption.Draw(canvas, line, right, lineY);
+                    lineY += 7.5f * 1.4f;
+                }
             }
         });
 
@@ -208,62 +213,105 @@ public static class ReportPdf
         Hairline(canvas, top + TableRow - 0.5f);
     }
 
-    private static void Checks(ReportLayout layout, ReportModel model)
+    // A result word with its colour mark in front, as in the app.
+    private static void StatusWord(SKCanvas canvas, ConnectionStatus status, float x, float top)
     {
-        const float profileBlock = 26 + 5 * TableRow;
-        Heading(layout, Strings.ReportChecks, profileBlock);
-        var check = ReportLayout.X(1);
-        var limit = ReportLayout.X(6) + ReportLayout.Span(1);
-        var measured = ReportLayout.X(8) + ReportLayout.Span(1);
-        var result = ReportLayout.X(10);
-        var first = true;
+        Dot(canvas, x + 2.5f, top + TableRow / 2, 2.5f, Color(status));
+        Table.Draw(canvas, Capitalized(StatusColors.Word(status)), x + 10, top + TableRow / 2 + Table.CapHalf);
+    }
+
+    // Each checked profile with its result, then only what is not stable: the problems grouped over the profiles, and
+    // the limits that are not in the database in a grey note.
+    private static void Results(ReportLayout layout, ReportModel model)
+    {
+        const float lineHeight = 8.5f * 1.35f;
+        var name = ReportLayout.X(1);
+        var measured = ReportLayout.X(4) + ReportLayout.Span(1);
+        var limit = ReportLayout.X(5) + ReportLayout.Span(1);
+        var result = ReportLayout.X(7);
+        var appliesTo = ReportLayout.X(10);
+        Heading(layout, Strings.ReportResults, 2 * TableRow);
+        layout.Place(TableRow, (canvas, top) => TableHeader(canvas, top,
+        [
+            (Strings.ReportColumnProfile, name, Align.Left),
+            (Strings.ReportColumnResult, result, Align.Left),
+        ]));
         foreach (var profile in model.Profiles)
         {
-            if (!first)
+            layout.Place(TableRow, (canvas, top) =>
             {
-                layout.Space(18);
-            }
-            first = false;
-            if (!layout.Fits(profileBlock))
+                Table.Draw(canvas, Table.Fit(profile.Label, ReportLayout.Span(6)), name, top + TableRow / 2 + Table.CapHalf);
+                StatusWord(canvas, profile.Overall, result, top);
+                Hairline(canvas, top + TableRow - 0.5f);
+            });
+        }
+
+        var limitations = ReportResults.Limitations(model.Profiles);
+        if (model.Profiles.All(profile => profile.Overall == ConnectionStatus.Green))
+        {
+            layout.Space(10);
+            layout.Place(TableRow, (canvas, top) =>
+            {
+                Dot(canvas, name + 3, top + TableRow / 2, 3, Color(ConnectionStatus.Green));
+                Strong.Draw(canvas, Strings.ReportAllStable, name + 12, top + TableRow / 2 + Strong.CapHalf);
+            });
+        }
+        else if (limitations.Count > 0)
+        {
+            const float title = 24;
+            float Height(ReportLimitation row) => TableRow + (row.Profiles.Count - 1) * lineHeight;
+            layout.Space(16);
+            if (!layout.Fits(title + TableRow + Height(limitations[0])))
             {
                 layout.NewPage();
             }
-            layout.Place(26, (canvas, top) =>
-            {
-                Strong.Draw(canvas, profile.Label, check, top + 12);
-                var color = Color(profile.Overall);
-                var word = Capitalized(StatusColors.Word(profile.Overall));
-                var width = Strong.Draw(canvas, word, ReportLayout.Right, top + 12, Align.Right);
-                Dot(canvas, ReportLayout.Right - width - 7, top + 12 - Strong.CapHalf, 3, color);
-            });
+            layout.Place(title, (canvas, top) => Strong.Draw(canvas, Strings.ReportLimitations, name, top + 12));
             layout.Place(TableRow, (canvas, top) => TableHeader(canvas, top,
             [
-                (Strings.ReportColumnCheck, check, Align.Left),
-                (Strings.ReportColumnLimit, limit, Align.Right),
+                (Strings.ReportColumnCheck, name, Align.Left),
                 (Strings.ReportColumnMeasured, measured, Align.Right),
+                (Strings.ReportColumnLimit, limit, Align.Right),
                 (Strings.ReportColumnResult, result, Align.Left),
+                (Strings.ReportColumnAppliesTo, appliesTo, Align.Left),
             ]));
-            foreach (var row in profile.Checks)
+            foreach (var row in limitations)
             {
-                layout.Place(TableRow, (canvas, top) =>
+                var height = Height(row);
+                layout.Place(height, (canvas, top) =>
                 {
                     var baseline = top + TableRow / 2 + Table.CapHalf;
-                    Table.Draw(canvas, row.Name, check, baseline);
-                    Table.With(row.Limit == null ? Muted : Ink).Draw(canvas,
-                        row.Limit?.ToString(CultureInfo.InvariantCulture) ?? Strings.WordUnknown, limit, baseline, Align.Right);
+                    Table.Draw(canvas, Table.Fit(row.Check, ReportLayout.Span(3)), name, baseline);
                     Table.With(row.Measured == null ? Muted : Ink).Draw(canvas,
                         row.Measured?.ToString(CultureInfo.InvariantCulture) ?? Strings.WordUnknown, measured, baseline, Align.Right);
-                    var (word, status) = row.State switch
+                    Table.With(row.Limit == null ? Muted : Ink).Draw(canvas,
+                        row.Limit?.ToString(CultureInfo.InvariantCulture) ?? "\u2013", limit, baseline, Align.Right);
+                    StatusWord(canvas, row.Status, result, top);
+                    foreach (var profile in row.Profiles)
                     {
-                        LimitState.Within => (Strings.LimitWithin, ConnectionStatus.Green),
-                        LimitState.Exceeded => (Strings.LimitExceeded, ConnectionStatus.Purple),
-                        _ => (Strings.LimitUnknown, ConnectionStatus.Grey),
-                    };
-                    Dot(canvas, result + 2.5f, top + TableRow / 2, 2.5f, Color(status));
-                    Table.Draw(canvas, Capitalized(word), result + 10, baseline);
-                    Hairline(canvas, top + TableRow - 0.5f);
+                        Table.Draw(canvas, Table.Fit(profile, ReportLayout.Span(3)), appliesTo, baseline);
+                        baseline += lineHeight;
+                    }
+                    Hairline(canvas, top + height - 0.5f);
                 });
             }
+        }
+
+        var unknowns = ReportResults.Unknowns(model.Profiles);
+        if (unknowns.Count > 0)
+        {
+            var note = string.Format(CultureInfo.InvariantCulture, Strings.ReportNotInDatabase, string.Join(", ", unknowns.Select(unknown =>
+                string.Format(CultureInfo.InvariantCulture, Strings.ReportNotInDatabaseItem, unknown.Check, string.Join(", ", unknown.Profiles)))));
+            var lines = Caption.Wrap(note, ReportLayout.Width);
+            layout.Space(10);
+            layout.Place(lines.Count * 7.5f * 1.4f + 4, (canvas, top) =>
+            {
+                var y = top + 8;
+                foreach (var line in lines)
+                {
+                    Caption.Draw(canvas, line, name, y);
+                    y += 7.5f * 1.4f;
+                }
+            });
         }
     }
 

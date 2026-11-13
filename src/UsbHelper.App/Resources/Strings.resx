@@ -197,6 +197,12 @@
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
   </data>
+  <data name="LimitRecommendedHops" xml:space="preserve">
+    <value>Recommended hops</value>
+  </data>
+  <data name="LimitDisconnected" xml:space="preserve">
+    <value>Disconnected devices</value>
+  </data>
   <data name="LimitWithin" xml:space="preserve">
     <value>within limit</value>
   </data>
@@ -471,8 +477,26 @@ This version keeps running.</value>
   <data name="ReportAtLeast" xml:space="preserve">
     <value>at least {0}</value>
   </data>
-  <data name="ReportChecks" xml:space="preserve">
-    <value>Checks per profile</value>
+  <data name="ReportResults" xml:space="preserve">
+    <value>Results</value>
+  </data>
+  <data name="ReportColumnProfile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="ReportAllStable" xml:space="preserve">
+    <value>Stable for all checked profiles</value>
+  </data>
+  <data name="ReportLimitations" xml:space="preserve">
+    <value>Limitations</value>
+  </data>
+  <data name="ReportColumnAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+  </data>
+  <data name="ReportNotInDatabase" xml:space="preserve">
+    <value>Not in the database: {0}</value>
+  </data>
+  <data name="ReportNotInDatabaseItem" xml:space="preserve">
+    <value>{0} ({1})</value>
   </data>
   <data name="ReportColumnCheck" xml:space="preserve">
     <value>Check</value>
