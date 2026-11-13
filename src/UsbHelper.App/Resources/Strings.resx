@@ -480,6 +480,9 @@ This version keeps running.</value>
   <data name="UnlockNoMatch" xml:space="preserve">
     <value>This code does not match this email</value>
   </data>
+  <data name="UnlockNeeded" xml:space="preserve">
+    <value>Enter a code to unlock</value>
+  </data>
   <data name="UnlockNotAvailable" xml:space="preserve">
     <value>Unlock codes are not available in this build</value>
   </data>

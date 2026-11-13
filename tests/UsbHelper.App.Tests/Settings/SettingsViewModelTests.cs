@@ -1,5 +1,6 @@
 using SkiaSharp;
 using UsbHelper.App.Settings;
+using UsbHelper.App.Tests.Licensing;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Diagnostics;
 
@@ -120,6 +121,9 @@ public sealed class SettingsViewModelTests : IDisposable
     public void BrandingHoldsTheNameAndTheLogoFilesOrIsNoneWhenEmpty()
     {
         var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        var entitlements = new FakeEntitlements();
+        entitlements.SetPro(true);
+        settings.Gate(entitlements);
         Assert.Null(settings.Branding);
 
         settings.CompanyName = "Acme AB";
@@ -141,19 +145,51 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void BrandingIsLockedWithoutEntitlements()
+    {
+        var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        settings.CompanyName = "Acme AB";
+
+        Assert.False(settings.BrandingUnlocked);
+        Assert.Null(settings.Branding);
+    }
+
+    [Fact]
     public void LockedBrandingIsNoneButTheStoredNameAndLogoAreKept()
     {
-        var unlocked = false;
         var file = new SettingsFile(FilePath);
-        var settings = SettingsViewModel.Load(file, log, () => unlocked);
+        var settings = SettingsViewModel.Load(file, log);
+        settings.Gate(new FakeEntitlements());
         settings.CompanyName = "Acme AB";
         settings.ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png));
 
+        Assert.False(settings.BrandingUnlocked);
         Assert.Null(settings.Branding);
         Assert.Equal("Acme AB", file.Load(log).CompanyName);
+        Assert.NotNull(settings.LogoPreview);
+    }
 
-        unlocked = true;
+    [Fact]
+    public void UnlockingAtRuntimeBringsBrandingBackAndRemovingTheCodeLocksItAgain()
+    {
+        var entitlements = new FakeEntitlements();
+        var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        settings.Gate(entitlements);
+        settings.CompanyName = "Acme AB";
+        settings.ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png));
+        var changed = new List<string?>();
+        settings.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        entitlements.SetPro(true);
+        Assert.True(settings.BrandingUnlocked);
         Assert.Equal("Acme AB", settings.Branding!.CompanyName);
         Assert.NotNull(settings.Branding.LogoOriginal);
+        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding)], changed);
+
+        changed.Clear();
+        entitlements.SetPro(false);
+        Assert.False(settings.BrandingUnlocked);
+        Assert.Null(settings.Branding);
+        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding)], changed);
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using UsbHelper.App.Licensing;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
 using UsbHelper.Core.Diagnostics;
@@ -14,33 +15,51 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly SettingsFile? file;
     private readonly EventLog? log;
     private readonly CompanyLogo? logo;
-    private readonly Func<bool> brandingUnlocked;
+    private IEntitlements? entitlements;
     private AppSettings current;
     private string? logoMessage;
 
     /// <summary>Default settings kept in memory only, for tests and for a model without a file.</summary>
     public SettingsViewModel()
-        : this(null, null, new AppSettings(), null, () => true)
+        : this(null, null, new AppSettings(), null)
     {
     }
 
-    private SettingsViewModel(SettingsFile? file, EventLog? log, AppSettings current, CompanyLogo? logo, Func<bool> brandingUnlocked)
+    private SettingsViewModel(SettingsFile? file, EventLog? log, AppSettings current, CompanyLogo? logo)
     {
         this.file = file;
         this.log = log;
         this.current = current;
         this.logo = logo;
-        this.brandingUnlocked = brandingUnlocked;
     }
 
     /// <summary>
     /// The settings in <paramref name="file"/>, or the defaults; see <see cref="SettingsFile.Load"/>. The company logo is
-    /// kept in the branding folder next to the file. <paramref name="brandingUnlocked"/> gates <see cref="Branding"/>;
-    /// without it branding is unlocked.
+    /// kept in the branding folder next to the file.
     /// </summary>
-    public static SettingsViewModel Load(SettingsFile file, EventLog log, Func<bool>? brandingUnlocked = null) =>
-        new(file, log, file.Load(log), new CompanyLogo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, "branding")),
-            brandingUnlocked ?? (() => true));
+    public static SettingsViewModel Load(SettingsFile file, EventLog log) =>
+        new(file, log, file.Load(log), new CompanyLogo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, "branding")));
+
+    /// <summary>
+    /// Unlocks branding while <paramref name="unlock"/> has <see cref="Feature.Pro"/>, and follows its changes. Called
+    /// once by <see cref="MainViewModel"/>: the entitlements read the unlock code from these settings, so they cannot be
+    /// given to <see cref="Load"/>. Until then branding is locked.
+    /// </summary>
+    public void Gate(IEntitlements unlock)
+    {
+        entitlements = unlock;
+        unlock.Changed += (_, _) =>
+        {
+            OnPropertyChanged(nameof(BrandingUnlocked));
+            OnPropertyChanged(nameof(Branding));
+        };
+    }
+
+    /// <summary>
+    /// False until an unlock code gives <see cref="Feature.Pro"/>. While locked the name and logo cannot be changed, but
+    /// the stored ones are kept and come back on unlock.
+    /// </summary>
+    public bool BrandingUnlocked => entitlements?.IsUnlocked(Feature.Pro) == true;
 
     /// <summary>Where the settings are saved, shown in the settings window; null when they are kept in memory only.</summary>
     public string? FilePath => file?.Path;
@@ -77,7 +96,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>The company name and logo for reports, or null when branding is locked or empty; see <see cref="Settings.Branding"/>.</summary>
-    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, brandingUnlocked());
+    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, BrandingUnlocked);
 
     /// <summary>The logo 128 pixels high for the settings window, or null when there is no logo.</summary>
     public string? LogoPreview => logo?.Original == null ? null : logo.Png(128);
