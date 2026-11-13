@@ -35,10 +35,14 @@ public sealed class SettingsViewModel : ObservableObject
 
     /// <summary>
     /// The settings in <paramref name="file"/>, or the defaults; see <see cref="SettingsFile.Load"/>. The company logo is
-    /// kept in the branding folder next to the file.
+    /// kept in the branding folder next to the file; a logo from before the crop tool is upgraded here (#241).
     /// </summary>
-    public static SettingsViewModel Load(SettingsFile file, EventLog log) =>
-        new(file, log, file.Load(log), new CompanyLogo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, "branding")));
+    public static SettingsViewModel Load(SettingsFile file, EventLog log)
+    {
+        var logo = new CompanyLogo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, "branding"));
+        logo.Upgrade();
+        return new(file, log, file.Load(log), logo);
+    }
 
     /// <summary>
     /// Unlocks branding while <paramref name="unlock"/> has <see cref="Feature.Pro"/>, and follows its changes. Called

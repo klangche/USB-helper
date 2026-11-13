@@ -143,12 +143,74 @@ public sealed class CompanyLogoTests : IDisposable
         File.WriteAllBytes(logo.Png(32), File.ReadAllBytes(logo.Png(512))); // Any old content.
 
         var upgraded = new CompanyLogo(logo.Folder);
-
         Assert.NotNull(upgraded.Original);
+        Assert.False(File.Exists(Path.Combine(logo.Folder, "crop.json"))); // Reading writes nothing.
+
+        upgraded.Upgrade();
+
         Assert.Equal(LogoCrop.Contain(200, 100), upgraded.Crop);
         using var png = SKBitmap.Decode(upgraded.Png(32));
         Assert.Equal(96, png.Width);
         Assert.Equal(name.EndsWith(".svg", StringComparison.Ordinal), upgraded.Svg != null);
+    }
+
+    [Fact]
+    public void AFailedUpgradeIsNotTriedAgain()
+    {
+        var logo = Logo;
+        logo.Import(Raster("logo.png", SKEncodedImageFormat.Png));
+        File.Delete(Path.Combine(logo.Folder, "crop.json"));
+        var moves = 0;
+        var failing = new CompanyLogo(logo.Folder)
+        {
+            MoveFolder = (_, _) =>
+            {
+                moves++;
+                throw new IOException("read-only");
+            },
+        };
+
+        failing.Upgrade();
+        failing.Upgrade();
+
+        Assert.Equal(1, moves);
+        Assert.NotNull(failing.Original); // The old files are still used.
+        Assert.Null(failing.Crop);
+    }
+
+    [Fact]
+    public void AnSvgWhoseViewBoxIsNotItsSizeIsNeverStretched()
+    {
+        // 300 x 100, but the drawing is a 100 x 100 square: SVG centres it, so the sides stay empty.
+        var source = Source("square.svg", """
+            <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 100 100">
+              <rect width="100" height="100" fill="#ff0000" />
+            </svg>
+            """u8.ToArray());
+        var logo = Logo;
+
+        logo.Import(source);
+
+        using var png = SKBitmap.Decode(logo.Png(32));
+        Assert.Equal(0, png.GetPixel(5, 16).Alpha);
+        Assert.Equal(SKColors.Red, png.GetPixel(48, 16));
+        Assert.Equal(0, png.GetPixel(90, 16).Alpha);
+        Assert.Equal(0, png.GetPixel(30, 16).Alpha);
+        Assert.Equal(SKColors.Red, png.GetPixel(34, 16));
+    }
+
+    [Fact]
+    public void AnSvgWithoutANamespaceIsPutInTheSvgNamespace()
+    {
+        var logo = Logo;
+
+        logo.Import(Source("plain.svg", """<svg width="200" height="100"><g><rect x="100" width="100" height="100" fill="#ff0000" /></g></svg>"""u8.ToArray()));
+
+        var svg = System.Xml.Linq.XDocument.Load(logo.Svg!);
+        Assert.All(svg.Descendants(), e => Assert.Equal("http://www.w3.org/2000/svg", e.Name.NamespaceName));
+        Assert.DoesNotContain("xmlns=\"\"", File.ReadAllText(logo.Svg!), StringComparison.Ordinal);
+        using var png = SKBitmap.Decode(logo.Png(32));
+        Assert.Equal(SKColors.Red, png.GetPixel(64, 16));
     }
 
     [Fact]

@@ -139,6 +139,18 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void LoadGivesALogoFromBeforeTheCropToolItsDefaultCrop()
+    {
+        SettingsViewModel.Load(new SettingsFile(FilePath), log).ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png));
+        var stored = Path.Combine(folder, "USB-helper", "branding");
+        File.Delete(Path.Combine(stored, "crop.json"));
+
+        SettingsViewModel.Load(new SettingsFile(FilePath), log);
+
+        Assert.Equal(LogoCrop.Contain(2, 1), new CompanyLogo(stored).Crop);
+    }
+
+    [Fact]
     public void AnImageThatCannotBeUsedOpensNoCropWindowAndSaysWhy()
     {
         var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);

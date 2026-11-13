@@ -34,21 +34,15 @@ public sealed class CompanyLogo(string folder)
 
     private string CropFile => Path.Combine(Folder, "crop.json");
 
-    /// <summary>
-    /// The imported file, or null when there is no logo. A logo stored before the crop tool gets the whole image centred
-    /// (<see cref="LogoCrop.Contain"/>) on the first read.
-    /// </summary>
+    private bool upgradeTried;
+
+    /// <summary>The imported file, or null when there is no logo.</summary>
     public string? Original
     {
         get
         {
             Restore();
-            var original = Directory.Exists(Folder) ? Directory.EnumerateFiles(Folder, "logo-original.*").FirstOrDefault() : null;
-            if (original != null && !File.Exists(CropFile))
-            {
-                Upgrade(original);
-            }
-            return original;
+            return Directory.Exists(Folder) ? Directory.EnumerateFiles(Folder, "logo-original.*").FirstOrDefault() : null;
         }
     }
 
@@ -125,12 +119,24 @@ public sealed class CompanyLogo(string folder)
         DeleteFolder(Old);
     }
 
-    // A logo from before #241. If it cannot be written now, it reads as the old files until a later call manages.
-    private void Upgrade(string original)
+    /// <summary>
+    /// Gives a logo stored before the crop tool (#241), which has no crop.json, the whole image centred
+    /// (<see cref="LogoCrop.Contain"/>) and its 3:1 files. Tried once per instance: if it cannot be written, the old files
+    /// are used until the next start.
+    /// </summary>
+    public void Upgrade()
     {
+        if (upgradeTried)
+        {
+            return;
+        }
+        upgradeTried = true;
         try
         {
-            Write(original, null);
+            if (Original is { } original && !File.Exists(CropFile))
+            {
+                Write(original, null);
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException)
         {
@@ -238,7 +244,8 @@ public sealed class CompanyLogo(string folder)
         {
             document = SvgDocument.FromSvg<SvgDocument>(root.ToString(SaveOptions.DisableFormatting));
         }
-        catch (Exception e)
+        catch (Exception e) when (e is XmlException or SvgException or FormatException or ArgumentException or InvalidCastException
+            or NotSupportedException)
         {
             throw new InvalidDataException(Strings.LogoUnreadable, e);
         }
@@ -257,6 +264,8 @@ public sealed class CompanyLogo(string folder)
         }
         return svg;
     }
+
+    private static readonly XNamespace SvgNamespace = "http://www.w3.org/2000/svg";
 
     // A source image: a decoded raster, or an SVG kept as its XML and its drawing.
     private sealed class Drawing : IDisposable
@@ -312,6 +321,11 @@ public sealed class CompanyLogo(string folder)
             {
                 throw new InvalidDataException(Strings.LogoUnreadable, e);
             }
+            // An SVG without the namespace is drawn as SVG anyway; in the 3:1 SVG it must have it.
+            foreach (var element in root.DescendantsAndSelf().Where(e => e.Name.Namespace == XNamespace.None))
+            {
+                element.Name = SvgNamespace + element.Name.LocalName;
+            }
             var drawing = new Drawing { svg = root };
             drawing.picture = SvgPicture(root, out drawing.bounds);
             return drawing;
@@ -338,8 +352,10 @@ public sealed class CompanyLogo(string folder)
         }
 
         /// <summary>
-        /// For an SVG: a 3:1 SVG that places the original drawing as <paramref name="crop"/> says, as a nested svg element
-        /// with the original's own viewBox, so it stays vector. Null for a raster image.
+        /// For an SVG: a 3:1 SVG that places the original drawing as <paramref name="crop"/> says, so it stays vector.
+        /// Null for a raster image. A placing svg element has the bounds the crop math uses (the original's own size) as
+        /// its viewBox; the original sits in it unchanged, with its own size, viewBox and preserveAspectRatio, so it is
+        /// drawn exactly as on its own and never stretched.
         /// </summary>
         public string? CroppedSvg(LogoCrop crop)
         {
@@ -347,18 +363,15 @@ public sealed class CompanyLogo(string folder)
             {
                 return null;
             }
-            XNamespace ns = "http://www.w3.org/2000/svg";
-            var inner = new XElement(svg);
-            var viewBox = inner.Attribute("viewBox")?.Value ?? Numbers(bounds.Left, bounds.Top, bounds.Width, bounds.Height);
+            var original = new XElement(svg);
+            original.SetAttributeValue("x", null); // Ignored on its own, but they would move a nested svg.
+            original.SetAttributeValue("y", null);
             var (x, y, width, height) = crop.Place(Aspect, 1);
-            foreach (var name in new[] { "x", "y", "width", "height", "viewBox", "preserveAspectRatio" })
-            {
-                inner.SetAttributeValue(name, null);
-            }
-            inner.Add(new XAttribute("x", Numbers(x)), new XAttribute("y", Numbers(y)), new XAttribute("width", Numbers(width)),
-                new XAttribute("height", Numbers(height)), new XAttribute("viewBox", viewBox), new XAttribute("preserveAspectRatio", "none"));
-            var outer = new XElement(ns + "svg", new XAttribute("viewBox", $"0 0 {LogoCrop.Ratio} 1"), inner);
-            return outer.ToString();
+            var place = new XElement(SvgNamespace + "svg",
+                new XAttribute("x", Numbers(x)), new XAttribute("y", Numbers(y)), new XAttribute("width", Numbers(width)),
+                new XAttribute("height", Numbers(height)), new XAttribute("viewBox", Numbers(bounds.Left, bounds.Top, bounds.Width, bounds.Height)),
+                original);
+            return new XElement(SvgNamespace + "svg", new XAttribute("viewBox", $"0 0 {LogoCrop.Ratio} 1"), place).ToString();
         }
 
         private static string Numbers(params double[] values) =>

@@ -18,11 +18,13 @@ public partial class LogoCropWindow : Window
     private const double FrameHeight = 160;
 
     private Point? dragFrom;
+    private LogoCropViewModel? shown;
 
     public LogoCropWindow()
     {
         InitializeComponent();
         DataContextChanged += (_, _) => ShowImage(DataContext as LogoCropViewModel);
+        Closed += (_, _) => ShowImage(null);
         Stage.PointerPressed += (_, e) =>
         {
             dragFrom = e.GetPosition(Stage);
@@ -49,9 +51,16 @@ public partial class LogoCropWindow : Window
         };
     }
 
+    // Shows one view model at a time; null lets go of the last one and its bitmap.
     private void ShowImage(LogoCropViewModel? crop)
     {
+        if (shown != null)
+        {
+            shown.PropertyChanged -= CropChanged;
+        }
+        (Picture.Source as Bitmap)?.Dispose();
         Picture.Source = crop == null ? null : new Bitmap(new MemoryStream(crop.Png));
+        shown = crop;
         if (crop != null)
         {
             crop.PropertyChanged += CropChanged;
