@@ -138,6 +138,36 @@ public partial class MainWindow : Window, IMainWindowActions
         }
     }
 
+    // File > Export PDF (#232). Async void, run by the command: any failure is shown instead of ending the app.
+    async void IMainWindowActions.ExportPdf()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        try
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = Strings.ExportPdfTitle,
+                SuggestedFileName = viewModel.PdfFileName(DateTime.Now),
+                DefaultExtension = "pdf",
+                FileTypeChoices = [new FilePickerFileType("PDF") { Patterns = ["*.pdf"] }],
+            });
+            if (file == null)
+            {
+                return;
+            }
+            await using var stream = await file.OpenWriteAsync();
+            viewModel.ExportPdf(stream, DateTime.Now);
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfSaved, file.Name);
+        }
+        catch (Exception ex)
+        {
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfFailed, ex.Message);
+        }
+    }
+
     // The window's content as drawn, at the screen's scale, as PNG.
     private byte[] Screenshot()
     {

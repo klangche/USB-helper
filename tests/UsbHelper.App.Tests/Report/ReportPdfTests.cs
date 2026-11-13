@@ -27,7 +27,7 @@ public class ReportPdfTests
     [Fact]
     public void The_text_holds_the_header_summary_tree_and_page_numbers()
     {
-        var pages = PageTexts(Pdf(ReportSamples.Full(ReportSamples.WriteLogo())));
+        var pages = PageTexts(Pdf(ReportSamples.Full(null)));
         var all = string.Join("\n", pages);
 
         Assert.Contains(ReportSamples.Company, all);
@@ -132,6 +132,58 @@ public class ReportPdfTests
         Assert.Contains("\nNo profile checked Unknown", results);
         Assert.DoesNotContain("Stable", results);
         Assert.DoesNotContain("Limitations", results);
+    }
+
+    // #232: the licensed email under the date line and in the footer; nothing while locked.
+    [Fact]
+    public void The_licensed_email_is_in_the_header_and_on_every_page_when_set()
+    {
+        var pages = PageTexts(Pdf(ReportSamples.Full(null) with { LicensedTo = ReportSamples.Email }));
+
+        Assert.Contains($"14:05 · USB-helper 0.9.0-beta.3\nLicensed to {ReportSamples.Email}\n", pages[0]);
+        Assert.All(pages, page => Assert.Contains($"Licensed to {ReportSamples.Email}", page));
+        Assert.Equal(pages.Count + 1, string.Join("\n", pages).Split("Licensed to").Length - 1);
+    }
+
+    [Fact]
+    public void Without_a_licensed_email_the_report_names_none()
+    {
+        Assert.DoesNotContain("Licensed to", string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null)))));
+    }
+
+    // #232: the company name only where no logo is shown; the metadata keeps it.
+    [Fact]
+    public void With_a_logo_the_company_name_is_neither_in_the_header_nor_in_the_footer()
+    {
+        var pdf = Pdf(ReportSamples.Full(ReportSamples.WriteLogo()));
+        var pages = PageTexts(pdf);
+
+        Assert.DoesNotContain(ReportSamples.Company, string.Join("\n", pages));
+        Assert.All(pages, page => Assert.Contains(ReportSamples.Room, page)); // The footer still names the room.
+        using var document = PdfDocument.Open(pdf);
+        Assert.Equal(ReportSamples.Company, document.Information.Author);
+    }
+
+    [Fact]
+    public void Without_a_logo_the_company_name_is_in_the_header_and_the_footer()
+    {
+        var pages = PageTexts(Pdf(ReportSamples.Full(null)));
+
+        Assert.StartsWith($"{ReportSamples.Company}\n", pages[0]);
+        Assert.All(pages, page => Assert.Contains($"{ReportSamples.Company} - {ReportSamples.Room}", page));
+    }
+
+    // The logo box is 54 x 18 mm; a logo is drawn as large as fits, never stretched.
+    [Theory]
+    [InlineData(1536, 54, 18)]
+    [InlineData(512, 18, 18)]
+    public void The_logo_fits_a_3_to_1_box(int width, double expectedWidthMm, double expectedHeightMm)
+    {
+        using var document = PdfDocument.Open(Pdf(ReportSamples.Full(ReportSamples.WritePngLogo(width))));
+
+        var bounds = Assert.Single(document.GetPage(1).GetImages()).BoundingBox;
+        Assert.Equal(expectedWidthMm, bounds.Width / 72 * 25.4, 1);
+        Assert.Equal(expectedHeightMm, bounds.Height / 72 * 25.4, 1);
     }
 
     [Fact]
@@ -242,21 +294,23 @@ public class ReportPdfTests
     public void Writes_the_sample_reports()
     {
         var folder = Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "report-samples")).FullName;
-        var logo = ReportSamples.WriteLogo();
+        var logo = ReportSamples.WriteCroppedLogo();
         foreach (var (name, model) in new[]
         {
             ("full", ReportSamples.Full(logo)),
             ("no-room", ReportSamples.NoRoom(logo)),
             ("no-branding", ReportSamples.NoBranding()),
             ("long-tree", ReportSamples.LongTree(logo)),
-            ("png-logo", ReportSamples.Full(ReportSamples.WritePngLogo())),
+            ("png-logo", ReportSamples.Full(ReportSamples.WritePngLogo(1536))),
             ("all-stable", ReportSamples.AllStable(logo)),
+            ("company-no-logo", ReportSamples.Full(null)),
+            ("licensed", ReportSamples.Full(logo) with { LicensedTo = ReportSamples.Email }),
         })
         {
             File.WriteAllBytes(Path.Combine(folder, $"{name}.pdf"), Pdf(model));
         }
 
-        Assert.Equal(6, Directory.GetFiles(folder, "*.pdf").Length);
+        Assert.Equal(8, Directory.GetFiles(folder, "*.pdf").Length);
     }
 
     private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);

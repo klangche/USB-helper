@@ -18,6 +18,8 @@
         <MenuItem Header="{x:Static res:Strings.MenuExportProfile}" Command="{Binding ExportProfileCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportLog}" Command="{Binding ExportLogCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuExportSetup}" Command="{Binding ExportSetupCommand}" />
+        <MenuItem Header="{x:Static res:Strings.MenuExportPdf}" Command="{Binding ExportPdfCommand}"
+                  ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
         <Separator />
         <MenuItem Header="{x:Static res:Strings.MenuSettings}" Command="{Binding SettingsCommand}" />
         <Separator />

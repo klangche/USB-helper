@@ -1,9 +1,13 @@
 using System.IO.Compression;
 using System.Text;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using UsbHelper.App.Licensing;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Export;
+using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests;
 
@@ -96,6 +100,45 @@ public class SetupExportTests
         Assert.Equal(Png, files["screenshot.png"]);
         Assert.Contains("Tree:", Text(files["log.txt"]));
         Assert.Contains(log.Entries, entry => entry.Text == "Setup exported");
+    }
+
+    // #232: unlocked, the zip also holds the PDF report, with or without a room name.
+    private static MainViewModel Unlocked(string room)
+    {
+        var log = new EventLog();
+        var settings = new SettingsViewModel();
+        var entitlements = new CodeEntitlements(TestKeys, settings, log);
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log, settings, entitlements);
+        viewModel.RoomName = room;
+        viewModel.Load(Desk());
+        return viewModel;
+    }
+
+    private static string PdfText(byte[] pdf)
+    {
+        using var document = PdfDocument.Open(pdf);
+        return string.Join("\n", document.GetPages().Select(page => ContentOrderTextExtractor.GetText(page)));
+    }
+
+    [Theory]
+    [InlineData("Room 4.12", "Room 4.12")]
+    [InlineData("", "Room: not entered")]
+    public void UnlockedTheZipAlsoHasTheReport(string room, string header)
+    {
+        var files = Export(Unlocked(room));
+
+        Assert.Equal(["setup.json", "tree.txt", "screenshot.png", "log.txt", "report.pdf"], files.Keys);
+        var text = PdfText(files["report.pdf"]);
+        Assert.Contains(header, text);
+        Assert.Contains($"Licensed to {TestEmail}", text);
+    }
+
+    [Fact]
+    public void LockedTheZipHasNoReport()
+    {
+        Assert.DoesNotContain("report.pdf", Export(KnownSetup()).Keys);
     }
 
     // #186: exports on the same day must not overwrite each other; the room or system name tells them apart.

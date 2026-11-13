@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Xml;
 using SkiaSharp;
+using Svg;
 using Svg.Skia;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
@@ -64,7 +65,7 @@ public static class ReportPdf
             {
                 draw(canvas);
             }
-            Footer(canvas, model, i + 1, pages.Count);
+            Footer(canvas, model, logo != null, i + 1, pages.Count);
             document.EndPage();
         }
         document.Close();
@@ -107,12 +108,15 @@ public static class ReportPdf
         });
     }
 
+    // The logo, or the company name where there is none (#232): never both.
     private static void Header(ReportLayout layout, ReportModel model, Logo? logo)
     {
+        const float captionLine = 7.5f * 1.4f;
         var align = logo == null ? Align.Left : Align.Right;
         var x = logo == null ? ReportLayout.Left : ReportLayout.Right;
         var lines = new List<(TextStyle Style, string Text, float Advance)>();
-        if (model.CompanyName is { } company)
+        var company = logo == null ? model.CompanyName : null;
+        if (company != null)
         {
             lines.Add((Strong.With(Accent), company, 22));
         }
@@ -121,13 +125,17 @@ public static class ReportPdf
             ? (new TextStyle(ReportFace.Regular, 11, Ink), room, 17)
             : (new TextStyle(ReportFace.Regular, 11, Muted, Oblique: true), Strings.ReportRoomMissing, 17));
         lines.Add((Caption, string.Format(CultureInfo.InvariantCulture, Strings.ReportCreatedVersion,
-            model.Created.ToString("d MMMM yyyy, HH:mm", CultureInfo.InvariantCulture), model.AppVersion), 0));
-        var textHeight = lines.Sum(line => line.Advance) + 8;
-        var height = Math.Max(textHeight, logo == null ? 0 : Logo.MaxHeight) + 18;
+            model.Created.ToString("d MMMM yyyy, HH:mm", CultureInfo.InvariantCulture), model.AppVersion), captionLine));
+        if (model.LicensedTo is { } email)
+        {
+            lines.Add((Caption, string.Format(CultureInfo.InvariantCulture, Strings.ReportLicensedTo, email), captionLine));
+        }
+        var textHeight = lines.Sum(line => line.Advance) - captionLine + 8;
+        var height = Math.Max(textHeight, logo == null ? 0 : Logo.Box.Height) + 18;
         layout.Place(height, (canvas, top) =>
         {
-            logo?.Draw(canvas, ReportLayout.Left, top, ReportLayout.Span(5));
-            var baseline = top + (model.CompanyName == null ? Title.Size * 0.8f : 9);
+            logo?.Draw(canvas, Logo.Box with { Location = new SKPoint(ReportLayout.Left, top) });
+            var baseline = top + (company == null ? Title.Size * 0.8f : 9);
             foreach (var (style, text, advance) in lines)
             {
                 style.Draw(canvas, text, x, baseline, align);
@@ -470,20 +478,29 @@ public static class ReportPdf
         });
     }
 
-    private static void Footer(SKCanvas canvas, ReportModel model, int page, int pages)
+    // The company name only when there is no logo (#232); the licensed email under the middle line.
+    private static void Footer(SKCanvas canvas, ReportModel model, bool hasLogo, int page, int pages)
     {
         var y = ReportLayout.PageHeight - ReportLayout.Mm(12);
-        var left = string.Join(" - ", new[] { model.CompanyName, model.RoomName }.OfType<string>());
+        var left = string.Join(" - ", new[] { hasLogo ? null : model.CompanyName, model.RoomName }.OfType<string>());
         Caption.Draw(canvas, Caption.Fit(left, ReportLayout.Span(4)), ReportLayout.Left, y);
         Caption.Draw(canvas, string.Format(CultureInfo.InvariantCulture, Strings.ReportGeneratedBy, model.AppVersion),
             ReportLayout.PageWidth / 2, y, Align.Center);
+        if (model.LicensedTo is { } email)
+        {
+            Caption.Draw(canvas, Caption.Fit(string.Format(CultureInfo.InvariantCulture, Strings.ReportLicensedTo, email), ReportLayout.Span(4)),
+                ReportLayout.PageWidth / 2, y + 7.5f * 1.4f, Align.Center);
+        }
         Caption.Draw(canvas, string.Format(CultureInfo.InvariantCulture, Strings.ReportPage, page, pages), ReportLayout.Right, y, Align.Right);
     }
 
-    /// <summary>The company logo: an SVG as vector, a PNG or WebP as an image. At most 18 mm high, aspect ratio kept.</summary>
+    /// <summary>
+    /// The company logo: an SVG as vector, a PNG or WebP as an image. Drawn as large as fits a 3:1 box of 54 x 18 mm,
+    /// centred and never stretched; the app's cropped logos (#241) fill it exactly.
+    /// </summary>
     private sealed class Logo : IDisposable
     {
-        public static readonly float MaxHeight = ReportLayout.Mm(18);
+        public static readonly SKRect Box = SKRect.Create(ReportLayout.Mm(54), ReportLayout.Mm(18));
 
         private readonly SKSvg? svg;
         private readonly SKImage? image;
@@ -501,9 +518,12 @@ public static class ReportPdf
             {
                 if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
                 {
+                    // A zero width or height draws nothing, though Svg.Skia still gives it a 1 x 1 picture: no logo,
+                    // so the header shows the company name instead (#232).
+                    var document = SvgDocument.Open<SvgDocument>(path);
+                    static bool Zero(SvgUnit unit) => unit.Type != SvgUnitType.Percentage && unit.Value <= 0;
                     var svg = new SKSvg();
-                    svg.Load(path);
-                    if (svg.Picture is { CullRect: { Width: > 0, Height: > 0 } })
+                    if (!Zero(document.Width) && !Zero(document.Height) && svg.FromSvgDocument(document) is { CullRect: { Width: > 0, Height: > 0 } })
                     {
                         return new Logo(svg, null);
                     }
@@ -513,16 +533,19 @@ public static class ReportPdf
                 var image = SKImage.FromEncodedData(path);
                 return image == null ? null : new Logo(null, image);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or XmlException or ArgumentException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or XmlException or ArgumentException or SvgException
+                or FormatException or InvalidCastException or NotSupportedException)
             {
                 return null;
             }
         }
 
-        public void Draw(SKCanvas canvas, float x, float y, float maxWidth)
+        public void Draw(SKCanvas canvas, SKRect box)
         {
             var size = svg?.Picture?.CullRect.Size ?? new SKSize(image!.Width, image.Height);
-            var scale = Math.Min(MaxHeight / size.Height, maxWidth / size.Width);
+            var scale = Math.Min(box.Height / size.Height, box.Width / size.Width);
+            var x = box.MidX - size.Width * scale / 2;
+            var y = box.MidY - size.Height * scale / 2;
             var target = SKRect.Create(x, y, size.Width * scale, size.Height * scale);
             if (svg?.Picture is { } picture)
             {

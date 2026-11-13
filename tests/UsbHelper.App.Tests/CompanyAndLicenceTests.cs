@@ -136,6 +136,8 @@ public class CompanyAndLicenceTests
 
         public void ExportSetup() { }
 
+        public void ExportPdf() { }
+
         public void ConfirmRefresh() { }
 
         public void ExportProfile() { }

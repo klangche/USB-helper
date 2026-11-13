@@ -46,6 +46,7 @@ public static class MacNativeMenu
             Item(Strings.MenuExportProfile, viewModel.ExportProfileCommand),
             Item(Strings.MenuExportLog, viewModel.ExportLogCommand),
             Item(Strings.MenuExportSetup, viewModel.ExportSetupCommand),
+            Item(Strings.MenuExportPdf, viewModel.ExportPdfCommand),
             new NativeMenuItemSeparator(),
             Item(Strings.MenuCopyTree, viewModel.CopyTreeCommand),
             new NativeMenuItemSeparator(),
