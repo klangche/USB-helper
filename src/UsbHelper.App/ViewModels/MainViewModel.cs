@@ -370,9 +370,11 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings);
     }
 
-    // A profile's checks as the app judges them. The recommended depth only when it is known and the maximum is kept,
-    // the same as the tree's lines; disconnected devices only when there are.
-    private static List<ReportCheck> ReportChecks(DiagnosticReport result)
+    /// <summary>
+    /// A profile's checks for the report, as the app judges them. The recommended depth only when it is known and the
+    /// maximum is kept, the same as the tree's lines; disconnected devices only when there are.
+    /// </summary>
+    public static List<ReportCheck> ReportChecks(DiagnosticReport result)
     {
         static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
         {

@@ -495,7 +495,13 @@ This version keeps running.</value>
   <data name="ReportNotInDatabase" xml:space="preserve">
     <value>Not in the database: {0}</value>
   </data>
-  <data name="ReportNotInDatabaseItem" xml:space="preserve">
+  <data name="ReportNotCounted" xml:space="preserve">
+    <value>Could not be counted: {0}</value>
+  </data>
+  <data name="ReportSeeFindings" xml:space="preserve">
+    <value>See Findings for the reasons.</value>
+  </data>
+  <data name="ReportUnknownItem" xml:space="preserve">
     <value>{0} ({1})</value>
   </data>
   <data name="ReportColumnCheck" xml:space="preserve">

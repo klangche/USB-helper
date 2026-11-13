@@ -61,6 +61,39 @@ public class ReportResultsTests
         Assert.Empty(ReportResults.Limitations(profiles));
         var unknowns = ReportResults.Unknowns(profiles);
         Assert.Equal(["External hubs", "Most hops"], unknowns.Select(unknown => unknown.Check));
+        Assert.All(unknowns, unknown => Assert.False(unknown.InDatabase));
         Assert.Equal(["Windows on Intel", "macOS on Apple silicon"], unknowns[0].Profiles);
+    }
+
+    // A hub that could not be read leaves the hub count open; an unknown display count cannot be judged by a known maximum.
+    [Fact]
+    public void Known_limits_that_could_not_be_counted_are_no_problem_rows_but_unknowns()
+    {
+        IReadOnlyList<ReportProfile> profiles =
+        [
+            Profile("Dell Latitude 7450", ConnectionStatus.Grey, new ReportCheck("External hubs", 5, 2, ConnectionStatus.Grey),
+                new ReportCheck("External displays", 2, null, ConnectionStatus.Grey)),
+            Profile("HP EliteBook 840 G10", ConnectionStatus.Grey, new ReportCheck("External hubs", 4, 2, ConnectionStatus.Grey)),
+        ];
+
+        Assert.Empty(ReportResults.Limitations(profiles));
+        var unknowns = ReportResults.Unknowns(profiles);
+        Assert.Equal(["External hubs", "External displays"], unknowns.Select(unknown => unknown.Check));
+        Assert.All(unknowns, unknown => Assert.True(unknown.InDatabase));
+        Assert.Equal(["Dell Latitude 7450", "HP EliteBook 840 G10"], unknowns[0].Profiles);
+    }
+
+    [Fact]
+    public void Findings_are_pointed_to_only_for_a_profile_not_stable_without_a_row_or_unknown()
+    {
+        var limited = Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple));
+        var unknown = Profile("Windows on Intel", ConnectionStatus.Grey, new ReportCheck("External hubs", 5, 2, ConnectionStatus.Grey));
+        var stable = Profile("macOS on Apple silicon", ConnectionStatus.Green, new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green));
+        var reconnected = Profile("HP EliteBook 840 G10", ConnectionStatus.Purple, new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green));
+
+        Assert.False(ReportResults.SeeFindings([limited, unknown, stable]));
+        Assert.True(ReportResults.SeeFindings([limited, stable, reconnected]));
+        // An unknown check does not explain an unstable result.
+        Assert.True(ReportResults.SeeFindings([unknown with { Overall = ConnectionStatus.Purple }]));
     }
 }

@@ -20,7 +20,8 @@ public class ReportPdfTests
     private static List<string> PageTexts(byte[] pdf)
     {
         using var document = PdfDocument.Open(pdf);
-        return [.. document.GetPages().Select(page => ContentOrderTextExtractor.GetText(page))];
+        // The extractor ends lines with Environment.NewLine ("\r\n" on Windows); the expected texts use "\n".
+        return [.. document.GetPages().Select(page => ContentOrderTextExtractor.GetText(page).ReplaceLineEndings("\n"))];
     }
 
     [Fact]
@@ -42,7 +43,10 @@ public class ReportPdfTests
     {
         var all = string.Join("\n", PageTexts(Pdf(model)));
         var start = all.IndexOf("\nResults\n", StringComparison.Ordinal);
-        return all[start..all.IndexOf("\nDisplays\n", start, StringComparison.Ordinal)];
+        Assert.True(start >= 0, $"No Results heading in:\n{all}");
+        var end = all.IndexOf("\nDisplays\n", start, StringComparison.Ordinal);
+        Assert.True(end >= 0, $"No Displays heading after Results in:\n{all}");
+        return all[start..end];
     }
 
     [Fact]
@@ -76,6 +80,44 @@ public class ReportPdfTests
         Assert.Contains("Stable for all checked profiles", results);
         Assert.DoesNotContain("Limitations", results);
         Assert.DoesNotContain("Not in the database", results);
+    }
+
+    [Fact]
+    public void When_every_profile_is_stable_the_note_still_names_the_unknown_limits()
+    {
+        var model = ReportSamples.AllStable(null);
+        var profiles = model.Profiles.ToList();
+        profiles[2] = profiles[2] with { Checks = [.. profiles[2].Checks.Skip(1).Prepend(new ReportCheck("External hubs", null, 2, ConnectionStatus.Grey))] };
+
+        var results = Results(model with { Profiles = profiles });
+
+        Assert.Contains("Stable for all checked profiles", results);
+        Assert.Contains("Not in the database: External hubs (Windows on Intel)", results);
+    }
+
+    [Fact]
+    public void Known_limits_that_could_not_be_counted_are_only_in_the_grey_note()
+    {
+        var model = ReportSamples.Full(null);
+        var profiles = model.Profiles.ToList();
+        profiles[0] = profiles[0] with { Checks = [.. profiles[0].Checks.Take(3), new ReportCheck("External displays", 2, null, ConnectionStatus.Grey)] };
+
+        var results = Results(model with { Profiles = profiles });
+
+        Assert.Contains("Could not be counted: External displays (Dell Latitude 7450)", results);
+        Assert.DoesNotContain(results.Split('\n'), line => line.StartsWith("External displays", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_profile_not_stable_without_a_limitation_points_to_the_findings()
+    {
+        var model = ReportSamples.Full(null);
+        var profiles = model.Profiles.ToList();
+        profiles[3] = profiles[3] with { Overall = ConnectionStatus.Purple };
+
+        Assert.Contains("See Findings for the reasons.", Results(model with { Profiles = profiles }));
+        Assert.DoesNotContain("See Findings", Results(model));
+        Assert.DoesNotContain("See Findings", Results(ReportSamples.AllStable(null)));
     }
 
     [Fact]
@@ -250,5 +292,39 @@ public class ReportPdfTests
         Assert.Contains(model.Tree, row => row.Text == "KEYBOARD" && row.Level == 6 && row.Status != null);
         Assert.Contains(model.Tree, row => row.Text == "Port 1" && row.PortType == "USB-C");
         Assert.Equal(TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine).Length, model.Tree.Count);
+    }
+
+    private static DiagnosticReport Evaluated(int hops, long maxHops, long recommendedHops, int missing = 0)
+    {
+        static LimitCheck Limit(string field, int actual, long limit) =>
+            new(field, actual, limit, true, null, actual > limit ? LimitState.Exceeded : LimitState.Within);
+        var device = new MissingDevice(Device("SPEAKER"), "ROOT|port1", "Port 1", []);
+        return new DiagnosticReport(ConnectionStatus.Green, new Dictionary<string, ConnectionStatus>(), Limit("limits.max_hubs", 1, 5),
+            Limit("limits.max_tiers", 3, 7), Limit("limits.max_hops", hops, maxHops),
+            new DisplayCheck(1, 2, true, null, LimitState.Within, []), [.. Enumerable.Repeat(device, missing)], [])
+        {
+            RecommendedHops = Limit("limits.recommended_hops", hops, recommendedHops),
+        };
+    }
+
+    [Fact]
+    public void The_report_checks_are_the_apps_judgement()
+    {
+        Assert.Equal(
+        [
+            new ReportCheck("External hubs", 5, 1, ConnectionStatus.Green),
+            new ReportCheck("Deepest tier", 7, 3, ConnectionStatus.Green),
+            new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green),
+            new ReportCheck("External displays", 2, 1, ConnectionStatus.Green),
+            new ReportCheck("Recommended hops", 2, 3, ConnectionStatus.Orange),
+        ], MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 5, recommendedHops: 2)));
+
+        // Above the maximum the recommendation is not repeated.
+        var exceeded = MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 2, recommendedHops: 1));
+        Assert.Contains(new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple), exceeded);
+        Assert.DoesNotContain(exceeded, check => check.Name == "Recommended hops");
+
+        Assert.Equal(new ReportCheck("Disconnected devices", null, 1, ConnectionStatus.Red),
+            MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 5, recommendedHops: 5, missing: 1))[^1]);
     }
 }

@@ -296,20 +296,34 @@ public static class ReportPdf
             }
         }
 
-        var unknowns = ReportResults.Unknowns(model.Profiles);
-        if (unknowns.Count > 0)
+        // Grey lines under the results: where to find the reasons, then what could not be judged.
+        var notes = new List<string>();
+        if (ReportResults.SeeFindings(model.Profiles))
         {
-            var note = string.Format(CultureInfo.InvariantCulture, Strings.ReportNotInDatabase, string.Join(", ", unknowns.Select(unknown =>
-                string.Format(CultureInfo.InvariantCulture, Strings.ReportNotInDatabaseItem, unknown.Check, string.Join(", ", unknown.Profiles)))));
-            var lines = Caption.Wrap(note, ReportLayout.Width);
+            notes.Add(Strings.ReportSeeFindings);
+        }
+        var unknowns = ReportResults.Unknowns(model.Profiles);
+        foreach (var (inDatabase, format) in new[] { (false, Strings.ReportNotInDatabase), (true, Strings.ReportNotCounted) })
+        {
+            var items = unknowns.Where(unknown => unknown.InDatabase == inDatabase).Select(unknown =>
+                string.Format(CultureInfo.InvariantCulture, Strings.ReportUnknownItem, unknown.Check, string.Join(", ", unknown.Profiles))).ToList();
+            if (items.Count > 0)
+            {
+                notes.Add(string.Format(CultureInfo.InvariantCulture, format, string.Join(", ", items)));
+            }
+        }
+        if (notes.Count > 0)
+        {
+            const float noteLine = 7.5f * 1.4f;
+            var lines = notes.SelectMany(note => Caption.Wrap(note, ReportLayout.Width)).ToList();
             layout.Space(10);
-            layout.Place(lines.Count * 7.5f * 1.4f + 4, (canvas, top) =>
+            layout.Place(lines.Count * noteLine + 4, (canvas, top) =>
             {
                 var y = top + 8;
                 foreach (var line in lines)
                 {
                     Caption.Draw(canvas, line, name, y);
-                    y += 7.5f * 1.4f;
+                    y += noteLine;
                 }
             });
         }
