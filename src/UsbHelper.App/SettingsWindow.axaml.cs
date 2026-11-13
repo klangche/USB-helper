@@ -20,7 +20,11 @@ public partial class SettingsWindow : Window
             Watch(DataContext as SettingsViewModel);
             ShowLogo();
         };
-        Closed += (_, _) => Watch(null);
+        Closed += (_, _) =>
+        {
+            Watch(null);
+            ShowLogo(); // No view model watched: disposes the bitmap.
+        };
     }
 
     // Follows the logo of one view model at a time.
@@ -48,9 +52,10 @@ public partial class SettingsWindow : Window
     }
 
     // Read into memory, so the file is not held open and the next import can replace it. A file that cannot be read
-    // shows no preview.
+    // shows no preview. The previous bitmap is disposed.
     private void ShowLogo()
     {
+        (LogoImage.Source as Bitmap)?.Dispose();
         LogoImage.Source = null;
         if (watched?.LogoPreview is not { } path)
         {
