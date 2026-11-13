@@ -177,6 +177,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Orange, report.Overall);
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
+        Assert.Equal(new LimitCheck("limits.recommended_hops", 1, 0, true, "computers/c.yaml", LimitState.Exceeded), report.RecommendedHops);
         Assert.Contains(new Finding(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD",
             "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5."), report.Findings);
         Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Test laptop",

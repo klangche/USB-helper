@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using UsbHelper.App.Licensing;
+using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -351,6 +352,69 @@ public sealed class MainViewModel : ObservableObject
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
         [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
+
+    /// <summary>
+    /// The PDF sign-off report's content (#231): the same as the setup export, for all controllers, with every finding of
+    /// every checked profile. A detected fact is listed once, without a profile.
+    /// </summary>
+    public ReportModel Report(DateTime created, string? companyName, string? logoPath, string appVersion)
+    {
+        var setup = Setup(DateOnly.FromDateTime(created), appVersion);
+        var several = setup.Results.Count > 1;
+        var findings = setup.Results
+            .SelectMany(result => result.Findings.Select(finding => new ReportFinding(finding.Kind,
+                several && finding.Kind != FactKind.DetectedFact ? result.Label : null, finding.Subject, finding.Message)))
+            .Distinct()
+            .ToList();
+        var counts = lastReport.Counts;
+        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
+        IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
+        var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
+            ? new ReportProfile(Strings.ReportNoProfile, result.Overall, [])
+            : new ReportProfile(setup.Results[i].Label, result.Overall, ReportChecks(result))).ToList();
+        var placement = MonitorPlacement.Place(tree, monitors ?? []);
+        var items = Flat(Roots[0]).ToDictionary(item => item.Id, item => item.Text);
+        var displays = monitors?.Select(monitor => new ReportDisplay(monitor.Name ?? Strings.MonitorUnnamed, NodeViewModel.OutputText(monitor.Output),
+            placement.Linked.FirstOrDefault(link => link.Value.Contains(monitor)).Key is { } node ? items.GetValueOrDefault(node) : null)).ToList();
+        return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
+            setup.Computer, lastReport.Overall,
+            new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
+                counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
+            profiles, displays, ReportRow.Of(Roots[0]), findings);
+    }
+
+    /// <summary>
+    /// A profile's checks for the report, as the app judges them. The recommended depth only when it is known and the
+    /// maximum is kept, the same as the tree's lines; disconnected devices only when there are.
+    /// </summary>
+    public static List<ReportCheck> ReportChecks(DiagnosticReport result)
+    {
+        static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
+        {
+            LimitState.Within => ConnectionStatus.Green,
+            LimitState.Exceeded => exceeded,
+            _ => ConnectionStatus.Grey,
+        };
+        var checks = new List<ReportCheck>
+        {
+            new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
+            new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
+            new(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, Status(result.Hops.State)),
+            new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
+        };
+        if (result.RecommendedHops is { Limit: not null } recommended && result.Hops.State != LimitState.Exceeded)
+        {
+            checks.Add(new(Strings.LimitRecommendedHops, recommended.Limit, recommended.Actual, Status(recommended.State, ConnectionStatus.Orange)));
+        }
+        if (result.Missing.Count > 0)
+        {
+            checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
+        }
+        return checks;
+    }
+
+    private static IEnumerable<NodeViewModel> Flat(NodeViewModel item) => item.Children.SelectMany(Flat).Prepend(item);
 
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }

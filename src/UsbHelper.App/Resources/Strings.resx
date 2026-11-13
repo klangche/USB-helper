@@ -197,6 +197,12 @@
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
   </data>
+  <data name="LimitRecommendedHops" xml:space="preserve">
+    <value>Recommended hops</value>
+  </data>
+  <data name="LimitDisconnected" xml:space="preserve">
+    <value>Disconnected devices</value>
+  </data>
   <data name="LimitWithin" xml:space="preserve">
     <value>within limit</value>
   </data>
@@ -494,5 +500,152 @@ This version keeps running.</value>
   </data>
   <data name="UpdateMacOsNote" xml:space="preserve">
     <value>Opens the release page in your browser. Quit USB-helper, open the new .dmg there and drag USB-helper.app to Applications, replacing the old one.</value>
+  </data>
+  <data name="ReportTitle" xml:space="preserve">
+    <value>USB setup sign-off</value>
+  </data>
+  <data name="ReportPdfTitle" xml:space="preserve">
+    <value>USB setup sign-off - {0}</value>
+  </data>
+  <data name="ReportCreator" xml:space="preserve">
+    <value>USB-helper {0}</value>
+  </data>
+  <data name="ReportRoomMissing" xml:space="preserve">
+    <value>Room: not entered</value>
+  </data>
+  <data name="ReportCreatedVersion" xml:space="preserve">
+    <value>{0} · USB-helper {1}</value>
+  </data>
+  <data name="ReportSummary" xml:space="preserve">
+    <value>Summary</value>
+  </data>
+  <data name="ReportComputer" xml:space="preserve">
+    <value>Computer</value>
+  </data>
+  <data name="ReportOverall" xml:space="preserve">
+    <value>Overall result</value>
+  </data>
+  <data name="ReportCheckedProfiles" xml:space="preserve">
+    <value>Checked profiles</value>
+  </data>
+  <data name="ReportNoProfile" xml:space="preserve">
+    <value>No profile checked</value>
+  </data>
+  <data name="ReportPerBus" xml:space="preserve">
+    <value>USB2 {0} · USB3 {1}</value>
+  </data>
+  <data name="ReportAtLeast" xml:space="preserve">
+    <value>at least {0}</value>
+  </data>
+  <data name="ReportResults" xml:space="preserve">
+    <value>Results</value>
+  </data>
+  <data name="ReportColumnProfile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="ReportAllStable" xml:space="preserve">
+    <value>Stable for all checked profiles</value>
+  </data>
+  <data name="ReportLimitations" xml:space="preserve">
+    <value>Limitations</value>
+  </data>
+  <data name="ReportColumnAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+  </data>
+  <data name="ReportNotInDatabase" xml:space="preserve">
+    <value>Not in the database: {0}</value>
+  </data>
+  <data name="ReportNotCounted" xml:space="preserve">
+    <value>Could not be counted: {0}</value>
+  </data>
+  <data name="ReportSeeFindings" xml:space="preserve">
+    <value>See Findings for the reasons.</value>
+  </data>
+  <data name="ReportUnknownItem" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="ReportColumnCheck" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="ReportColumnLimit" xml:space="preserve">
+    <value>Limit</value>
+  </data>
+  <data name="ReportColumnMeasured" xml:space="preserve">
+    <value>Measured</value>
+  </data>
+  <data name="ReportColumnResult" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="ReportDisplays" xml:space="preserve">
+    <value>Displays</value>
+  </data>
+  <data name="ReportColumnMonitor" xml:space="preserve">
+    <value>Monitor</value>
+  </data>
+  <data name="ReportColumnOutput" xml:space="preserve">
+    <value>Output</value>
+  </data>
+  <data name="ReportColumnConnectedTo" xml:space="preserve">
+    <value>Connected to</value>
+  </data>
+  <data name="ReportNotLinked" xml:space="preserve">
+    <value>Not linked to a USB device</value>
+  </data>
+  <data name="ReportDisplaysUnknown" xml:space="preserve">
+    <value>The monitors could not be read.</value>
+  </data>
+  <data name="ReportNoDisplays" xml:space="preserve">
+    <value>No active monitors.</value>
+  </data>
+  <data name="ReportTree" xml:space="preserve">
+    <value>USB tree</value>
+  </data>
+  <data name="ReportTreeContinued" xml:space="preserve">
+    <value>USB tree (continued)</value>
+  </data>
+  <data name="ReportFindings" xml:space="preserve">
+    <value>Findings</value>
+  </data>
+  <data name="ReportDetectedFacts" xml:space="preserve">
+    <value>Detected facts</value>
+  </data>
+  <data name="ReportDatabaseFacts" xml:space="preserve">
+    <value>Verified database facts</value>
+  </data>
+  <data name="ReportRisks" xml:space="preserve">
+    <value>Predicted risks</value>
+  </data>
+  <data name="ReportUnknowns" xml:space="preserve">
+    <value>Unknowns</value>
+  </data>
+  <data name="ReportNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="ReportSignOff" xml:space="preserve">
+    <value>Sign-off</value>
+  </data>
+  <data name="ReportInstalledBy" xml:space="preserve">
+    <value>Installed / checked by</value>
+  </data>
+  <data name="ReportAcceptedBy" xml:space="preserve">
+    <value>Accepted by</value>
+  </data>
+  <data name="ReportName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ReportSignature" xml:space="preserve">
+    <value>Signature</value>
+  </data>
+  <data name="ReportDate" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="ReportNotes" xml:space="preserve">
+    <value>Notes</value>
+  </data>
+  <data name="ReportGeneratedBy" xml:space="preserve">
+    <value>Generated by USB-helper {0}</value>
+  </data>
+  <data name="ReportPage" xml:space="preserve">
+    <value>Page {0} of {1}</value>
   </data>
 </root>
