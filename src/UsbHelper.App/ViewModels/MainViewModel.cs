@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -337,6 +338,43 @@ public sealed class MainViewModel : ObservableObject
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
         [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
+
+    /// <summary>
+    /// The PDF sign-off report's content (#231): the same as the setup export, for all controllers, with every finding of
+    /// every checked profile. A detected fact is listed once, without a profile.
+    /// </summary>
+    public ReportModel Report(DateTime created, string? companyName, string? logoPath, string appVersion)
+    {
+        var setup = Setup(DateOnly.FromDateTime(created), appVersion);
+        var several = setup.Results.Count > 1;
+        var findings = setup.Results
+            .SelectMany(result => result.Findings.Select(finding => new ReportFinding(finding.Kind,
+                several && finding.Kind != FactKind.DetectedFact ? result.Label : null, finding.Subject, finding.Message)))
+            .Distinct()
+            .ToList();
+        var counts = lastReport.Counts;
+        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
+        IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
+        var profiles = reports.Select((result, i) => new ReportProfile(setup.Results[i].Label, result.Overall,
+            [
+                new ReportCheck(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, result.Hubs.State),
+                new ReportCheck(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, result.Tiers.State),
+                new ReportCheck(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, result.Hops.State),
+                new ReportCheck(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, result.Displays.State),
+            ])).ToList();
+        var placement = MonitorPlacement.Place(tree, monitors ?? []);
+        var items = Flat(Roots[0]).ToDictionary(item => item.Id, item => item.Text);
+        var displays = monitors?.Select(monitor => new ReportDisplay(monitor.Name ?? Strings.MonitorUnnamed, NodeViewModel.OutputText(monitor.Output),
+            placement.Linked.FirstOrDefault(link => link.Value.Contains(monitor)).Key is { } node ? items.GetValueOrDefault(node) : null)).ToList();
+        return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
+            setup.Computer, lastReport.Overall,
+            new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
+                counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
+            profiles, displays, ReportRow.Of(Roots[0]), findings);
+    }
+
+    private static IEnumerable<NodeViewModel> Flat(NodeViewModel item) => item.Children.SelectMany(Flat).Prepend(item);
 
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }
