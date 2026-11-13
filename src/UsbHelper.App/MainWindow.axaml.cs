@@ -26,6 +26,7 @@ public partial class MainWindow : Window, IMainWindowActions
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
         Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
+        Closed += (_, _) => (BrandingLogo.Source as Bitmap)?.Dispose();
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {
@@ -64,7 +65,9 @@ public partial class MainWindow : Window, IMainWindowActions
     // read shows no logo.
     private void ShowBrandingLogo(MainViewModel viewModel)
     {
+        var old = BrandingLogo.Source as Bitmap;
         BrandingLogo.Source = null;
+        old?.Dispose();
         if (viewModel.BrandingLogo is not { } path)
         {
             return;
