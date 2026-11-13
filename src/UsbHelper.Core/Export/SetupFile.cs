@@ -36,6 +36,20 @@ public sealed record SetupFile(
     [JsonPropertyOrder(-1)]
     public int FormatVersion { get; init; } = CurrentFormat;
 
+    // #230: optional, left out when null; older readers ignore them, so the format stays 1.
+
+    /// <summary>The company name from the branding; null while branding is locked or no name is set.</summary>
+    [JsonPropertyOrder(-1)]
+    public string? CompanyName { get; init; }
+
+    /// <summary>The room or system name the user typed; null when none.</summary>
+    [JsonPropertyOrder(-1)]
+    public string? RoomName { get; init; }
+
+    /// <summary>The email the extra features are unlocked for (personal data, at the owner's request); null while locked.</summary>
+    [JsonPropertyOrder(-1)]
+    public string? LicensedTo { get; init; }
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
