@@ -129,7 +129,7 @@ public partial class MainWindow : Window, IMainWindowActions
                 return;
             }
             await using var stream = await file.OpenWriteAsync();
-            viewModel.ExportSetup(stream, screenshot, DateOnly.FromDateTime(DateTime.Now));
+            viewModel.ExportSetup(stream, screenshot, DateTime.Now);
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupSaved, file.Name);
         }
         catch (Exception ex)

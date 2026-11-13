@@ -1683,12 +1683,22 @@ public class MainViewModelTests
         viewModel.ExportPdfCommand.CanExecuteChanged += (_, _) => changed++;
         Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
         viewModel.RoomName = "Room 4.12";
-        Assert.False(viewModel.ExportPdfCommand.CanExecute(null)); // No tree yet.
+        var tips = new List<string?>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.ExportPdfTip))
+            {
+                tips.Add(viewModel.ExportPdfTip);
+            }
+        };
+        Assert.False(viewModel.ExportPdfCommand.CanExecute(null));
+        Assert.Equal("Wait until the USB tree is read", viewModel.ExportPdfTip);
 
         viewModel.Load(Desk, monitors: []);
 
         Assert.True(viewModel.ExportPdfCommand.CanExecute(null));
         Assert.Null(viewModel.ExportPdfTip);
+        Assert.Equal([null], tips); // Raised when the tree arrives.
         Assert.True(changed >= 3); // On unlock, on the room name and on the tree.
 
         entitlements.Remove();

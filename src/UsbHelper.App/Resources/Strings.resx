@@ -387,6 +387,9 @@ This version keeps running.</value>
   <data name="ExportPdfNeedsRoom" xml:space="preserve">
     <value>Enter a room name to export a PDF</value>
   </data>
+  <data name="ExportPdfNoTree" xml:space="preserve">
+    <value>Wait until the USB tree is read</value>
+  </data>
   <data name="RoomName" xml:space="preserve">
     <value>Room or system name</value>
   </data>

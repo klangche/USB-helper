@@ -120,7 +120,7 @@ public class CompanyAndLicenceTests
     private Dictionary<string, string> Export()
     {
         using var zip = new MemoryStream();
-        viewModel.ExportSetup(zip, [], new DateOnly(2026, 11, 13), "0.9.0-test");
+        viewModel.ExportSetup(zip, [], new DateTime(2026, 11, 13, 9, 30, 0), "0.9.0-test");
         zip.Position = 0;
         using var archive = new ZipArchive(zip, ZipArchiveMode.Read);
         return archive.Entries.ToDictionary(entry => entry.FullName, entry =>

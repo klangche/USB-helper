@@ -514,6 +514,8 @@ public static class ReportPdf
         /// <summary>The logo, or null when the file is missing, cannot be read or parsed, or has no size: the report then has no logo.</summary>
         public static Logo? Load(string path)
         {
+            // Disposed unless the logo takes it, also when reading the SVG fails.
+            SKSvg? svg = null;
             try
             {
                 if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
@@ -522,12 +524,13 @@ public static class ReportPdf
                     // so the header shows the company name instead (#232).
                     var document = SvgDocument.Open<SvgDocument>(path);
                     static bool Zero(SvgUnit unit) => unit.Type != SvgUnitType.Percentage && unit.Value <= 0;
-                    var svg = new SKSvg();
+                    svg = new SKSvg();
                     if (!Zero(document.Width) && !Zero(document.Height) && svg.FromSvgDocument(document) is { CullRect: { Width: > 0, Height: > 0 } })
                     {
-                        return new Logo(svg, null);
+                        var logo = new Logo(svg, null);
+                        svg = null;
+                        return logo;
                     }
-                    svg.Dispose();
                     return null;
                 }
                 var image = SKImage.FromEncodedData(path);
@@ -537,6 +540,10 @@ public static class ReportPdf
                 or FormatException or InvalidCastException or NotSupportedException)
             {
                 return null;
+            }
+            finally
+            {
+                svg?.Dispose();
             }
         }
 

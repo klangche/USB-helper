@@ -138,7 +138,7 @@ public sealed class MainViewModel : ObservableObject
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
         CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeWithHeader()), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
-        ExportPdfCommand = new RelayCommand(() => Window?.ExportPdf(), () => Roots.Count > 0 && ExportPdfTip == null);
+        ExportPdfCommand = new RelayCommand(() => Window?.ExportPdf(), () => ExportPdfTip == null);
         RefreshCommand = new RelayCommand(() => Window?.ConfirmRefresh(), () => !IsLoading);
     }
 
@@ -313,9 +313,12 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Export PDF (#232): enabled once the tree is read, when unlocked and a room name is entered.</summary>
     public RelayCommand ExportPdfCommand { get; }
 
-    /// <summary>Why File > Export PDF is disabled, for its tooltip; null when nothing is missing but the tree.</summary>
+    /// <summary>Why File > Export PDF is disabled, for its tooltip; null when it is enabled.</summary>
     public string? ExportPdfTip =>
-        !Entitlements.IsUnlocked(Feature.Pro) ? Strings.ExportPdfLocked : Room == null ? Strings.ExportPdfNeedsRoom : null;
+        !Entitlements.IsUnlocked(Feature.Pro) ? Strings.ExportPdfLocked
+        : Room == null ? Strings.ExportPdfNeedsRoom
+        : Roots.Count == 0 ? Strings.ExportPdfNoTree
+        : null;
 
     private void ExportPdfChanged()
     {
@@ -359,26 +362,37 @@ public sealed class MainViewModel : ObservableObject
     /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's
     /// <paramref name="screenshot"/> (PNG) and the log; when unlocked also the PDF report (#232), with or without a room.
     /// </summary>
-    public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
+    public void ExportSetup(Stream output, byte[] screenshot, DateTime created, string? appVersion = null)
     {
         var version = appVersion ?? AppVersion.Current;
         byte[]? report = null;
         if (Entitlements.IsUnlocked(Feature.Pro))
         {
-            using var pdf = new MemoryStream();
-            ReportPdf.Write(pdf, BrandedReport(date.ToDateTime(TimeOnly.FromDateTime(DateTime.Now)), version));
-            report = pdf.ToArray();
+            // The zip never fails because of the PDF: without it, the other files are still written.
+            try
+            {
+                using var pdf = new MemoryStream();
+                WriteReport(pdf, BrandedReport(created, version));
+                report = pdf.ToArray();
+            }
+            catch (Exception e)
+            {
+                log.Add($"PDF report could not be made: {e.Message}");
+            }
         }
-        SetupZip.Write(output, Setup(date, version).ToJson(), TreeWithHeader(), screenshot, log.Export(), report);
+        SetupZip.Write(output, Setup(DateOnly.FromDateTime(created), version).ToJson(), TreeWithHeader(), screenshot, log.Export(), report);
         log.Add("Setup exported");
     }
 
     /// <summary>File > Export PDF (#232): writes the PDF report to <paramref name="output"/>.</summary>
     public void ExportPdf(Stream output, DateTime created, string? appVersion = null)
     {
-        ReportPdf.Write(output, BrandedReport(created, appVersion ?? AppVersion.Current));
+        WriteReport(output, BrandedReport(created, appVersion ?? AppVersion.Current));
         log.Add("PDF exported");
     }
+
+    /// <summary>Writes the PDF report; tests replace it to make it fail.</summary>
+    internal Action<Stream, ReportModel> WriteReport { get; set; } = ReportPdf.Write;
 
     private ReportModel BrandedReport(DateTime created, string appVersion) =>
         Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
@@ -605,7 +619,7 @@ public sealed class MainViewModel : ObservableObject
         LogTree();
         CopyTreeCommand.Refresh();
         ExportSetupCommand.Refresh();
-        ExportPdfCommand.Refresh();
+        ExportPdfChanged();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)

@@ -14,7 +14,7 @@ namespace UsbHelper.App.Tests;
 // #135: File > Export full setup saves one zip with setup.json, tree.txt, screenshot.png and log.txt.
 public class SetupExportTests
 {
-    private static readonly DateOnly Date = new(2026, 11, 3);
+    private static readonly DateTime Created = new(2026, 11, 3, 9, 30, 0);
     private const string Version = "0.6.0-test";
     private static readonly byte[] Png = [0x89, (byte)'P', (byte)'N', (byte)'G'];
 
@@ -74,7 +74,7 @@ public class SetupExportTests
     private static Dictionary<string, byte[]> Export(MainViewModel viewModel)
     {
         using var zip = new MemoryStream();
-        viewModel.ExportSetup(zip, Png, Date, Version);
+        viewModel.ExportSetup(zip, Png, Created, Version);
         zip.Position = 0;
         using var archive = new ZipArchive(zip, ZipArchiveMode.Read);
         return archive.Entries.ToDictionary(entry => entry.FullName, entry =>
@@ -133,6 +133,19 @@ public class SetupExportTests
         var text = PdfText(files["report.pdf"]);
         Assert.Contains(header, text);
         Assert.Contains($"Licensed to {TestEmail}", text);
+    }
+
+    // The zip never fails because of the PDF: without it, the other four files are written and the log says why.
+    [Fact]
+    public void AReportThatCannotBeMadeLeavesTheOtherFiles()
+    {
+        var viewModel = Unlocked("Room 4.12");
+        viewModel.WriteReport = (_, _) => throw new InvalidOperationException("broken font");
+
+        var files = Export(viewModel);
+
+        Assert.Equal(["setup.json", "tree.txt", "screenshot.png", "log.txt"], files.Keys);
+        Assert.Contains("PDF report could not be made: broken font", Text(files["log.txt"]));
     }
 
     [Fact]
