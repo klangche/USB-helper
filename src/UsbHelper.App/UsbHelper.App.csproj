@@ -58,6 +58,31 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!-- Unlock code secrets (#234): CI sets USBH_LICENCE_KEY_<id> (base64, 32 bytes) from its Actions secrets, and this
+       writes them to LicenceKeys.g.cs in obj/, which git ignores. Without them nothing is written and no code unlocks. -->
+  <Target Name="GenerateLicenceKeys" BeforeTargets="BeforeCompile">
+    <PropertyGroup>
+      <LicenceKeysFile>$(IntermediateOutputPath)LicenceKeys.g.cs</LicenceKeysFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <_LicenceKeyId Include="0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15" />
+      <_LicenceKey Include="@(_LicenceKeyId)" Secret="$([System.String]::Concat($([System.Environment]::GetEnvironmentVariable('USBH_LICENCE_KEY_%(Identity)')), '').Trim())" />
+      <_LicenceKey Remove="@(_LicenceKey)" Condition="'%(Secret)' == ''" />
+    </ItemGroup>
+    <!-- Never upload a binlog (-bl) of a build with keys: it records the environment and this file, so the key ends up
+         in it. -->
+    <!-- 32 bytes are 43 base64 characters and one '='. The message names the variable, never its value. -->
+    <Error Condition="'@(_LicenceKey)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_LicenceKey.Secret)', '^[A-Za-z0-9+/]{43}=$'))"
+           Text="USBH_LICENCE_KEY_%(_LicenceKey.Identity) is not a base64 32-byte key." />
+    <WriteLinesToFile Condition="'@(_LicenceKey)' != ''" File="$(LicenceKeysFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="// &lt;auto-generated/&gt; by the GenerateLicenceKeys target (#234). Never commit this file.;namespace UsbHelper.App.Licensing%3B;internal static partial class LicenceKeys;{;    static partial void AddKeys(Dictionary&lt;int, byte[]&gt; keys);    {;@(_LicenceKey->'        keys.Add(%(Identity), Convert.FromBase64String(&quot;%(Secret)&quot;))%3B');    };}" />
+    <Delete Condition="'@(_LicenceKey)' == ''" Files="$(LicenceKeysFile)" />
+    <ItemGroup Condition="'@(_LicenceKey)' != ''">
+      <Compile Include="$(LicenceKeysFile)" />
+      <FileWrites Include="$(LicenceKeysFile)" />
+    </ItemGroup>
+  </Target>
+
   <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />

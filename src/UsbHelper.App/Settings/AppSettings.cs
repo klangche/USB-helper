@@ -25,6 +25,12 @@ public sealed record AppSettings
 
     /// <summary>Shown on reports (#228); trimmed, and empty means none.</summary>
     public string CompanyName { get; set; } = "";
+
+    /// <summary>The email of the unlock code (#234); null while locked.</summary>
+    public string? LicenceEmail { get; set; }
+
+    /// <summary>The unlock code as entered; checked against <see cref="LicenceEmail"/> at every start.</summary>
+    public string? LicenceCode { get; set; }
 }
 
 // Compiled serializer: camelCase names, indented so the file can be read by hand.

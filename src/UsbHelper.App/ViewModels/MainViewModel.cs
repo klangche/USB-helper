@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using UsbHelper.App.Licensing;
 using UsbHelper.App.Resources;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -82,8 +83,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
         HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity,
-        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
-        : this(identity, readMonitors, log, settings)
+        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null,
+        CodeEntitlements? entitlements = null)
+        : this(identity, readMonitors, log, settings, entitlements)
     {
         LoadDatabase(database, databaseErrors);
     }
@@ -92,8 +94,10 @@ public sealed class MainViewModel : ObservableObject
     /// <param name="readMonitors">Reads the active monitors, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
     /// <param name="settings">The settings (#126); the defaults, kept in memory only, when null.</param>
+    /// <param name="entitlements">The unlock code (#234); from this build's keys and <paramref name="settings"/> when null.</param>
     public MainViewModel(
-        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
+        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null,
+        CodeEntitlements? entitlements = null)
     {
         Settings = settings ?? new SettingsViewModel();
         Settings.PropertyChanged += (_, e) =>
@@ -104,6 +108,9 @@ public sealed class MainViewModel : ObservableObject
             }
         };
         this.log = log ?? new EventLog();
+        entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
+        Entitlements = entitlements;
+        Unlock = new UnlockViewModel(entitlements);
         Log = new LogViewModel(this.log);
         this.readMonitors = readMonitors ?? (() => null);
         this.identity = identity;
@@ -340,6 +347,12 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }
+
+    /// <summary>What is unlocked (#234). Every feature check goes through this.</summary>
+    public IEntitlements Entitlements { get; }
+
+    /// <summary>The settings window's Support the project section.</summary>
+    public UnlockViewModel Unlock { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 

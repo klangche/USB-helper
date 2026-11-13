@@ -43,6 +43,22 @@
 
     <TextBlock Text="{x:Static res:Strings.SettingsSavedAt}" TextWrapping="Wrap" Opacity="0.7" />
     <SelectableTextBlock Text="{Binding FilePath}" TextWrapping="Wrap" FontFamily="monospace" Opacity="0.7" />
+
+    <!-- The unlock code (#234); its DataContext is the main window's UnlockViewModel. -->
+    <StackPanel x:Name="Support" x:DataType="vm:UnlockViewModel" Spacing="6" Margin="0,8,0,0">
+      <TextBlock Text="{x:Static res:Strings.SupportTitle}" FontWeight="SemiBold" />
+      <StackPanel Spacing="6" IsVisible="{Binding !IsUnlocked}">
+        <TextBlock Text="{x:Static res:Strings.UnlockEmail}" />
+        <TextBox Text="{Binding Email}" />
+        <TextBlock Text="{x:Static res:Strings.UnlockCode}" />
+        <TextBox Text="{Binding Code}" FontFamily="monospace" />
+        <Button Content="{x:Static res:Strings.UnlockButton}" Command="{Binding UnlockCommand}" />
+      </StackPanel>
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <Button Content="{x:Static res:Strings.UnlockRemove}" Command="{Binding RemoveCommand}" IsVisible="{Binding IsUnlocked}" />
+      <TextBlock Text="{x:Static res:Strings.SupportNote}" TextWrapping="Wrap" Opacity="0.7" />
+    </StackPanel>
+
     <Button Content="{x:Static res:Strings.SettingsClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
   </StackPanel>
 </Window>
