@@ -78,6 +78,18 @@ public sealed class UnlockCodeTests
         Assert.Equal(1, UnlockCode.Verify(TestKeys, "test2@example.com", code));
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(8)]
+    public void UnknownFeatureBitsAreRefused(int features)
+    {
+        // A correctly signed code, but for features this build does not know.
+        var code = UnlockCode.Make(TestSecret, 0, features, TestEmail);
+
+        Assert.Null(UnlockCode.Verify(TestKeys, TestEmail, code));
+    }
+
     [Fact]
     public void ABuildWithoutKeysRefusesEveryCode()
     {

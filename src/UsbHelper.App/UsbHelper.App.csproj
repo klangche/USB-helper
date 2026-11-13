@@ -62,6 +62,8 @@
       <_LicenceKey Include="@(_LicenceKeyId)" Secret="$([System.String]::Concat($([System.Environment]::GetEnvironmentVariable('USBH_LICENCE_KEY_%(Identity)')), '').Trim())" />
       <_LicenceKey Remove="@(_LicenceKey)" Condition="'%(Secret)' == ''" />
     </ItemGroup>
+    <!-- Never upload a binlog (-bl) of a build with keys: it records the environment and this file, so the key ends up
+         in it. -->
     <!-- 32 bytes are 43 base64 characters and one '='. The message names the variable, never its value. -->
     <Error Condition="'@(_LicenceKey)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_LicenceKey.Secret)', '^[A-Za-z0-9+/]{43}=$'))"
            Text="USBH_LICENCE_KEY_%(_LicenceKey.Identity) is not a base64 32-byte key." />

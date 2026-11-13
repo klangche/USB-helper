@@ -15,6 +15,9 @@ public static class UnlockCode
     private const int Bytes = 12;
     private const int Characters = 20; // 100 bits: the 96 of the code, then 4 zero bits
 
+    // Every Feature flag; a code with any other bit is refused.
+    private static readonly int KnownFeatures = Enum.GetValues<Feature>().Aggregate(0, (all, feature) => all | (int)feature);
+
     /// <summary>The code for <paramref name="email"/>: the reference for the keygen and the tests.</summary>
     public static string Make(byte[] secret, int keyId, int features, string email)
     {
@@ -35,7 +38,7 @@ public static class UnlockCode
         }
         var keyId = bytes[0] >> 4;
         var features = bytes[0] & 0xF;
-        if (features == 0 || !keys.TryGetValue(keyId, out var secret))
+        if (features == 0 || (features & ~KnownFeatures) != 0 || !keys.TryGetValue(keyId, out var secret))
         {
             return null;
         }
