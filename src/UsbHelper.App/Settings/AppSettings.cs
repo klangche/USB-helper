@@ -22,6 +22,12 @@ public sealed record AppSettings
 
     /// <summary>Computer profile ids, as <see cref="CheckedOperatingSystems"/>.</summary>
     public IReadOnlyList<string> CheckedComputers { get; set; } = [];
+
+    /// <summary>The email of the unlock code (#234); null while locked.</summary>
+    public string? LicenceEmail { get; set; }
+
+    /// <summary>The unlock code as entered; checked against <see cref="LicenceEmail"/> at every start.</summary>
+    public string? LicenceCode { get; set; }
 }
 
 // Compiled serializer: camelCase names, indented so the file can be read by hand.

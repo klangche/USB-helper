@@ -426,6 +426,33 @@ This version keeps running.</value>
   <data name="SettingsClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="SupportTitle" xml:space="preserve">
+    <value>Support the project</value>
+  </data>
+  <data name="SupportNote" xml:space="preserve">
+    <value>Unlock codes for the extra features are given out by the project owner.</value>
+  </data>
+  <data name="UnlockEmail" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="UnlockCode" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="UnlockButton" xml:space="preserve">
+    <value>Unlock</value>
+  </data>
+  <data name="UnlockRemove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="UnlockedFor" xml:space="preserve">
+    <value>Unlocked for {0}</value>
+  </data>
+  <data name="UnlockNoMatch" xml:space="preserve">
+    <value>This code does not match this email</value>
+  </data>
+  <data name="UnlockNotAvailable" xml:space="preserve">
+    <value>Unlock codes are not available in this build</value>
+  </data>
   <data name="UpdateTitle" xml:space="preserve">
     <value>USB-helper update</value>
   </data>

@@ -88,7 +88,9 @@ public partial class MainWindow : Window, IMainWindowActions
     {
         if (DataContext is MainViewModel viewModel)
         {
-            _ = new SettingsWindow { DataContext = viewModel.Settings }.ShowDialog(this);
+            var settings = new SettingsWindow { DataContext = viewModel.Settings };
+            settings.Support.DataContext = viewModel.Unlock;
+            _ = settings.ShowDialog(this);
         }
     }
 

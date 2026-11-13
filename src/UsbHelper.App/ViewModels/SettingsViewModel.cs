@@ -65,6 +65,13 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    public string? LicenceEmail => current.LicenceEmail;
+
+    public string? LicenceCode => current.LicenceCode;
+
+    /// <summary>Saves the unlock code pair, or forgets it with nulls; only <see cref="Licensing.CodeEntitlements"/> calls this.</summary>
+    public void Licence(string? email, string? code) => Change(current with { LicenceEmail = email, LicenceCode = code });
+
     private void Change(AppSettings changed)
     {
         if (Same(changed, current))
@@ -99,5 +106,6 @@ public sealed class SettingsViewModel : ObservableObject
     private static bool Same(AppSettings a, AppSettings b) =>
         a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.OfferBetas == b.OfferBetas
         && a.RememberCheckedProfiles == b.RememberCheckedProfiles
+        && a.LicenceEmail == b.LicenceEmail && a.LicenceCode == b.LicenceCode
         && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers);
 }
