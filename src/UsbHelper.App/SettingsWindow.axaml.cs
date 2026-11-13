@@ -74,11 +74,22 @@ public partial class SettingsWindow : Window
             FileTypeFilter = [new FilePickerFileType(Strings.LogoFileType) { Patterns = ["*.svg", "*.png", "*.webp", "*.SVG", "*.PNG", "*.WEBP"] }],
         });
         var path = files.Count == 0 ? null : files[0].TryGetLocalPath();
-        if (path != null)
+        // Cancel in the crop window keeps the previous logo (#241).
+        if (path != null && Settings.StartCrop(path) is { } crop && await Crop(crop))
         {
-            Settings.ImportLogo(path);
+            Settings.ImportLogo(path, crop.Crop);
         }
     }
+
+    private async void AdjustCrop(object? sender, RoutedEventArgs e)
+    {
+        if (Settings.AdjustCrop() is { } crop && await Crop(crop))
+        {
+            Settings.Recrop(crop.Crop);
+        }
+    }
+
+    private Task<bool> Crop(LogoCropViewModel crop) => new LogoCropWindow { DataContext = crop }.ShowDialog<bool>(this);
 
     private void RemoveLogo(object? sender, RoutedEventArgs e) => Settings.RemoveLogo();
 

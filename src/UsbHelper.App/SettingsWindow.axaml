@@ -21,8 +21,8 @@
     <TextBox Text="{Binding CompanyName, UpdateSourceTrigger=LostFocus}" IsEnabled="{Binding BrandingUnlocked}" />
     <TextBlock Text="{x:Static res:Strings.SettingsCompanyLogo}" />
     <StackPanel Orientation="Horizontal" Spacing="10" IsEnabled="{Binding BrandingUnlocked}">
-      <!-- A checkerboard behind the preview, so transparency is visible. -->
-      <Border Width="128" Height="64" BorderBrush="Gray" BorderThickness="1">
+      <!-- A checkerboard behind the preview, so transparency is visible. The logo is always 3:1 (#241), and so is the box. -->
+      <Border Width="194" Height="66" BorderBrush="Gray" BorderThickness="1">
         <Border.Background>
           <VisualBrush TileMode="Tile" Stretch="None" SourceRect="0,0,16,16" DestinationRect="0,0,16,16">
             <VisualBrush.Visual>
@@ -33,10 +33,11 @@
             </VisualBrush.Visual>
           </VisualBrush>
         </Border.Background>
-        <Image x:Name="LogoImage" Stretch="Uniform" Margin="4" />
+        <Image x:Name="LogoImage" Stretch="Uniform" />
       </Border>
       <StackPanel Spacing="6" VerticalAlignment="Center">
         <Button Content="{x:Static res:Strings.SettingsChooseLogo}" Click="ChooseLogo" />
+        <Button Content="{x:Static res:Strings.SettingsAdjustCrop}" Click="AdjustCrop" IsEnabled="{Binding LogoPreview, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <Button Content="{x:Static res:Strings.SettingsRemoveLogo}" Click="RemoveLogo" IsEnabled="{Binding LogoPreview, Converter={x:Static ObjectConverters.IsNotNull}}" />
       </StackPanel>
     </StackPanel>
