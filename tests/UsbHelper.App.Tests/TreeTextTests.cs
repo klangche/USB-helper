@@ -57,6 +57,27 @@ public class TreeTextTests
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0]));
     }
 
+    // #230: a header names the company, the room and the licensed email when any is set.
+    [Fact]
+    public void AHeaderNamesTheCompanyRoomAndLicensedEmail()
+    {
+        var viewModel = Loaded(new EventLog());
+        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+
+        Assert.Equal(string.Join(Environment.NewLine, "Company: Acme AB", "Room: Room 4.12", "Licensed to: test@example.com", "", Golden),
+            TreeText.Render(viewModel.Roots[0], "Acme AB", "Room 4.12", "test@example.com"));
+        Assert.Equal(string.Join(Environment.NewLine, "Room: Room 4.12", "", Golden), TreeText.Render(viewModel.Roots[0], null, "Room 4.12", null));
+    }
+
+    [Fact]
+    public void WithoutCompanyRoomOrEmailThereIsNoHeader()
+    {
+        var viewModel = Loaded(new EventLog());
+        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+
+        Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0], null, null, null));
+    }
+
     [Fact]
     public void TheFirstReadAndEveryChangeLogTheTree()
     {

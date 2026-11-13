@@ -282,6 +282,40 @@ public class EventLogTests
             log.Export());
     }
 
+    // #230: the company and the licensed email are logged at start and on every change, and head the export.
+    [Fact]
+    public void CompanyAndLicensedEmailAreLoggedWhenTheyChange()
+    {
+        var log = NewLog();
+
+        log.CompanyAndLicence(null, null); // Nothing set at start: nothing to log.
+        log.CompanyAndLicence("Acme AB", "test@example.com");
+        log.CompanyAndLicence("Acme AB", "test@example.com"); // Unchanged.
+        log.CompanyAndLicence("Acme Ltd", "test@example.com");
+        log.CompanyAndLicence(null, null);
+
+        Assert.Equal(["Company: Acme AB", "Licensed to: test@example.com", "Company: Acme Ltd", "Company: none", "Licensed to: none"], Texts(log));
+    }
+
+    [Fact]
+    public void ExportStartsWithTheCompanyAndLicensedEmailWhenSet()
+    {
+        var log = NewLog();
+        log.CompanyAndLicence("Acme AB", "test@example.com");
+        log.Clear(); // The header follows what is set now, not what is left in the log.
+        log.Add("Started");
+
+        Assert.Equal(
+            "Company: Acme AB" + Environment.NewLine
+            + "Licensed to: test@example.com" + Environment.NewLine
+            + Environment.NewLine
+            + "2026-11-02 09:30:00  Started" + Environment.NewLine,
+            log.Export());
+
+        log.CompanyAndLicence(null, "test@example.com");
+        Assert.StartsWith("Licensed to: test@example.com" + Environment.NewLine + Environment.NewLine + "2026", log.Export());
+    }
+
     // #206: "Refresh and clear log" starts a fresh log; what was logged before is logged again when it shows.
     [Fact]
     public void ClearEmptiesTheLogAnnouncesItAndLogsFindingsAgain()

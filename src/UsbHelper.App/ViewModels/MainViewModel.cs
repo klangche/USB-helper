@@ -107,11 +107,17 @@ public sealed class MainViewModel : ObservableObject
             {
                 KeepCheckedProfiles(); // Turned on: keep what is checked now.
             }
+            if (e.PropertyName == nameof(SettingsViewModel.CompanyName))
+            {
+                LogCompanyAndLicence();
+            }
         };
         this.log = log ?? new EventLog();
         entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
         Entitlements = entitlements;
         Settings.Gate(entitlements);
+        entitlements.Changed += (_, _) => LogCompanyAndLicence();
+        LogCompanyAndLicence();
         Unlock = new UnlockViewModel(entitlements);
         Log = new LogViewModel(this.log);
         this.readMonitors = readMonitors ?? (() => null);
@@ -125,7 +131,7 @@ public sealed class MainViewModel : ObservableObject
         ExitCommand = new RelayCommand(() => Window?.Exit());
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
-        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
+        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeWithHeader()), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
         RefreshCommand = new RelayCommand(() => Window?.ConfirmRefresh(), () => !IsLoading);
     }
@@ -325,7 +331,7 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
     {
-        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeText.Render(Roots[0]), screenshot, log.Export());
+        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeWithHeader(), screenshot, log.Export());
         log.Add("Setup exported");
     }
 
@@ -341,8 +347,23 @@ public sealed class MainViewModel : ObservableObject
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
-        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results);
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results)
+        {
+            CompanyName = CompanyName,
+            RoomName = Room,
+            LicensedTo = Entitlements.LicensedTo,
+        };
     }
+
+    // #230: the company name only while branding is unlocked; the room whenever one is entered.
+    private string? CompanyName => Settings.Branding?.CompanyName;
+
+    private string? Room => RoomName.Trim() is { Length: > 0 } room ? room : null;
+
+    // The tree for the clipboard and tree.txt, headed by the company, room and licensed email (#230).
+    private string TreeWithHeader() => TreeText.Render(Roots[0], CompanyName, Room, Entitlements.LicensedTo);
+
+    private void LogCompanyAndLicence() => log.CompanyAndLicence(CompanyName, Entitlements.LicensedTo);
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
         [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
