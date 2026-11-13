@@ -134,6 +134,30 @@ public class ReportPdfTests
         Assert.DoesNotContain("Limitations", results);
     }
 
+    // Reports rendered at the same time, as the zip export and other tests do, each keep their whole text: the shared
+    // fonts must not mix up the glyph to text mapping of another document (CI on Windows saw NUL characters).
+    [Fact]
+    public void Reports_rendered_in_parallel_keep_their_text()
+    {
+        ReportModel[] models =
+        [
+            ReportSamples.NoRoom(null) with { CompanyName = null, LicensedTo = ReportSamples.Email },
+            ReportSamples.Full(null),
+            ReportSamples.AllStable(null) with { LicensedTo = ReportSamples.Email },
+        ];
+        var expected = models.Select(model => string.Join("\n", PageTexts(Pdf(model)))).ToList();
+
+        var texts = new string[96];
+        Parallel.For(0, texts.Length, new ParallelOptions { MaxDegreeOfParallelism = 16 },
+            i => texts[i] = string.Join("\n", PageTexts(Pdf(models[i % models.Length]))));
+
+        for (var i = 0; i < texts.Length; i++)
+        {
+            Assert.DoesNotContain('\0', texts[i]);
+            Assert.Equal(expected[i % models.Length], texts[i]);
+        }
+    }
+
     // #232: the licensed email under the date line and in the footer; nothing while locked.
     [Fact]
     public void The_licensed_email_is_in_the_header_and_on_every_page_when_set()
