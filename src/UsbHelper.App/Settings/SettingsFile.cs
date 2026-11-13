@@ -29,8 +29,13 @@ public sealed class SettingsFile(string path)
         {
             var settings = JsonSerializer.Deserialize(File.ReadAllText(Path), SettingsJson.Default.AppSettings)
                 ?? throw new JsonException("the file holds no settings");
-            // "null" for a list in the file means none.
-            return settings with { CheckedOperatingSystems = settings.CheckedOperatingSystems ?? [], CheckedComputers = settings.CheckedComputers ?? [] };
+            // "null" for a list or the company name in the file means none.
+            return settings with
+            {
+                CheckedOperatingSystems = settings.CheckedOperatingSystems ?? [],
+                CheckedComputers = settings.CheckedComputers ?? [],
+                CompanyName = settings.CompanyName ?? "",
+            };
         }
         catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException)
         {
