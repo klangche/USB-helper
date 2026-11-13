@@ -450,6 +450,9 @@ This version keeps running.</value>
   <data name="LogoSvgWithoutSize" xml:space="preserve">
     <value>This SVG has no width and height and no viewBox, so its size is unknown. The logo was not changed.</value>
   </data>
+  <data name="LogoAspectRatio" xml:space="preserve">
+    <value>This image is more than 8 times wider than high, or higher than wide. Crop it and try again. The logo was not changed.</value>
+  </data>
   <data name="LogoNotSaved" xml:space="preserve">
     <value>The logo could not be saved: {0}</value>
   </data>

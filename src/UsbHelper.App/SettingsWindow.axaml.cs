@@ -10,24 +10,31 @@ namespace UsbHelper.App;
 
 public partial class SettingsWindow : Window
 {
+    private SettingsViewModel? watched;
+
     public SettingsWindow()
     {
         InitializeComponent();
         DataContextChanged += (_, _) =>
         {
-            if (DataContext is SettingsViewModel settings)
-            {
-                settings.PropertyChanged += LogoChanged;
-                ShowLogo();
-            }
+            Watch(DataContext as SettingsViewModel);
+            ShowLogo();
         };
-        Closed += (_, _) =>
+        Closed += (_, _) => Watch(null);
+    }
+
+    // Follows the logo of one view model at a time.
+    private void Watch(SettingsViewModel? settings)
+    {
+        if (watched != null)
         {
-            if (DataContext is SettingsViewModel settings)
-            {
-                settings.PropertyChanged -= LogoChanged;
-            }
-        };
+            watched.PropertyChanged -= LogoChanged;
+        }
+        watched = settings;
+        if (watched != null)
+        {
+            watched.PropertyChanged += LogoChanged;
+        }
     }
 
     private SettingsViewModel Settings => (SettingsViewModel)DataContext!;
@@ -40,17 +47,23 @@ public partial class SettingsWindow : Window
         }
     }
 
-    // Read into memory, so the file is not held open and the next import can replace it.
+    // Read into memory, so the file is not held open and the next import can replace it. A file that cannot be read
+    // shows no preview.
     private void ShowLogo()
     {
-        var path = Settings.LogoPreview;
-        if (path == null)
+        LogoImage.Source = null;
+        if (watched?.LogoPreview is not { } path)
         {
-            LogoImage.Source = null;
             return;
         }
-        using var stream = new MemoryStream(File.ReadAllBytes(path));
-        LogoImage.Source = new Bitmap(stream);
+        try
+        {
+            using var stream = new MemoryStream(File.ReadAllBytes(path));
+            LogoImage.Source = new Bitmap(stream);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private async void ChooseLogo(object? sender, RoutedEventArgs e)

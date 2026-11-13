@@ -100,6 +100,97 @@ public sealed class CompanyLogoTests : IDisposable
         Assert.Single(Directory.GetDirectories(Path.GetDirectoryName(logo.Folder)!)); // No temporary folder is left.
     }
 
+    [Theory]
+    [InlineData("wide.png", 900, 100)]
+    [InlineData("tall.png", 100, 900)]
+    [InlineData("wide.svg", 9000, 1000)]
+    [InlineData("tall.svg", 1, 9)]
+    public void AnImageMoreThanEightTimesWiderOrTallerIsRefused(string name, int width, int height)
+    {
+        var logo = Logo;
+        logo.Import(Raster("previous.png", SKEncodedImageFormat.Png));
+        var before = Snapshot(logo.Folder);
+        string source;
+        if (name.EndsWith(".svg", StringComparison.Ordinal))
+        {
+            source = Svg(name, $"""viewBox="0 0 {width} {height}" """);
+        }
+        else
+        {
+            using var bitmap = new SKBitmap(width, height);
+            using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+            source = Source(name, data.ToArray());
+        }
+
+        var refusal = Assert.Throws<InvalidDataException>(() => logo.Import(source));
+
+        Assert.Equal(Strings.LogoAspectRatio, refusal.Message);
+        Assert.Equal(before, Snapshot(logo.Folder));
+    }
+
+    [Fact]
+    public void ExactlyEightTimesWiderIsAccepted()
+    {
+        using var bitmap = new SKBitmap(800, 100);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        var logo = Logo;
+
+        logo.Import(Source("wide.png", data.ToArray()));
+
+        using var png = SKBitmap.Decode(logo.Png(32));
+        Assert.Equal(256, png.Width);
+    }
+
+    [Fact]
+    public void AFailedSwapPutsThePreviousLogoBack()
+    {
+        var logo = Logo;
+        logo.Import(Raster("previous.png", SKEncodedImageFormat.Png));
+        var before = Snapshot(logo.Folder);
+        var failing = new CompanyLogo(logo.Folder)
+        {
+            // The new set fails to move into place after the old one was moved aside.
+            MoveFolder = (from, to) =>
+            {
+                if (from.EndsWith(".new", StringComparison.Ordinal))
+                {
+                    throw new IOException("disk full");
+                }
+                Directory.Move(from, to);
+            },
+        };
+
+        Assert.Throws<IOException>(() => failing.Import(Svg("next.svg", """width="200" height="100" """)));
+
+        Assert.Equal(before, Snapshot(logo.Folder));
+        Assert.Single(Directory.GetDirectories(Path.GetDirectoryName(logo.Folder)!)); // No .old or .new is left.
+    }
+
+    [Fact]
+    public void ALogoLeftAsideByAnInterruptedSwapIsRestored()
+    {
+        var logo = Logo;
+        logo.Import(Raster("previous.png", SKEncodedImageFormat.Png));
+        var before = Snapshot(logo.Folder);
+        Directory.Move(logo.Folder, logo.Folder + ".old"); // The app stopped between the two moves.
+
+        Assert.NotNull(new CompanyLogo(logo.Folder).Original);
+        Assert.Equal(before, Snapshot(logo.Folder));
+    }
+
+    [Fact]
+    public void RemoveAlsoDeletesALogoLeftAside()
+    {
+        var logo = Logo;
+        logo.Import(Raster("previous.png", SKEncodedImageFormat.Png));
+        Directory.Move(logo.Folder, logo.Folder + ".old");
+
+        logo.Remove();
+
+        Assert.Null(logo.Original);
+        Assert.False(Directory.Exists(logo.Folder + ".old"));
+    }
+
     [Fact]
     public void ANewLogoReplacesTheWholeSet()
     {

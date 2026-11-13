@@ -14,11 +14,25 @@ public sealed class CompanyLogo(string folder)
 {
     public static IReadOnlyList<int> Heights { get; } = [32, 64, 128, 256, 512];
 
+    /// <summary>A source this many times wider than high, or higher than wide, is refused.</summary>
+    public const int MaxAspectRatio = 8;
+
     public string Folder { get; } = folder;
 
+    /// <summary>Moves a folder; tests replace it to make the swap fail.</summary>
+    internal Action<string, string> MoveFolder { get; init; } = Directory.Move;
+
+    private string Old => Folder + ".old";
+
     /// <summary>The imported file, or null when there is no logo.</summary>
-    public string? Original =>
-        Directory.Exists(Folder) ? Directory.EnumerateFiles(Folder, "logo-original.*").FirstOrDefault() : null;
+    public string? Original
+    {
+        get
+        {
+            Restore();
+            return Directory.Exists(Folder) ? Directory.EnumerateFiles(Folder, "logo-original.*").FirstOrDefault() : null;
+        }
+    }
 
     /// <summary>The PNG <paramref name="height"/> pixels high; it exists when <see cref="Original"/> does.</summary>
     public string Png(int height) => Path.Combine(Folder, $"logo-{height}.png");
@@ -42,9 +56,9 @@ public sealed class CompanyLogo(string folder)
         };
 
         var temporary = Folder + ".new";
-        var old = Folder + ".old";
         try
         {
+            Restore();
             DeleteFolder(temporary);
             Directory.CreateDirectory(temporary);
             File.Copy(source, Path.Combine(temporary, "logo-original" + extension));
@@ -54,13 +68,21 @@ public sealed class CompanyLogo(string folder)
                 using var png = bitmap.Encode(SKEncodedImageFormat.Png, 100);
                 File.WriteAllBytes(Path.Combine(temporary, Path.GetFileName(Png(height))), png.ToArray());
             }
-            DeleteFolder(old);
+            DeleteFolder(Old);
             if (Directory.Exists(Folder))
             {
-                Directory.Move(Folder, old);
+                MoveFolder(Folder, Old);
             }
-            Directory.Move(temporary, Folder);
-            DeleteFolder(old);
+            try
+            {
+                MoveFolder(temporary, Folder);
+            }
+            catch
+            {
+                Restore();
+                throw;
+            }
+            DeleteFolder(Old);
         }
         finally
         {
@@ -68,8 +90,38 @@ public sealed class CompanyLogo(string folder)
         }
     }
 
-    /// <summary>Deletes the logo; no logo is fine.</summary>
-    public void Remove() => DeleteFolder(Folder);
+    /// <summary>Deletes the logo, also one left aside by an interrupted swap; no logo is fine.</summary>
+    public void Remove()
+    {
+        DeleteFolder(Folder);
+        DeleteFolder(Old);
+    }
+
+    // A swap that stopped after the old logo was moved aside: put it back. If that fails, it is tried again next time.
+    private void Restore()
+    {
+        if (Directory.Exists(Folder) || !Directory.Exists(Old))
+        {
+            return;
+        }
+        try
+        {
+            MoveFolder(Old, Folder);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Left as it is: the logo reads as none until a later call manages the move.
+        }
+    }
+
+    // Refused before anything is drawn, so an extreme shape never allocates a huge bitmap.
+    private static void CheckAspectRatio(float width, float height)
+    {
+        if (width > height * MaxAspectRatio || height > width * MaxAspectRatio)
+        {
+            throw new InvalidDataException(Strings.LogoAspectRatio);
+        }
+    }
 
     private static void DeleteFolder(string path)
     {
@@ -86,6 +138,7 @@ public sealed class CompanyLogo(string folder)
         {
             throw new InvalidDataException(Strings.LogoUnreadable);
         }
+        CheckAspectRatio(codec.Info.Width, codec.Info.Height);
         using var bitmap = SKBitmap.Decode(codec, codec.Info.WithAlphaType(SKAlphaType.Premul))
             ?? throw new InvalidDataException(Strings.LogoUnreadable);
         return SKImage.FromBitmap(bitmap);
@@ -116,6 +169,7 @@ public sealed class CompanyLogo(string folder)
         {
             throw new InvalidDataException(Strings.LogoSvgWithoutSize);
         }
+        CheckAspectRatio(bounds.Width, bounds.Height);
         using var bitmap = Transparent(bounds.Width / bounds.Height, Heights[^1] * 2, out var canvas);
         using (canvas)
         {

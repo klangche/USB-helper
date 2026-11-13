@@ -35,6 +35,11 @@
     <AvaloniaResource Include="Assets\usb-helper.ico" />
   </ItemGroup>
 
+  <!-- CompanyLogo.MoveFolder, replaced by a test to make the logo swap fail (#228). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="UsbHelper.App.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\UsbHelper.Core\UsbHelper.Core.csproj" />
     <!-- Plain managed code with P/Invoke: it builds on every system, and only runs when the app picks it on Windows. -->
