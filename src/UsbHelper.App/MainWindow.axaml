@@ -77,14 +77,18 @@
       <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
-      <!-- Company logo and name (#229), only while branding is unlocked. The logo keeps its aspect ratio; the name is
-           trimmed when the window is narrow and shows in full on hover. -->
-      <DockPanel x:Name="Branding" HorizontalAlignment="Right" HorizontalSpacing="8" IsVisible="{Binding ShowsBranding}">
-        <Image x:Name="BrandingLogo" DockPanel.Dock="Left" MaxHeight="32" Stretch="Uniform" VerticalAlignment="Center"
+      <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
+           box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
+           it with its aspect ratio kept. The name is
+           trimmed when the window is narrow, shows in full on hover, and hides below 80 px before anything else shrinks. -->
+      <Panel x:Name="Branding" HorizontalAlignment="Right" ClipToBounds="True" IsVisible="{Binding ShowsBranding}">
+        <Image x:Name="BrandingLogo" Width="96" Height="32" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center"
                IsVisible="{Binding BrandingLogo, Converter={x:Static ObjectConverters.IsNotNull}}" />
-        <TextBlock Text="{Binding BrandingName}" ToolTip.Tip="{Binding BrandingName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                   IsVisible="{Binding BrandingName, Converter={x:Static ObjectConverters.IsNotNull}}" />
-      </DockPanel>
+        <app:HideWhenNarrow MinShownWidth="80" VerticalAlignment="Center"
+                            IsVisible="{Binding BrandingName, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Text="{Binding BrandingName}" ToolTip.Tip="{Binding BrandingName}" TextTrimming="CharacterEllipsis" />
+        </app:HideWhenNarrow>
+      </Panel>
     </DockPanel>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"

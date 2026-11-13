@@ -361,8 +361,8 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>True when the top bar shows the company logo or name (#229): unlocked, and at least one is set.</summary>
     public bool ShowsBranding => Settings.Branding != null;
 
-    /// <summary>The company name in the top bar, or null when branding is locked or has no name.</summary>
-    public string? BrandingName => Settings.Branding?.CompanyName;
+    /// <summary>The company name in the top bar, only when there is no logo: never both. Null when locked or none.</summary>
+    public string? BrandingName => Settings.Branding is { LogoOriginal: null } branding ? branding.CompanyName : null;
 
     /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
     public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
