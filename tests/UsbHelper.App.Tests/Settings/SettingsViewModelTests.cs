@@ -118,6 +118,72 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ACropWindowStartsWithTheWholeImageAndOnlySaveChangesTheLogo()
+    {
+        var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        settings.ImportLogo(TestImages.HalfRed(folder, "previous.png", SKEncodedImageFormat.Png));
+        var before = File.ReadAllBytes(settings.LogoPreview!);
+        var next = TestImages.Blank(folder, "tall.png", 100, 400);
+
+        var crop = settings.StartCrop(next)!;
+
+        Assert.Equal(0.25, crop.Aspect);
+        Assert.Equal(LogoCrop.Contain(100, 400), crop.Crop);
+        Assert.Equal(before, File.ReadAllBytes(settings.LogoPreview!)); // Cancel: nothing changed.
+
+        crop.Zoom = 2;
+        settings.ImportLogo(next, crop.Crop);
+
+        Assert.Equal(crop.Crop, new CompanyLogo(Path.Combine(folder, "USB-helper", "branding")).Crop);
+        Assert.NotEqual(before, File.ReadAllBytes(settings.LogoPreview!));
+    }
+
+    [Fact]
+    public void LoadGivesALogoFromBeforeTheCropToolItsDefaultCrop()
+    {
+        SettingsViewModel.Load(new SettingsFile(FilePath), log).ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png));
+        var stored = Path.Combine(folder, "USB-helper", "branding");
+        File.Delete(Path.Combine(stored, "crop.json"));
+
+        SettingsViewModel.Load(new SettingsFile(FilePath), log);
+
+        Assert.Equal(LogoCrop.Contain(2, 1), new CompanyLogo(stored).Crop);
+    }
+
+    [Fact]
+    public void AnImageThatCannotBeUsedOpensNoCropWindowAndSaysWhy()
+    {
+        var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        var text = Path.Combine(folder, "text.png");
+        File.WriteAllText(text, "not an image");
+
+        Assert.Null(settings.StartCrop(text));
+        Assert.False(string.IsNullOrEmpty(settings.LogoMessage));
+    }
+
+    [Fact]
+    public void AdjustCropReopensTheSavedCropAndSavesANewOne()
+    {
+        var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
+        Assert.Null(settings.AdjustCrop()); // No logo, nothing to adjust.
+        var saved = new LogoCrop(0.25, 0.5, 2);
+        settings.ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png), saved);
+
+        var crop = settings.AdjustCrop()!;
+
+        Assert.Equal(saved, crop.Crop);
+        Assert.Equal(2, crop.Aspect);
+        var changed = new List<string?>();
+        settings.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        crop.Fit();
+        settings.Recrop(crop.Crop);
+
+        Assert.Equal(LogoCrop.Contain(2, 1), settings.AdjustCrop()!.Crop);
+        Assert.Contains(nameof(SettingsViewModel.LogoPreview), changed);
+    }
+
+    [Fact]
     public void BrandingHoldsTheNameAndTheLogoFilesOrIsNoneWhenEmpty()
     {
         var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
@@ -139,6 +205,11 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(Path.Combine(stored, "logo-original.png"), branding.LogoOriginal);
         Assert.Equal([32, 64, 128, 256, 512], branding.LogoPngs.Keys.Order());
         Assert.Equal(Path.Combine(stored, "logo-512.png"), branding.LogoPngs[512]);
+        Assert.Null(branding.LogoSvg);
+
+        File.WriteAllText(Path.Combine(folder, "logo.svg"), """<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10" />""");
+        settings.ImportLogo(Path.Combine(folder, "logo.svg"));
+        Assert.Equal(Path.Combine(stored, "logo.svg"), settings.Branding!.LogoSvg);
 
         settings.RemoveLogo();
         Assert.Null(settings.Branding);
