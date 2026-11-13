@@ -433,7 +433,7 @@ public sealed class NodeViewModel : ObservableObject
     // The Displays group or a monitor item: kept after the USB children.
     private bool IsMonitorItem => Id == DisplaysId || Id.StartsWith(MonitorPrefix, StringComparison.Ordinal);
 
-    private static string OutputText(MonitorOutput output) => output switch
+    internal static string OutputText(MonitorOutput output) => output switch
     {
         MonitorOutput.Internal => Strings.OutputInternal,
         MonitorOutput.Hdmi => Strings.OutputHdmi,
