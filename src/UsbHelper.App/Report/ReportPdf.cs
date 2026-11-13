@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml;
 using SkiaSharp;
 using Svg.Skia;
 using UsbHelper.App.Resources;
@@ -93,11 +94,12 @@ public static class ReportPdf
     internal static void Heading(ReportLayout layout, string text, float next)
     {
         const float height = 30;
+        // The space first: it is dropped at the top of a page, and counts when the heading stays on this one.
+        layout.Space(26);
         if (!layout.Fits(height + next))
         {
             layout.NewPage();
         }
-        layout.Space(26);
         layout.Place(height, (canvas, top) =>
         {
             Section.Draw(canvas, text, ReportLayout.Left, top + 12);
@@ -208,7 +210,8 @@ public static class ReportPdf
 
     private static void Checks(ReportLayout layout, ReportModel model)
     {
-        Heading(layout, Strings.ReportChecks, 40 + 5 * TableRow);
+        const float profileBlock = 26 + 5 * TableRow;
+        Heading(layout, Strings.ReportChecks, profileBlock);
         var check = ReportLayout.X(1);
         var limit = ReportLayout.X(6) + ReportLayout.Span(1);
         var measured = ReportLayout.X(8) + ReportLayout.Span(1);
@@ -221,7 +224,7 @@ public static class ReportPdf
                 layout.Space(18);
             }
             first = false;
-            if (!layout.Fits(26 + 5 * TableRow))
+            if (!layout.Fits(profileBlock))
             {
                 layout.NewPage();
             }
@@ -298,7 +301,6 @@ public static class ReportPdf
 
     private static void Findings(ReportLayout layout, ReportModel model)
     {
-        Heading(layout, Strings.ReportFindings, 60);
         var subject = ReportLayout.X(1);
         var message = ReportLayout.X(5);
         var groups = new[]
@@ -308,20 +310,32 @@ public static class ReportPdf
             (FactKind.PredictedRisk, Strings.ReportRisks),
             (FactKind.Unknown, Strings.ReportUnknowns),
         };
+        const float groupHeading = 22;
+        const float none = BodyLine + 10;
+        var items = model.Findings.Select(finding =>
+        {
+            var subjectLines = Strong.Wrap(finding.Subject, ReportLayout.Span(4));
+            var messageLines = Body.Wrap(finding.Message, ReportLayout.Span(8));
+            var lines = Math.Max(subjectLines.Count + (finding.Profile == null ? 0 : 1), messageLines.Count);
+            return (Finding: finding, SubjectLines: subjectLines, MessageLines: messageLines, Height: lines * BodyLine + 11);
+        }).ToList();
+        // A group's heading with its first item, or with "None".
+        float Opening(FactKind kind) => groupHeading + items.Where(item => item.Finding.Kind == kind).Select(item => item.Height).DefaultIfEmpty(none).First();
+        Heading(layout, Strings.ReportFindings, Opening(groups[0].Item1));
         var first = true;
         foreach (var (kind, title) in groups)
         {
-            var findings = model.Findings.Where(finding => finding.Kind == kind).ToList();
+            var findings = items.Where(item => item.Finding.Kind == kind).ToList();
             if (!first)
             {
                 layout.Space(12);
             }
             first = false;
-            if (!layout.Fits(22 + 2 * BodyLine + 10))
+            if (!layout.Fits(Opening(kind)))
             {
                 layout.NewPage();
             }
-            layout.Place(22, (canvas, top) =>
+            layout.Place(groupHeading, (canvas, top) =>
             {
                 var width = Strong.Draw(canvas, title, subject, top + 12);
                 if (findings.Count > 0)
@@ -332,15 +346,11 @@ public static class ReportPdf
             });
             if (findings.Count == 0)
             {
-                layout.Place(BodyLine + 10, (canvas, top) => Body.With(Muted).Draw(canvas, Strings.ReportNone, subject, top + 14));
+                layout.Place(none, (canvas, top) => Body.With(Muted).Draw(canvas, Strings.ReportNone, subject, top + 14));
                 continue;
             }
-            foreach (var finding in findings)
+            foreach (var (finding, subjectLines, messageLines, height) in findings)
             {
-                var subjectLines = Strong.Wrap(finding.Subject, ReportLayout.Span(4));
-                var messageLines = Body.Wrap(finding.Message, ReportLayout.Span(8));
-                var lines = Math.Max(subjectLines.Count + (finding.Profile == null ? 0 : 1), messageLines.Count);
-                var height = lines * BodyLine + 11;
                 layout.Place(height, (canvas, top) =>
                 {
                     var y = top + 14;
@@ -371,10 +381,6 @@ public static class ReportPdf
         float[] fields = [34, 46, 34];
         var notes = 22 + fields.Sum() + 3 * 12 + 34;
         var height = notes + 4 * 24 + 4;
-        if (!layout.Fits(26 + height))
-        {
-            layout.NewPage();
-        }
         Heading(layout, Strings.ReportSignOff, height);
         layout.Place(height, (canvas, top) =>
         {
@@ -426,16 +432,29 @@ public static class ReportPdf
             this.image = image;
         }
 
+        /// <summary>The logo, or null when the file is missing, cannot be read or parsed, or has no size: the report then has no logo.</summary>
         public static Logo? Load(string path)
         {
-            if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                var svg = new SKSvg();
-                svg.Load(path);
-                return svg.Picture == null ? null : new Logo(svg, null);
+                if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
+                {
+                    var svg = new SKSvg();
+                    svg.Load(path);
+                    if (svg.Picture is { CullRect: { Width: > 0, Height: > 0 } })
+                    {
+                        return new Logo(svg, null);
+                    }
+                    svg.Dispose();
+                    return null;
+                }
+                var image = SKImage.FromEncodedData(path);
+                return image == null ? null : new Logo(null, image);
             }
-            var image = SKImage.FromEncodedData(path);
-            return image == null ? null : new Logo(null, image);
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or XmlException or ArgumentException)
+            {
+                return null;
+            }
         }
 
         public void Draw(SKCanvas canvas, float x, float y, float maxWidth)

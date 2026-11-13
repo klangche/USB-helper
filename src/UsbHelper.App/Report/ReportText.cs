@@ -30,7 +30,8 @@ internal sealed class ReportFace
     private ReportFace(string file)
     {
         var bytes = Read(file);
-        Typeface = SKTypeface.FromData(SKData.CreateCopy(bytes));
+        using var fontData = SKData.CreateCopy(bytes);
+        Typeface = SKTypeface.FromData(fontData);
         // Native memory, not Blob.FromStream: that one points HarfBuzz at a managed array the garbage collector can move.
         // Kept for the process's lifetime with the shaper, which reads the font data from it.
         var data = Marshal.AllocHGlobal(bytes.Length);

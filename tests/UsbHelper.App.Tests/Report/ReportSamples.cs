@@ -1,3 +1,5 @@
+using SkiaSharp;
+using Svg.Skia;
 using UsbHelper.App.Report;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -24,6 +26,32 @@ internal static class ReportSamples
     {
         var path = Path.Combine(Directory.CreateTempSubdirectory("usb-helper-report-").FullName, "logo.svg");
         File.WriteAllText(path, LogoSvg);
+        return path;
+    }
+
+    /// <summary>The sample logo as a PNG with a transparent background, 512 pixels high.</summary>
+    public static string WritePngLogo()
+    {
+        using var svg = new SKSvg();
+        svg.FromSvg(LogoSvg);
+        using var bitmap = new SKBitmap(new SKImageInfo(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using (var canvas = new SKCanvas(bitmap))
+        {
+            canvas.Clear(SKColors.Transparent);
+            canvas.Scale(512 / svg.Picture!.CullRect.Width);
+            canvas.DrawPicture(svg.Picture);
+        }
+        var path = Path.Combine(Directory.CreateTempSubdirectory("usb-helper-report-").FullName, "logo-512.png");
+        using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(path, data.ToArray());
+        return path;
+    }
+
+    /// <summary>A file with <paramref name="content"/> under <paramref name="name"/>, for logos that cannot be read.</summary>
+    public static string WriteFile(string name, string content)
+    {
+        var path = Path.Combine(Directory.CreateTempSubdirectory("usb-helper-report-").FullName, name);
+        File.WriteAllText(path, content);
         return path;
     }
 
@@ -117,5 +145,18 @@ internal static class ReportSamples
             }
         }
         return Full(logoPath) with { Tree = rows, Counts = new ReportCounts(20, 20, 0, 3, 1, false, 1) };
+    }
+
+    /// <summary>The full report with a tree of <paramref name="devices"/> devices straight on the root hub: one row each.</summary>
+    public static ReportModel Sized(int devices)
+    {
+        var rows = new List<ReportRow>
+        {
+            Row(0, [], true, "Dell Inc. Latitude 7450"),
+            Row(1, [], true, "USB controller"),
+            Row(2, [false], true, "USB Root Hub (USB 3.0)"),
+        };
+        rows.AddRange(Enumerable.Range(1, devices).Select(d => Row(3, [false, false], d == devices, $"Test device {d}", ConnectionStatus.Green)));
+        return Full(null) with { Tree = rows };
     }
 }

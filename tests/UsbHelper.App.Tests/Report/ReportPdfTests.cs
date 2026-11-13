@@ -97,6 +97,49 @@ public class ReportPdfTests
         Assert.Equal("USB setup sign-off - Dell Inc. Latitude 7450", document.Information.Title);
     }
 
+    [Theory]
+    [InlineData("missing.svg", null)]
+    [InlineData("corrupt.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect")]
+    [InlineData("empty.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"0\" height=\"0\"/>")]
+    [InlineData("corrupt.png", "not a png")]
+    [InlineData("missing.png", null)]
+    public void A_logo_that_cannot_be_read_gives_a_report_without_logo(string name, string? content)
+    {
+        var path = ReportSamples.WriteFile(name, content ?? "");
+        if (content == null)
+        {
+            File.Delete(path);
+        }
+
+        var pages = PageTexts(Pdf(ReportSamples.Full(path)));
+
+        Assert.Contains(ReportSamples.Company, pages[0]);
+    }
+
+    // A section or findings group heading never ends a page, and the sign-off heading stays with its block, whatever
+    // the tree's length.
+    [Fact]
+    public void Headings_stay_with_what_follows_them()
+    {
+        string[] groups = ["Detected facts", "Verified database facts", "Predicted risks", "Unknowns"];
+        for (var devices = 1; devices <= 120; devices++)
+        {
+            using var document = PdfDocument.Open(Pdf(ReportSamples.Sized(devices)));
+            foreach (var page in document.GetPages())
+            {
+                // The lowest line above the footer.
+                var letters = page.Letters.Where(letter => letter.Location.Y > 45).ToList();
+                var lowest = letters.Min(letter => letter.Location.Y);
+                var last = letters.Where(letter => Math.Abs(letter.Location.Y - lowest) < 1).ToList();
+                var text = string.Concat(last.OrderBy(letter => letter.Location.X).Select(letter => letter.Value));
+                Assert.False(last.All(letter => letter.PointSize > 10.5 && letter.PointSize < 11.5), $"{devices} devices: heading \"{text}\" ends page {page.Number}");
+                Assert.DoesNotContain(text, groups);
+            }
+            var signOff = document.GetPages().Single(page => page.Text.Contains("Sign-off"));
+            Assert.Contains("Installed / checked by", ContentOrderTextExtractor.GetText(signOff));
+        }
+    }
+
     // The sample PDFs for the owner's review of the look; CI uploads them as an artifact.
     [Fact]
     public void Writes_the_sample_reports()
@@ -109,12 +152,13 @@ public class ReportPdfTests
             ("no-room", ReportSamples.NoRoom(logo)),
             ("no-branding", ReportSamples.NoBranding()),
             ("long-tree", ReportSamples.LongTree(logo)),
+            ("png-logo", ReportSamples.Full(ReportSamples.WritePngLogo())),
         })
         {
             File.WriteAllBytes(Path.Combine(folder, $"{name}.pdf"), Pdf(model));
         }
 
-        Assert.Equal(4, Directory.GetFiles(folder, "*.pdf").Length);
+        Assert.Equal(5, Directory.GetFiles(folder, "*.pdf").Length);
     }
 
     private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);

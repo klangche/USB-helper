@@ -356,7 +356,7 @@ public sealed class MainViewModel : ObservableObject
         var perBus = TopologyCounts.PerBus(tree, extraHops);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
         IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
-        var profiles = reports.Select((result, i) => new ReportProfile(setup.Results[i].Label, result.Overall,
+        var profiles = reports.Select((result, i) => new ReportProfile(setup.Results[i].Profile == null ? Strings.ReportNoProfile : setup.Results[i].Label, result.Overall,
             [
                 new ReportCheck(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, result.Hubs.State),
                 new ReportCheck(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, result.Tiers.State),
