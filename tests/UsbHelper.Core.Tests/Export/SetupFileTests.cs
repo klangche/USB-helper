@@ -152,7 +152,24 @@ public class SetupFileTests
     [Fact]
     public void AnOldFileWithoutCompanyRoomOrEmailStillLoads()
     {
-        var read = SetupFile.FromJson(Minimal().ToJson());
+        // As written before #230.
+        const string json = """
+            {
+              "format_version": 1,
+              "app_version": "0.8.0",
+              "date": "2026-11-03",
+              "computer": {
+                "manufacturer": "Dell Inc.",
+                "model": "Latitude 7450"
+              },
+              "checked_profiles": [],
+              "controllers": [],
+              "marks": {},
+              "results": []
+            }
+            """;
+
+        var read = SetupFile.FromJson(json);
 
         Assert.Equal((null, null, null), (read.CompanyName, read.RoomName, read.LicensedTo));
         Assert.Equal("Latitude 7450", read.Computer.Model);

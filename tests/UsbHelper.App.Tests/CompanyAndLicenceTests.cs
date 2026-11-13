@@ -71,6 +71,19 @@ public class CompanyAndLicenceTests
     }
 
     [Fact]
+    public void ASavedLicenceIsLoggedAtStart()
+    {
+        var startLog = new EventLog();
+        var saved = new SettingsViewModel();
+        saved.Licence(TestEmail, TestCode);
+
+        _ = new MainViewModel(new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: startLog, settings: saved,
+            entitlements: new CodeEntitlements(TestKeys, saved, startLog));
+
+        Assert.Contains(startLog.Entries, entry => entry.Text == $"Licensed to: {TestEmail}");
+    }
+
+    [Fact]
     public void TheSetupExportHoldsCompanyRoomAndEmail()
     {
         Unlock();

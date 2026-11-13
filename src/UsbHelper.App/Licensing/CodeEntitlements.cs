@@ -30,7 +30,7 @@ public sealed class CodeEntitlements : IEntitlements
         if (settings.LicenceEmail is { } email && settings.LicenceCode is { } code)
         {
             features = UnlockCode.Verify(keys, email, code) ?? 0;
-            // The email stays out of the log, which users share.
+            // This start message leaves the email out; MainViewModel logs the licensed email separately (#230).
             log.Add(features != 0 ? "Extra features unlocked by the saved unlock code" : "The saved unlock code does not match its email in this build; extra features locked");
         }
     }
