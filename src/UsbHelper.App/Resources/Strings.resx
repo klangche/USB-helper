@@ -435,6 +435,27 @@ This version keeps running.</value>
   <data name="SettingsChooseLogo" xml:space="preserve">
     <value>Choose image...</value>
   </data>
+  <data name="SettingsAdjustCrop" xml:space="preserve">
+    <value>Adjust crop...</value>
+  </data>
+  <data name="LogoCropTitle" xml:space="preserve">
+    <value>Crop the logo</value>
+  </data>
+  <data name="LogoCropHint" xml:space="preserve">
+    <value>Every logo is 3 times wider than high. Drag the image to move it, and zoom with the slider or the mouse wheel. Only what is inside the frame is kept; empty parts of the frame stay transparent.</value>
+  </data>
+  <data name="LogoCropZoom" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="LogoCropFit" xml:space="preserve">
+    <value>Fit whole image</value>
+  </data>
+  <data name="LogoCropSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="LogoCropCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="SettingsRemoveLogo" xml:space="preserve">
     <value>Remove</value>
   </data>
@@ -450,8 +471,8 @@ This version keeps running.</value>
   <data name="LogoSvgWithoutSize" xml:space="preserve">
     <value>This SVG has no width and height and no viewBox, so its size is unknown. The logo was not changed.</value>
   </data>
-  <data name="LogoAspectRatio" xml:space="preserve">
-    <value>This image is more than 8 times wider than high, or higher than wide. Crop it and try again. The logo was not changed.</value>
+  <data name="LogoTooLarge" xml:space="preserve">
+    <value>This image has more than 50 megapixels. Make it smaller and try again. The logo was not changed.</value>
   </data>
   <data name="LogoNotSaved" xml:space="preserve">
     <value>The logo could not be saved: {0}</value>

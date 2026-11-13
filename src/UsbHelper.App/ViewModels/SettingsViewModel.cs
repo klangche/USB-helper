@@ -108,8 +108,40 @@ public sealed class SettingsViewModel : ObservableObject
         private set => SetField(ref logoMessage, value);
     }
 
-    /// <summary>Makes <paramref name="path"/> the logo; a refused or failed import keeps the old one and says why.</summary>
-    public void ImportLogo(string path) => ChangeLogo(() => logo?.Import(path));
+    /// <summary>
+    /// Makes <paramref name="path"/> the logo, cropped as <paramref name="crop"/> says or else the whole image; a refused
+    /// or failed import keeps the old one and says why.
+    /// </summary>
+    public void ImportLogo(string path, LogoCrop? crop = null) => ChangeLogo(() => logo?.Import(path, crop));
+
+    /// <summary>The crop window for a new image, starting with the whole image; null, and a message, when it cannot be used.</summary>
+    public LogoCropViewModel? StartCrop(string path)
+    {
+        try
+        {
+            var (png, aspect) = CompanyLogo.Preview(path);
+            LogoMessage = null;
+            return new LogoCropViewModel(png, aspect, LogoCrop.Contain(aspect, 1));
+        }
+        catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            LogoMessage = e.Message;
+        }
+        return null;
+    }
+
+    /// <summary>The crop window for the current logo at its saved crop; null when there is no logo or it cannot be read.</summary>
+    public LogoCropViewModel? AdjustCrop()
+    {
+        if (logo?.Original is not { } original || StartCrop(original) is not { } crop)
+        {
+            return null;
+        }
+        return logo.Crop is { } saved ? new LogoCropViewModel(crop.Png, crop.Aspect, saved) : crop;
+    }
+
+    /// <summary>Crops the current logo again; a failed write keeps the old one and says why.</summary>
+    public void Recrop(LogoCrop crop) => ChangeLogo(() => logo?.Recrop(crop));
 
     public void RemoveLogo() => ChangeLogo(() => logo?.Remove());
 
