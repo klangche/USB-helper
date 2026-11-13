@@ -34,8 +34,20 @@ public static class ReportPdf
     internal const float BodyLine = 9.5f * 1.35f;
     internal const float TableRow = 17;
 
-    /// <summary>Writes the report for <paramref name="model"/> to <paramref name="output"/> as a PDF.</summary>
+    // One report at a time per process: every report shares the Inter typefaces and their HarfBuzz fonts
+    // (ReportFace), and reports written at the same time on Windows got a corrupt glyph to text mapping (NUL text).
+    private static readonly Lock Gate = new();
+
+    /// <summary>Writes the report for <paramref name="model"/> to <paramref name="output"/> as a PDF; thread-safe.</summary>
     public static void Write(Stream output, ReportModel model)
+    {
+        lock (Gate)
+        {
+            WriteDocument(output, model);
+        }
+    }
+
+    private static void WriteDocument(Stream output, ReportModel model)
     {
         var layout = new ReportLayout();
         // Drawn after the layout, so it lives until the document is written.
