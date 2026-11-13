@@ -426,6 +426,33 @@ This version keeps running.</value>
   <data name="SettingsClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="SettingsCompanyName" xml:space="preserve">
+    <value>Company name</value>
+  </data>
+  <data name="SettingsCompanyLogo" xml:space="preserve">
+    <value>Company logo</value>
+  </data>
+  <data name="SettingsChooseLogo" xml:space="preserve">
+    <value>Choose image...</value>
+  </data>
+  <data name="SettingsRemoveLogo" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="LogoFileType" xml:space="preserve">
+    <value>SVG, PNG or WebP image</value>
+  </data>
+  <data name="LogoWrongType" xml:space="preserve">
+    <value>Only SVG, PNG and WebP images can be used as the logo.</value>
+  </data>
+  <data name="LogoUnreadable" xml:space="preserve">
+    <value>This file could not be read as the image its name says. The logo was not changed.</value>
+  </data>
+  <data name="LogoSvgWithoutSize" xml:space="preserve">
+    <value>This SVG has no width and height and no viewBox, so its size is unknown. The logo was not changed.</value>
+  </data>
+  <data name="LogoNotSaved" xml:space="preserve">
+    <value>The logo could not be saved: {0}</value>
+  </data>
   <data name="UpdateTitle" xml:space="preserve">
     <value>USB-helper update</value>
   </data>

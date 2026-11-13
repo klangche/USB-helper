@@ -22,6 +22,9 @@ public sealed record AppSettings
 
     /// <summary>Computer profile ids, as <see cref="CheckedOperatingSystems"/>.</summary>
     public IReadOnlyList<string> CheckedComputers { get; set; } = [];
+
+    /// <summary>Shown on reports (#228); trimmed, and empty means none.</summary>
+    public string CompanyName { get; set; } = "";
 }
 
 // Compiled serializer: camelCase names, indented so the file can be read by hand.
