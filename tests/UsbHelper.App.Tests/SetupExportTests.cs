@@ -38,21 +38,23 @@ public class SetupExportTests
         new(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
             new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log);
 
-    // The known fake setup as the user left it: the computer profile checked and the dock's cable marked.
+    // The known fake setup as the user left it: the computer profile checked, the dock's cable marked and a room entered.
     private static MainViewModel KnownSetup(EventLog? log = null)
     {
         var viewModel = NewViewModel(log);
+        viewModel.RoomName = "Room 4.12";
         viewModel.Load(Desk());
         viewModel.Computers.Single().IsChecked = true;
         All(viewModel.Roots).Single(item => item.Id == "DOCK").ExtraHops = 1;
         return viewModel;
     }
 
-    // Loads a setup.json as a fake detector would deliver it, with the same profiles checked and the same marks.
+    // Loads a setup.json as a fake detector would deliver it, with the same profiles checked, the same marks and room.
     private static MainViewModel LoadSetup(SetupFile setup)
     {
         var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [], setup.Computer,
             () => setup.Displays);
+        viewModel.RoomName = setup.RoomName ?? "";
         viewModel.Load(setup.Controllers);
         foreach (var option in viewModel.OperatingSystems.Concat(viewModel.Computers))
         {
@@ -90,7 +92,7 @@ public class SetupExportTests
         var files = Export(viewModel);
 
         Assert.Equal(["setup.json", "tree.txt", "screenshot.png", "log.txt"], files.Keys);
-        Assert.Equal(TreeText.Render(viewModel.Roots[0]), Text(files["tree.txt"]));
+        Assert.Equal(TreeText.Render(viewModel.Roots[0], null, "Room 4.12", null), Text(files["tree.txt"]));
         Assert.Equal(Png, files["screenshot.png"]);
         Assert.Contains("Tree:", Text(files["log.txt"]));
         Assert.Contains(log.Entries, entry => entry.Text == "Setup exported");
@@ -172,7 +174,7 @@ public class SetupExportTests
 
         var viewModel = LoadSetup(setup);
 
-        Assert.Equal(Golden("golden-tree.txt"), Normalize(TreeText.Render(viewModel.Roots[0])));
+        Assert.Equal(Golden("golden-tree.txt"), Normalize(TreeText.Render(viewModel.Roots[0], setup.CompanyName, setup.RoomName, setup.LicensedTo)));
     }
 
     [Fact]

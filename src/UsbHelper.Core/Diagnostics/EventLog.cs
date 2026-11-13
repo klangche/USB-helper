@@ -28,6 +28,9 @@ public sealed class EventLog(TimeProvider? clock = null)
     private bool displaysLogged;
     // The monitors shown under a USB node at the last call to DisplayLinks: the node id by monitor id.
     private Dictionary<string, string> links = [];
+    // The company name and licensed email set now (#230); they head the export and survive Clear.
+    private string? companyName;
+    private string? licensedTo;
 
     public IReadOnlyList<LogEntry> Entries => entries;
 
@@ -223,10 +226,42 @@ public sealed class EventLog(TimeProvider? clock = null)
         findings = [.. texts];
     }
 
-    /// <summary>The whole log as plain text, one line per entry.</summary>
+    /// <summary>
+    /// The company name and the licensed email (#230), each null when not set: logged when they change, and the head of
+    /// <see cref="Export"/>. Call at start and on every change.
+    /// </summary>
+    public void CompanyAndLicence(string? companyName, string? licensedTo)
+    {
+        if (companyName != this.companyName)
+        {
+            Add($"Company: {companyName ?? "none"}");
+        }
+        if (licensedTo != this.licensedTo)
+        {
+            Add($"Licensed to: {licensedTo ?? "none"}");
+        }
+        this.companyName = companyName;
+        this.licensedTo = licensedTo;
+    }
+
+    /// <summary>
+    /// The whole log as plain text, one line per entry, after the company and the licensed email when they are set.
+    /// </summary>
     public string Export()
     {
         var text = new StringBuilder();
+        if (companyName != null)
+        {
+            text.AppendLine($"Company: {companyName}");
+        }
+        if (licensedTo != null)
+        {
+            text.AppendLine($"Licensed to: {licensedTo}");
+        }
+        if (text.Length > 0)
+        {
+            text.AppendLine();
+        }
         foreach (var entry in entries)
         {
             text.AppendLine(entry.ToString());

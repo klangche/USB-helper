@@ -20,7 +20,11 @@ public partial class SettingsWindow : Window
             Watch(DataContext as SettingsViewModel);
             ShowLogo();
         };
-        Closed += (_, _) => Watch(null);
+        Closed += (_, _) =>
+        {
+            Watch(null);
+            ShowLogo(); // No view model watched: disposes the bitmap.
+        };
     }
 
     // Follows the logo of one view model at a time.
@@ -48,9 +52,10 @@ public partial class SettingsWindow : Window
     }
 
     // Read into memory, so the file is not held open and the next import can replace it. A file that cannot be read
-    // shows no preview.
+    // shows no preview. The previous bitmap is disposed.
     private void ShowLogo()
     {
+        (LogoImage.Source as Bitmap)?.Dispose();
         LogoImage.Source = null;
         if (watched?.LogoPreview is not { } path)
         {
@@ -74,11 +79,22 @@ public partial class SettingsWindow : Window
             FileTypeFilter = [new FilePickerFileType(Strings.LogoFileType) { Patterns = ["*.svg", "*.png", "*.webp", "*.SVG", "*.PNG", "*.WEBP"] }],
         });
         var path = files.Count == 0 ? null : files[0].TryGetLocalPath();
-        if (path != null)
+        // Cancel in the crop window keeps the previous logo (#241).
+        if (path != null && Settings.StartCrop(path) is { } crop && await Crop(crop))
         {
-            Settings.ImportLogo(path);
+            Settings.ImportLogo(path, crop.Crop);
         }
     }
+
+    private async void AdjustCrop(object? sender, RoutedEventArgs e)
+    {
+        if (Settings.AdjustCrop() is { } crop && await Crop(crop))
+        {
+            Settings.Recrop(crop.Crop);
+        }
+    }
+
+    private Task<bool> Crop(LogoCropViewModel crop) => new LogoCropWindow { DataContext = crop }.ShowDialog<bool>(this);
 
     private void RemoveLogo(object? sender, RoutedEventArgs e) => Settings.RemoveLogo();
 
