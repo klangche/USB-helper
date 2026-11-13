@@ -177,8 +177,11 @@ Press Alt, or Alt with the underlined letter (for example Alt+F for File), to
 use the menu from the keyboard. Check for updates runs the update check again
 (see [Updates](install.md#updates)) and also says when the running version is up to date or the
 check failed; it is greyed out where the app has no update check (outside
-Windows). About shows the running version, the license, the icon's attribution
-and a link to this repository.
+Windows). About shows the running version, the license, the icon's attribution,
+a note on known quirks and a link to this repository. One quirk: the tree
+shows the names devices give themselves, and many USB 3 hubs call their USB 2
+half "USB2.1 Hub". There is no USB 2.1; it is a USB 2.0 hub with extra power
+saving.
 
 ## Settings
 

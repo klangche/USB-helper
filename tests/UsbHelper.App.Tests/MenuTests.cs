@@ -241,6 +241,7 @@ public class MenuTests
         Assert.Contains("MIT", about.License);
         Assert.Contains("Font Awesome", about.IconAttribution);
         Assert.Contains("CC BY 4.0", about.IconAttribution);
+        Assert.Contains("There is no USB 2.1", about.Quirks);
         Assert.Equal(new Uri("https://github.com/klangche/USB-helper"), about.Repository);
     }
 

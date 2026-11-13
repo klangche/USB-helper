@@ -402,6 +402,9 @@ This version keeps running.</value>
   <data name="AboutIconAttribution" xml:space="preserve">
     <value>The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc., licensed under CC BY 4.0. Changed: square view box and drawn white. USB is a trademark of its owner; the icon stands for USB connections, and no endorsement is implied.</value>
   </data>
+  <data name="AboutQuirks" xml:space="preserve">
+    <value>Quirk: the tree shows the names devices give themselves. A USB 3 hub is two hubs, one on each bus, and many hub chips call their USB 2 half "USB2.1 Hub" and their USB 3 half "USB3.1 Hub" or "USB3.2 Hub". There is no USB 2.1: the "2.1" means a USB 2.0 hub with extra power saving.</value>
+  </data>
   <data name="AboutClose" xml:space="preserve">
     <value>Close</value>
   </data>

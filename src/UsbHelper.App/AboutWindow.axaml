@@ -21,6 +21,7 @@
     </StackPanel>
     <TextBlock Text="{Binding License}" TextWrapping="Wrap" />
     <TextBlock Text="{Binding IconAttribution}" TextWrapping="Wrap" Opacity="0.8" />
+    <TextBlock Text="{Binding Quirks}" TextWrapping="Wrap" Opacity="0.8" />
     <HyperlinkButton Content="{Binding Repository}" NavigateUri="{Binding Repository}" Padding="0" />
     <Button Content="{x:Static res:Strings.AboutClose}" HorizontalAlignment="Right" IsDefault="True" IsCancel="True" Click="CloseWindow" />
   </StackPanel>
