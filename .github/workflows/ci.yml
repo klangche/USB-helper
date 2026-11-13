@@ -6,6 +6,11 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # Unlock code secrets (#234): the GenerateLicenceKeys target builds them into the app. Empty when not set, and in
+    # pull requests from forks.
+    env:
+      USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
+      USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
     steps:
       - uses: actions/checkout@v7
 

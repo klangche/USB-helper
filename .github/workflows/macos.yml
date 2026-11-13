@@ -17,6 +17,11 @@ permissions:
 jobs:
   macos:
     runs-on: macos-latest
+    # Unlock code secrets (#234): the GenerateLicenceKeys target builds them into the app. Empty when not set, and in
+    # pull requests from forks.
+    env:
+      USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
+      USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
     steps:
       - uses: actions/checkout@v7
 
@@ -104,6 +109,10 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+    # Unlock code secrets (#234), as in the macos job.
+    env:
+      USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
+      USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
     steps:
       # The tag's commit: the pushed commit on a push, the given tag when run by hand.
       - uses: actions/checkout@v7
