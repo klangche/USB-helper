@@ -34,7 +34,8 @@
       </MenuItem>
     </Menu>
 
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="12">
+    <!-- The top bar: the buttons from the left, the company branding (#229) in what is left at the right end. -->
+    <DockPanel DockPanel.Dock="Top" HorizontalSpacing="8" Margin="12">
       <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
       <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
         <DropDownButton.Flyout>
@@ -76,7 +77,15 @@
       <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
-    </StackPanel>
+      <!-- Company logo and name (#229), only while branding is unlocked. The logo keeps its aspect ratio; the name is
+           trimmed when the window is narrow and shows in full on hover. -->
+      <DockPanel x:Name="Branding" HorizontalAlignment="Right" HorizontalSpacing="8" IsVisible="{Binding ShowsBranding}">
+        <Image x:Name="BrandingLogo" DockPanel.Dock="Left" MaxHeight="32" Stretch="Uniform" VerticalAlignment="Center"
+               IsVisible="{Binding BrandingLogo, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <TextBlock Text="{Binding BrandingName}" ToolTip.Tip="{Binding BrandingName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                   IsVisible="{Binding BrandingName, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </DockPanel>
+    </DockPanel>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

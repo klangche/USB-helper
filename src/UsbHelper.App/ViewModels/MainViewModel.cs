@@ -106,6 +106,12 @@ public sealed class MainViewModel : ObservableObject
             {
                 KeepCheckedProfiles(); // Turned on: keep what is checked now.
             }
+            if (e.PropertyName is nameof(SettingsViewModel.Branding) or nameof(SettingsViewModel.CompanyName) or nameof(SettingsViewModel.LogoPreview))
+            {
+                OnPropertyChanged(nameof(ShowsBranding));
+                OnPropertyChanged(nameof(BrandingName));
+                OnPropertyChanged(nameof(BrandingLogo)); // Also when a new logo replaced the old one under the same path.
+            }
         };
         this.log = log ?? new EventLog();
         entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
@@ -351,6 +357,15 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>What is unlocked (#234). Every feature check goes through this.</summary>
     public IEntitlements Entitlements { get; }
+
+    /// <summary>True when the top bar shows the company logo or name (#229): unlocked, and at least one is set.</summary>
+    public bool ShowsBranding => Settings.Branding != null;
+
+    /// <summary>The company name in the top bar, or null when branding is locked or has no name.</summary>
+    public string? BrandingName => Settings.Branding?.CompanyName;
+
+    /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
+    public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
 
     /// <summary>The settings window's Support the project section.</summary>
     public UnlockViewModel Unlock { get; }
