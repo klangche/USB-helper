@@ -110,6 +110,7 @@ public sealed class MainViewModel : ObservableObject
         this.log = log ?? new EventLog();
         entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
         Entitlements = entitlements;
+        Settings.Gate(entitlements);
         Unlock = new UnlockViewModel(entitlements);
         Log = new LogViewModel(this.log);
         this.readMonitors = readMonitors ?? (() => null);

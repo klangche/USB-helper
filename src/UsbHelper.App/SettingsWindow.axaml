@@ -13,6 +13,36 @@
     <CheckBox Content="{x:Static res:Strings.SettingsCheckForUpdates}" IsChecked="{Binding CheckForUpdatesAtStart}" />
     <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding OfferBetas}" />
     <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
+
+    <!-- Company branding (#228). The name is saved when the box loses focus, so it is trimmed only once typing is done.
+         Locked until an unlock code gives Pro (#234): shown but disabled, and the stored name and logo are kept. -->
+    <TextBlock Text="{x:Static res:Strings.SettingsCompanyName}" Margin="0,6,0,0" />
+    <TextBlock Text="{x:Static res:Strings.UnlockNeeded}" IsVisible="{Binding !BrandingUnlocked}" Opacity="0.7" />
+    <TextBox Text="{Binding CompanyName, UpdateSourceTrigger=LostFocus}" IsEnabled="{Binding BrandingUnlocked}" />
+    <TextBlock Text="{x:Static res:Strings.SettingsCompanyLogo}" />
+    <StackPanel Orientation="Horizontal" Spacing="10" IsEnabled="{Binding BrandingUnlocked}">
+      <!-- A checkerboard behind the preview, so transparency is visible. -->
+      <Border Width="128" Height="64" BorderBrush="Gray" BorderThickness="1">
+        <Border.Background>
+          <VisualBrush TileMode="Tile" Stretch="None" SourceRect="0,0,16,16" DestinationRect="0,0,16,16">
+            <VisualBrush.Visual>
+              <Canvas Width="16" Height="16" Background="White">
+                <Rectangle Width="8" Height="8" Fill="LightGray" />
+                <Rectangle Canvas.Left="8" Canvas.Top="8" Width="8" Height="8" Fill="LightGray" />
+              </Canvas>
+            </VisualBrush.Visual>
+          </VisualBrush>
+        </Border.Background>
+        <Image x:Name="LogoImage" Stretch="Uniform" Margin="4" />
+      </Border>
+      <StackPanel Spacing="6" VerticalAlignment="Center">
+        <Button Content="{x:Static res:Strings.SettingsChooseLogo}" Click="ChooseLogo" />
+        <Button Content="{x:Static res:Strings.SettingsRemoveLogo}" Click="RemoveLogo" IsEnabled="{Binding LogoPreview, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </StackPanel>
+    </StackPanel>
+    <TextBlock Text="{Binding LogoMessage}" IsVisible="{Binding LogoMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+               TextWrapping="Wrap" Foreground="#C42B1C" />
+
     <TextBlock Text="{x:Static res:Strings.SettingsSavedAt}" TextWrapping="Wrap" Opacity="0.7" />
     <SelectableTextBlock Text="{Binding FilePath}" TextWrapping="Wrap" FontFamily="monospace" Opacity="0.7" />
 

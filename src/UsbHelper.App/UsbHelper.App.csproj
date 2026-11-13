@@ -26,11 +26,18 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <!-- Reads company logos in SVG (#228). -->
+    <PackageReference Include="Svg.Skia" Version="5.1.1" />
   </ItemGroup>
 
   <!-- The icon in the About window. -->
   <ItemGroup>
     <AvaloniaResource Include="Assets\usb-helper.ico" />
+  </ItemGroup>
+
+  <!-- CompanyLogo.MoveFolder, replaced by a test to make the logo swap fail (#228). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="UsbHelper.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,7 @@
 using UsbHelper.App.Licensing;
 using UsbHelper.App.Settings;
 using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
@@ -94,5 +95,22 @@ public sealed class CodeEntitlementsTests : IDisposable
         Assert.Null(entitlements.LicensedTo);
         Assert.Null(File.Load(log).LicenceEmail);
         Assert.Null(File.Load(log).LicenceCode);
+    }
+
+    [Fact]
+    public void TheMainWindowGatesBrandingByTheUnlockCode()
+    {
+        var settings = SettingsViewModel.Load(File, log);
+        var entitlements = new CodeEntitlements(TestKeys, settings, log);
+        _ = new MainViewModel(new ComputerIdentity(null, null), log: log, settings: settings, entitlements: entitlements);
+        settings.CompanyName = "Acme AB";
+        Assert.Null(settings.Branding);
+
+        entitlements.Unlock(TestEmail, TestCode);
+        Assert.Equal("Acme AB", settings.Branding!.CompanyName);
+
+        entitlements.Remove();
+        Assert.Null(settings.Branding);
+        Assert.Equal("Acme AB", File.Load(log).CompanyName);
     }
 }
