@@ -120,8 +120,10 @@ main window. The log is kept in memory only and starts empty each time the app
 starts.
 
 To explain a setup to someone, or to report one to the developers, use File >
-Export full setup. It saves one zip with four files,
-`usb-helper-setup-<manufacturer>-<model>-<date>.zip`:
+Export full setup (or "Export" in the top bar). Type a name in the "Room or
+system name" box in the top bar first if you like; it is not saved between
+runs. The export saves one zip, `usb-helper_<room>_<date>_<time>.zip`
+(without the room when none is entered), with these files:
 
 - `setup.json`: everything the app detected and found, with a `format_version`:
   the app version, the computer (manufacturer, model, processor, platform
@@ -132,6 +134,14 @@ Export full setup. It saves one zip with four files,
 - `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
 - `screenshot.png`: the main window as shown.
 - `log.txt`: the log.
+- `report.pdf`: the PDF report (see below), only when unlocked (see
+  [Unlock](#unlock)). If the PDF cannot be made, the zip still holds the other
+  files and the log says why.
+
+When they are set, the company name (only when unlocked), the room and the
+licensed email head `tree.txt` and Edit > Copy tree as text ("Company: ...",
+"Room: ...", "Licensed to: ...") and are in `setup.json`. The log lists the
+company name and the licensed email at the top and each time they change.
 
 The export holds device and monitor names and vendor and product ids, but no
 serial numbers: the Windows device paths, which can hold them, are replaced by
@@ -144,18 +154,39 @@ name the computer by its network name instead. The developers can load
 `setup.json` in the tests as if the app had detected it, so a reported setup
 becomes a test case.
 
+File > Export PDF saves the "USB setup report" as one PDF,
+`usb-helper_<room>_<date>_<time>.pdf`. It needs the unlock and a room name;
+until then the menu item is greyed out and its tooltip says why ("Enter a code
+to unlock PDF reports", "Enter a room name to export a PDF"). The report covers
+all controllers, in this order:
+
+- **Summary**: the computer, the checked profiles, the overall result and the
+  hub, tier, hop and display counts.
+- **USB tree**: the tree as in the window, with its status colours.
+- **Results**: each checked profile with its result, then each check that is
+  not stable with its measured value, limit, result and the profiles it
+  applies to. Limits that are not in the database are listed in grey.
+- **Displays**: each monitor, its output type and the USB device it is
+  connected to.
+- **Findings**: one short line each, grouped as detected facts, verified
+  database facts, predicted risks and unknowns.
+
+The top of the first page has the company logo, or the company name when there
+is no logo, then the room, the date, the app version and "Licensed to
+<email>".
+
 No profile for your computer yet? Click "Export computer profile" (or File >
 Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
 holds what the app detected: the manufacturer and model exactly as Windows
 reports them, the processor, the matching platform profile, the USB
 controllers with their root hub ports, and the number of active external
 displays. It sets no limits, so it uses the platform profile's, and the status
-is `unverified`. Send the file to the developers; they add model-specific
-limits from cited sources.
+is `unverified`. It never holds the company name, room or licensed email. Send
+the file to the developers; they add model-specific limits from cited sources.
 
-The menu bar at the top has File (Export computer profile, Export log,
-Export full setup, Settings, Exit), Edit (Copy tree as text) and Help (Check
-for updates, About USB-helper). Copy tree as text puts the tree on the clipboard
+The menu bar at the top has File (Refresh, Export computer profile, Export
+log, Export full setup, Export PDF, Settings, Exit), Edit (Copy tree as text)
+and Help (Check for updates, Unlock, About USB-helper). Copy tree as text puts the tree on the clipboard
 as plain text, the same text the log gets, for pasting into an email:
 
 ```
@@ -183,24 +214,56 @@ shows the names devices give themselves, and many USB 3 hubs call their USB 2
 half "USB2.1 Hub". There is no USB 2.1; it is a USB 2.0 hub with extra power
 saving.
 
+## Unlock
+
+An unlock code adds company branding, the PDF report and beta updates. Codes
+are given out by the project owner, each for one email address.
+
+Click "Unlock..." in the top bar, or Help > Unlock..., enter the email and the
+code and click "Unlock". A code for another email is refused ("This code does
+not match this email"). Once unlocked, the "Unlock..." button is gone and the
+status line at the bottom of the window shows "Unlocked to <email>"; click it
+to open the popup again, where "Remove code" locks the app again. The email and
+code are kept in the settings file (see below) and checked at every start. A
+beta can also be unlocked for everyone; the status line then shows "Unlocked
+(free beta)". A build without codes (for example one built from source) says
+"Unlock codes are not available in this build".
+
 ## Settings
 
 File > Settings opens the settings. Each change is saved at once:
 
 - **Check for updates at start** (on by default): off, the app does not ask
   GitHub after it starts; Help > Check for updates still works.
-- **Offer beta versions** (on by default): off, only stable releases are
-  offered, and a newer beta alone counts as up to date.
+- **Offer beta versions** (on by default, only when unlocked): off, only
+  stable releases are offered, and a newer beta alone counts as up to date.
+  While locked the box is greyed out and unticked and only stable releases are
+  offered; "Enter a code to unlock beta updates" opens the unlock popup. The
+  choice made while unlocked is kept and comes back on unlock.
 - **Remember the checked profiles between starts** (off by default): on, the
   operating systems and computers checked in the two lists are checked again
   at the next start, instead of only the detected platform profile. If
   nothing was checked, the detected platform profile is checked, as without
   the setting. Turning it off forgets them.
+- **Company name** and **Company logo** (only when unlocked): shown in the top
+  bar and on the PDF report; the name is also in the exports. While locked
+  they are greyed out ("Enter a code to unlock" opens the unlock popup), and
+  what was set before is kept. The name is saved when you leave the box.
+  "Choose image..." takes an SVG, PNG or WebP image; transparency is kept, and
+  an SVG stays vector on the PDF. The crop tool then opens with a fixed frame,
+  3 times wider than high: drag the image to move it, zoom with the "Zoom"
+  slider or the mouse wheel, or click "Fit whole image". Only what is inside
+  the frame is kept; parts of the frame outside the image stay transparent.
+  "Save" keeps the crop, "Cancel" keeps the previous logo. "Adjust crop..."
+  opens the crop tool again for the same image, and "Remove" removes the logo.
+  Where an image fits (the top bar, the PDF) the logo is shown, and the company
+  name only when there is no logo; never both.
 
 The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
 roaming app data folder), the same for every copy of the app, so they survive
 updates and moving the app's folder. With a roaming Windows profile they
 also follow the user to other computers, remembered profiles included.
-Without the file the defaults apply. A
+The logo is kept in the `branding` folder next to that file: the original
+image, the crop and the cropped images. Without the file the defaults apply. A
 file that cannot be read is named in the log with the reason, and the
 defaults apply; it is only replaced when a setting is changed.

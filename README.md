@@ -33,8 +33,16 @@ that model's profile from a reviewed, cited hardware database.
   and unknowns are kept apart. Unknown is never replaced by a guess. No
   bandwidth or speed analysis.
 - **Log and exports**: a timed log of every event, the tree as text, and a
-  full setup export (zip with JSON, tree, screenshot and log) without serial
-  numbers.
+  full setup export (zip with JSON, tree, screenshot and log, and
+  `report.pdf` when unlocked) without serial numbers.
+- **Unlock code**: a code from the project owner, for one email address,
+  unlocks company branding, the PDF report and beta updates. Without it the
+  app gets stable releases only.
+- **Company branding** (unlocked): a company name and logo (SVG, PNG or WebP,
+  cropped to 3:1, transparency kept) in the top bar and the PDF report; the
+  name also in the exports.
+- **PDF report** (unlocked): File > Export PDF saves a "USB setup report" for
+  a room: summary, USB tree, results per profile, displays and findings.
 
 ## Platforms
 
