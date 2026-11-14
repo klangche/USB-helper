@@ -32,6 +32,20 @@ delays or fails the Windows release; if that job fails, re-run it. To add the dm
 to an existing release, run that workflow by hand with its tag (for example `v0.7.0`).
 Beta tags never count as a release (`release/last-release.sh`).
 
+Unlock codes (for maintainers). The keys that check unlock codes are Actions
+secrets named `USBH_LICENCE_KEY_<id>` (a base64 32-byte key each; ids 0 to 15
+are read, the workflows pass 0 and 1). The `GenerateLicenceKeys` target in
+`src/UsbHelper.App/UsbHelper.App.csproj` writes them to `LicenceKeys.g.cs` in
+`obj/`, which is never committed; without them no code unlocks. The Actions
+variable `USBH_FREE_UNLOCK` set to `true` unlocks the extra features for
+everyone in that build ("Unlocked (free beta)"). Only the publish steps get
+them: "Publish app" in `release.yml`, and only on a push (a beta from `dev`,
+a release from `main`), and "Publish ARM64 app" and "Publish x64 app" in
+`macos.yml`, in the job that builds the release or beta dmg. Pull request
+builds never get them. A new key id also needs its line in those steps. Codes
+are made in the private keygen repository, never here. Never commit a key or
+a code, and never put one in an issue, pull request or test.
+
 - `src/UsbHelper.Core`: database, detection interface (`IUsbDetector`), and
   later topology and diagnostics. No GUI or operating-system code.
 - `src/UsbHelper.Detection.Windows`: Windows USB detection (SetupAPI and the USB
