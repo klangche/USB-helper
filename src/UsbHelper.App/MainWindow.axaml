@@ -80,27 +80,34 @@
       <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
-      <!-- The unlock popup (#238) at the right end, next to the branding: "Unlock..." while locked, otherwise who it is
-           unlocked to (or the free beta), as a link that opens the popup to view or remove the code. A narrow window trims
-           the text; it shows in full on hover. -->
-      <Panel x:Name="UnlockArea" DockPanel.Dock="Right" VerticalAlignment="Center">
-        <Button Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
-        <HyperlinkButton Command="{Binding UnlockCommand}" IsVisible="{Binding Unlock.FeaturesUnlocked}" ToolTip.Tip="{Binding Unlock.UnlockedText}">
-          <TextBlock Text="{Binding Unlock.UnlockedText}" TextTrimming="CharacterEllipsis" />
-        </HyperlinkButton>
-      </Panel>
-      <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
-           box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
-           it with its aspect ratio kept. The name is
-           trimmed when the window is narrow, shows in full on hover, and hides below 80 px before anything else shrinks. -->
-      <Panel x:Name="Branding" HorizontalAlignment="Right" ClipToBounds="True" IsVisible="{Binding ShowsBranding}">
-        <Image x:Name="BrandingLogo" Width="96" Height="32" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center"
-               IsVisible="{Binding BrandingLogo, Converter={x:Static ObjectConverters.IsNotNull}}" />
-        <app:HideWhenNarrow MinShownWidth="80" VerticalAlignment="Center"
-                            IsVisible="{Binding BrandingName, Converter={x:Static ObjectConverters.IsNotNull}}">
-          <TextBlock Text="{Binding BrandingName}" ToolTip.Tip="{Binding BrandingName}" TextTrimming="CharacterEllipsis" />
-        </app:HideWhenNarrow>
-      </Panel>
+      <!-- The end of the top bar, in what is left of it: the company branding (#229), then the unlock popup (#238).
+           The branding comes first, so it is measured first and keeps its width; the unlock text gets what is left. -->
+      <DockPanel HorizontalAlignment="Right">
+        <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
+             box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
+             it with its aspect ratio kept. The name is
+             trimmed when the window is narrow (after the unlock text, #238), shows in full on hover, and hides below 80 px. -->
+        <Panel x:Name="Branding" HorizontalAlignment="Right" ClipToBounds="True" IsVisible="{Binding ShowsBranding}">
+          <Image x:Name="BrandingLogo" Width="96" Height="32" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center"
+                 IsVisible="{Binding BrandingLogo, Converter={x:Static ObjectConverters.IsNotNull}}" />
+          <app:HideWhenNarrow MinShownWidth="80" VerticalAlignment="Center"
+                              IsVisible="{Binding BrandingName, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding BrandingName}" ToolTip.Tip="{Binding BrandingName}" TextTrimming="CharacterEllipsis" />
+          </app:HideWhenNarrow>
+        </Panel>
+        <!-- "Unlock..." while locked, otherwise who it is unlocked to (or the free beta), as a link that opens the popup to
+             view or remove the code. A narrow window trims the link text by whole words (never to "Unlock...", which reads as
+             the locked button), shows it in full on hover, and hides it as the last resort below 110 px, the room for its gap
+             and "Unlocked...". -->
+        <Panel x:Name="UnlockArea" VerticalAlignment="Center">
+          <Button Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
+          <app:HideWhenNarrow MinShownWidth="110" IsVisible="{Binding Unlock.FeaturesUnlocked}">
+            <HyperlinkButton Command="{Binding UnlockCommand}" ToolTip.Tip="{Binding Unlock.UnlockedText}" Margin="8,0,0,0" Padding="0">
+              <TextBlock Text="{Binding Unlock.UnlockedText}" TextTrimming="WordEllipsis" />
+            </HyperlinkButton>
+          </app:HideWhenNarrow>
+        </Panel>
+      </DockPanel>
     </DockPanel>
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
