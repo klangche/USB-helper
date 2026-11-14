@@ -131,15 +131,29 @@ internal static class ReportSamples
         ]),
     ];
 
+    // As the app writes them: database fields and the profile files they come from, which the report must not show,
+    // and the same risk for two profiles.
     private static IReadOnlyList<ReportFinding> Findings() =>
     [
-        new(FactKind.DetectedFact, null, "Jabra Speak2 75", "Disconnected at 14:02 and reconnected on the same port."),
-        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Computer", "At most 2 external displays on the computer's own outputs (verified)."),
-        new(FactKind.PredictedRisk, "Dell Latitude 7450", "Crestron TSW-1070 touch panel",
-            "Hop depth 3 exceeds the limit of 2 hops; remove a hub or the active cable on this path."),
-        new(FactKind.PredictedRisk, "Dell Latitude 7450", "DisplayLink USB Graphics",
-            "A DisplayLink adapter needs its driver; without it the extended display stays dark."),
-        new(FactKind.Unknown, "Windows on Intel", "Computer", "The hub limit of this platform is unknown."),
+        new(FactKind.DetectedFact, null, "Jabra Speak2 75", "Disconnected and reconnected during this session."),
+        new(FactKind.DetectedFact, null, "Dell Latitude 7450", "1 external displays are active (DisplayLink and wireless displays not counted)."),
+        new(FactKind.DetectedFact, null, "DisplayLink USB Graphics (17E9:6006)",
+            "DisplayLink adapter: its displays use the DisplayLink driver, not the computer's own video outputs."),
+        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "limits.max_hubs = 4 (computers/dell/latitude-7450.yaml)."),
+        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "limits.max_hops = 2 (computers/dell/latitude-7450.yaml)."),
+        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "displays.max_external = 2 (computers/dell/latitude-7450.yaml)."),
+        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Port 1 (left)",
+            "USB: 3.2 Gen 2; Thunderbolt 4; DisplayPort Alt Mode: yes; DisplayLink: yes."),
+        new(FactKind.VerifiedDatabaseFact, "HP EliteBook 840 G10", "HP EliteBook 840 G10", "limits.max_hops = 2 (computers/hp/elitebook-840-g10.yaml)."),
+        new(FactKind.PredictedRisk, "Dell Latitude 7450", "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."),
+        new(FactKind.PredictedRisk, "HP EliteBook 840 G10", "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."),
+        new(FactKind.PredictedRisk, "Windows on Intel", "Crestron TSW-1070 touch panel",
+            "Hop depth 3 exceeds the recommended limits.recommended_hops 2; limits.max_hops is 5."),
+        new(FactKind.Unknown, "Windows on Intel", "Windows on Intel", "limits.max_hubs is unknown (platforms/windows-intel.yaml)."),
+        new(FactKind.Unknown, "macOS on Apple silicon", "macOS on Apple silicon", "limits.max_hubs is unknown (platforms/macos-apple-silicon.yaml)."),
+        new(FactKind.Unknown, "HP EliteBook 840 G10", "Port 2 (right)", "Unknown: DisplayPort Alt Mode, DisplayLink."),
+        new(FactKind.Unknown, "HP EliteBook 840 G10", "HP EliteBook 840 G10",
+            "displays.max_external = 3 comes from an unverified profile (computers/hp/elitebook-840-g10.yaml); it is not confirmed."),
     ];
 
     public static ReportModel Full(string? logoPath) => new(

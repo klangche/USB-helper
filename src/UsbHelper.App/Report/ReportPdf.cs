@@ -11,7 +11,7 @@ namespace UsbHelper.App.Report;
 
 /// <summary>
 /// The PDF sign-off report (#231): an A4 document an installer hands to the customer. All text is real text in the
-/// embedded Inter font; the logo, rules, status marks, tree lines and signature lines are vector. No view code, so it
+/// embedded Inter font; the logo, rules, status marks and tree lines are vector. No view code, so it
 /// runs headless.
 /// </summary>
 public static class ReportPdf
@@ -54,11 +54,10 @@ public static class ReportPdf
         using var logo = model.LogoPath == null ? null : Logo.Load(model.LogoPath);
         Header(layout, model, logo);
         Summary(layout, model);
+        ReportTree.Place(layout, model.Tree);
         Results(layout, model);
         Displays(layout, model);
-        ReportTree.Place(layout, model.Tree);
         Findings(layout, model);
-        SignOff(layout);
 
         var computer = string.Join(" ", new[] { model.Computer.Manufacturer, model.Computer.Model }.OfType<string>());
         var metadata = SKDocumentPdfMetadata.Default;
@@ -103,21 +102,19 @@ public static class ReportPdf
 
     internal static string Capitalized(string word) => word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..];
 
-    // A section heading with a hairline under it, kept with the first <paramref name="next"/> points of its content.
+    internal const float HeadingHeight = 22;
+
+    // A section heading, kept with the first <paramref name="next"/> points of its content. Space separates the
+    // sections, not a rule (#247).
     internal static void Heading(ReportLayout layout, string text, float next)
     {
-        const float height = 30;
         // The space first: it is dropped at the top of a page, and counts when the heading stays on this one.
-        layout.Space(26);
-        if (!layout.Fits(height + next))
+        layout.Space(22);
+        if (!layout.Fits(HeadingHeight + next))
         {
             layout.NewPage();
         }
-        layout.Place(height, (canvas, top) =>
-        {
-            Section.Draw(canvas, text, ReportLayout.Left, top + 12);
-            Hairline(canvas, top + 20);
-        });
+        layout.Place(HeadingHeight, (canvas, top) => Section.Draw(canvas, text, ReportLayout.Left, top + 11));
     }
 
     // The logo, or the company name where there is none (#232): never both.
@@ -209,7 +206,6 @@ public static class ReportPdf
         layout.Space(4);
         layout.Place(60, (canvas, top) =>
         {
-            Hairline(canvas, top);
             for (var i = 0; i < figures.Length; i++)
             {
                 var x = ReportLayout.X(1 + i * 3);
@@ -250,7 +246,9 @@ public static class ReportPdf
         var limit = ReportLayout.X(5) + ReportLayout.Span(1);
         var result = ReportLayout.X(7);
         var appliesTo = ReportLayout.X(10);
-        Heading(layout, Strings.ReportResults, 2 * TableRow);
+        var allStable = model.Profiles.All(profile => profile.Overall == ConnectionStatus.Green);
+        // The profiles' table is kept whole, with the "Stable for all" line under it.
+        Heading(layout, Strings.ReportResults, (model.Profiles.Count + 1) * TableRow + (allStable ? 10 + TableRow : 0));
         layout.Place(TableRow, (canvas, top) => TableHeader(canvas, top,
         [
             (Strings.ReportColumnProfile, name, Align.Left),
@@ -267,7 +265,7 @@ public static class ReportPdf
         }
 
         var limitations = ReportResults.Limitations(model.Profiles);
-        if (model.Profiles.All(profile => profile.Overall == ConnectionStatus.Green))
+        if (allStable)
         {
             layout.Space(10);
             layout.Place(TableRow, (canvas, top) =>
@@ -381,113 +379,118 @@ public static class ReportPdf
         }
     }
 
+    // The findings, one short line each (#247): a mark, the subject in medium weight, the message, and the profiles it
+    // applies to in grey where it is not the subject itself. Small labels for the groups, no rules.
     private static void Findings(ReportLayout layout, ReportModel model)
     {
-        var subject = ReportLayout.X(1);
-        var message = ReportLayout.X(5);
+        const float label = 17;
+        const float gap = 9;
         var groups = new[]
         {
-            (FactKind.DetectedFact, Strings.ReportDetectedFacts),
-            (FactKind.VerifiedDatabaseFact, Strings.ReportDatabaseFacts),
-            (FactKind.PredictedRisk, Strings.ReportRisks),
-            (FactKind.Unknown, Strings.ReportUnknowns),
+            (FactKind.DetectedFact, Strings.ReportDetectedFacts, (SKColor?)Accent),
+            (FactKind.VerifiedDatabaseFact, Strings.ReportDatabaseFacts, Color(ConnectionStatus.Green)),
+            (FactKind.PredictedRisk, Strings.ReportRisks, Color(ConnectionStatus.Orange)),
+            (FactKind.Unknown, Strings.ReportUnknowns, null),
         };
-        const float groupHeading = 22;
-        const float none = BodyLine + 10;
-        var items = model.Findings.Select(finding =>
+        var items = ReportFindings.Compact(model.Findings).Select(finding =>
         {
-            var subjectLines = Strong.Wrap(finding.Subject, ReportLayout.Span(4));
-            var messageLines = Body.Wrap(finding.Message, ReportLayout.Span(8));
-            var lines = Math.Max(subjectLines.Count + (finding.Profile == null ? 0 : 1), messageLines.Count);
-            return (Finding: finding, SubjectLines: subjectLines, MessageLines: messageLines, Height: lines * BodyLine + 11);
+            var lines = FindingLines(finding);
+            return (Finding: finding, Lines: lines, Height: lines.Count * FindingLine + 3);
         }).ToList();
-        // A group's heading with its first item, or with "None".
-        float Opening(FactKind kind) => groupHeading + items.Where(item => item.Finding.Kind == kind).Select(item => item.Height).DefaultIfEmpty(none).First();
+        // A group's label with its first item.
+        float Opening(FactKind kind) => label + items.Where(item => item.Finding.Kind == kind).Select(item => item.Height).DefaultIfEmpty(0).First();
         Heading(layout, Strings.ReportFindings, Opening(groups[0].Item1));
         var first = true;
-        foreach (var (kind, title) in groups)
+        foreach (var (kind, title, mark) in groups)
         {
             var findings = items.Where(item => item.Finding.Kind == kind).ToList();
             if (!first)
             {
-                layout.Space(12);
+                layout.Space(gap);
             }
             first = false;
             if (!layout.Fits(Opening(kind)))
             {
                 layout.NewPage();
             }
-            layout.Place(groupHeading, (canvas, top) =>
+            layout.Place(label, (canvas, top) =>
             {
-                var width = Strong.Draw(canvas, title, subject, top + 12);
-                if (findings.Count > 0)
-                {
-                    Caption.Draw(canvas, findings.Count.ToString(CultureInfo.InvariantCulture), subject + width + 6, top + 12);
-                }
-                Hairline(canvas, top + 21.5f);
+                var x = ReportLayout.Left + TableHead.Draw(canvas, title, ReportLayout.Left, top + 10) + 6;
+                Caption.Draw(canvas, findings.Count > 0 ? findings.Count.ToString(CultureInfo.InvariantCulture) : Strings.ReportNone, x, top + 10);
             });
-            if (findings.Count == 0)
-            {
-                layout.Place(none, (canvas, top) => Body.With(Muted).Draw(canvas, Strings.ReportNone, subject, top + 14));
-                continue;
-            }
-            foreach (var (finding, subjectLines, messageLines, height) in findings)
+            foreach (var (_, lines, height) in findings)
             {
                 layout.Place(height, (canvas, top) =>
                 {
-                    var y = top + 14;
-                    foreach (var line in subjectLines)
+                    var middle = top + FindingLine / 2;
+                    if (mark is { } color)
                     {
-                        Strong.Draw(canvas, line, subject, y);
-                        y += BodyLine;
+                        Dot(canvas, ReportLayout.Left + 2.5f, middle, 2.2f, color);
                     }
-                    if (finding.Profile is { } profile)
+                    else
                     {
-                        Caption.Draw(canvas, Caption.Fit(profile, ReportLayout.Span(4)), subject, y - 1);
+                        using var ring = Line(Muted, 0.7f);
+                        canvas.DrawCircle(ReportLayout.Left + 2.5f, middle, 1.9f, ring);
                     }
-                    y = top + 14;
-                    foreach (var line in messageLines)
+                    var y = middle + FindingText.CapHalf;
+                    foreach (var line in lines)
                     {
-                        Body.Draw(canvas, line, message, y);
-                        y += BodyLine;
+                        foreach (var (style, x, text) in line)
+                        {
+                            style.Draw(canvas, text, x, y);
+                        }
+                        y += FindingLine;
                     }
-                    Hairline(canvas, top + height - 0.5f);
                 });
             }
         }
     }
 
-    private static void SignOff(ReportLayout layout)
+    private static readonly TextStyle FindingText = new(ReportFace.Regular, 9, Ink);
+    private static readonly TextStyle FindingSubject = new(ReportFace.Medium, 9, Ink);
+    private static readonly TextStyle FindingProfile = new(ReportFace.Regular, 8, Muted);
+    private const float FindingLine = 9 * 1.4f;
+    private static readonly float FindingIndent = ReportLayout.Left + 11;
+
+    // A finding's lines, each a list of runs: the subject, the message and the profiles, broken at spaces to the text
+    // width. A run continues on the next line where it does not fit; the profiles are kept together.
+    private static List<List<(TextStyle Style, float X, string Text)>> FindingLines(ReportFinding finding)
     {
-        // Column titles, the name, signature and date lines (the signature gets more room), then the ruled notes.
-        float[] fields = [34, 46, 34];
-        var notes = 22 + fields.Sum() + 3 * 12 + 34;
-        var height = notes + 4 * 24 + 4;
-        Heading(layout, Strings.ReportSignOff, height);
-        layout.Place(height, (canvas, top) =>
+        var parts = new List<(TextStyle Style, string[] Words, float Gap)>
         {
-            using var pen = Line(SKColor.Parse("#9A9A9A"), 0.6f);
-            foreach (var (title, column) in new[] { (Strings.ReportInstalledBy, 1), (Strings.ReportAcceptedBy, 7) })
+            (FindingSubject, finding.Subject.Split(' ', StringSplitOptions.RemoveEmptyEntries), 0),
+            (FindingText, finding.Message.Split(' ', StringSplitOptions.RemoveEmptyEntries), 5),
+        };
+        if (finding.Profile is { } profile && profile != finding.Subject)
+        {
+            parts.Add((FindingProfile, [profile], 8));
+        }
+        var lines = new List<List<(TextStyle Style, float X, string Text)>> { new() };
+        var x = FindingIndent;
+        foreach (var (style, words, gap) in parts)
+        {
+            var start = x + gap;
+            var run = "";
+            foreach (var word in words)
             {
-                var x = ReportLayout.X(column);
-                var width = ReportLayout.Span(6);
-                Strong.Draw(canvas, title, x, top + 12);
-                var y = top + 22;
-                string[] labels = [Strings.ReportName, Strings.ReportSignature, Strings.ReportDate];
-                for (var i = 0; i < labels.Length; i++)
+                var candidate = run.Length == 0 ? word : run + " " + word;
+                if (start + style.Measure(candidate) <= ReportLayout.Right || (run.Length == 0 && start == FindingIndent))
                 {
-                    y += fields[i];
-                    canvas.DrawLine(x, y, x + width, y, pen);
-                    Caption.Draw(canvas, labels[i], x, y + 10);
-                    y += 12;
+                    run = candidate;
+                    continue;
                 }
+                if (run.Length > 0)
+                {
+                    lines[^1].Add((style, start, run));
+                }
+                lines.Add([]);
+                start = FindingIndent;
+                run = word;
             }
-            Strong.Draw(canvas, Strings.ReportNotes, ReportLayout.Left, top + notes);
-            for (var i = 1; i <= 4; i++)
-            {
-                Hairline(canvas, top + notes + i * 24);
-            }
-        });
+            lines[^1].Add((style, start, run));
+            x = start + style.Measure(run);
+        }
+        return lines;
     }
 
     // The company name only when there is no logo (#232); the licensed email under the middle line.
