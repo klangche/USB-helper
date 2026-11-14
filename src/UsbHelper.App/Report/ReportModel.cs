@@ -35,6 +35,12 @@ public sealed record ReportModel(
 {
     /// <summary>The email the report features are unlocked for (#232), in the header and footer; null when none.</summary>
     public string? LicensedTo { get; init; }
+
+    /// <summary>
+    /// The database files of the checked profiles, as the findings name them: the report writes "Hardware database" in
+    /// their place (#247).
+    /// </summary>
+    public IReadOnlyList<string> DatabaseFiles { get; init; } = [];
 }
 
 /// <summary>The setup's counts over all controllers.</summary>

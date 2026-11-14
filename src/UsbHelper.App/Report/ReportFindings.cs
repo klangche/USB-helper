@@ -10,6 +10,9 @@ namespace UsbHelper.App.Report;
 /// </summary>
 public static partial class ReportFindings
 {
+    // Stands in for a known database file while the message is rewritten, whatever characters the file name has.
+    private const string KnownFile = "\u0001";
+
     private static readonly Dictionary<string, string> Checks = new()
     {
         ["limits.max_hubs"] = Strings.LimitHubs,
@@ -21,12 +24,12 @@ public static partial class ReportFindings
 
     /// <summary>
     /// The findings with readable messages; identical ones are listed once, with the profiles they apply to, in the
-    /// order they first appear.
+    /// order they first appear. <paramref name="files"/> are the database files the messages may name.
     /// </summary>
-    public static IReadOnlyList<ReportFinding> Compact(IEnumerable<ReportFinding> findings) =>
+    public static IReadOnlyList<ReportFinding> Compact(IEnumerable<ReportFinding> findings, IReadOnlyCollection<string> files) =>
     [
         .. findings
-            .Select(finding => finding with { Message = Readable(finding.Message) })
+            .Select(finding => finding with { Message = Readable(finding.Message, files) })
             .GroupBy(finding => (finding.Kind, finding.Subject, finding.Message))
             .Select(group => group.First() with
             {
@@ -36,9 +39,17 @@ public static partial class ReportFindings
             }),
     ];
 
-    /// <summary>A finding's message with the check names and "Hardware database" in place of the fields and files.</summary>
-    public static string Readable(string message)
+    /// <summary>
+    /// A finding's message with the check names and "Hardware database" in place of the fields and of
+    /// <paramref name="files"/>, the database files it may name. Any other name ending in .yaml or .yml is replaced too,
+    /// so no file name reaches the report.
+    /// </summary>
+    public static string Readable(string message, IReadOnlyCollection<string> files)
     {
+        foreach (var file in files.Where(file => file.Length > 0).OrderByDescending(file => file.Length))
+        {
+            message = message.Replace(file, KnownFile, StringComparison.Ordinal);
+        }
         string Name(Match match) => Checks[match.Groups["field"].Value];
         string Lower(Match match) => Name(match).ToLowerInvariant();
         message = UnverifiedValue().Replace(message, match =>
@@ -50,16 +61,22 @@ public static partial class ReportFindings
         message = LimitIs().Replace(message, match =>
             string.Format(CultureInfo.InvariantCulture, Strings.ReportLimitIs, Lower(match), match.Groups["value"].Value));
         message = MstField().Replace(message, "");
-        message = Source().Replace(message, match => match.Groups["inner"].Value.Contains("unverified", StringComparison.Ordinal)
-            ? $"({Strings.ReportSourceUnverified})"
-            : $"({Strings.ReportSourceDatabase})");
-        return File().Replace(message, Strings.ReportSourceDatabase);
+        message = Source().Replace(message, match => Cited(match.Groups["inner"].Value));
+        message = UnverifiedLimit().Replace(message, $"({Strings.ReportSourceUnverified})");
+        message = message.Replace(KnownFile, Strings.ReportSourceDatabase, StringComparison.Ordinal);
+        // The safety net, for a file the caller did not name.
+        message = UnknownSource().Replace(message, match => Cited(match.Value));
+        return UnknownFile().Replace(message, Strings.ReportSourceDatabase);
     }
+
+    private static string Cited(string text) => text.Contains("unverified", StringComparison.Ordinal)
+        ? $"({Strings.ReportSourceUnverified})"
+        : $"({Strings.ReportSourceDatabase})";
 
     private const string Field = @"(?<field>limits\.max_hubs|limits\.max_tiers|limits\.max_hops|limits\.recommended_hops|displays\.max_external)";
 
     // "limits.max_hops = 5 comes from an unverified profile (platforms/p.yaml); it is not confirmed."
-    [GeneratedRegex("^" + Field + @" = (?<value>\d+) comes from an unverified profile(?: \([^()]*\))?; it is not confirmed\.")]
+    [GeneratedRegex("^" + Field + @" = (?<value>\d+) comes from an unverified profile(?: \(\x01\))?; it is not confirmed\.")]
     private static partial Regex UnverifiedValue();
 
     [GeneratedRegex("^" + Field + " = ")]
@@ -80,10 +97,18 @@ public static partial class ReportFindings
     [GeneratedRegex(@" \(displays\.mst\)")]
     private static partial Regex MstField();
 
-    // "(computers/c.yaml)", "(unverified, computers/c.yaml)", "(displays.mst comes from an unverified profile, computers/c.yaml)".
-    [GeneratedRegex(@"\((?<inner>[^()]*?)[\w./\\-]+\.ya?ml\)")]
+    // "(file)", "(unverified, file)", "(displays.mst comes from an unverified profile, file)".
+    [GeneratedRegex(@"\((?<inner>[^()]*?)\x01\)")]
     private static partial Regex Source();
 
-    [GeneratedRegex(@"[\w./\\-]+\.ya?ml")]
-    private static partial Regex File();
+    // "exceeds limits.max_hops 2 (unverified limit)".
+    [GeneratedRegex(@"\(unverified limit\)")]
+    private static partial Regex UnverifiedLimit();
+
+    // A parenthesis that ends in a file name, which may have parentheses of its own.
+    [GeneratedRegex(@"\([^()]*(?:\([^()]*\)[^()]*)*\.ya?ml\)", RegexOptions.IgnoreCase)]
+    private static partial Regex UnknownSource();
+
+    [GeneratedRegex(@"\S*\.ya?ml\b", RegexOptions.IgnoreCase)]
+    private static partial Regex UnknownFile();
 }

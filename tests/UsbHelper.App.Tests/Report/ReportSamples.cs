@@ -161,7 +161,11 @@ internal static class ReportSamples
         new ComputerIdentity("Dell Inc.", "Latitude 7450"), ConnectionStatus.Purple,
         new ReportCounts(2, 2, 1, 4, 3, false, 1), Profiles(),
         [new("Monitor", "built-in", null), new("DELL U2723QE", "HDMI", null), new("Monitor", "indirect, for example DisplayLink", "DisplayLink USB Graphics")],
-        DeskTree(), Findings());
+        DeskTree(), Findings())
+    {
+        DatabaseFiles = ["base.yaml", "platforms/windows-intel.yaml", "platforms/macos-apple-silicon.yaml", "computers/dell/latitude-7450.yaml",
+            "computers/hp/elitebook-840-g10.yaml"],
+    };
 
     /// <summary>Two computers and two platforms, every limit known and kept.</summary>
     public static ReportModel AllStable(string? logoPath) => Full(logoPath) with

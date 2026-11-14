@@ -474,6 +474,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
         };
     }
 

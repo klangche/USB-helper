@@ -104,13 +104,13 @@ public static class ReportPdf
 
     internal const float HeadingHeight = 22;
 
-    // A section heading, kept with the first <paramref name="next"/> points of its content. Space separates the
-    // sections, not a rule (#247).
+    // A section heading, kept with the first <paramref name="next"/> points of its content, at most what a page holds
+    // below it, so content taller than a page never leaves an empty page. Space separates the sections, not a rule (#247).
     internal static void Heading(ReportLayout layout, string text, float next)
     {
         // The space first: it is dropped at the top of a page, and counts when the heading stays on this one.
         layout.Space(22);
-        if (!layout.Fits(HeadingHeight + next))
+        if (!layout.Fits(HeadingHeight + Math.Min(next, ReportLayout.Bottom - ReportLayout.Top - HeadingHeight)))
         {
             layout.NewPage();
         }
@@ -247,7 +247,7 @@ public static class ReportPdf
         var result = ReportLayout.X(7);
         var appliesTo = ReportLayout.X(10);
         var allStable = model.Profiles.All(profile => profile.Overall == ConnectionStatus.Green);
-        // The profiles' table is kept whole, with the "Stable for all" line under it.
+        // The profiles' table is kept whole where it fits a page, with the "Stable for all" line under it.
         Heading(layout, Strings.ReportResults, (model.Profiles.Count + 1) * TableRow + (allStable ? 10 + TableRow : 0));
         layout.Place(TableRow, (canvas, top) => TableHeader(canvas, top,
         [
@@ -392,7 +392,7 @@ public static class ReportPdf
             (FactKind.PredictedRisk, Strings.ReportRisks, Color(ConnectionStatus.Orange)),
             (FactKind.Unknown, Strings.ReportUnknowns, null),
         };
-        var items = ReportFindings.Compact(model.Findings).Select(finding =>
+        var items = ReportFindings.Compact(model.Findings, model.DatabaseFiles).Select(finding =>
         {
             var lines = FindingLines(finding);
             return (Finding: finding, Lines: lines, Height: lines.Count * FindingLine + 3);
@@ -453,28 +453,33 @@ public static class ReportPdf
     private static readonly float FindingIndent = ReportLayout.Left + 11;
 
     // A finding's lines, each a list of runs: the subject, the message and the profiles, broken at spaces to the text
-    // width. A run continues on the next line where it does not fit; the profiles are kept together.
+    // width, the profiles after a comma. A run continues on the next line where it does not fit; a word wider than a
+    // line is broken where the line ends.
     private static List<List<(TextStyle Style, float X, string Text)>> FindingLines(ReportFinding finding)
     {
+        static string[] Words(string text) => text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var parts = new List<(TextStyle Style, string[] Words, float Gap)>
         {
-            (FindingSubject, finding.Subject.Split(' ', StringSplitOptions.RemoveEmptyEntries), 0),
-            (FindingText, finding.Message.Split(' ', StringSplitOptions.RemoveEmptyEntries), 5),
+            (FindingSubject, Words(finding.Subject), 0),
+            (FindingText, Words(finding.Message), 5),
         };
         if (finding.Profile is { } profile && profile != finding.Subject)
         {
-            parts.Add((FindingProfile, [profile], 8));
+            // "A, B" as the words "A," and "B": a profile name stays whole where it fits a line.
+            var names = profile.Split(", ");
+            parts.Add((FindingProfile, [.. names.Select((name, i) => i < names.Length - 1 ? name + "," : name)], 8));
         }
+        var width = ReportLayout.Right - FindingIndent;
         var lines = new List<List<(TextStyle Style, float X, string Text)>> { new() };
         var x = FindingIndent;
         foreach (var (style, words, gap) in parts)
         {
             var start = x + gap;
             var run = "";
-            foreach (var word in words)
+            foreach (var word in words.SelectMany(word => Pieces(style, word, width)))
             {
                 var candidate = run.Length == 0 ? word : run + " " + word;
-                if (start + style.Measure(candidate) <= ReportLayout.Right || (run.Length == 0 && start == FindingIndent))
+                if (start + style.Measure(candidate) <= ReportLayout.Right)
                 {
                     run = candidate;
                     continue;
@@ -483,14 +488,36 @@ public static class ReportPdf
                 {
                     lines[^1].Add((style, start, run));
                 }
-                lines.Add([]);
+                if (run.Length > 0 || start > FindingIndent)
+                {
+                    lines.Add([]);
+                }
                 start = FindingIndent;
                 run = word;
             }
-            lines[^1].Add((style, start, run));
+            if (run.Length > 0)
+            {
+                lines[^1].Add((style, start, run));
+            }
             x = start + style.Measure(run);
         }
         return lines;
+    }
+
+    // A word as pieces no wider than <paramref name="width"/>: the word itself when it fits.
+    private static IEnumerable<string> Pieces(TextStyle style, string word, float width)
+    {
+        while (style.Measure(word) > width && word.Length > 1)
+        {
+            var length = 1;
+            while (length < word.Length && style.Measure(word[..(length + 1)]) <= width)
+            {
+                length++;
+            }
+            yield return word[..length];
+            word = word[length..];
+        }
+        yield return word;
     }
 
     // The company name only when there is no logo (#232); the licensed email under the middle line.

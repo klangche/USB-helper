@@ -264,16 +264,24 @@ public class ReportPdfTests
     [InlineData("unverified")]
     public void The_findings_name_no_database_file_or_field(string status)
     {
-        var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: status, platformLimits: "max_hubs: 6"), [],
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: status, platformLimits: "max_hubs: 6",
+            computerFile: "Dell XPS (1)", platformFile: "win (1)");
+        var viewModel = new MainViewModel(database, [],
             new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), () => [new DisplayMonitor("DELL", "DELL U2723QE", MonitorOutput.Hdmi)]);
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Device("KEYBOARD")))])]);
         viewModel.Computers.Single().IsChecked = true;
         var model = viewModel.Report(new DateTime(2026, 11, 13, 9, 30, 0), null, null, "0.9.0");
-        Assert.Contains(model.Findings, finding => finding.Message.Contains(".yaml", StringComparison.Ordinal)); // The source is there to hide.
+        // The sources are there to hide, from the computer and the platform profile.
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(computers/Dell XPS (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(platforms/win (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains("computers/Dell XPS (1).yaml", model.DatabaseFiles);
+        Assert.Contains("platforms/win (1).yaml", model.DatabaseFiles);
 
         foreach (var all in new[] { model, ReportSamples.Full(null) }.Select(item => string.Join("\n", PageTexts(Pdf(item)))))
         {
-            Assert.DoesNotContain(".yaml", all);
+            Assert.DoesNotContain(".yaml", all, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(".yml", all, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("(1)", all);
             Assert.DoesNotContain("database/", all);
             Assert.DoesNotContain("computers/", all);
             Assert.DoesNotContain("limits.", all);
@@ -317,6 +325,51 @@ public class ReportPdfTests
         Assert.All(Enumerable.Range(1, 60), d => Assert.Contains($"\nTest device {d} Stable\n", page));
         Assert.DoesNotContain("USB tree (continued)", string.Join("\n", pages));
         Assert.InRange(TreeTextSize(model) / 8.5, 0.75, 0.85);
+    }
+
+    // #247: a finding's long profile list and an over-long word wrap within the right margin, and nothing is lost.
+    [Fact]
+    public void Long_findings_stay_within_the_margin()
+    {
+        var profiles = Enumerable.Range(1, 5).Select(i => $"Very long computer profile name number {i} (Generation 12, Intel vPro)").ToList();
+        var word = string.Concat(Enumerable.Repeat("Unbreakable", 19))[..200];
+        var findings = profiles.Select(profile => new ReportFinding(FactKind.PredictedRisk, profile, "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."))
+            .Append(new ReportFinding(FactKind.DetectedFact, null, "Device", $"Problem code {word} reported."))
+            .Append(new ReportFinding(FactKind.Unknown, profiles[0], word, "Unknown."))
+            .ToList();
+
+        using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null) with { Findings = findings }));
+        var right = 595.28 - 18 / 25.4 * 72;
+        Assert.All(document.GetPages().SelectMany(page => page.Letters), letter => Assert.True(letter.BoundingBox.Right <= right + 0.5,
+            $"\"{letter.Value}\" ends at {letter.BoundingBox.Right:0.0}, right of the margin at {right:0.0}"));
+        var all = string.Concat(document.GetPages().SelectMany(page => page.Letters).Select(letter => letter.Value)).Replace(" ", "");
+        Assert.All(profiles, profile => Assert.Contains(profile.Replace(" ", ""), all));
+        Assert.Equal(2, all.Split(word).Length - 1);
+    }
+
+    // A heading kept with more than a page holds is kept with a page's worth: at the top of a page it never adds an
+    // empty page.
+    [Fact]
+    public void A_heading_kept_with_more_than_a_page_adds_no_empty_page()
+    {
+        var layout = new ReportLayout();
+
+        ReportPdf.Heading(layout, "Results", 5000);
+
+        Assert.Single(Assert.Single(layout.Pages));
+    }
+
+    // A profiles table taller than a page flows on from its heading: no page is left without content.
+    [Fact]
+    public void A_results_table_taller_than_a_page_leaves_no_page_empty()
+    {
+        var profiles = Enumerable.Range(1, 45).Select(i => new ReportProfile($"Profile {i}", ConnectionStatus.Green, [])).ToList();
+
+        using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null) with { Overall = ConnectionStatus.Green, Profiles = profiles }));
+
+        // Above the footer, every page has text.
+        Assert.All(document.GetPages(), page => Assert.Contains(page.Letters, letter => letter.Location.Y > 80));
+        Assert.Contains(document.GetPages(), page => ContentOrderTextExtractor.GetText(page).Contains("Profile 45"));
     }
 
     // #247: only a tree that does not fit at 70% continues, at 70%, and a row is never split.
