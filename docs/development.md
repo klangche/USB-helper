@@ -22,6 +22,9 @@ the pull request titles since the last release. Every merge into `dev`
 publishes a pre-release (beta) the same way: `vX.Y.Z-beta.N`, where `X.Y.Z` is
 the version the next release would get and `N` counts up from 1 for each beta
 of it (`release/beta-version.sh`).
+Unlock code key id 0 (the Actions secret `USBH_LICENCE_KEY_0`) is the beta
+key: it is built into betas only (Windows and macOS), never into a stable
+release, so stable releases need codes with key id 1 or later.
 Each release and each beta also gets the macOS dmg as an extra asset. A separate job in
 `.github/workflows/macos.yml` waits for the release (on `main`) or beta (on `dev`) of the same commit,
 builds the dmg with that version and attaches it, so a slow macOS runner never

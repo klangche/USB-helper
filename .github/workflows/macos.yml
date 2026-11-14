@@ -120,14 +120,15 @@ jobs:
 
       # Unlock code secrets (#234): only these two steps get them. This job runs only for a beta or release dmg (a push
       # or a run by hand), never for a pull request; the trial build above stays keyless. The free-unlock switch (#238),
-      # the Actions variable USBH_FREE_UNLOCK, goes to the same two steps only.
+      # the Actions variable USBH_FREE_UNLOCK, goes to the same two steps only. Key 0 is the beta key (#252): only a beta
+      # dmg (a tag ending in -beta.N) gets it, so a release dmg never accepts keyId 0 codes. Key 1 goes to both.
       - name: Publish ARM64 app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-arm64 --self-contained
           -p:DebugType=none "-p:Version=${TAG#v}" -o publish/osx-arm64
         env:
           TAG: ${{ needs.find-release.outputs.tag }}
-          USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
+          USBH_LICENCE_KEY_0: ${{ contains(needs.find-release.outputs.tag, '-beta.') && secrets.USBH_LICENCE_KEY_0 || '' }}
           USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
           USBH_FREE_UNLOCK: ${{ vars.USBH_FREE_UNLOCK }}
 
@@ -137,7 +138,7 @@ jobs:
           -p:DebugType=none "-p:Version=${TAG#v}" -o publish/osx-x64
         env:
           TAG: ${{ needs.find-release.outputs.tag }}
-          USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
+          USBH_LICENCE_KEY_0: ${{ contains(needs.find-release.outputs.tag, '-beta.') && secrets.USBH_LICENCE_KEY_0 || '' }}
           USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
           USBH_FREE_UNLOCK: ${{ vars.USBH_FREE_UNLOCK }}
 
