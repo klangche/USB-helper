@@ -32,6 +32,8 @@ public class MenuTests
 
         public void ExportSetup() => Calls.Add(nameof(ExportSetup));
 
+        public void ExportPdf() => Calls.Add(nameof(ExportPdf));
+
         public void ConfirmRefresh() => Calls.Add(nameof(ConfirmRefresh));
     }
 
@@ -57,8 +59,9 @@ public class MenuTests
         viewModel.ExitCommand.Execute(null);
         viewModel.CopyTreeCommand.Execute(null);
         viewModel.ExportSetupCommand.Execute(null);
+        viewModel.ExportPdfCommand.Execute(null);
 
-        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup"], window.Calls);
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup", "ExportPdf"], window.Calls);
     }
 
     [Fact]
@@ -129,6 +132,20 @@ public class MenuTests
         Assert.Equal("{Binding ExportSetupCommand}", (string?)MenuItem(window, "MenuExportSetup").Attribute("Command"));
     }
 
+    // #232: File > Export PDF... runs its command; while disabled its tooltip says why.
+    [Fact]
+    public void ExportPdfSaysWhyItIsDisabled()
+    {
+        var item = MenuItem(MainWindowXaml(), "MenuExportPdf");
+
+        Assert.Equal("{Binding ExportPdfCommand}", (string?)item.Attribute("Command"));
+        Assert.Equal("{Binding ExportPdfTip}", (string?)item.Attribute("ToolTip.Tip"));
+        Assert.Equal("True", (string?)item.Attribute("ToolTip.ShowOnDisabled"));
+        var viewModel = Loaded(Known, new FakeWindow());
+        var file = MacNativeMenu.Create(viewModel).Items.OfType<NativeMenuItem>().First().Menu!.Items.OfType<NativeMenuItem>();
+        Assert.Same(viewModel.ExportPdfCommand, file.Single(entry => entry.Header == "Export PDF...").Command);
+    }
+
     [Fact]
     public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit()
     {
@@ -137,7 +154,7 @@ public class MenuTests
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
-        Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
     }
 
@@ -176,7 +193,7 @@ public class MenuTests
         var menu = MainWindowXaml().Descendants(Avalonia + "Menu").Single();
         var top = menu.Elements(Avalonia + "MenuItem").Select(Key).ToList();
         Assert.Equal(["MenuFile", "MenuEdit", "MenuHelp"], top);
-        Assert.Equal(["MenuRefresh", "MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
+        Assert.Equal(["MenuRefresh", "MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuExportPdf", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
         Assert.Equal(["MenuCopyTree"], Items(menu, "MenuEdit"));
         Assert.Equal("{Binding CopyTreeCommand}", (string?)MenuItem(MainWindowXaml(), "MenuCopyTree").Attribute("Command"));
         Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));

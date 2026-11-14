@@ -1,16 +1,20 @@
 using System.IO.Compression;
 using System.Text;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using UsbHelper.App.Licensing;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Export;
+using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests;
 
 // #135: File > Export full setup saves one zip with setup.json, tree.txt, screenshot.png and log.txt.
 public class SetupExportTests
 {
-    private static readonly DateOnly Date = new(2026, 11, 3);
+    private static readonly DateTime Created = new(2026, 11, 3, 9, 30, 0);
     private const string Version = "0.6.0-test";
     private static readonly byte[] Png = [0x89, (byte)'P', (byte)'N', (byte)'G'];
 
@@ -70,7 +74,7 @@ public class SetupExportTests
     private static Dictionary<string, byte[]> Export(MainViewModel viewModel)
     {
         using var zip = new MemoryStream();
-        viewModel.ExportSetup(zip, Png, Date, Version);
+        viewModel.ExportSetup(zip, Png, Created, Version);
         zip.Position = 0;
         using var archive = new ZipArchive(zip, ZipArchiveMode.Read);
         return archive.Entries.ToDictionary(entry => entry.FullName, entry =>
@@ -96,6 +100,58 @@ public class SetupExportTests
         Assert.Equal(Png, files["screenshot.png"]);
         Assert.Contains("Tree:", Text(files["log.txt"]));
         Assert.Contains(log.Entries, entry => entry.Text == "Setup exported");
+    }
+
+    // #232: unlocked, the zip also holds the PDF report, with or without a room name.
+    private static MainViewModel Unlocked(string room)
+    {
+        var log = new EventLog();
+        var settings = new SettingsViewModel();
+        var entitlements = new CodeEntitlements(TestKeys, settings, log);
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log, settings, entitlements);
+        viewModel.RoomName = room;
+        viewModel.Load(Desk());
+        return viewModel;
+    }
+
+    private static string PdfText(byte[] pdf)
+    {
+        using var document = PdfDocument.Open(pdf);
+        return string.Join("\n", document.GetPages().Select(page => ContentOrderTextExtractor.GetText(page)));
+    }
+
+    [Theory]
+    [InlineData("Room 4.12", "Room 4.12")]
+    [InlineData("", "Room: not entered")]
+    public void UnlockedTheZipAlsoHasTheReport(string room, string header)
+    {
+        var files = Export(Unlocked(room));
+
+        Assert.Equal(["setup.json", "tree.txt", "screenshot.png", "log.txt", "report.pdf"], files.Keys);
+        var text = PdfText(files["report.pdf"]);
+        Assert.Contains(header, text);
+        Assert.Contains($"Licensed to {TestEmail}", text);
+    }
+
+    // The zip never fails because of the PDF: without it, the other four files are written and the log says why.
+    [Fact]
+    public void AReportThatCannotBeMadeLeavesTheOtherFiles()
+    {
+        var viewModel = Unlocked("Room 4.12");
+        viewModel.WriteReport = (_, _) => throw new InvalidOperationException("broken font");
+
+        var files = Export(viewModel);
+
+        Assert.Equal(["setup.json", "tree.txt", "screenshot.png", "log.txt"], files.Keys);
+        Assert.Contains("PDF report could not be made: broken font", Text(files["log.txt"]));
+    }
+
+    [Fact]
+    public void LockedTheZipHasNoReport()
+    {
+        Assert.DoesNotContain("report.pdf", Export(KnownSetup()).Keys);
     }
 
     // #186: exports on the same day must not overwrite each other; the room or system name tells them apart.

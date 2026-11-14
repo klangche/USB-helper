@@ -3,6 +3,7 @@ using System.Globalization;
 using UsbHelper.App.Licensing;
 using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Settings;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -122,7 +123,11 @@ public sealed class MainViewModel : ObservableObject
         entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
         Entitlements = entitlements;
         Settings.Gate(entitlements);
-        entitlements.Changed += (_, _) => LogCompanyAndLicence();
+        entitlements.Changed += (_, _) =>
+        {
+            LogCompanyAndLicence();
+            ExportPdfChanged();
+        };
         LogCompanyAndLicence();
         Unlock = new UnlockViewModel(entitlements);
         Log = new LogViewModel(this.log);
@@ -139,6 +144,7 @@ public sealed class MainViewModel : ObservableObject
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
         CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeWithHeader()), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
+        ExportPdfCommand = new RelayCommand(() => Window?.ExportPdf(), () => ExportPdfTip == null);
         RefreshCommand = new RelayCommand(() => Window?.ConfirmRefresh(), () => !IsLoading);
     }
 
@@ -310,11 +316,33 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Export full setup (#135).</summary>
     public RelayCommand ExportSetupCommand { get; }
 
+    /// <summary>File > Export PDF (#232): enabled once the tree is read, when unlocked and a room name is entered.</summary>
+    public RelayCommand ExportPdfCommand { get; }
+
+    /// <summary>Why File > Export PDF is disabled, for its tooltip; null when it is enabled.</summary>
+    public string? ExportPdfTip =>
+        !Entitlements.IsUnlocked(Feature.Pro) ? Strings.ExportPdfLocked
+        : Room == null ? Strings.ExportPdfNeedsRoom
+        : Roots.Count == 0 ? Strings.ExportPdfNoTree
+        : null;
+
+    private void ExportPdfChanged()
+    {
+        OnPropertyChanged(nameof(ExportPdfTip));
+        ExportPdfCommand.Refresh();
+    }
+
     /// <summary>The room or system name the user typed (#186), for the setup export's file name. Not saved between runs.</summary>
     public string RoomName
     {
         get => roomName;
-        set => SetField(ref roomName, value ?? "");
+        set
+        {
+            if (SetField(ref roomName, value ?? ""))
+            {
+                ExportPdfChanged();
+            }
+        }
     }
 
     private string roomName = "";
@@ -323,23 +351,60 @@ public sealed class MainViewModel : ObservableObject
     /// <c>usb-helper_&lt;room or system name&gt;_YYYY-MM-DD_HH-mm-ss.zip</c>, or without the name when none is entered (#186);
     /// the save dialog lets the user change it. Characters a file name cannot hold become <c>-</c>.
     /// </summary>
-    public string SetupFileName(DateTime time)
+    public string SetupFileName(DateTime time) => FileName(time, "zip");
+
+    /// <summary>The PDF report's name (#232): as <see cref="SetupFileName"/>, ending in <c>.pdf</c>.</summary>
+    public string PdfFileName(DateTime time) => FileName(time, "pdf");
+
+    private string FileName(DateTime time, string extension)
     {
         var invalid = Path.GetInvalidFileNameChars().Concat(['\\', '/', ':', '*', '?', '"', '<', '>', '|']).ToHashSet();
         var room = new string(RoomName.Select(c => invalid.Contains(c) || char.IsControl(c) ? '-' : c).ToArray()).Trim();
         var stamp = time.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture);
-        return room.Length == 0 ? $"usb-helper_{stamp}.zip" : $"usb-helper_{room}_{stamp}.zip";
+        return room.Length == 0 ? $"usb-helper_{stamp}.{extension}" : $"usb-helper_{room}_{stamp}.{extension}";
     }
 
     /// <summary>
     /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's
-    /// <paramref name="screenshot"/> (PNG) and the log.
+    /// <paramref name="screenshot"/> (PNG) and the log; when unlocked also the PDF report (#232), with or without a room.
     /// </summary>
-    public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
+    public void ExportSetup(Stream output, byte[] screenshot, DateTime created, string? appVersion = null)
     {
-        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeWithHeader(), screenshot, log.Export());
+        var version = appVersion ?? AppVersion.Current;
+        byte[]? report = null;
+        if (Entitlements.IsUnlocked(Feature.Pro))
+        {
+            // The zip never fails because of the PDF: without it, the other files are still written.
+            try
+            {
+                using var pdf = new MemoryStream();
+                WriteReport(pdf, BrandedReport(created, version));
+                report = pdf.ToArray();
+            }
+            catch (Exception e)
+            {
+                log.Add($"PDF report could not be made: {e.Message}");
+            }
+        }
+        SetupZip.Write(output, Setup(DateOnly.FromDateTime(created), version).ToJson(), TreeWithHeader(), screenshot, log.Export(), report);
         log.Add("Setup exported");
     }
+
+    /// <summary>File > Export PDF (#232): writes the PDF report to <paramref name="output"/>.</summary>
+    public void ExportPdf(Stream output, DateTime created, string? appVersion = null)
+    {
+        WriteReport(output, BrandedReport(created, appVersion ?? AppVersion.Current));
+        log.Add("PDF exported");
+    }
+
+    /// <summary>Writes the PDF report; tests replace it to make it fail.</summary>
+    internal Action<Stream, ReportModel> WriteReport { get; set; } = ReportPdf.Write;
+
+    private ReportModel BrandedReport(DateTime created, string appVersion) =>
+        Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
+
+    /// <summary>The logo for the PDF report (#232): the cropped vector logo when there is one, else the 512 pixel PNG.</summary>
+    public static string? ReportLogo(Branding? branding) => branding?.LogoSvg ?? branding?.LogoPngs.GetValueOrDefault(512);
 
     // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
     // ones included.
@@ -402,7 +467,10 @@ public sealed class MainViewModel : ObservableObject
             setup.Computer, lastReport.Overall,
             new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
                 counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
-            profiles, displays, ReportRow.Of(Roots[0]), findings);
+            profiles, displays, ReportRow.Of(Roots[0]), findings)
+        {
+            LicensedTo = Entitlements.LicensedTo,
+        };
     }
 
     /// <summary>
@@ -566,6 +634,7 @@ public sealed class MainViewModel : ObservableObject
         LogTree();
         CopyTreeCommand.Refresh();
         ExportSetupCommand.Refresh();
+        ExportPdfChanged();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)

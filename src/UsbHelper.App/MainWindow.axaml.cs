@@ -159,12 +159,42 @@ public partial class MainWindow : Window, IMainWindowActions
                 return;
             }
             await using var stream = await file.OpenWriteAsync();
-            viewModel.ExportSetup(stream, screenshot, DateOnly.FromDateTime(DateTime.Now));
+            viewModel.ExportSetup(stream, screenshot, DateTime.Now);
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupSaved, file.Name);
         }
         catch (Exception ex)
         {
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupFailed, ex.Message);
+        }
+    }
+
+    // File > Export PDF (#232). Async void, run by the command: any failure is shown instead of ending the app.
+    async void IMainWindowActions.ExportPdf()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        try
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = Strings.ExportPdfTitle,
+                SuggestedFileName = viewModel.PdfFileName(DateTime.Now),
+                DefaultExtension = "pdf",
+                FileTypeChoices = [new FilePickerFileType("PDF") { Patterns = ["*.pdf"] }],
+            });
+            if (file == null)
+            {
+                return;
+            }
+            await using var stream = await file.OpenWriteAsync();
+            viewModel.ExportPdf(stream, DateTime.Now);
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfSaved, file.Name);
+        }
+        catch (Exception ex)
+        {
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfFailed, ex.Message);
         }
     }
 
