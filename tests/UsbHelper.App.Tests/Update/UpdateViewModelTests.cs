@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using UsbHelper.App.Tests.Licensing;
 using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Diagnostics;
@@ -74,12 +75,22 @@ public sealed class UpdateViewModelTests : IDisposable
 
     private static byte[] Checksum(byte[] zip) => Encoding.ASCII.GetBytes($"{Convert.ToHexStringLower(SHA256.HashData(zip))}  x.zip\n");
 
+    // Unlocked, so betas are offered (#246).
+    private static SettingsViewModel Unlocked()
+    {
+        var entitlements = new FakeEntitlements();
+        entitlements.SetPro(true);
+        var settings = new SettingsViewModel();
+        settings.Gate(entitlements);
+        return settings;
+    }
+
     private UpdateViewModel Model(FakeHttp http, string current = "0.5.0") =>
-        new(http.Client(), current, UpdateKind.Portable, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
+        new(http.Client(), current, UpdateKind.Portable, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2), Unlocked());
 
     // An app installed by the .msi (#124): it downloads into this folder and hands the .msi to restart.
     private UpdateViewModel MsiModel(FakeHttp http) =>
-        new(http.Client(), "0.5.0", UpdateKind.Msi, Path.Combine(parent, "download"), restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
+        new(http.Client(), "0.5.0", UpdateKind.Msi, Path.Combine(parent, "download"), restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2), Unlocked());
 
     [Fact]
     public async Task AnMsiInstallDownloadsTheVerifiedMsiAndRunsIt()
@@ -296,7 +307,7 @@ public sealed class UpdateViewModelTests : IDisposable
             UpdateCheck.ReleasesUrl => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent($"[{release}]", Encoding.UTF8, "application/json") },
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         }));
-        var model = new UpdateViewModel(github.Client(), "0.6.0", UpdateKind.MacOs, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2));
+        var model = new UpdateViewModel(github.Client(), "0.6.0", UpdateKind.MacOs, app, restarted.Add, opened.Add, log, TimeSpan.FromSeconds(2), Unlocked());
         await model.CheckAsync();
         Assert.Contains("Quit USB-helper", model.Note);
         Assert.Contains("drag USB-helper.app to Applications", model.Note);

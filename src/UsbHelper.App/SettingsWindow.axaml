@@ -11,7 +11,9 @@
   <!-- Each change is saved at once (#126), so there is no Save or Cancel. -->
   <StackPanel Margin="16" Spacing="10">
     <CheckBox Content="{x:Static res:Strings.SettingsCheckForUpdates}" IsChecked="{Binding CheckForUpdatesAtStart}" />
-    <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding OfferBetas}" />
+    <!-- Beta updates only while unlocked (#246): shown but disabled while locked; the stored choice is kept. -->
+    <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding OfferBetas}" IsEnabled="{Binding BetasUnlocked}" />
+    <HyperlinkButton Content="{x:Static res:Strings.UnlockBetasNeeded}" IsVisible="{Binding !BetasUnlocked}" Click="OpenUnlock" Padding="0" />
     <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
 
     <!-- Company branding (#228). The name is saved when the box loses focus, so it is trimmed only once typing is done.
