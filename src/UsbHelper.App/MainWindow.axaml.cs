@@ -26,12 +26,21 @@ public partial class MainWindow : Window, IMainWindowActions
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
         Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
+        Closed += (_, _) => (BrandingLogo.Source as Bitmap)?.Dispose();
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.Window = this;
+                ShowBrandingLogo(viewModel);
+                viewModel.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.BrandingLogo))
+                    {
+                        ShowBrandingLogo(viewModel);
+                    }
+                };
                 if (OperatingSystem.IsMacOS())
                 {
                     // macOS shows the menu in the system menu bar, not in the window (#178); Windows keeps the window menu.
@@ -50,6 +59,27 @@ public partial class MainWindow : Window, IMainWindowActions
                 }
             }
         };
+    }
+
+    // Read into memory, so the file is not held open and the next logo import can replace it. A file that cannot be
+    // read shows no logo.
+    private void ShowBrandingLogo(MainViewModel viewModel)
+    {
+        var old = BrandingLogo.Source as Bitmap;
+        BrandingLogo.Source = null;
+        old?.Dispose();
+        if (viewModel.BrandingLogo is not { } path)
+        {
+            return;
+        }
+        try
+        {
+            using var stream = new MemoryStream(File.ReadAllBytes(path));
+            BrandingLogo.Source = new Bitmap(stream);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     // The update popup (#131) is open exactly while the update model offers something.

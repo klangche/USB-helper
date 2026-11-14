@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using System.Globalization;
+using SkiaSharp;
 using UsbHelper.App.Licensing;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
+using UsbHelper.App.Tests.Settings;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -1749,6 +1751,77 @@ public class MainViewModelTests
 
         Assert.Equal("%PDF"u8.ToArray(), output.ToArray()[..4]);
         Assert.Equal("PDF exported", log.Entries[^1].Text);
+    }
+
+    // #229: the company logo, or the name when there is no logo, at the right end of the top bar, only while unlocked.
+    [Fact]
+    public void TheTopBarBrandingFollowsTheNameTheLogoAndTheUnlock()
+    {
+        var folder = Directory.CreateTempSubdirectory("usbhelper-top-bar-tests-").FullName;
+        try
+        {
+            var log = new EventLog();
+            var settings = SettingsViewModel.Load(new SettingsFile(Path.Combine(folder, "USB-helper", "settings.json")), log);
+            var entitlements = new CodeEntitlements(TestKeys, settings, log);
+            var viewModel = new MainViewModel(new ComputerIdentity(null, null), log: log, settings: settings, entitlements: entitlements);
+            var changed = new List<string?>();
+            viewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+            // Neither set: nothing shows.
+            Assert.False(viewModel.ShowsBranding);
+            Assert.Null(viewModel.BrandingName);
+            Assert.Null(viewModel.BrandingLogo);
+
+            // Locked: the name is kept but not shown.
+            settings.CompanyName = "Acme AB";
+            Assert.False(viewModel.ShowsBranding);
+            Assert.Null(viewModel.BrandingName);
+
+            entitlements.Unlock(TestEmail, TestCode);
+            Assert.True(viewModel.ShowsBranding);
+            Assert.Equal("Acme AB", viewModel.BrandingName);
+            Assert.Null(viewModel.BrandingLogo);
+            Assert.Contains(nameof(MainViewModel.BrandingName), changed);
+            Assert.Contains(nameof(MainViewModel.ShowsBranding), changed);
+
+            // A logo: only the logo, never both.
+            changed.Clear();
+            settings.ImportLogo(TestImages.HalfRed(folder, "logo.png", SKEncodedImageFormat.Png));
+            Assert.True(viewModel.ShowsBranding);
+            Assert.Equal(Path.Combine(folder, "USB-helper", "branding", "logo-64.png"), viewModel.BrandingLogo);
+            Assert.Null(viewModel.BrandingName);
+            Assert.Contains(nameof(MainViewModel.BrandingLogo), changed);
+            Assert.Contains(nameof(MainViewModel.BrandingName), changed);
+
+            // No name: still the logo.
+            settings.CompanyName = "";
+            Assert.True(viewModel.ShowsBranding);
+            Assert.NotNull(viewModel.BrandingLogo);
+
+            // Neither: hidden.
+            changed.Clear();
+            settings.RemoveLogo();
+            Assert.False(viewModel.ShowsBranding);
+            Assert.Null(viewModel.BrandingLogo);
+            Assert.Null(viewModel.BrandingName);
+            Assert.Contains(nameof(MainViewModel.ShowsBranding), changed);
+
+            // The logo removed: the name comes back.
+            settings.CompanyName = "Acme AB";
+            Assert.True(viewModel.ShowsBranding);
+            Assert.Equal("Acme AB", viewModel.BrandingName);
+
+            // Locked again: hidden although a name is set.
+            changed.Clear();
+            entitlements.Remove();
+            Assert.False(viewModel.ShowsBranding);
+            Assert.Null(viewModel.BrandingName);
+            Assert.Contains(nameof(MainViewModel.ShowsBranding), changed);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 }
 
