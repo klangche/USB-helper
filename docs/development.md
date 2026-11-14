@@ -39,7 +39,10 @@ everyone in that build ("Unlocked (free beta)"). Only the publish steps get
 them: "Publish app" in `release.yml`, and only on a push (a beta from `dev`,
 a release from `main`), and "Publish ARM64 app" and "Publish x64 app" in
 `macos.yml`, in the job that builds the release or beta dmg. Pull request
-builds never get them. A new key id also needs its line in those steps. Codes
+builds never get them. Key 0 is the beta key: it goes only to the beta
+publish steps (a push to `dev`, a dmg with a `-beta.N` tag), never to a stable
+release, so stable releases need codes with key id 1 or later. Key 1 goes to
+betas and releases. A new key id also needs its line in those steps. Codes
 are made in the private keygen repository, never here. Never commit a key or
 a code, and never put one in an issue, pull request or test.
 
