@@ -376,7 +376,7 @@ This version keeps running.</value>
     <value>Save the PDF report</value>
   </data>
   <data name="ExportPdfSaved" xml:space="preserve">
-    <value>Saved {0}: the sign-off report as PDF.</value>
+    <value>Saved {0}: the setup report as PDF.</value>
   </data>
   <data name="ExportPdfFailed" xml:space="preserve">
     <value>The PDF could not be saved: {0}</value>
@@ -556,10 +556,10 @@ This version keeps running.</value>
     <value>Opens the release page in your browser. Quit USB-helper, open the new .dmg there and drag USB-helper.app to Applications, replacing the old one.</value>
   </data>
   <data name="ReportTitle" xml:space="preserve">
-    <value>USB setup sign-off</value>
+    <value>USB setup report</value>
   </data>
   <data name="ReportPdfTitle" xml:space="preserve">
-    <value>USB setup sign-off - {0}</value>
+    <value>USB setup report - {0}</value>
   </data>
   <data name="ReportCreator" xml:space="preserve">
     <value>USB-helper {0}</value>

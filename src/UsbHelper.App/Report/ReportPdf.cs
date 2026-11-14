@@ -10,7 +10,7 @@ using UsbHelper.Core.Diagnostics;
 namespace UsbHelper.App.Report;
 
 /// <summary>
-/// The PDF sign-off report (#231): an A4 document an installer hands to the customer. All text is real text in the
+/// The PDF setup report (#231): an A4 document an installer hands to the customer. All text is real text in the
 /// embedded Inter font; the logo, rules, status marks and tree lines are vector. No view code, so it
 /// runs headless.
 /// </summary>

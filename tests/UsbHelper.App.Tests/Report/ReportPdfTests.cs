@@ -7,7 +7,7 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.Tests.Report;
 
-// #231: the PDF sign-off report. Text is real text in an embedded font, so it can be extracted, selected and copied.
+// #231: the PDF setup report. Text is real text in an embedded font, so it can be extracted, selected and copied.
 public class ReportPdfTests
 {
     private static byte[] Pdf(ReportModel model)
@@ -227,7 +227,7 @@ public class ReportPdfTests
         Assert.Equal(18 / 25.4 * 72, title.BoundingBox.Left, 0);
     }
 
-    // #247: no sign-off block and no notes lines; the last section ends the document.
+    // #247: no sign-off block and no notes lines; the last section ends the document. The title says "report".
     [Fact]
     public void The_report_has_no_sign_off_block()
     {
@@ -235,7 +235,8 @@ public class ReportPdfTests
         {
             var all = string.Join("\n", PageTexts(Pdf(model)));
 
-            Assert.DoesNotContain("Sign-off", all);
+            Assert.DoesNotContain("sign-off", all, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("USB setup report\n", all);
             Assert.DoesNotContain("Installed / checked by", all);
             Assert.DoesNotContain("Accepted by", all);
             Assert.DoesNotContain("Signature", all);
@@ -352,7 +353,7 @@ public class ReportPdfTests
     {
         using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null)));
 
-        Assert.Equal($"USB setup sign-off - {ReportSamples.Room}", document.Information.Title);
+        Assert.Equal($"USB setup report - {ReportSamples.Room}", document.Information.Title);
         Assert.Equal(ReportSamples.Company, document.Information.Author);
         Assert.Equal("USB-helper 0.9.0-beta.3", document.Information.Creator);
     }
@@ -362,7 +363,7 @@ public class ReportPdfTests
     {
         using var document = PdfDocument.Open(Pdf(ReportSamples.NoRoom(null)));
 
-        Assert.Equal("USB setup sign-off - Dell Inc. Latitude 7450", document.Information.Title);
+        Assert.Equal("USB setup report - Dell Inc. Latitude 7450", document.Information.Title);
     }
 
     [Theory]

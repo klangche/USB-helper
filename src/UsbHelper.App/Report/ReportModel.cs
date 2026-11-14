@@ -6,7 +6,7 @@ using UsbHelper.Core.Diagnostics;
 namespace UsbHelper.App.Report;
 
 /// <summary>
-/// Everything the PDF sign-off report (#231) shows, as plain data, so the renderer needs no view and no database.
+/// Everything the PDF setup report (#231) shows, as plain data, so the renderer needs no view and no database.
 /// <see cref="MainViewModel.Report"/> builds it from the current setup. No serial numbers and no computer name, the same
 /// rule as the setup export.
 /// </summary>
