@@ -165,6 +165,8 @@ public class TreeTextTests
 
         public void ExportSetup() { }
 
+        public void ExportPdf() { }
+
         public void ConfirmRefresh() { }
 
         public void ExportProfile() { }

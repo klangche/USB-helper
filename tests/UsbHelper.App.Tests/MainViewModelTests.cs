@@ -1643,6 +1643,116 @@ public class MainViewModelTests
         Assert.Contains(log.Entries, entry => entry.Text.Contains("comes from an unverified profile", StringComparison.Ordinal));
     }
 
+    // #232: File > Export PDF needs the tree, the unlock and a room name; its tooltip says which is missing.
+    private static (MainViewModel ViewModel, CodeEntitlements Entitlements) PdfViewModel()
+    {
+        var log = new EventLog();
+        var settings = new SettingsViewModel();
+        var entitlements = new CodeEntitlements(TestKeys, settings, log);
+        return (new MainViewModel(null, [], new ComputerIdentity(null, null), log: log, settings: settings, entitlements: entitlements), entitlements);
+    }
+
+    [Fact]
+    public void ExportPdfIsDisabledWhileLocked()
+    {
+        var (viewModel, _) = PdfViewModel();
+        viewModel.Load(Desk, monitors: []);
+        viewModel.RoomName = "Room 4.12";
+
+        Assert.False(viewModel.ExportPdfCommand.CanExecute(null));
+        Assert.Equal("Enter a code to unlock PDF reports", viewModel.ExportPdfTip);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ExportPdfIsDisabledWithoutARoomName(string room)
+    {
+        var (viewModel, entitlements) = PdfViewModel();
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        viewModel.Load(Desk, monitors: []);
+        viewModel.RoomName = room;
+
+        Assert.False(viewModel.ExportPdfCommand.CanExecute(null));
+        Assert.Equal("Enter a room name to export a PDF", viewModel.ExportPdfTip);
+    }
+
+    [Fact]
+    public void ExportPdfIsEnabledWhenUnlockedWithARoomNameAndTheTree()
+    {
+        var (viewModel, entitlements) = PdfViewModel();
+        var changed = 0;
+        viewModel.ExportPdfCommand.CanExecuteChanged += (_, _) => changed++;
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        viewModel.RoomName = "Room 4.12";
+        var tips = new List<string?>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.ExportPdfTip))
+            {
+                tips.Add(viewModel.ExportPdfTip);
+            }
+        };
+        Assert.False(viewModel.ExportPdfCommand.CanExecute(null));
+        Assert.Equal("Wait until the USB tree is read", viewModel.ExportPdfTip);
+
+        viewModel.Load(Desk, monitors: []);
+
+        Assert.True(viewModel.ExportPdfCommand.CanExecute(null));
+        Assert.Null(viewModel.ExportPdfTip);
+        Assert.Equal([null], tips); // Raised when the tree arrives.
+        Assert.True(changed >= 3); // On unlock, on the room name and on the tree.
+
+        entitlements.Remove();
+        Assert.False(viewModel.ExportPdfCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ThePdfFileNameHasTheRoomAndTheTime()
+    {
+        var viewModel = NewViewModel();
+        viewModel.RoomName = " Room 4/12 ";
+
+        Assert.Equal("usb-helper_Room 4-12_2026-11-13_09-05-07.pdf", viewModel.PdfFileName(new DateTime(2026, 11, 13, 9, 5, 7)));
+    }
+
+    [Fact]
+    public void ThePdfUsesTheVectorLogoBeforeThePng()
+    {
+        var pngs = new Dictionary<int, string> { [256] = "logo-256.png", [512] = "logo-512.png" };
+
+        Assert.Equal("logo.svg", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.svg", pngs, "logo.svg")));
+        Assert.Equal("logo-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null)));
+        Assert.Null(MainViewModel.ReportLogo(new Branding("Acme AB", null, new Dictionary<int, string>(), null)));
+        Assert.Null(MainViewModel.ReportLogo(null));
+    }
+
+    [Fact]
+    public void TheReportNamesTheLicensedEmailOnlyWhenUnlocked()
+    {
+        var (viewModel, entitlements) = PdfViewModel();
+        viewModel.Load(Desk, monitors: []);
+        var created = new DateTime(2026, 11, 13, 9, 30, 0);
+
+        Assert.Null(viewModel.Report(created, null, null, "0.9.0").LicensedTo);
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        Assert.Equal(TestEmail, viewModel.Report(created, null, null, "0.9.0").LicensedTo);
+    }
+
+    [Fact]
+    public void ExportPdfWritesAPdfAndLogsIt()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity(null, null), log: log);
+        viewModel.Load(Desk, monitors: []);
+        using var output = new MemoryStream();
+
+        viewModel.ExportPdf(output, new DateTime(2026, 11, 13, 9, 30, 0), "0.9.0-test");
+
+        Assert.Equal("%PDF"u8.ToArray(), output.ToArray()[..4]);
+        Assert.Equal("PDF exported", log.Entries[^1].Text);
+    }
+
     // #229: the company logo, or the name when there is no logo, at the right end of the top bar, only while unlocked.
     [Fact]
     public void TheTopBarBrandingFollowsTheNameTheLogoAndTheUnlock()

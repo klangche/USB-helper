@@ -1,6 +1,7 @@
 using SkiaSharp;
 using Svg.Skia;
 using UsbHelper.App.Report;
+using UsbHelper.App.Settings;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 
@@ -12,6 +13,7 @@ internal static class ReportSamples
     public const string Company = "Halden Systems AB";
     public const string Room = "Board room 4.12";
     public const string Device = "Logitech Rally Bar";
+    public const string Email = "test@example.com";
 
     private const string LogoSvg = """
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
@@ -29,15 +31,27 @@ internal static class ReportSamples
         return path;
     }
 
-    /// <summary>The sample logo as a PNG with a transparent background, 512 pixels high.</summary>
-    public static string WritePngLogo()
+    /// <summary>The sample logo as the app stores it after import (#241): a 3:1 logo.svg, the drawing centred.</summary>
+    public static string WriteCroppedLogo()
+    {
+        var logo = new CompanyLogo(Path.Combine(Directory.CreateTempSubdirectory("usb-helper-report-").FullName, "logo"));
+        logo.Import(WriteLogo());
+        return logo.Svg!;
+    }
+
+    /// <summary>
+    /// The sample logo as a PNG with a transparent background, 512 pixels high and <paramref name="width"/> wide, the
+    /// drawing centred.
+    /// </summary>
+    public static string WritePngLogo(int width = 512)
     {
         using var svg = new SKSvg();
         svg.FromSvg(LogoSvg);
-        using var bitmap = new SKBitmap(new SKImageInfo(512, 512, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using var bitmap = new SKBitmap(new SKImageInfo(width, 512, SKColorType.Rgba8888, SKAlphaType.Premul));
         using (var canvas = new SKCanvas(bitmap))
         {
             canvas.Clear(SKColors.Transparent);
+            canvas.Translate((width - 512) / 2f, 0);
             canvas.Scale(512 / svg.Picture!.CullRect.Width);
             canvas.DrawPicture(svg.Picture);
         }

@@ -10,7 +10,9 @@ namespace UsbHelper.App.Report;
 /// <see cref="MainViewModel.Report"/> builds it from the current setup. No serial numbers and no computer name, the same
 /// rule as the setup export.
 /// </summary>
-/// <param name="CompanyName">Shown in the header and footer; null when none is set.</param>
+/// <param name="CompanyName">
+/// Shown in the header and footer only when no logo is shown (#232), and always in the metadata; null when none is set.
+/// </param>
 /// <param name="LogoPath">An .svg file (drawn as vector) or a PNG or WebP file; null when there is no logo.</param>
 /// <param name="RoomName">The room or system name the user typed; null when none is entered.</param>
 /// <param name="Overall">The worst result of all checked profiles over all controllers.</param>
@@ -29,7 +31,11 @@ public sealed record ReportModel(
     IReadOnlyList<ReportProfile> Profiles,
     IReadOnlyList<ReportDisplay>? Displays,
     IReadOnlyList<ReportRow> Tree,
-    IReadOnlyList<ReportFinding> Findings);
+    IReadOnlyList<ReportFinding> Findings)
+{
+    /// <summary>The email the report features are unlocked for (#232), in the header and footer; null when none.</summary>
+    public string? LicensedTo { get; init; }
+}
 
 /// <summary>The setup's counts over all controllers.</summary>
 /// <param name="Usb2Hubs">Hubs on the USB2 bus; null when no bus is known.</param>
