@@ -32,6 +32,7 @@
         <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" Command="{Binding Update.CheckNow}"
                   IsEnabled="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuUnlock}" Command="{Binding UnlockCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuAbout}" Command="{Binding AboutCommand}" />
       </MenuItem>
     </Menu>
@@ -79,6 +80,8 @@
       <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <!-- The unlock popup (#238), only while locked; once unlocked the status line at the bottom says who it is unlocked to. -->
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
            it with its aspect ratio kept. The name is
@@ -95,6 +98,13 @@
 
     <TextBlock x:Name="ExportResult" DockPanel.Dock="Top" TextWrapping="Wrap" Margin="12,0,12,8"
                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+    <!-- Status line (#238), always shown while unlocked: who it is unlocked to, or the free beta. It opens the unlock popup
+         to view or remove the code. -->
+    <Border x:Name="UnlockStatus" DockPanel.Dock="Bottom" IsVisible="{Binding Unlock.FeaturesUnlocked}"
+            BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}" BorderThickness="0,1,0,0" Padding="12,2">
+      <HyperlinkButton Content="{Binding Unlock.UnlockedText}" Command="{Binding UnlockCommand}" Padding="0" />
+    </Border>
 
     <Grid ColumnDefinitions="3*,6,2*" Margin="12,0,12,12">
 

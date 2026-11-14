@@ -175,6 +175,8 @@ public class TreeTextTests
 
         public void ShowSettings() { }
 
+        public void ShowUnlock() { }
+
         public void ShowAbout() { }
 
         public void Exit() { }

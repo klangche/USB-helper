@@ -113,4 +113,39 @@ public sealed class CodeEntitlementsTests : IDisposable
         Assert.Null(settings.Branding);
         Assert.Equal("Acme AB", File.Load(log).CompanyName);
     }
+
+    // #238: a build made with USBH_FREE_UNLOCK=true unlocks the extra features for everyone, without a code.
+    [Fact]
+    public void AFreeBuildUnlocksWithoutACodeAndLicensesNobody()
+    {
+        var entitlements = new CodeEntitlements(TestKeys, new SettingsViewModel(), log, freeUnlock: true);
+
+        Assert.True(entitlements.FreeUnlock);
+        Assert.True(entitlements.IsUnlocked(Feature.Pro));
+        Assert.Null(entitlements.LicensedTo);
+    }
+
+    [Fact]
+    public void AFreeBuildStillTakesAPersonalCodeAndStaysUnlockedWhenItIsRemoved()
+    {
+        var entitlements = new CodeEntitlements(TestKeys, new SettingsViewModel(), log, freeUnlock: true);
+
+        Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
+        Assert.Equal(TestEmail, entitlements.LicensedTo);
+
+        entitlements.Remove();
+        Assert.True(entitlements.IsUnlocked(Feature.Pro));
+        Assert.Null(entitlements.LicensedTo);
+    }
+
+    [Fact]
+    public void ABuildWithoutTheSwitchIsLocked()
+    {
+        var entitlements = new CodeEntitlements(TestKeys, new SettingsViewModel(), log);
+
+        Assert.False(entitlements.FreeUnlock);
+        Assert.False(entitlements.IsUnlocked(Feature.Pro));
+        // The tests are built without USBH_FREE_UNLOCK, like every pull request build.
+        Assert.False(BuildInfo.FreeUnlock);
+    }
 }

@@ -23,10 +23,12 @@ public sealed class CodeEntitlements : IEntitlements
     private int features;
 
     /// <param name="keys">The secrets by keyId: <see cref="LicenceKeys.All"/> in the app, a test secret in tests.</param>
-    public CodeEntitlements(IReadOnlyDictionary<int, byte[]> keys, SettingsViewModel settings, EventLog log)
+    /// <param name="freeUnlock"><see cref="BuildInfo.FreeUnlock"/> in the app: every feature is unlocked without a code (#238).</param>
+    public CodeEntitlements(IReadOnlyDictionary<int, byte[]> keys, SettingsViewModel settings, EventLog log, bool freeUnlock = false)
     {
         this.keys = keys;
         this.settings = settings;
+        FreeUnlock = freeUnlock;
         if (settings.LicenceEmail is { } email && settings.LicenceCode is { } code)
         {
             features = UnlockCode.Verify(keys, email, code) ?? 0;
@@ -40,9 +42,13 @@ public sealed class CodeEntitlements : IEntitlements
     /// <summary>False in a build without keys (local and fork builds).</summary>
     public bool CodesAvailable => keys.Count > 0;
 
+    /// <summary>True in a free-unlock build (#238): every feature is unlocked, with or without a code.</summary>
+    public bool FreeUnlock { get; }
+
+    /// <summary>Only a personal code licenses an email; a free-unlock build alone does not.</summary>
     public string? LicensedTo => features != 0 ? settings.LicenceEmail : null;
 
-    public bool IsUnlocked(Feature feature) => (features & (int)feature) == (int)feature;
+    public bool IsUnlocked(Feature feature) => FreeUnlock || (features & (int)feature) == (int)feature;
 
     /// <summary>Unlocks and saves the pair when the code matches the email; a wrong pair changes and saves nothing.</summary>
     public UnlockResult Unlock(string email, string code)
@@ -61,7 +67,7 @@ public sealed class CodeEntitlements : IEntitlements
         return UnlockResult.Unlocked;
     }
 
-    /// <summary>Locks the features again and forgets the saved pair.</summary>
+    /// <summary>Locks the features again (none in a <see cref="FreeUnlock"/> build) and forgets the saved pair.</summary>
     public void Remove()
     {
         features = 0;

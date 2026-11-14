@@ -43,6 +43,9 @@ public partial class SettingsWindow : Window
 
     private SettingsViewModel Settings => (SettingsViewModel)DataContext!;
 
+    /// <summary>The main window's unlock popup content (#238), for the locked branding's link.</summary>
+    public UnlockViewModel? Unlock { get; init; }
+
     private void LogoChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SettingsViewModel.LogoPreview))
@@ -97,6 +100,14 @@ public partial class SettingsWindow : Window
     private Task<bool> Crop(LogoCropViewModel crop) => new LogoCropWindow { DataContext = crop }.ShowDialog<bool>(this);
 
     private void RemoveLogo(object? sender, RoutedEventArgs e) => Settings.RemoveLogo();
+
+    private void OpenUnlock(object? sender, RoutedEventArgs e)
+    {
+        if (Unlock != null)
+        {
+            UnlockWindow.Open(this, Unlock);
+        }
+    }
 
     private void CloseWindow(object? sender, RoutedEventArgs e) => Close();
 }
