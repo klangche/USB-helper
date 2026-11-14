@@ -54,6 +54,7 @@ public static class MacNativeMenu
         Top(HelpTitle,
             viewModel.Update is { } update ? Item(Strings.MenuCheckForUpdates, update.CheckNow) : new NativeMenuItem(Label(Strings.MenuCheckForUpdates)) { IsEnabled = false },
             new NativeMenuItemSeparator(),
+            Item(Strings.MenuUnlock, viewModel.UnlockCommand),
             Item(Strings.MenuAbout, viewModel.AboutCommand)),
     ];
 

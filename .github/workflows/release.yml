@@ -105,6 +105,8 @@ jobs:
       # nothing is extracted or unpacked at start.
       # Unlock code secrets (#234): only this step gets them, and only on a push (a beta from dev, a release from main),
       # so pull request artifacts never hold a key. The GenerateLicenceKeys target builds them into the app.
+      # The free-unlock switch (#238) follows the same guard: the Actions variable USBH_FREE_UNLOCK=true unlocks the
+      # extra features for everyone in this beta or release; pull request builds never get it.
       - name: Publish app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r win-x64 --self-contained
@@ -113,6 +115,7 @@ jobs:
         env:
           USBH_LICENCE_KEY_0: ${{ github.event_name == 'push' && secrets.USBH_LICENCE_KEY_0 || '' }}
           USBH_LICENCE_KEY_1: ${{ github.event_name == 'push' && secrets.USBH_LICENCE_KEY_1 || '' }}
+          USBH_FREE_UNLOCK: ${{ github.event_name == 'push' && vars.USBH_FREE_UNLOCK || '' }}
 
       # USB-helper.exe (#130): NativeAOT, so it starts app\UsbHelper.exe within milliseconds and needs no .NET runtime.
       - name: Publish starter

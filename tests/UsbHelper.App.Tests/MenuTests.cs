@@ -27,6 +27,8 @@ public class MenuTests
 
         public void ShowSettings() => Calls.Add(nameof(ShowSettings));
 
+        public void ShowUnlock() => Calls.Add(nameof(ShowUnlock));
+
         public void Exit() => Calls.Add(nameof(Exit));
 
         public void CopyText(string text) => Calls.Add(nameof(CopyText));
@@ -61,8 +63,9 @@ public class MenuTests
         viewModel.CopyTreeCommand.Execute(null);
         viewModel.ExportSetupCommand.Execute(null);
         viewModel.ExportPdfCommand.Execute(null);
+        viewModel.UnlockCommand.Execute(null);
 
-        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup", "ExportPdf"], window.Calls);
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup", "ExportPdf", "ShowUnlock"], window.Calls);
     }
 
     [Fact]
@@ -153,13 +156,17 @@ public class MenuTests
     [Fact]
     public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit() => AvaloniaUiThread.Run(() =>
     {
-        var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
+        var viewModel = Loaded(Known, new FakeWindow());
+        var menu = MacNativeMenu.Create(viewModel);
 
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
         Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
-        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
+        Assert.Equal(["Check for updates", "-", "Unlock...", "About USB-helper"], Headers(1));
+        // #238: Help > Unlock... opens the unlock popup.
+        var unlock = top[1].Menu!.Items.OfType<NativeMenuItem>().Single(item => item.Header == "Unlock...");
+        Assert.Same(viewModel.UnlockCommand, unlock.Command);
     });
 
     // #245: a native menu item checks its command on Avalonia's UI thread and waits for it there. Built from a thread that
@@ -213,7 +220,8 @@ public class MenuTests
         Assert.Equal(["MenuRefresh", "MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuExportPdf", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
         Assert.Equal(["MenuCopyTree"], Items(menu, "MenuEdit"));
         Assert.Equal("{Binding CopyTreeCommand}", (string?)MenuItem(MainWindowXaml(), "MenuCopyTree").Attribute("Command"));
-        Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));
+        Assert.Equal(["MenuCheckForUpdates", "MenuUnlock", "MenuAbout"], Items(menu, "MenuHelp"));
+        Assert.Equal("{Binding UnlockCommand}", (string?)MenuItem(MainWindowXaml(), "MenuUnlock").Attribute("Command"));
     }
 
     [Fact]

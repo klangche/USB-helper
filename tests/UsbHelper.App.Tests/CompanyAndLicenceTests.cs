@@ -146,6 +146,8 @@ public class CompanyAndLicenceTests
 
         public void ShowSettings() { }
 
+        public void ShowUnlock() { }
+
         public void ShowAbout() { }
 
         public void Exit() { }
