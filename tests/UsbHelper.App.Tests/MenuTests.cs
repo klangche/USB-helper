@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Xml.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using UsbHelper.App.Resources;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
@@ -141,13 +142,16 @@ public class MenuTests
         Assert.Equal("{Binding ExportPdfCommand}", (string?)item.Attribute("Command"));
         Assert.Equal("{Binding ExportPdfTip}", (string?)item.Attribute("ToolTip.Tip"));
         Assert.Equal("True", (string?)item.Attribute("ToolTip.ShowOnDisabled"));
-        var viewModel = Loaded(Known, new FakeWindow());
-        var file = MacNativeMenu.Create(viewModel).Items.OfType<NativeMenuItem>().First().Menu!.Items.OfType<NativeMenuItem>();
-        Assert.Same(viewModel.ExportPdfCommand, file.Single(entry => entry.Header == "Export PDF...").Command);
+        AvaloniaUiThread.Run(() =>
+        {
+            var viewModel = Loaded(Known, new FakeWindow());
+            var file = MacNativeMenu.Create(viewModel).Items.OfType<NativeMenuItem>().First().Menu!.Items.OfType<NativeMenuItem>();
+            Assert.Same(viewModel.ExportPdfCommand, file.Single(entry => entry.Header == "Export PDF...").Command);
+        });
     }
 
     [Fact]
-    public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit()
+    public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit() => AvaloniaUiThread.Run(() =>
     {
         var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
 
@@ -156,6 +160,19 @@ public class MenuTests
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
         Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
+    });
+
+    // #245: a native menu item checks its command on Avalonia's UI thread and waits for it there. Built from a thread that
+    // is not the UI thread, while the UI thread was a test thread that never ran its dispatcher, it hung the test run.
+    [Fact]
+    public async Task TheMacMenuBarIsBuiltFromAnyThreadWithoutHanging()
+    {
+        _ = Dispatcher.UIThread; // Claims the UI thread now, unless a thread already has.
+        var built = Task.Factory.StartNew(
+            () => AvaloniaUiThread.Run(() => Assert.Equal(2, MacNativeMenu.Create(Loaded(Known, new FakeWindow())).Items.Count)),
+            TaskCreationOptions.LongRunning);
+
+        await built.WaitAsync(TimeSpan.FromSeconds(30)); // Throws TimeoutException if it hangs.
     }
 
     [Fact]

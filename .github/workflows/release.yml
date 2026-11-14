@@ -97,7 +97,9 @@ jobs:
 
       - run: dotnet restore --locked-mode
 
-      - run: dotnet test --no-restore -c Release
+      # A hung test fails within minutes, not after the six-hour job limit (#245).
+      - run: dotnet test --no-restore -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20
 
       # Loose files (#123): the exe, its DLLs and the .NET runtime in one folder, ReadyToRun, not trimmed. No single file:
       # nothing is extracted or unpacked at start.

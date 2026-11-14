@@ -30,7 +30,9 @@ jobs:
 
       - run: dotnet format --verify-no-changes --no-restore
 
-      - run: dotnet test --no-build -c Release
+      # A hung test fails within minutes, not after the six-hour job limit (#245).
+      - run: dotnet test --no-build -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20
 
       - name: Publish ARM64 app
         run: >-
