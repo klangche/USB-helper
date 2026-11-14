@@ -543,6 +543,9 @@ This version keeps running.</value>
   <data name="UnlockNeeded" xml:space="preserve">
     <value>Enter a code to unlock</value>
   </data>
+  <data name="UnlockBetasNeeded" xml:space="preserve">
+    <value>Enter a code to unlock beta updates</value>
+  </data>
   <data name="UnlockNotAvailable" xml:space="preserve">
     <value>Unlock codes are not available in this build</value>
   </data>

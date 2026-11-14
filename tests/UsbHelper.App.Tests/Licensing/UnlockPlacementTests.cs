@@ -62,8 +62,8 @@ public sealed class UnlockPlacementTests
         Assert.DoesNotContain("Strings.UnlockCode", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Strings.SupportTitle", text, StringComparison.Ordinal);
 
-        var link = settings.Descendants(Avalonia + "HyperlinkButton").Single();
-        Assert.Equal("{x:Static res:Strings.UnlockNeeded}", (string?)link.Attribute("Content"));
+        // The branding's link; beta updates have their own (#246).
+        var link = settings.Descendants(Avalonia + "HyperlinkButton").Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.UnlockNeeded}");
         Assert.Equal("OpenUnlock", (string?)link.Attribute("Click"));
         Assert.Equal("{Binding !BrandingUnlocked}", (string?)link.Attribute("IsVisible"));
     }

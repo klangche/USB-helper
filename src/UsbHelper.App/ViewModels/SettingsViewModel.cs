@@ -45,9 +45,9 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Unlocks branding while <paramref name="unlock"/> has <see cref="Feature.Pro"/>, and follows its changes. Called
-    /// once by <see cref="MainViewModel"/>: the entitlements read the unlock code from these settings, so they cannot be
-    /// given to <see cref="Load"/>. Until then branding is locked.
+    /// Unlocks branding and beta updates (#246) while <paramref name="unlock"/> has <see cref="Feature.Pro"/>, and follows
+    /// its changes. Called once by <see cref="MainViewModel"/>: the entitlements read the unlock code from these settings,
+    /// so they cannot be given to <see cref="Load"/>. Until then both are locked.
     /// </summary>
     public void Gate(IEntitlements unlock)
     {
@@ -56,6 +56,8 @@ public sealed class SettingsViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(BrandingUnlocked));
             OnPropertyChanged(nameof(Branding));
+            OnPropertyChanged(nameof(BetasUnlocked));
+            OnPropertyChanged(nameof(BetasOffered));
         };
     }
 
@@ -74,10 +76,30 @@ public sealed class SettingsViewModel : ObservableObject
         set => Change(current with { CheckForUpdatesAtStart = value });
     }
 
+    /// <summary>The stored choice; it is kept while locked and used again on unlock (#246).</summary>
     public bool OfferBetas
     {
         get => current.OfferBetas;
         set => Change(current with { OfferBetas = value });
+    }
+
+    /// <summary>False until an unlock code (or a free-unlock build) gives <see cref="Feature.Pro"/>: only stable releases are offered (#246).</summary>
+    public bool BetasUnlocked => entitlements?.IsUnlocked(Feature.Pro) == true;
+
+    /// <summary>
+    /// Whether the update check offers betas: <see cref="OfferBetas"/> while <see cref="BetasUnlocked"/>. The settings
+    /// checkbox shows this, so it is unticked while locked; setting it changes the stored choice only while unlocked.
+    /// </summary>
+    public bool BetasOffered
+    {
+        get => BetasUnlocked && OfferBetas;
+        set
+        {
+            if (BetasUnlocked)
+            {
+                OfferBetas = value;
+            }
+        }
     }
 
     /// <summary>Turning it off forgets the kept profiles; the main window keeps the current ones when it is turned on.</summary>
@@ -207,6 +229,7 @@ public sealed class SettingsViewModel : ObservableObject
         if (before.OfferBetas != current.OfferBetas)
         {
             OnPropertyChanged(nameof(OfferBetas));
+            OnPropertyChanged(nameof(BetasOffered));
         }
         if (before.RememberCheckedProfiles != current.RememberCheckedProfiles)
         {

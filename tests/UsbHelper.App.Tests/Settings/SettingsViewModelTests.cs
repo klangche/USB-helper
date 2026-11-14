@@ -255,12 +255,12 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.True(settings.BrandingUnlocked);
         Assert.Equal("Acme AB", settings.Branding!.CompanyName);
         Assert.NotNull(settings.Branding.LogoOriginal);
-        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding)], changed);
+        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding), nameof(SettingsViewModel.BetasUnlocked), nameof(SettingsViewModel.BetasOffered)], changed);
 
         changed.Clear();
         entitlements.SetPro(false);
         Assert.False(settings.BrandingUnlocked);
         Assert.Null(settings.Branding);
-        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding)], changed);
+        Assert.Equal([nameof(SettingsViewModel.BrandingUnlocked), nameof(SettingsViewModel.Branding), nameof(SettingsViewModel.BetasUnlocked), nameof(SettingsViewModel.BetasOffered)], changed);
     }
 }
