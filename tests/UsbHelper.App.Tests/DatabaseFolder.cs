@@ -12,17 +12,19 @@ internal static class DatabaseFolder
     /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
     /// <param name="platform">The platform profile's id.</param>
     /// <param name="mst">The computer's <c>displays.mst</c>; not set when null.</param>
+    /// <param name="computerFile">The computer profile's file name without extension.</param>
+    /// <param name="platformFile">The platform profile's file name without extension; the platform id when null.</param>
     public static HardwareDatabase Load(
         string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "p",
-        string? mst = null)
+        string? mst = null, string computerFile = "c", string? platformFile = null)
     {
         var folder = Directory.CreateTempSubdirectory("usb-helper-app-").FullName;
         Directory.CreateDirectory(Path.Combine(folder, "platforms"));
         Directory.CreateDirectory(Path.Combine(folder, "computers"));
         File.WriteAllText(Path.Combine(folder, "base.yaml"), "schema_version: 1\n");
-        File.WriteAllText(Path.Combine(folder, "platforms", $"{platform}.yaml"),
+        File.WriteAllText(Path.Combine(folder, "platforms", $"{platformFile ?? platform}.yaml"),
             $"id: {platform}\ninherits: base\n" + (platformLimits == null ? "" : $"limits:\n  {platformLimits}\nverification:\n  status: verified\n"));
-        File.WriteAllText(Path.Combine(folder, "computers", "c.yaml"), $"""
+        File.WriteAllText(Path.Combine(folder, "computers", $"{computerFile}.yaml"), $"""
             inherits: {platform}
             manufacturer: {manufacturer}
             model: {model}

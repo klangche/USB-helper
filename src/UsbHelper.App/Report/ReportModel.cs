@@ -6,7 +6,7 @@ using UsbHelper.Core.Diagnostics;
 namespace UsbHelper.App.Report;
 
 /// <summary>
-/// Everything the PDF sign-off report (#231) shows, as plain data, so the renderer needs no view and no database.
+/// Everything the PDF setup report (#231) shows, as plain data, so the renderer needs no view and no database.
 /// <see cref="MainViewModel.Report"/> builds it from the current setup. No serial numbers and no computer name, the same
 /// rule as the setup export.
 /// </summary>
@@ -35,6 +35,12 @@ public sealed record ReportModel(
 {
     /// <summary>The email the report features are unlocked for (#232), in the header and footer; null when none.</summary>
     public string? LicensedTo { get; init; }
+
+    /// <summary>
+    /// The database files of the checked profiles, as the findings name them: the report writes "Hardware database" in
+    /// their place (#247).
+    /// </summary>
+    public IReadOnlyList<string> DatabaseFiles { get; init; } = [];
 }
 
 /// <summary>The setup's counts over all controllers.</summary>

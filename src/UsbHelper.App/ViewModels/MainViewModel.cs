@@ -444,7 +444,7 @@ public sealed class MainViewModel : ObservableObject
         [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
 
     /// <summary>
-    /// The PDF sign-off report's content (#231): the same as the setup export, for all controllers, with every finding of
+    /// The PDF setup report's content (#231): the same as the setup export, for all controllers, with every finding of
     /// every checked profile. A detected fact is listed once, without a profile.
     /// </summary>
     public ReportModel Report(DateTime created, string? companyName, string? logoPath, string appVersion)
@@ -474,6 +474,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
         };
     }
 

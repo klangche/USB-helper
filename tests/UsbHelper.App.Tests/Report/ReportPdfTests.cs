@@ -7,7 +7,7 @@ using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App.Tests.Report;
 
-// #231: the PDF sign-off report. Text is real text in an embedded font, so it can be extracted, selected and copied.
+// #231: the PDF setup report. Text is real text in an embedded font, so it can be extracted, selected and copied.
 public class ReportPdfTests
 {
     private static byte[] Pdf(ReportModel model)
@@ -227,17 +227,166 @@ public class ReportPdfTests
         Assert.Equal(18 / 25.4 * 72, title.BoundingBox.Left, 0);
     }
 
+    // #247: no sign-off block and no notes lines; the last section ends the document. The title says "report".
     [Fact]
-    public void A_long_tree_breaks_across_pages_and_keeps_the_sign_off_whole()
+    public void The_report_has_no_sign_off_block()
     {
-        var pages = PageTexts(Pdf(ReportSamples.LongTree(null)));
+        foreach (var model in new[] { ReportSamples.Full(null), ReportSamples.LongTree(null), ReportSamples.AllStable(null) })
+        {
+            var all = string.Join("\n", PageTexts(Pdf(model)));
 
-        Assert.True(pages.Count >= 4, $"{pages.Count} pages");
+            Assert.DoesNotContain("sign-off", all, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("USB setup report\n", all);
+            Assert.DoesNotContain("Installed / checked by", all);
+            Assert.DoesNotContain("Accepted by", all);
+            Assert.DoesNotContain("Signature", all);
+            Assert.DoesNotContain("Notes", all);
+        }
+    }
+
+    // #247: header, Summary, USB tree, Results, Displays, Findings.
+    [Fact]
+    public void The_tree_comes_right_after_the_summary()
+    {
+        var all = string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null))));
+        var at = 0;
+        foreach (var heading in new[] { "\nSummary\n", "\nUSB tree\n", "\nResults\n", "\nDisplays\n", "\nFindings\n" })
+        {
+            at = all.IndexOf(heading, at, StringComparison.Ordinal);
+            Assert.True(at >= 0, $"No {heading.Trim()} after the sections before it in:\n{all}");
+        }
+        Assert.True(all.IndexOf("\nUSB tree\n", StringComparison.Ordinal) < all.IndexOf("\nResults\n", StringComparison.Ordinal));
+    }
+
+    // #247: the database fields and files the findings name are written for people: the check name and "Hardware database".
+    [Theory]
+    [InlineData("verified")]
+    [InlineData("unverified")]
+    public void The_findings_name_no_database_file_or_field(string status)
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: status, platformLimits: "max_hubs: 6",
+            computerFile: "Dell XPS (1)", platformFile: "win (1)");
+        var viewModel = new MainViewModel(database, [],
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), () => [new DisplayMonitor("DELL", "DELL U2723QE", MonitorOutput.Hdmi)]);
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Device("KEYBOARD")))])]);
+        viewModel.Computers.Single().IsChecked = true;
+        var model = viewModel.Report(new DateTime(2026, 11, 13, 9, 30, 0), null, null, "0.9.0");
+        // The sources are there to hide, from the computer and the platform profile.
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(computers/Dell XPS (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(platforms/win (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains("computers/Dell XPS (1).yaml", model.DatabaseFiles);
+        Assert.Contains("platforms/win (1).yaml", model.DatabaseFiles);
+
+        foreach (var all in new[] { model, ReportSamples.Full(null) }.Select(item => string.Join("\n", PageTexts(Pdf(item)))))
+        {
+            Assert.DoesNotContain(".yaml", all, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(".yml", all, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("(1)", all);
+            Assert.DoesNotContain("database/", all);
+            Assert.DoesNotContain("computers/", all);
+            Assert.DoesNotContain("limits.", all);
+            Assert.DoesNotContain("displays.", all);
+            Assert.Contains("Hardware database", all);
+        }
+    }
+
+    // The point size of the tree's device names; one size for the whole tree.
+    private static double TreeTextSize(ReportModel model)
+    {
+        using var document = PdfDocument.Open(Pdf(model));
+        var sizes = document.GetPages().SelectMany(page => page.GetWords().Zip(page.GetWords().Skip(1))
+            .Where(pair => pair.First.Text == "Test" && pair.Second.Text == "device")
+            .Select(pair => Math.Round(pair.Second.Letters[0].PointSize, 2))).Distinct().ToList();
+        return Assert.Single(sizes);
+    }
+
+    // #247: the tree never breaks across pages by accident: it starts on a new page when the rest of a page is too short.
+    [Fact]
+    public void A_tree_that_fits_one_page_is_not_split()
+    {
+        var model = ReportSamples.Sized(40);
+        var pages = PageTexts(Pdf(model));
+
+        var page = Assert.Single(pages, text => text.Contains("Test device 1 "));
+        Assert.All(Enumerable.Range(1, 40), d => Assert.Contains($"\nTest device {d} Stable\n", page));
+        Assert.StartsWith("USB tree\n", page); // A page of its own: the rest of the first page is too short.
+        Assert.DoesNotContain("USB tree (continued)", string.Join("\n", pages));
+        Assert.Equal(8.5, TreeTextSize(model), 1);
+    }
+
+    // #247: a tree taller than a page is scaled down to fit it, its text still real text.
+    [Fact]
+    public void A_tree_that_needs_80_percent_fits_one_page_as_text()
+    {
+        var model = ReportSamples.Sized(60);
+        var pages = PageTexts(Pdf(model));
+
+        var page = Assert.Single(pages, text => text.Contains("Test device 1 "));
+        Assert.All(Enumerable.Range(1, 60), d => Assert.Contains($"\nTest device {d} Stable\n", page));
+        Assert.DoesNotContain("USB tree (continued)", string.Join("\n", pages));
+        Assert.InRange(TreeTextSize(model) / 8.5, 0.75, 0.85);
+    }
+
+    // #247: a finding's long profile list and an over-long word wrap within the right margin, and nothing is lost.
+    [Fact]
+    public void Long_findings_stay_within_the_margin()
+    {
+        var profiles = Enumerable.Range(1, 5).Select(i => $"Very long computer profile name number {i} (Generation 12, Intel vPro)").ToList();
+        var word = string.Concat(Enumerable.Repeat("Unbreakable", 19))[..200];
+        var findings = profiles.Select(profile => new ReportFinding(FactKind.PredictedRisk, profile, "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."))
+            .Append(new ReportFinding(FactKind.DetectedFact, null, "Device", $"Problem code {word} reported."))
+            .Append(new ReportFinding(FactKind.Unknown, profiles[0], word, "Unknown."))
+            .ToList();
+
+        using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null) with { Findings = findings }));
+        var right = 595.28 - 18 / 25.4 * 72;
+        Assert.All(document.GetPages().SelectMany(page => page.Letters), letter => Assert.True(letter.BoundingBox.Right <= right + 0.5,
+            $"\"{letter.Value}\" ends at {letter.BoundingBox.Right:0.0}, right of the margin at {right:0.0}"));
+        var all = string.Concat(document.GetPages().SelectMany(page => page.Letters).Select(letter => letter.Value)).Replace(" ", "");
+        Assert.All(profiles, profile => Assert.Contains(profile.Replace(" ", ""), all));
+        Assert.Equal(2, all.Split(word).Length - 1);
+    }
+
+    // A heading kept with more than a page holds is kept with a page's worth: at the top of a page it never adds an
+    // empty page.
+    [Fact]
+    public void A_heading_kept_with_more_than_a_page_adds_no_empty_page()
+    {
+        var layout = new ReportLayout();
+
+        ReportPdf.Heading(layout, "Results", 5000);
+
+        Assert.Single(Assert.Single(layout.Pages));
+    }
+
+    // A profiles table taller than a page flows on from its heading: no page is left without content.
+    [Fact]
+    public void A_results_table_taller_than_a_page_leaves_no_page_empty()
+    {
+        var profiles = Enumerable.Range(1, 45).Select(i => new ReportProfile($"Profile {i}", ConnectionStatus.Green, [])).ToList();
+
+        using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null) with { Overall = ConnectionStatus.Green, Profiles = profiles }));
+
+        // Above the footer, every page has text.
+        Assert.All(document.GetPages(), page => Assert.Contains(page.Letters, letter => letter.Location.Y > 80));
+        Assert.Contains(document.GetPages(), page => ContentOrderTextExtractor.GetText(page).Contains("Profile 45"));
+    }
+
+    // #247: only a tree that does not fit at 70% continues, at 70%, and a row is never split.
+    [Fact]
+    public void A_very_long_tree_continues_at_70_percent_without_splitting_a_row()
+    {
+        var model = ReportSamples.LongTree(null);
+        var pages = PageTexts(Pdf(model));
+        var lines = string.Join("\n", pages).Split('\n');
+
         Assert.Contains(pages, page => page.Contains("USB tree (continued)"));
-        var signOff = Assert.Single(pages, page => page.Contains("Installed / checked by"));
-        Assert.Contains("Accepted by", signOff);
-        Assert.Contains("Notes", signOff);
-        Assert.Equal(2, signOff.Split("Signature").Length - 1);
+        foreach (var name in model.Tree.Where(row => row.Status != null).Select(row => row.Text))
+        {
+            var line = Assert.Single(lines, line => line.StartsWith(name + " ", StringComparison.Ordinal));
+            Assert.Matches(" (Stable|Potentially unstable)$", line);
+        }
+        Assert.Equal(0.7, TreeTextSize(model) / 8.5, 2);
     }
 
     [Fact]
@@ -257,7 +406,7 @@ public class ReportPdfTests
     {
         using var document = PdfDocument.Open(Pdf(ReportSamples.Full(null)));
 
-        Assert.Equal($"USB setup sign-off - {ReportSamples.Room}", document.Information.Title);
+        Assert.Equal($"USB setup report - {ReportSamples.Room}", document.Information.Title);
         Assert.Equal(ReportSamples.Company, document.Information.Author);
         Assert.Equal("USB-helper 0.9.0-beta.3", document.Information.Creator);
     }
@@ -267,7 +416,7 @@ public class ReportPdfTests
     {
         using var document = PdfDocument.Open(Pdf(ReportSamples.NoRoom(null)));
 
-        Assert.Equal("USB setup sign-off - Dell Inc. Latitude 7450", document.Information.Title);
+        Assert.Equal("USB setup report - Dell Inc. Latitude 7450", document.Information.Title);
     }
 
     [Theory]
@@ -289,8 +438,7 @@ public class ReportPdfTests
         Assert.Contains(ReportSamples.Company, pages[0]);
     }
 
-    // A section or findings group heading never ends a page, and the sign-off heading stays with its block, whatever
-    // the tree's length.
+    // A section or findings group heading never ends a page, whatever the tree's length.
     [Fact]
     public void Headings_stay_with_what_follows_them()
     {
@@ -308,8 +456,6 @@ public class ReportPdfTests
                 Assert.False(last.All(letter => letter.PointSize > 10.5 && letter.PointSize < 11.5), $"{devices} devices: heading \"{text}\" ends page {page.Number}");
                 Assert.DoesNotContain(text, groups);
             }
-            var signOff = document.GetPages().Single(page => page.Text.Contains("Sign-off"));
-            Assert.Contains("Installed / checked by", ContentOrderTextExtractor.GetText(signOff));
         }
     }
 
@@ -325,6 +471,7 @@ public class ReportPdfTests
             ("no-room", ReportSamples.NoRoom(logo)),
             ("no-branding", ReportSamples.NoBranding()),
             ("long-tree", ReportSamples.LongTree(logo)),
+            ("scaled-tree", ReportSamples.Sized(60) with { LogoPath = logo }),
             ("png-logo", ReportSamples.Full(ReportSamples.WritePngLogo(1536))),
             ("all-stable", ReportSamples.AllStable(logo)),
             ("company-no-logo", ReportSamples.Full(null)),
@@ -334,7 +481,7 @@ public class ReportPdfTests
             File.WriteAllBytes(Path.Combine(folder, $"{name}.pdf"), Pdf(model));
         }
 
-        Assert.Equal(8, Directory.GetFiles(folder, "*.pdf").Length);
+        Assert.Equal(9, Directory.GetFiles(folder, "*.pdf").Length);
     }
 
     private static UsbNode Device(string id) => new(id, UsbNodeKind.Device, id, []);
