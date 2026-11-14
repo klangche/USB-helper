@@ -26,6 +26,8 @@ public class MenuTests
 
         public void ShowSettings() => Calls.Add(nameof(ShowSettings));
 
+        public void ShowUnlock() => Calls.Add(nameof(ShowUnlock));
+
         public void Exit() => Calls.Add(nameof(Exit));
 
         public void CopyText(string text) => Calls.Add(nameof(CopyText));
@@ -57,8 +59,9 @@ public class MenuTests
         viewModel.ExitCommand.Execute(null);
         viewModel.CopyTreeCommand.Execute(null);
         viewModel.ExportSetupCommand.Execute(null);
+        viewModel.UnlockCommand.Execute(null);
 
-        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup"], window.Calls);
+        Assert.Equal(["ExportProfile", "ExportLog", "ShowSettings", "ShowAbout", "Exit", "CopyText", "ExportSetup", "ShowUnlock"], window.Calls);
     }
 
     [Fact]
@@ -132,13 +135,17 @@ public class MenuTests
     [Fact]
     public void TheMacMenuBarHasFileAndHelpOnlyWithoutAccessKeysEditOrExit()
     {
-        var menu = MacNativeMenu.Create(Loaded(Known, new FakeWindow()));
+        var viewModel = Loaded(Known, new FakeWindow());
+        var menu = MacNativeMenu.Create(viewModel);
 
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
         Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
-        Assert.Equal(["Check for updates", "-", "About USB-helper"], Headers(1));
+        Assert.Equal(["Check for updates", "-", "Unlock...", "About USB-helper"], Headers(1));
+        // #238: Help > Unlock... opens the unlock popup.
+        var unlock = top[1].Menu!.Items.OfType<NativeMenuItem>().Single(item => item.Header == "Unlock...");
+        Assert.Same(viewModel.UnlockCommand, unlock.Command);
     }
 
     [Fact]
@@ -179,7 +186,8 @@ public class MenuTests
         Assert.Equal(["MenuRefresh", "MenuExportProfile", "MenuExportLog", "MenuExportSetup", "MenuSettings", "MenuExit"], Items(menu, "MenuFile"));
         Assert.Equal(["MenuCopyTree"], Items(menu, "MenuEdit"));
         Assert.Equal("{Binding CopyTreeCommand}", (string?)MenuItem(MainWindowXaml(), "MenuCopyTree").Attribute("Command"));
-        Assert.Equal(["MenuCheckForUpdates", "MenuAbout"], Items(menu, "MenuHelp"));
+        Assert.Equal(["MenuCheckForUpdates", "MenuUnlock", "MenuAbout"], Items(menu, "MenuHelp"));
+        Assert.Equal("{Binding UnlockCommand}", (string?)MenuItem(MainWindowXaml(), "MenuUnlock").Attribute("Command"));
     }
 
     [Fact]
