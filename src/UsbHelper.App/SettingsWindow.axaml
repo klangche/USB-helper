@@ -11,8 +11,8 @@
   <!-- Each change is saved at once (#126), so there is no Save or Cancel. -->
   <StackPanel Margin="16" Spacing="10">
     <CheckBox Content="{x:Static res:Strings.SettingsCheckForUpdates}" IsChecked="{Binding CheckForUpdatesAtStart}" />
-    <!-- Beta updates only while unlocked (#246): shown but disabled while locked; the stored choice is kept. -->
-    <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding OfferBetas}" IsEnabled="{Binding BetasUnlocked}" />
+    <!-- Beta updates only while unlocked (#246): disabled and unticked while locked; the stored choice is kept. -->
+    <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding BetasOffered}" IsEnabled="{Binding BetasUnlocked}" />
     <HyperlinkButton Content="{x:Static res:Strings.UnlockBetasNeeded}" IsVisible="{Binding !BetasUnlocked}" Click="OpenUnlock" Padding="0" />
     <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
 

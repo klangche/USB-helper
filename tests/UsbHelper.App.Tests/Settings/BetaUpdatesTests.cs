@@ -158,6 +158,70 @@ public sealed class BetaUpdatesTests
     }
 
     [Fact]
+    public void TheCheckboxShowsUntickedWhileLockedAndTheStoredChoiceAgainOnUnlock()
+    {
+        var entitlements = new FakeEntitlements();
+        var settings = new SettingsViewModel();
+        settings.Gate(entitlements);
+        var changed = new List<string?>();
+        settings.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.True(settings.OfferBetas);
+        Assert.False(settings.BetasOffered); // shows what happens: no betas
+
+        entitlements.SetPro(true);
+        Assert.True(settings.BetasOffered);
+        Assert.Contains(nameof(SettingsViewModel.BetasOffered), changed);
+
+        settings.BetasOffered = false;
+        Assert.False(settings.OfferBetas);
+        Assert.False(settings.BetasOffered);
+        settings.BetasOffered = true;
+        Assert.True(settings.OfferBetas);
+
+        changed.Clear();
+        entitlements.SetPro(false);
+        Assert.False(settings.BetasOffered);
+        Assert.Contains(nameof(SettingsViewModel.BetasOffered), changed);
+        Assert.True(settings.OfferBetas);
+    }
+
+    [Fact]
+    public void TickingWhileUnlockedIsSaved()
+    {
+        var folder = Directory.CreateTempSubdirectory("usbhelper-betas-tests-").FullName;
+        try
+        {
+            var file = new UsbHelper.App.Settings.SettingsFile(Path.Combine(folder, "settings.json"));
+            var settings = SettingsViewModel.Load(file, log);
+            var entitlements = new FakeEntitlements();
+            entitlements.SetPro(true);
+            settings.Gate(entitlements);
+            var changed = new List<string?>();
+            settings.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+            settings.BetasOffered = false;
+
+            Assert.False(file.Load(log).OfferBetas);
+            Assert.Contains(nameof(SettingsViewModel.BetasOffered), changed);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WhileLockedTheShownStateCannotChangeTheStoredChoice()
+    {
+        var settings = new SettingsViewModel();
+        settings.Gate(new FakeEntitlements());
+
+        settings.BetasOffered = false;
+
+        Assert.True(settings.OfferBetas);
+    }
+
+    [Fact]
     public void WithoutEntitlementsBetasAreLocked() => Assert.False(new SettingsViewModel().BetasUnlocked);
 
     [Fact]
@@ -165,7 +229,8 @@ public sealed class BetaUpdatesTests
     {
         XNamespace avalonia = "https://github.com/avaloniaui";
         var window = Xaml("SettingsWindow.axaml");
-        var checkbox = window.Descendants(avalonia + "CheckBox").Single(element => (string?)element.Attribute("IsChecked") == "{Binding OfferBetas}");
+        var checkbox = window.Descendants(avalonia + "CheckBox").Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.SettingsOfferBetas}");
+        Assert.Equal("{Binding BetasOffered}", (string?)checkbox.Attribute("IsChecked"));
         Assert.Equal("{Binding BetasUnlocked}", (string?)checkbox.Attribute("IsEnabled"));
 
         var link = window.Descendants(avalonia + "HyperlinkButton").Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.UnlockBetasNeeded}");

@@ -57,6 +57,7 @@ public sealed class SettingsViewModel : ObservableObject
             OnPropertyChanged(nameof(BrandingUnlocked));
             OnPropertyChanged(nameof(Branding));
             OnPropertyChanged(nameof(BetasUnlocked));
+            OnPropertyChanged(nameof(BetasOffered));
         };
     }
 
@@ -85,8 +86,21 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>False until an unlock code (or a free-unlock build) gives <see cref="Feature.Pro"/>: only stable releases are offered (#246).</summary>
     public bool BetasUnlocked => entitlements?.IsUnlocked(Feature.Pro) == true;
 
-    /// <summary>Whether the update check offers betas: <see cref="OfferBetas"/> while <see cref="BetasUnlocked"/>.</summary>
-    public bool BetasOffered => BetasUnlocked && OfferBetas;
+    /// <summary>
+    /// Whether the update check offers betas: <see cref="OfferBetas"/> while <see cref="BetasUnlocked"/>. The settings
+    /// checkbox shows this, so it is unticked while locked; setting it changes the stored choice only while unlocked.
+    /// </summary>
+    public bool BetasOffered
+    {
+        get => BetasUnlocked && OfferBetas;
+        set
+        {
+            if (BetasUnlocked)
+            {
+                OfferBetas = value;
+            }
+        }
+    }
 
     /// <summary>Turning it off forgets the kept profiles; the main window keeps the current ones when it is turned on.</summary>
     public bool RememberCheckedProfiles
@@ -215,6 +229,7 @@ public sealed class SettingsViewModel : ObservableObject
         if (before.OfferBetas != current.OfferBetas)
         {
             OnPropertyChanged(nameof(OfferBetas));
+            OnPropertyChanged(nameof(BetasOffered));
         }
         if (before.RememberCheckedProfiles != current.RememberCheckedProfiles)
         {
