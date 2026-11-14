@@ -11,6 +11,9 @@ public interface IMainWindowActions
 
     void ShowSettings();
 
+    /// <summary>Opens the unlock popup (#238).</summary>
+    void ShowUnlock();
+
     void ShowAbout();
 
     void Exit();

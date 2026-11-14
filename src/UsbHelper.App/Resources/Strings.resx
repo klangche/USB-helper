@@ -414,6 +414,9 @@ This version keeps running.</value>
   <data name="MenuCheckForUpdates" xml:space="preserve">
     <value>_Check for updates</value>
   </data>
+  <data name="MenuUnlock" xml:space="preserve">
+    <value>_Unlock...</value>
+  </data>
   <data name="MenuAbout" xml:space="preserve">
     <value>_About USB-helper</value>
   </data>
@@ -504,8 +507,8 @@ This version keeps running.</value>
   <data name="LogoNotSaved" xml:space="preserve">
     <value>The logo could not be saved: {0}</value>
   </data>
-  <data name="SupportTitle" xml:space="preserve">
-    <value>Support the project</value>
+  <data name="UnlockTitle" xml:space="preserve">
+    <value>Unlock extra features</value>
   </data>
   <data name="SupportNote" xml:space="preserve">
     <value>Unlock codes for the extra features are given out by the project owner.</value>
@@ -520,10 +523,19 @@ This version keeps running.</value>
     <value>Unlock</value>
   </data>
   <data name="UnlockRemove" xml:space="preserve">
-    <value>Remove</value>
+    <value>Remove code</value>
+  </data>
+  <data name="UnlockCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="UnlockOpen" xml:space="preserve">
+    <value>Unlock...</value>
+  </data>
+  <data name="UnlockFreeBeta" xml:space="preserve">
+    <value>Unlocked (free beta)</value>
   </data>
   <data name="UnlockedFor" xml:space="preserve">
-    <value>Unlocked for {0}</value>
+    <value>Unlocked to {0}</value>
   </data>
   <data name="UnlockNoMatch" xml:space="preserve">
     <value>This code does not match this email</value>

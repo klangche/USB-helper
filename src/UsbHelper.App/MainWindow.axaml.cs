@@ -118,9 +118,15 @@ public partial class MainWindow : Window, IMainWindowActions
     {
         if (DataContext is MainViewModel viewModel)
         {
-            var settings = new SettingsWindow { DataContext = viewModel.Settings };
-            settings.Support.DataContext = viewModel.Unlock;
-            _ = settings.ShowDialog(this);
+            _ = new SettingsWindow { DataContext = viewModel.Settings, Unlock = viewModel.Unlock }.ShowDialog(this);
+        }
+    }
+
+    void IMainWindowActions.ShowUnlock()
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            UnlockWindow.Open(this, viewModel.Unlock);
         }
     }
 

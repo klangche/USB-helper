@@ -83,6 +83,13 @@
     </ItemGroup>
   </Target>
 
+  <!-- Free-unlock switch (#238): CI sets USBH_FREE_UNLOCK=true from its Actions variable, in the same publish steps that get
+       the keys, while the extra features are free for everyone. It defines USBH_FREE_UNLOCK, which makes
+       BuildInfo.FreeUnlock true. Without it (local, fork and pull request builds) nothing changes. -->
+  <PropertyGroup Condition="'$(USBH_FREE_UNLOCK)' == 'true'">
+    <DefineConstants>$(DefineConstants);USBH_FREE_UNLOCK</DefineConstants>
+  </PropertyGroup>
+
   <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />

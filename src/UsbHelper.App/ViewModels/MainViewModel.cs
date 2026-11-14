@@ -120,7 +120,7 @@ public sealed class MainViewModel : ObservableObject
             }
         };
         this.log = log ?? new EventLog();
-        entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log);
+        entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log, BuildInfo.FreeUnlock);
         Entitlements = entitlements;
         Settings.Gate(entitlements);
         entitlements.Changed += (_, _) =>
@@ -142,6 +142,7 @@ public sealed class MainViewModel : ObservableObject
         ExitCommand = new RelayCommand(() => Window?.Exit());
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
+        UnlockCommand = new RelayCommand(() => Window?.ShowUnlock());
         CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeWithHeader()), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
         ExportPdfCommand = new RelayCommand(() => Window?.ExportPdf(), () => ExportPdfTip == null);
@@ -309,6 +310,9 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>File > Settings.</summary>
     public RelayCommand SettingsCommand { get; }
+
+    /// <summary>Help > Unlock... and the top bar's Unlock... or "Unlocked to" (#238): opens the unlock popup.</summary>
+    public RelayCommand UnlockCommand { get; }
 
     /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
     public RelayCommand CopyTreeCommand { get; }
@@ -520,7 +524,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
     public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
 
-    /// <summary>The settings window's Support the project section.</summary>
+    /// <summary>The unlock popup's content and the top bar's unlock text (#238).</summary>
     public UnlockViewModel Unlock { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];

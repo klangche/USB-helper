@@ -22,7 +22,7 @@ public sealed class UnlockPlacementTests
         Assert.Equal("{Binding !Unlock.FeaturesUnlocked}", (string?)button.Attribute("IsVisible"));
 
         var link = area.Element(Avalonia + "HyperlinkButton")!;
-        Assert.Equal("{Binding Unlock.UnlockedText}", (string?)link.Attribute("Content"));
+        Assert.Equal("{Binding Unlock.UnlockedText}", (string?)link.Element(Avalonia + "TextBlock")!.Attribute("Text"));
         Assert.Equal("{Binding UnlockCommand}", (string?)link.Attribute("Command"));
         Assert.Equal("{Binding Unlock.FeaturesUnlocked}", (string?)link.Attribute("IsVisible"));
     }

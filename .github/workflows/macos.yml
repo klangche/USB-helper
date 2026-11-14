@@ -117,7 +117,8 @@ jobs:
       - run: dotnet restore --locked-mode
 
       # Unlock code secrets (#234): only these two steps get them. This job runs only for a beta or release dmg (a push
-      # or a run by hand), never for a pull request; the trial build above stays keyless.
+      # or a run by hand), never for a pull request; the trial build above stays keyless. The free-unlock switch (#238),
+      # the Actions variable USBH_FREE_UNLOCK, goes to the same two steps only.
       - name: Publish ARM64 app
         run: >-
           dotnet publish src/UsbHelper.App --no-restore -c Release -r osx-arm64 --self-contained
@@ -126,6 +127,7 @@ jobs:
           TAG: ${{ needs.find-release.outputs.tag }}
           USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
           USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
+          USBH_FREE_UNLOCK: ${{ vars.USBH_FREE_UNLOCK }}
 
       - name: Publish x64 app
         run: >-
@@ -135,6 +137,7 @@ jobs:
           TAG: ${{ needs.find-release.outputs.tag }}
           USBH_LICENCE_KEY_0: ${{ secrets.USBH_LICENCE_KEY_0 }}
           USBH_LICENCE_KEY_1: ${{ secrets.USBH_LICENCE_KEY_1 }}
+          USBH_FREE_UNLOCK: ${{ vars.USBH_FREE_UNLOCK }}
 
       - name: Build and test the disk image
         env:

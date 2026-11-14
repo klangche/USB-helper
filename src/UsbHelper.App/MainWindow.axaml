@@ -32,6 +32,7 @@
         <MenuItem Header="{x:Static res:Strings.MenuCheckForUpdates}" Command="{Binding Update.CheckNow}"
                   IsEnabled="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <Separator />
+        <MenuItem Header="{x:Static res:Strings.MenuUnlock}" Command="{Binding UnlockCommand}" />
         <MenuItem Header="{x:Static res:Strings.MenuAbout}" Command="{Binding AboutCommand}" />
       </MenuItem>
     </Menu>
@@ -79,6 +80,15 @@
       <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
       <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
       <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <!-- The unlock popup (#238) at the right end, next to the branding: "Unlock..." while locked, otherwise who it is
+           unlocked to (or the free beta), as a link that opens the popup to view or remove the code. A narrow window trims
+           the text; it shows in full on hover. -->
+      <Panel x:Name="UnlockArea" DockPanel.Dock="Right" VerticalAlignment="Center">
+        <Button Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
+        <HyperlinkButton Command="{Binding UnlockCommand}" IsVisible="{Binding Unlock.FeaturesUnlocked}" ToolTip.Tip="{Binding Unlock.UnlockedText}">
+          <TextBlock Text="{Binding Unlock.UnlockedText}" TextTrimming="CharacterEllipsis" />
+        </HyperlinkButton>
+      </Panel>
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
            it with its aspect ratio kept. The name is
