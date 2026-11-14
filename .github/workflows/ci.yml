@@ -19,7 +19,9 @@ jobs:
 
       - run: dotnet format --verify-no-changes --no-restore
 
-      - run: dotnet test --no-build -c Release
+      # A hung test fails within minutes, not after the six-hour job limit (#245).
+      - run: dotnet test --no-build -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20
 
       # The sample PDF reports a test writes (#231), for reviewing the report's look.
       - uses: actions/upload-artifact@v7
@@ -69,7 +71,9 @@ jobs:
       # builds what ships; this job only runs the tests and starts that build.
       - run: dotnet restore
 
-      - run: dotnet test --no-restore -c Release
+      # A hung test fails within minutes, not after the six-hour job limit (#245).
+      - run: dotnet test --no-restore -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20
 
       - name: Print detected USB tree
         run: dotnet run --project src/UsbHelper.Cli -c Release --no-restore

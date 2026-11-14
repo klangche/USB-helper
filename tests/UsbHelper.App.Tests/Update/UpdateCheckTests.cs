@@ -201,16 +201,16 @@ public class UpdateCheckTests
     [Fact]
     public async Task NoAnswerInTimeIsSkipped()
     {
+        // Answers only when the check gives up. Without the timeout, the fallback answer makes the log wrong (#245): no
+        // tight wall-clock bound, which a busy machine missed.
         var silent = new FakeHttp(async (_, cancel) =>
         {
-            await Task.Delay(Timeout * 10, cancel);
-            throw new InvalidOperationException("not reached");
+            await Task.Delay(TimeSpan.FromSeconds(30), cancel);
+            throw new InvalidOperationException("The update check did not time out.");
         });
 
-        var waited = System.Diagnostics.Stopwatch.StartNew();
         var result = await UpdateCheck.FindAsync(silent.Client(), "0.6.0", TimeSpan.FromMilliseconds(200));
 
-        Assert.True(waited.Elapsed < TimeSpan.FromSeconds(2), waited.Elapsed.ToString());
         Assert.Null(result.Stable);
         Assert.Equal("Update check skipped: no answer within 0.2 s", result.Log);
     }
