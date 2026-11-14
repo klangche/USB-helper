@@ -5,7 +5,7 @@ using UsbHelper.App.Resources;
 namespace UsbHelper.App.ViewModels;
 
 /// <summary>
-/// The unlock popup (#234, #238): the email and unlock code, Unlock and Remove code; and what the top bar shows about it.
+/// The unlock popup (#234, #238): the email and unlock code, Unlock and Remove code; and what the top bar and the status line show about it.
 /// </summary>
 public sealed class UnlockViewModel : ObservableObject
 {
@@ -40,10 +40,10 @@ public sealed class UnlockViewModel : ObservableObject
     /// <summary>True when unlocked by a personal code: the popup then offers Remove code.</summary>
     public bool IsUnlocked => entitlements.LicensedTo is not null;
 
-    /// <summary>True when the extra features are unlocked, by a code or by a free-unlock build: the top bar shows <see cref="UnlockedText"/>.</summary>
+    /// <summary>True when the extra features are unlocked, by a code or by a free-unlock build: the status line shows <see cref="UnlockedText"/> instead of the top bar's Unlock button.</summary>
     public bool FeaturesUnlocked => entitlements.IsUnlocked(Feature.Pro);
 
-    /// <summary>The top bar's "Unlocked to &lt;email&gt;" or "Unlocked (free beta)"; null while locked.</summary>
+    /// <summary>The status line's "Unlocked to &lt;email&gt;" or "Unlocked (free beta)"; null while locked.</summary>
     public string? UnlockedText =>
         entitlements.LicensedTo is { } licensedTo ? string.Format(CultureInfo.CurrentCulture, Strings.UnlockedFor, licensedTo)
         : FeaturesUnlocked ? Strings.UnlockFreeBeta

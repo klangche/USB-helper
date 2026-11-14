@@ -311,7 +311,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Settings.</summary>
     public RelayCommand SettingsCommand { get; }
 
-    /// <summary>Help > Unlock... and the top bar's Unlock... or "Unlocked to" (#238): opens the unlock popup.</summary>
+    /// <summary>Help > Unlock..., the top bar's Unlock... and the status line's "Unlocked to" (#238): opens the unlock popup.</summary>
     public RelayCommand UnlockCommand { get; }
 
     /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
@@ -524,7 +524,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
     public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
 
-    /// <summary>The unlock popup's content and the top bar's unlock text (#238).</summary>
+    /// <summary>The unlock popup's content and the unlock text of the top bar and the status line (#238).</summary>
     public UnlockViewModel Unlock { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];

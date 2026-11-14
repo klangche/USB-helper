@@ -6,7 +6,7 @@ using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests.Licensing;
 
-/// <summary>The unlock popup (#234, #238): email, code, Unlock and Remove code; and the top bar text.</summary>
+/// <summary>The unlock popup (#234, #238): email, code, Unlock and Remove code; and the unlock text.</summary>
 public sealed class UnlockViewModelTests
 {
     private static UnlockViewModel Model(IReadOnlyDictionary<int, byte[]> keys, bool freeUnlock = false) =>
