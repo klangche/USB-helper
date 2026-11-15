@@ -37,8 +37,8 @@ are read, the workflows pass 0 and 1). The `GenerateLicenceKeys` target in
 variable `USBH_FREE_UNLOCK` set to `true` unlocks the extra features for
 everyone in betas only ("Unlocked (free beta)"); like key 0 it never reaches
 a stable release, so stable releases always need a code. Only the publish
-steps get the keys: "Publish app" in `release.yml`, and only on a push (a beta from `dev`,
-a release from `main`), and "Publish ARM64 app" and "Publish x64 app" in
+steps get the keys: "Publish app" in `release.yml`, and only on a push (a
+beta from `dev`, a release from `main`), and "Publish ARM64 app" and "Publish x64 app" in
 `macos.yml`, in the job that builds the release or beta dmg. Pull request
 builds never get them. Key 0 is the beta key: it goes only to the beta
 publish steps (a push to `dev`, a dmg with a `-beta.N` tag), never to a stable
