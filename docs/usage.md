@@ -230,8 +230,8 @@ not match this email"). Once unlocked, the "Unlock..." button is gone and the
 status line at the bottom of the window shows "Unlocked to <email>"; click it
 to open the popup again, where "Remove code" locks the app again (not in a
 free-unlock build, below). The email and code are kept in the settings file
-(see below) and checked at every start. A build can also be unlocked for
-everyone, betas and releases alike; the status line of that build then shows
+(see below) and checked at every start. A beta can also be unlocked for
+everyone (never a stable release); the status line of that beta then shows
 "Unlocked (free beta)". A build without codes (for example one built from
 source) says "Unlock codes are not available in this build".
 
