@@ -33,7 +33,7 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 
 /// <summary>One checked profile in the status field.</summary>
 /// <param name="Word">Its result: stable, potentially unstable, unstable or unknown.</param>
-/// <param name="Details">Its hub, tier, hop and display checks.</param>
+/// <param name="Details">Its exceeded hub, tier, hop and display checks; none when nothing is exceeded.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
 
 /// <param name="Header">
@@ -767,13 +767,7 @@ public sealed class MainViewModel : ObservableObject
         for (var i = 0; i < options.Count; i++)
         {
             var result = report.Profiles[i].Report;
-            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall),
-                [
-                    LimitText(Strings.LimitHubs, result.Hubs),
-                    LimitText(Strings.LimitTiers, result.Tiers),
-                    LimitText(Strings.LimitHops, result.Hops),
-                    DisplaysText(result.Displays),
-                ]));
+            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result)));
         }
         OnPropertyChanged(nameof(NothingChecked));
 
@@ -827,23 +821,22 @@ public sealed class MainViewModel : ObservableObject
     private static string FindingHeader(Finding finding) =>
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
-    private static string DisplaysText(DisplayCheck displays) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
-            displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(displays.State));
-
-    private static string LimitText(string label, LimitCheck limit) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,
-            limit.Limit?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(limit.State));
-
-    private static string StateText(LimitState state) => state switch
+    // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
+    // The recommended depth only when the maximum is kept, the same as the tree's lines and the report.
+    private static IReadOnlyList<string> ExceededLines(DiagnosticReport result)
     {
-        LimitState.Within => Strings.LimitWithin,
-        LimitState.Exceeded => Strings.LimitExceeded,
-        _ => Strings.LimitUnknown,
-    };
+        var recommended = result.Hops.State == LimitState.Exceeded ? null : result.RecommendedHops;
+        var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]
+        {
+            (Strings.LimitHubs, result.Hubs.State, result.Hubs.Actual, result.Hubs.Limit),
+            (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
+            (Strings.LimitHops, result.Hops.State, result.Hops.Actual, result.Hops.Limit),
+            (Strings.LimitRecommendedHops, recommended?.State, recommended?.Actual, recommended?.Limit),
+            (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
+        };
+        return [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>
+            string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded))];
+    }
 
     private static string KindText(FactKind kind) => kind switch
     {

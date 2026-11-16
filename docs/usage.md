@@ -89,8 +89,12 @@ the two drop-down lists,
 "Computers" (computer profiles); any mix can be checked. Each line then shows
 the worst result over the checked profiles. The
 status field has one row per checked profile with its result (stable,
-potentially unstable, unstable or unknown, in its colour) and its hub, tier,
-hop and display checks. With several profiles checked, the findings come from
+potentially unstable, unstable or unknown, in its colour). Below it are only
+the checks that are exceeded: hubs, tiers, hops, the recommended hop depth
+(when the maximum is kept) and external displays, each with its count and
+limit. A check that is within its limit, or whose limit or count is unknown,
+is not shown there; it is in the log. A stable profile shows only "stable".
+With several profiles checked, the findings come from
 the strictest one only and name it (see the [diagnostic rules](database.md#diagnostic-rules)). Plug and unplug
 devices: only the affected part of the tree changes. A device that is
 unplugged stays red at its last port; one that comes back is purple

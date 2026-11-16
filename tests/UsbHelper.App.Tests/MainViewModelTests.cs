@@ -858,6 +858,7 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         var computer = Assert.Single(viewModel.StatusRows);
         Assert.Equal((Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green)), (computer.Label, computer.Word, computer.Color));
+        Assert.Empty(computer.Details); // Owner decision in #263: a stable profile says only "stable".
         Assert.False(viewModel.NothingChecked);
 
         viewModel.OperatingSystems.Single().IsChecked = true;
@@ -868,8 +869,50 @@ public class MainViewModelTests
         Assert.Equal(
             [("p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
             viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
-        Assert.Contains("Most hops: 1, limit 0 (exceeded)", viewModel.StatusRows[0].Details);
-        Assert.Contains("Most hops: 1, limit 5 (within limit)", viewModel.StatusRows[1].Details);
+        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], viewModel.StatusRows[0].Details);
+        Assert.Empty(viewModel.StatusRows[1].Details);
+    }
+
+    // Owner decision in #263: the status field lists only what is exceeded. "p" knows only max_hops, so its unknown hub,
+    // tier and display limits add no line.
+    [Fact]
+    public void AProfileWithOneExceededLimitHasExactlyThatLineAndUnknownLimitsAddNone()
+    {
+        var viewModel = TwoProfiles();
+
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        var row = Assert.Single(viewModel.StatusRows);
+        Assert.Equal("unstable", row.Word);
+        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], row.Details);
+    }
+
+    [Fact]
+    public void ExceededRecommendedHopsIsTheReasonOfAPotentiallyUnstableProfile()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_hops: 0");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Load(Desk);
+
+        viewModel.Computers.Single().IsChecked = true; // Inherits recommended_hops 0; its own max_hops is 5.
+
+        var row = Assert.Single(viewModel.StatusRows);
+        Assert.Equal("potentially unstable", row.Word);
+        Assert.Equal(["Recommended hops: 1, limit 0 (exceeded)"], row.Details);
+    }
+
+    [Fact]
+    public void RecommendedHopsIsNotListedWhenTheMaximumIsExceeded()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_hops: 0\n  max_hops: 0");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Load(Desk);
+
+        viewModel.OperatingSystems.Single().IsChecked = true;
+
+        var row = Assert.Single(viewModel.StatusRows);
+        Assert.Equal("unstable", row.Word);
+        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], row.Details);
     }
 
     [Fact]
@@ -982,7 +1025,7 @@ public class MainViewModelTests
     public void EachResultHasItsWord(ConnectionStatus status, string word) => Assert.Equal(word, StatusColors.Word(status));
 
     [Fact]
-    public void DisplayCountIsReadOnEveryRefreshAndShown()
+    public void DisplayCountIsReadOnEveryRefreshAndShownWhenExceeded()
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
         var displays = 1;
@@ -990,21 +1033,21 @@ public class MainViewModelTests
         viewModel.Load(Desk);
         viewModel.Computers.Single().IsChecked = true;
 
-        Assert.Contains("External displays: 1, limit 2 (within limit)", viewModel.StatusRows.Single().Details);
+        Assert.Empty(viewModel.StatusRows.Single().Details);
 
         displays = 3;
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
 
-        Assert.Contains("External displays: 3, limit 2 (exceeded)", viewModel.StatusRows.Single().Details);
+        Assert.Equal(["External displays: 3, limit 2 (exceeded)"], viewModel.StatusRows.Single().Details);
     }
 
     [Fact]
-    public void UnknownDisplayCountIsShownAsUnknown()
+    public void UnknownDisplayCountAddsNoLine()
     {
         var viewModel = TwoProfiles();
         viewModel.OperatingSystems.Single().IsChecked = true;
 
-        Assert.Contains("External displays: unknown, limit unknown (unknown)", viewModel.StatusRows.Single().Details);
+        Assert.DoesNotContain(viewModel.StatusRows.Single().Details, line => line.StartsWith("External displays", StringComparison.Ordinal));
     }
 
     // Laptop: root port 1 is fixed, with a built-in hub (webcam on a fixed port, a dock on a laptop socket); Windows
