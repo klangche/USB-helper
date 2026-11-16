@@ -4,14 +4,16 @@ platform: android
 architecture: arm64
 limits:
   max_hops: 4
-  recommended_hops: 2
+  recommended_hops: 1
 displays:
   mst: null
 notes:
   - "Generic Android tablet profile (Exynos)."
-  - "Hop limits from the usb-script config (Android Tablet (Exynos)): max 4, recommended 2. Tested in practice, not a manufacturer specification."
+  - "max_hops 4: from the usb-script config (Android Tablet (Exynos)). Tested in practice, not a manufacturer specification."
+  - "recommended_hops 1: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Tier 4 is 1 hub in front of the device here."
 sources:
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.androidTablet; config version 1.0.0, 2026-02-24)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
 verification:
   status: partial
-  last_checked: 2026-10-29
+  last_checked: 2026-11-16

@@ -3,15 +3,17 @@ inherits: base
 platform: linux
 architecture: x64
 limits:
-  max_hops: 6
-  recommended_hops: 4
+  max_hops: 5
+  recommended_hops: 2
 displays:
   mst: null
 notes:
   - "Generic Linux platform profile for x64 processors."
-  - "Hop limits from the usb-script config (Linux): max 6, recommended 4. Tested in practice, not a manufacturer specification."
+  - "max_hops 5: USB allows seven tiers on a path (the host with its root hub, up to five hubs, the device), so at most five hubs in a row (PureLink)."
+  - "Until 2026-11-16 this file had max_hops 6 from the usb-script config, which is above the USB maximum."
+  - "recommended_hops 2: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Tier 4 is 2 hubs in front of the device here."
 sources:
-  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.linux; config version 1.0.0, 2026-02-24)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
 verification:
   status: partial
-  last_checked: 2026-10-29
+  last_checked: 2026-11-16

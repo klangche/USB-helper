@@ -3,17 +3,18 @@ inherits: base
 platform: windows
 architecture: x64
 limits:
-  max_hops: 7
-  recommended_hops: 5
+  max_hops: 5
+  recommended_hops: 2
 displays:
   mst: true
 notes:
   - "Generic Windows platform profile for Intel processors."
-  - "Hop limits from the usb-script config (Windows x86): max 7, recommended 5. Tested in practice, not a manufacturer specification."
-  - "The usb-script entry 'windows' is named 'Windows x86' there; it covers Windows on Intel and AMD processors."
+  - "max_hops 5: USB allows seven tiers on a path (the host with its root hub, up to five hubs, the device), so at most five hubs in a row (PureLink)."
+  - "Until 2026-11-16 this file had max_hops 7 from the usb-script config, which is above the USB maximum."
+  - "recommended_hops 2: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Tier 4 is 2 hubs in front of the device here."
 sources:
-  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windows; config version 1.0.0, 2026-02-24)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
   - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: displays.mst)"
 verification:
   status: partial
-  last_checked: 2026-10-29
+  last_checked: 2026-11-16

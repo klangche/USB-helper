@@ -30,7 +30,7 @@ ports:
 notes:
   - "MacBook Pro (16-inch, 2021) with M1 Max. Model identifier MacBookPro18,2 read from the owner's Mac (system_profiler SPHardwareDataType, 2026-11-04)."
   - "The same Apple specification page covers the M1 Pro variant (MacBookPro18,1), which allows only two external displays. This profile is for MacBookPro18,2, the M1 Max."
-  - "Hub, tier and hop limits are not published by Apple: max_hubs and max_tiers stay unknown; max_hops and recommended_hops are inherited from macos-apple-silicon (tested in practice, not a specification)."
+  - "Hub, tier and hop limits are not published by Apple: max_hubs and max_tiers stay unknown; max_hops and recommended_hops are inherited from macos-apple-silicon."
 
 sources:
   - "https://support.apple.com/en-us/111901 (Apple, 'MacBook Pro (16-inch, 2021) - Technical Specifications': ports, external display support, chip)"

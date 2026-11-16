@@ -3,16 +3,17 @@ inherits: base
 platform: ios
 architecture: arm64
 limits:
-  max_hops: 4
-  recommended_hops: 2
+  max_hops: 3
+  recommended_hops: 0
 displays:
   mst: null
 notes:
   - "Generic Apple A-series mobile device profile. Not a Mac computer profile."
-  - "Hop limits from the usb-script config (iPhone USB-C, iPad USB-C (M-series)): max 4, recommended 2. Tested in practice, not a manufacturer specification."
-  - "usb-script gives iPhone USB-C and iPad USB-C (M-series) the same values."
+  - "max_hops 3: USB allows seven tiers on a path, so five hubs in a row (PureLink). A-series devices use three of the seven tiers themselves, one more than M-series Macs (Lightware, measured on the MacBook Neo, which has an A-series chip), which leaves three hubs (owner decision 2026-11-16)."
+  - "recommended_hops 0: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Tier 4 is 0 hubs in front of the device here."
 sources:
-  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.iphone, platformStability.ipad; config version 1.0.0, 2026-02-24)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
+  - "https://www.lightware.com/en/news/macbook-neo-usbc-av-design-usb-topology-challenges (Lightware, 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15: tiers used by M-series MacBooks and the MacBook Neo)"
 verification:
   status: partial
-  last_checked: 2026-10-29
+  last_checked: 2026-11-16

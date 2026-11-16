@@ -43,26 +43,35 @@ out on purpose).
 
 ### Platform profiles
 
-Each platform profile sets the hop limits from the `platformStability` values in
-the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json)
-(`max` as `max_hops`, `rec` as `recommended_hops`), with status `partial`:
-tested in practice, not a manufacturer specification. Hub count and tier depth
-stay unknown. Every platform profile also has `displays.mst`, because MST is a
-property of the operating system: `false` on macOS (it does not extend the
-desktop over MST), `true` on Windows, `null` (unknown) on the others. Computer
-profiles inherit it.
+Each platform profile sets the hop limits, with status `partial`. The limits are
+only in these files, never in the software.
+
+- `max_hops`: USB allows seven tiers on a path: the host with its root hub, up
+  to five hubs, and the device (PureLink). So no profile is above 5. Apple
+  silicon Macs use two of the seven tiers themselves, a built-in hub level per
+  port, which leaves 4; A-series devices use three, which leaves 3 (Lightware;
+  owner decision 2026-11-16). `android-tablet-exynos` keeps the 4 it had from
+  the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json).
+- `recommended_hops`: PureLink recommends staying within four tiers where
+  possible, a conservative design preference and not a USB-IF limit. Tier 4 is
+  two hubs in front of the device on a computer without built-in hub levels,
+  and one fewer for each level the computer uses itself.
+
+Hub count and tier depth stay unknown: a tier limit would repeat the hop limit,
+and USB has no limit on the total number of hubs. Every platform profile also
+has `displays.mst`, because MST is a property of the operating system: `false`
+on macOS (it does not extend the desktop over MST), `true` on Windows, `null`
+(unknown) on the others. Computer profiles inherit it.
 
 | Platform profile | `max_hops` | `recommended_hops` |
 |---|---|---|
-| `windows-intel`, `windows-amd` | 7 | 5 |
-| `windows-arm` | 5 | 3 |
-| `macos-intel` | 7 | 5 |
-| `macos-apple-silicon` | 5 | 3 |
-| `apple-mobile-a-series` (iPhone, iPad) | 4 | 2 |
-| `linux-x64` | 6 | 4 |
-| `linux-arm` | 5 | 3 |
-| `android-phone-qualcomm` | 5 | 3 |
-| `android-tablet-exynos` | 4 | 2 |
+| `windows-intel`, `windows-amd`, `windows-arm` | 5 | 2 |
+| `macos-intel` | 5 | 2 |
+| `macos-apple-silicon` | 4 | 1 |
+| `apple-mobile-a-series` (iPhone, iPad) | 3 | 0 |
+| `linux-x64`, `linux-arm` | 5 | 2 |
+| `android-phone-qualcomm` | 5 | 2 |
+| `android-tablet-exynos` | 4 | 1 |
 
 ### Ports and displays
 
