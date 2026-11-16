@@ -25,7 +25,9 @@ of it (`release/beta-version.sh`).
 Each release and each beta also gets the macOS dmg as an extra asset. A separate job in
 `.github/workflows/macos.yml` waits for the release (on `main`) or beta (on `dev`) of the same commit,
 builds the dmg with that version and attaches it, so a slow macOS runner never
-delays or fails the Windows release; if that job fails, re-run it. To add the dmg
+delays or fails the Windows release; if that job fails, re-run it. A merge that
+makes no release or beta gets no dmg: the job ends once the Release workflow has
+finished without publishing one. To add the dmg
 to an existing release, run that workflow by hand with its tag (for example `v0.7.0`).
 Beta tags never count as a release (`release/last-release.sh`).
 
