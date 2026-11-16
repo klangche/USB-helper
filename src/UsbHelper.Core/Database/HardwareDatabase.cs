@@ -26,8 +26,10 @@ public sealed class HardwareDatabase
     /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
     public static HardwareDatabase Load(string folder) =>
         Load(Directory.Exists(folder)
-            ? Directory.GetFiles(folder, "*.yaml", SearchOption.AllDirectories).ToDictionary(
-                path => Path.GetRelativePath(folder, path).Replace('\\', '/'), File.ReadAllText)
+            // .yml too, so a file with that ending is reported, not silently left out.
+            ? Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                .Where(path => Path.GetExtension(path) is ".yaml" or ".yml")
+                .ToDictionary(path => Path.GetRelativePath(folder, path).Replace('\\', '/'), File.ReadAllText)
             : []);
 
     /// <summary>Loads and validates the database from its files' contents.</summary>
@@ -39,6 +41,10 @@ public sealed class HardwareDatabase
         var defaults = ReadBase(files, errors);
         var platformFiles = ReadProfiles(files, "platforms", subfolders: false, isComputer: false, errors);
         var computerFiles = ReadProfiles(files, "computers", subfolders: true, isComputer: true, errors);
+        foreach (var file in files.Keys.Where(file => !IsRead(file)).Order(StringComparer.Ordinal))
+        {
+            errors.Add(new DatabaseError(file, 0, "This file is not read: only base.yaml, platforms/*.yaml and the .yaml files below computers/ are."));
+        }
 
         var seen = new Dictionary<string, string>();
         foreach (var profile in platformFiles.Concat(computerFiles))
@@ -59,6 +65,7 @@ public sealed class HardwareDatabase
                 continue;
             }
             var root = ProfileMerger.Merge(defaults, profile.Body);
+            CheckHopLimits(root, profile.Body.File, errors);
             var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(profile.Body) };
             platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], root, statuses));
         }
@@ -75,6 +82,7 @@ public sealed class HardwareDatabase
                 continue;
             }
             var root = ProfileMerger.Merge(parent.Root, profile.Body);
+            CheckHopLimits(root, profile.Body.File, errors);
             var statuses = parent.Files.ToDictionary(file => file, parent.StatusOf);
             statuses[profile.Body.File] = Status(profile.Body);
             computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], root, statuses));
@@ -86,6 +94,31 @@ public sealed class HardwareDatabase
         }
         return new HardwareDatabase(platforms, computers);
     }
+
+    // A recommended hop depth above the maximum can never apply. Reported for the file that sets one of the two, so a
+    // platform's mistake is not repeated for every computer that inherits it.
+    private static void CheckHopLimits(ProfileValue root, string file, List<DatabaseError> errors)
+    {
+        var recommended = root.Find("limits.recommended_hops");
+        var max = root.Find("limits.max_hops");
+        if (recommended?.Scalar is long recommendedHops && max?.Scalar is long maxHops && recommendedHops > maxHops
+            && (recommended.File == file || max.File == file))
+        {
+            var written = recommended.File == file ? recommended : max;
+            errors.Add(new DatabaseError(file, written.Line,
+                $"limits.recommended_hops ({recommendedHops}) must not be above limits.max_hops ({maxHops})."));
+        }
+    }
+
+    // A file whose name starts with a dot is left out on purpose; any other file must be one of the files that are read.
+    private static bool IsRead(string file) =>
+        file == BaseFile || file[(file.LastIndexOf('/') + 1)..].StartsWith('.')
+        || IsProfileFile(file, "platforms", subfolders: false) || IsProfileFile(file, "computers", subfolders: true);
+
+    private static bool IsProfileFile(string file, string subfolder, bool subfolders) =>
+        file.StartsWith($"{subfolder}/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
+        && (subfolders || file.LastIndexOf('/') == subfolder.Length)
+        && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.');
 
     // The status a file writes itself; null (unverified) when it writes none, whatever it inherits.
     private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
@@ -133,11 +166,7 @@ public sealed class HardwareDatabase
         IReadOnlyDictionary<string, string> files, string subfolder, bool subfolders, bool isComputer, List<DatabaseError> errors)
     {
         var profiles = new List<ProfileFile>();
-        var inFolder = files.Keys
-            .Where(file => file.StartsWith($"{subfolder}/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
-                && (subfolders || file.LastIndexOf('/') == subfolder.Length)
-                && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.'))
-            .Order(StringComparer.Ordinal);
+        var inFolder = files.Keys.Where(file => IsProfileFile(file, subfolder, subfolders)).Order(StringComparer.Ordinal);
         foreach (var file in inFolder)
         {
             var root = ProfileFileReader.Read(files[file], file, errors);

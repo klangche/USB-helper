@@ -5,6 +5,8 @@ architecture: arm64
 limits:
   max_hops: 4
   recommended_hops: 2
+displays:
+  mst: null
 notes:
   - "Generic Android tablet profile (Exynos)."
   - "Hop limits from the usb-script config (Android Tablet (Exynos)): max 4, recommended 2. Tested in practice, not a manufacturer specification."

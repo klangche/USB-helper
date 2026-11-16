@@ -56,6 +56,26 @@ public class RealDatabaseTests
         Assert.NotEmpty(platform.Find("sources")!.Items);
     }
 
+    // Owner decision 2026-11-16: MST is a property of the operating system, so every platform profile has the field:
+    // false on macOS, true on Windows, null (unknown) elsewhere.
+    [Theory]
+    [InlineData("macos-apple-silicon", false)]
+    [InlineData("macos-intel", false)]
+    [InlineData("windows-intel", true)]
+    [InlineData("windows-amd", true)]
+    [InlineData("windows-arm", true)]
+    [InlineData("linux-x64", null)]
+    [InlineData("linux-arm", null)]
+    [InlineData("android-phone-qualcomm", null)]
+    [InlineData("android-tablet-exynos", null)]
+    [InlineData("apple-mobile-a-series", null)]
+    public void EveryPlatformSaysWhetherItSupportsMst(string id, bool? mst)
+    {
+        var platform = HardwareDatabase.Load(DatabaseFolder()).Platforms[id];
+
+        Assert.Equal(mst, platform.Find("displays.mst")!.Scalar);
+    }
+
     // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.
     [Fact]
     public void MacBookNeoHasItsOwnHopLimit()
@@ -66,6 +86,11 @@ public class RealDatabaseTests
         Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
         Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
+        // Apple: one external display. No MST is the operating system's limit, inherited from the platform profile.
+        Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
+        Assert.Equal(false, neo.Find("displays.mst")!.Scalar);
+        Assert.Equal("platforms/macos-apple-silicon.yaml", neo.Find("displays.mst")!.File);
+        Assert.Equal("partial", neo.Find("verification.status")!.Scalar);
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
 
@@ -83,7 +108,8 @@ public class RealDatabaseTests
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
-    // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd until researched (#75).
+    // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd. The ports are from ASUS's
+    // specification page and stay unverified until confirmed on the machine.
     [Fact]
     public void AsusRogStrixG713RWInheritsWindowsAmd()
     {
@@ -93,6 +119,10 @@ public class RealDatabaseTests
         Assert.Equal("unverified", asus.Find("verification.status")!.Scalar);
         Assert.Equal(7L, asus.Find("limits.max_hops")!.Scalar);
         Assert.Equal("platforms/windows-amd.yaml", asus.Find("limits.max_hops")!.File);
+        Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
+        Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
+        Assert.Equal(true, asus.Find("ports.hdmi.hdmi")!.Scalar);
+        Assert.NotEmpty(asus.Find("sources")!.Items);
     }
 
     [Fact]

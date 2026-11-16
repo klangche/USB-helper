@@ -5,6 +5,8 @@ architecture: arm64
 limits:
   max_hops: 4
   recommended_hops: 2
+displays:
+  mst: null
 notes:
   - "Generic Apple A-series mobile device profile. Not a Mac computer profile."
   - "Hop limits from the usb-script config (iPhone USB-C, iPad USB-C (M-series)): max 4, recommended 2. Tested in practice, not a manufacturer specification."

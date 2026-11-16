@@ -34,9 +34,12 @@ Inheritance rules:
 The database is only read, never written, by the application. Loading stops
 with a list of every problem found, each with file and line: invalid YAML,
 duplicate fields, unknown fields, wrong value types, invalid verification
-status or date, duplicate ids, a missing parent, or a parent of the wrong kind
+status or date, duplicate ids, a missing parent, a parent of the wrong kind
 (platforms inherit from `base`, computers from a platform, so inheritance
-cannot loop).
+cannot loop), a `recommended_hops` above `max_hops`, or a file that is not read
+(only `base.yaml`, `platforms/*.yaml` and the `.yaml` files below `computers/`
+are; a file whose name starts with a dot, such as `.template.yaml`, is left
+out on purpose).
 
 ### Platform profiles
 
@@ -44,7 +47,10 @@ Each platform profile sets the hop limits from the `platformStability` values in
 the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json)
 (`max` as `max_hops`, `rec` as `recommended_hops`), with status `partial`:
 tested in practice, not a manufacturer specification. Hub count and tier depth
-stay unknown.
+stay unknown. Every platform profile also has `displays.mst`, because MST is a
+property of the operating system: `false` on macOS (it does not extend the
+desktop over MST), `true` on Windows, `null` (unknown) on the others. Computer
+profiles inherit it.
 
 | Platform profile | `max_hops` | `recommended_hops` |
 |---|---|---|
@@ -111,6 +117,11 @@ display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
 ### Adding or updating a computer profile
+
+A computer gets a profile only when it is a problem machine: one that differs
+from its platform profile through built-in hubs, unusual ports, display limits
+or other quirks. Every other computer uses its platform profile, so the list
+stays short.
 
 1. Start from a file exported by the app ("Export computer profile"), or copy
    `database/computers/.template.yaml`. Save it as
