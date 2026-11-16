@@ -69,6 +69,51 @@ public class ValidationTests
     }
 
     [Fact]
+    public void RecommendedHopsAboveMaxHopsIsRejected()
+    {
+        using var db = new TestDatabase().Write("computers/c.yaml", """
+            inherits: test-platform
+            manufacturer: Test
+            model: Test model
+            limits:
+              max_hops: 3
+              recommended_hops: 4
+            """);
+
+        Single(db.LoadErrors(), "computers/c.yaml", 6, "limits.recommended_hops (4) must not be above limits.max_hops (3)");
+    }
+
+    // The computer lowers max_hops below the recommended depth it inherits: its own line is named, once.
+    [Fact]
+    public void MaxHopsBelowInheritedRecommendedHopsIsRejected()
+    {
+        using var db = new TestDatabase()
+            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 5\n  recommended_hops: 4\n")
+            .Write("computers/c.yaml", """
+                inherits: test-platform
+                manufacturer: Test
+                model: Test model
+                limits:
+                  max_hops: 3
+                """)
+            .Write("computers/d.yaml", "inherits: test-platform\nmanufacturer: Test\nmodel: Other model\n");
+
+        Single(db.LoadErrors(), "computers/c.yaml", 5, "limits.recommended_hops (4) must not be above limits.max_hops (3)");
+    }
+
+    [Theory]
+    [InlineData("notes.yaml")]
+    [InlineData("platforms/more/p.yaml")]
+    [InlineData("computers/c.yml")]
+    [InlineData("base.yml")]
+    public void FileThatIsNotReadIsRejected(string file)
+    {
+        using var db = new TestDatabase().Write(file, "id: p\ninherits: base\n");
+
+        Single(db.LoadErrors(), file, 0, "This file is not read");
+    }
+
+    [Fact]
     public void MissingParentIsRejected()
     {
         using var db = new TestDatabase().Write("computers/c.yaml", """
