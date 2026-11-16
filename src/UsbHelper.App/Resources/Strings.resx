@@ -203,14 +203,8 @@
   <data name="LimitDisconnected" xml:space="preserve">
     <value>Disconnected devices</value>
   </data>
-  <data name="LimitWithin" xml:space="preserve">
-    <value>within limit</value>
-  </data>
   <data name="LimitExceeded" xml:space="preserve">
     <value>exceeded</value>
-  </data>
-  <data name="LimitUnknown" xml:space="preserve">
-    <value>unknown</value>
   </data>
   <data name="Disconnected" xml:space="preserve">
     <value>Disconnected and reconnected devices</value>
