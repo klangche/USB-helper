@@ -66,6 +66,9 @@ public class RealDatabaseTests
         Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
         Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
+        // Apple: one external display; macOS does not extend over MST, so a second DisplayPort display only mirrors.
+        Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
+        Assert.Equal(false, neo.Find("displays.mst")!.Scalar);
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
 
@@ -83,7 +86,8 @@ public class RealDatabaseTests
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
-    // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd until researched (#75).
+    // Exported by the owner from USB-helper 0.5.0-beta.4 (#74); limits come from windows-amd. The ports are from ASUS's
+    // specification page and stay unverified until confirmed on the machine.
     [Fact]
     public void AsusRogStrixG713RWInheritsWindowsAmd()
     {
@@ -93,6 +97,10 @@ public class RealDatabaseTests
         Assert.Equal("unverified", asus.Find("verification.status")!.Scalar);
         Assert.Equal(7L, asus.Find("limits.max_hops")!.Scalar);
         Assert.Equal("platforms/windows-amd.yaml", asus.Find("limits.max_hops")!.File);
+        Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
+        Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
+        Assert.Equal(true, asus.Find("ports.hdmi.hdmi")!.Scalar);
+        Assert.NotEmpty(asus.Find("sources")!.Items);
     }
 
     [Fact]

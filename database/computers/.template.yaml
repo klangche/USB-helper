@@ -1,3 +1,5 @@
+# Only for a computer that differs from its platform profile (built-in hubs, unusual ports, display limits or
+# other quirks). Every other computer uses its platform profile and needs no file.
 inherits: platform-profile
 manufacturer: Manufacturer
 model: Exact model name

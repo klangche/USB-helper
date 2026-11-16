@@ -34,9 +34,12 @@ Inheritance rules:
 The database is only read, never written, by the application. Loading stops
 with a list of every problem found, each with file and line: invalid YAML,
 duplicate fields, unknown fields, wrong value types, invalid verification
-status or date, duplicate ids, a missing parent, or a parent of the wrong kind
+status or date, duplicate ids, a missing parent, a parent of the wrong kind
 (platforms inherit from `base`, computers from a platform, so inheritance
-cannot loop).
+cannot loop), a `recommended_hops` above `max_hops`, or a file that is not read
+(only `base.yaml`, `platforms/*.yaml` and the `.yaml` files below `computers/`
+are; a file whose name starts with a dot, such as `.template.yaml`, is left
+out on purpose).
 
 ### Platform profiles
 
@@ -111,6 +114,11 @@ display count is never derived from the number of ports, a USB-C port is never
 assumed to carry video, and no bandwidth is calculated.
 
 ### Adding or updating a computer profile
+
+A computer gets a profile only when it is a problem machine: one that differs
+from its platform profile through built-in hubs, unusual ports, display limits
+or other quirks. Every other computer uses its platform profile, so the list
+stays short.
 
 1. Start from a file exported by the app ("Export computer profile"), or copy
    `database/computers/.template.yaml`. Save it as

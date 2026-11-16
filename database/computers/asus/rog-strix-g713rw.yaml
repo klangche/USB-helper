@@ -5,11 +5,32 @@ name: "ROG Strix G713RW"
 chip: "AMD Ryzen 7 6800H with Radeon Graphics"
 displays:
   max_external: null
+ports:
+  usbc_display:
+    usb: usb-c
+    displayport_alt_mode: true
+    limitations:
+      - "USB 3.2 Gen 2 Type-C; supports DisplayPort and power delivery."
+  usbc_data:
+    usb: usb-c
+    limitations:
+      - "USB 3.2 Gen 2 Type-C; ASUS lists it for data only."
+  usb_a:
+    usb: usb-a
+    limitations:
+      - "Two USB 3.2 Gen 1 Type-A ports."
+  hdmi:
+    hdmi: true
+    limitations:
+      - "One HDMI 2.0b output."
 notes:
   - "Exported by USB-helper 0.5.0-beta.4 on 2026-10-31."
   - "Detected: USB controllers: 5, external hubs: 0, active external displays: 0."
   - "Root hub ports per USB controller: 2, 5, 2, 1, 6."
-sources: []
+  - "Ports from ASUS's specification page for the ROG Strix G17 (2022) G713, checked through search results only (2026-11-16). One retailer listing for a G713RW shows a single USB-C port, so the port list is to be confirmed on the machine. ASUS lists no Thunderbolt or USB4."
+  - "What makes this computer a problem machine is not recorded yet: no limit or exception differs from windows-amd."
+sources:
+  - "https://rog.asus.com/laptops/rog-strix/rog-strix-g17-2022-series/spec/ (ASUS, 'ROG Strix G17 (2022) G713' specifications: I/O ports)"
 verification:
   status: unverified
   last_checked: null
