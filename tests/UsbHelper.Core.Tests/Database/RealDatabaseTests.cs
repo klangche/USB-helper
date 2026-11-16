@@ -33,18 +33,19 @@ public class RealDatabaseTests
         Assert.Equal(ValueKind.Null, db.Platforms["windows-intel"].Find("limits.max_hubs")!.Kind);
     }
 
-    // Values from usb-tree-config.json (platformStability) in klangche/usb-script: max -> max_hops, rec -> recommended_hops.
+    // Owner decision 2026-11-16 (#260): USB allows seven tiers, so five hubs in a row (PureLink); Apple silicon has one
+    // fewer and A-series one fewer again; recommended is within four tiers (PureLink). Android tablet keeps its 4.
     [Theory]
-    [InlineData("windows-intel", 7, 5)]
-    [InlineData("windows-amd", 7, 5)]
-    [InlineData("windows-arm", 5, 3)]
-    [InlineData("macos-intel", 7, 5)]
-    [InlineData("macos-apple-silicon", 5, 3)]
-    [InlineData("apple-mobile-a-series", 4, 2)]
-    [InlineData("linux-x64", 6, 4)]
-    [InlineData("linux-arm", 5, 3)]
-    [InlineData("android-phone-qualcomm", 5, 3)]
-    [InlineData("android-tablet-exynos", 4, 2)]
+    [InlineData("windows-intel", 5, 2)]
+    [InlineData("windows-amd", 5, 2)]
+    [InlineData("windows-arm", 5, 2)]
+    [InlineData("macos-intel", 5, 2)]
+    [InlineData("macos-apple-silicon", 4, 1)]
+    [InlineData("apple-mobile-a-series", 3, 0)]
+    [InlineData("linux-x64", 5, 2)]
+    [InlineData("linux-arm", 5, 2)]
+    [InlineData("android-phone-qualcomm", 5, 2)]
+    [InlineData("android-tablet-exynos", 4, 1)]
     public void PlatformHopLimitsArePartiallyVerified(string id, long maxHops, long recommendedHops)
     {
         var platform = HardwareDatabase.Load(DatabaseFolder()).Platforms[id];
@@ -76,15 +77,15 @@ public class RealDatabaseTests
         Assert.Equal(mst, platform.Find("displays.mst")!.Scalar);
     }
 
-    // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.
+    // Lightware: the MacBook Neo, an A-series Mac, uses three of the seven tiers itself, leaving three hubs (#260).
     [Fact]
     public void MacBookNeoHasItsOwnHopLimit()
     {
         var neo = HardwareDatabase.Load(DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", "Mac17,5")];
 
         Assert.Equal("MacBook Neo", neo.Find("name")!.Scalar);
-        Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
-        Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
+        Assert.Equal(3L, neo.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(0L, neo.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
         // Apple: one external display. No MST is the operating system's limit, inherited from the platform profile.
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
@@ -104,7 +105,7 @@ public class RealDatabaseTests
         Assert.Equal(4L, mac.Find("ports.thunderbolt4.thunderbolt")!.Scalar);
         Assert.Null(mac.Find("limits.max_hubs")!.Scalar);
         Assert.Null(mac.Find("limits.max_tiers")!.Scalar);
-        Assert.Equal(5L, mac.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(4L, mac.Find("limits.max_hops")!.Scalar);
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
@@ -117,7 +118,7 @@ public class RealDatabaseTests
 
         Assert.Equal("ROG Strix G713RW", asus.Find("name")!.Scalar);
         Assert.Equal("unverified", asus.Find("verification.status")!.Scalar);
-        Assert.Equal(7L, asus.Find("limits.max_hops")!.Scalar);
+        Assert.Equal(5L, asus.Find("limits.max_hops")!.Scalar);
         Assert.Equal("platforms/windows-amd.yaml", asus.Find("limits.max_hops")!.File);
         Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
         Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
