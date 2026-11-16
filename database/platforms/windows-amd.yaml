@@ -5,12 +5,15 @@ architecture: x64
 limits:
   max_hops: 7
   recommended_hops: 5
+displays:
+  mst: true
 notes:
   - "Generic Windows platform profile for AMD processors."
   - "Hop limits from the usb-script config (Windows x86): max 7, recommended 5. Tested in practice, not a manufacturer specification."
   - "The usb-script entry 'windows' is named 'Windows x86' there; it covers Windows on Intel and AMD processors."
 sources:
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windows; config version 1.0.0, 2026-02-24)"
+  - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: displays.mst)"
 verification:
   status: partial
   last_checked: 2026-10-29

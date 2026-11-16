@@ -56,16 +56,24 @@ public class RealDatabaseTests
         Assert.NotEmpty(platform.Find("sources")!.Items);
     }
 
-    // Owner decision 2026-11-16: no MST is a limit of the operating system, so the macOS platform profiles carry it.
+    // Owner decision 2026-11-16: MST is a property of the operating system, so every platform profile has the field:
+    // false on macOS, true on Windows, null (unknown) elsewhere.
     [Theory]
     [InlineData("macos-apple-silicon", false)]
     [InlineData("macos-intel", false)]
-    [InlineData("windows-intel", null)]
-    public void MstIsSetForMacOsOnly(string id, bool? mst)
+    [InlineData("windows-intel", true)]
+    [InlineData("windows-amd", true)]
+    [InlineData("windows-arm", true)]
+    [InlineData("linux-x64", null)]
+    [InlineData("linux-arm", null)]
+    [InlineData("android-phone-qualcomm", null)]
+    [InlineData("android-tablet-exynos", null)]
+    [InlineData("apple-mobile-a-series", null)]
+    public void EveryPlatformSaysWhetherItSupportsMst(string id, bool? mst)
     {
         var platform = HardwareDatabase.Load(DatabaseFolder()).Platforms[id];
 
-        Assert.Equal(mst, platform.Find("displays.mst")?.Scalar);
+        Assert.Equal(mst, platform.Find("displays.mst")!.Scalar);
     }
 
     // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.

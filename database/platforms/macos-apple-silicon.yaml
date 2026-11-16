@@ -10,10 +10,9 @@ displays:
 notes:
   - "Generic profile for Macs with an Apple chip (M-series or A-series)."
   - "Hop limits from the usb-script config (Mac Apple Silicon): max 5, recommended 3. Tested in practice, not a manufacturer specification."
-  - "displays.mst false: macOS does not extend the desktop over DisplayPort MST; several displays on one DisplayPort output only mirror (Plugable, checked 2026-11-16; not an Apple statement)."
 sources:
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.macAppleSilicon; config version 1.0.0, 2026-02-24)"
-  - "https://plugable.com/blogs/news/understanding-multiple-displays-on-apple-silicon-macs (Plugable, 'Understanding Multiple Displays on Apple Silicon Macs': macOS does not support MST for extended displays)"
+  - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: displays.mst)"
 verification:
   status: partial
   last_checked: 2026-10-29

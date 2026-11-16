@@ -5,6 +5,8 @@ architecture: arm64
 limits:
   max_hops: 5
   recommended_hops: 3
+displays:
+  mst: null
 notes:
   - "Generic Android phone profile (Qualcomm)."
   - "Hop limits from the usb-script config (Android Phone (Qualcomm)): max 5, recommended 3. Tested in practice, not a manufacturer specification."

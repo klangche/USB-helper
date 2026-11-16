@@ -47,8 +47,10 @@ Each platform profile sets the hop limits from the `platformStability` values in
 the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json)
 (`max` as `max_hops`, `rec` as `recommended_hops`), with status `partial`:
 tested in practice, not a manufacturer specification. Hub count and tier depth
-stay unknown. The two macOS profiles also set `displays.mst: false`: macOS does
-not extend the desktop over DisplayPort MST, so every Mac inherits it.
+stay unknown. Every platform profile also has `displays.mst`, because MST is a
+property of the operating system: `false` on macOS (it does not extend the
+desktop over MST), `true` on Windows, `null` (unknown) on the others. Computer
+profiles inherit it.
 
 | Platform profile | `max_hops` | `recommended_hops` |
 |---|---|---|

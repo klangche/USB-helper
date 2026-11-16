@@ -5,6 +5,8 @@ architecture: x64
 limits:
   max_hops: 6
   recommended_hops: 4
+displays:
+  mst: null
 notes:
   - "Generic Linux platform profile for x64 processors."
   - "Hop limits from the usb-script config (Linux): max 6, recommended 4. Tested in practice, not a manufacturer specification."

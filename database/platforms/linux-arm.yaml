@@ -5,6 +5,8 @@ architecture: arm64
 limits:
   max_hops: 5
   recommended_hops: 3
+displays:
+  mst: null
 notes:
   - "Generic Linux platform profile for ARM processors."
   - "Hop limits from the usb-script config (Linux ARM): max 5, recommended 3. Tested in practice, not a manufacturer specification."
