@@ -26,12 +26,21 @@ public partial class MainWindow : Window, IMainWindowActions
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
         Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
+        Closed += (_, _) => (BrandingLogo.Source as Bitmap)?.Dispose();
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.Window = this;
+                ShowBrandingLogo(viewModel);
+                viewModel.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(MainViewModel.BrandingLogo))
+                    {
+                        ShowBrandingLogo(viewModel);
+                    }
+                };
                 if (OperatingSystem.IsMacOS())
                 {
                     // macOS shows the menu in the system menu bar, not in the window (#178); Windows keeps the window menu.
@@ -50,6 +59,27 @@ public partial class MainWindow : Window, IMainWindowActions
                 }
             }
         };
+    }
+
+    // Read into memory, so the file is not held open and the next logo import can replace it. A file that cannot be
+    // read shows no logo.
+    private void ShowBrandingLogo(MainViewModel viewModel)
+    {
+        var old = BrandingLogo.Source as Bitmap;
+        BrandingLogo.Source = null;
+        old?.Dispose();
+        if (viewModel.BrandingLogo is not { } path)
+        {
+            return;
+        }
+        try
+        {
+            using var stream = new MemoryStream(File.ReadAllBytes(path));
+            BrandingLogo.Source = new Bitmap(stream);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     // The update popup (#131) is open exactly while the update model offers something.
@@ -88,7 +118,15 @@ public partial class MainWindow : Window, IMainWindowActions
     {
         if (DataContext is MainViewModel viewModel)
         {
-            _ = new SettingsWindow { DataContext = viewModel.Settings }.ShowDialog(this);
+            _ = new SettingsWindow { DataContext = viewModel.Settings, Unlock = viewModel.Unlock }.ShowDialog(this);
+        }
+    }
+
+    void IMainWindowActions.ShowUnlock()
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            UnlockWindow.Open(this, viewModel.Unlock);
         }
     }
 
@@ -127,12 +165,42 @@ public partial class MainWindow : Window, IMainWindowActions
                 return;
             }
             await using var stream = await file.OpenWriteAsync();
-            viewModel.ExportSetup(stream, screenshot, DateOnly.FromDateTime(DateTime.Now));
+            viewModel.ExportSetup(stream, screenshot, DateTime.Now);
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupSaved, file.Name);
         }
         catch (Exception ex)
         {
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportSetupFailed, ex.Message);
+        }
+    }
+
+    // File > Export PDF (#232). Async void, run by the command: any failure is shown instead of ending the app.
+    async void IMainWindowActions.ExportPdf()
+    {
+        if (DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        try
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = Strings.ExportPdfTitle,
+                SuggestedFileName = viewModel.PdfFileName(DateTime.Now),
+                DefaultExtension = "pdf",
+                FileTypeChoices = [new FilePickerFileType("PDF") { Patterns = ["*.pdf"] }],
+            });
+            if (file == null)
+            {
+                return;
+            }
+            await using var stream = await file.OpenWriteAsync();
+            viewModel.ExportPdf(stream, DateTime.Now);
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfSaved, file.Name);
+        }
+        catch (Exception ex)
+        {
+            ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportPdfFailed, ex.Message);
         }
     }
 

@@ -26,11 +26,18 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <!-- Reads company logos in SVG (#228) and draws them in the PDF report (#231). -->
+    <PackageReference Include="Svg.Skia" Version="5.1.1" />
   </ItemGroup>
 
   <!-- The icon in the About window. -->
   <ItemGroup>
     <AvaloniaResource Include="Assets\usb-helper.ico" />
+  </ItemGroup>
+
+  <!-- CompanyLogo.MoveFolder, replaced by a test to make the logo swap fail (#228). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="UsbHelper.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -50,6 +57,38 @@
       <PublicClass>true</PublicClass>
     </EmbeddedResource>
   </ItemGroup>
+
+  <!-- Unlock code secrets (#234): CI sets USBH_LICENCE_KEY_<id> (base64, 32 bytes) from its Actions secrets, and this
+       writes them to LicenceKeys.g.cs in obj/, which git ignores. Without them nothing is written and no code unlocks. -->
+  <Target Name="GenerateLicenceKeys" BeforeTargets="BeforeCompile">
+    <PropertyGroup>
+      <LicenceKeysFile>$(IntermediateOutputPath)LicenceKeys.g.cs</LicenceKeysFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <_LicenceKeyId Include="0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15" />
+      <_LicenceKey Include="@(_LicenceKeyId)" Secret="$([System.String]::Concat($([System.Environment]::GetEnvironmentVariable('USBH_LICENCE_KEY_%(Identity)')), '').Trim())" />
+      <_LicenceKey Remove="@(_LicenceKey)" Condition="'%(Secret)' == ''" />
+    </ItemGroup>
+    <!-- Never upload a binlog (-bl) of a build with keys: it records the environment and this file, so the key ends up
+         in it. -->
+    <!-- 32 bytes are 43 base64 characters and one '='. The message names the variable, never its value. -->
+    <Error Condition="'@(_LicenceKey)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_LicenceKey.Secret)', '^[A-Za-z0-9+/]{43}=$'))"
+           Text="USBH_LICENCE_KEY_%(_LicenceKey.Identity) is not a base64 32-byte key." />
+    <WriteLinesToFile Condition="'@(_LicenceKey)' != ''" File="$(LicenceKeysFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="// &lt;auto-generated/&gt; by the GenerateLicenceKeys target (#234). Never commit this file.;namespace UsbHelper.App.Licensing%3B;internal static partial class LicenceKeys;{;    static partial void AddKeys(Dictionary&lt;int, byte[]&gt; keys);    {;@(_LicenceKey->'        keys.Add(%(Identity), Convert.FromBase64String(&quot;%(Secret)&quot;))%3B');    };}" />
+    <Delete Condition="'@(_LicenceKey)' == ''" Files="$(LicenceKeysFile)" />
+    <ItemGroup Condition="'@(_LicenceKey)' != ''">
+      <Compile Include="$(LicenceKeysFile)" />
+      <FileWrites Include="$(LicenceKeysFile)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Free-unlock switch (#238): CI sets USBH_FREE_UNLOCK=true from its Actions variable, in the same publish steps that get
+       the keys, while the extra features are free for everyone. It defines USBH_FREE_UNLOCK, which makes
+       BuildInfo.FreeUnlock true. Without it (local, fork and pull request builds) nothing changes. -->
+  <PropertyGroup Condition="'$(USBH_FREE_UNLOCK)' == 'true'">
+    <DefineConstants>$(DefineConstants);USBH_FREE_UNLOCK</DefineConstants>
+  </PropertyGroup>
 
   <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
   <ItemGroup>

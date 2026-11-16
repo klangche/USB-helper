@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using UsbHelper.App.Tests.Licensing;
 using UsbHelper.App.Tests.Update;
 using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
@@ -103,6 +104,9 @@ public sealed class SettingsBehaviourTests
     public async Task TurningBetasOffLaterHidesTheBetaChoice()
     {
         var settings = new SettingsViewModel();
+        var entitlements = new FakeEntitlements();
+        entitlements.SetPro(true); // betas only while unlocked (#246)
+        settings.Gate(entitlements);
         var update = Update(GitHub([]), settings);
         await update.CheckAtStartAsync();
         Assert.NotNull(update.BetaText);

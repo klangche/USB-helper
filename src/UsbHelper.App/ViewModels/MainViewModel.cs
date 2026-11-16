@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using UsbHelper.App.Licensing;
+using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Settings;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -82,8 +85,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>A model whose database is already loaded (or failed to load): it waits for the USB tree.</summary>
     public MainViewModel(
         HardwareDatabase? database, IReadOnlyList<DatabaseError> databaseErrors, ComputerIdentity identity,
-        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
-        : this(identity, readMonitors, log, settings)
+        Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null,
+        CodeEntitlements? entitlements = null)
+        : this(identity, readMonitors, log, settings, entitlements)
     {
         LoadDatabase(database, databaseErrors);
     }
@@ -92,8 +96,10 @@ public sealed class MainViewModel : ObservableObject
     /// <param name="readMonitors">Reads the active monitors, or null when unknown. Called on every refresh.</param>
     /// <param name="log">The session's event log; a new one when null.</param>
     /// <param name="settings">The settings (#126); the defaults, kept in memory only, when null.</param>
+    /// <param name="entitlements">The unlock code (#234); from this build's keys and <paramref name="settings"/> when null.</param>
     public MainViewModel(
-        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null)
+        ComputerIdentity identity, Func<IReadOnlyList<DisplayMonitor>?>? readMonitors = null, EventLog? log = null, SettingsViewModel? settings = null,
+        CodeEntitlements? entitlements = null)
     {
         Settings = settings ?? new SettingsViewModel();
         Settings.PropertyChanged += (_, e) =>
@@ -102,8 +108,28 @@ public sealed class MainViewModel : ObservableObject
             {
                 KeepCheckedProfiles(); // Turned on: keep what is checked now.
             }
+            if (e.PropertyName is nameof(SettingsViewModel.Branding) or nameof(SettingsViewModel.CompanyName) or nameof(SettingsViewModel.LogoPreview))
+            {
+                OnPropertyChanged(nameof(ShowsBranding));
+                OnPropertyChanged(nameof(BrandingName));
+                OnPropertyChanged(nameof(BrandingLogo)); // Also when a new logo replaced the old one under the same path.
+            }
+            if (e.PropertyName == nameof(SettingsViewModel.CompanyName))
+            {
+                LogCompanyAndLicence();
+            }
         };
         this.log = log ?? new EventLog();
+        entitlements ??= new CodeEntitlements(LicenceKeys.All, Settings, this.log, BuildInfo.FreeUnlock);
+        Entitlements = entitlements;
+        Settings.Gate(entitlements);
+        entitlements.Changed += (_, _) =>
+        {
+            LogCompanyAndLicence();
+            ExportPdfChanged();
+        };
+        LogCompanyAndLicence();
+        Unlock = new UnlockViewModel(entitlements);
         Log = new LogViewModel(this.log);
         this.readMonitors = readMonitors ?? (() => null);
         this.identity = identity;
@@ -116,8 +142,10 @@ public sealed class MainViewModel : ObservableObject
         ExitCommand = new RelayCommand(() => Window?.Exit());
         AboutCommand = new RelayCommand(() => Window?.ShowAbout());
         SettingsCommand = new RelayCommand(() => Window?.ShowSettings());
-        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeText.Render(Roots[0])), () => Roots.Count > 0);
+        UnlockCommand = new RelayCommand(() => Window?.ShowUnlock());
+        CopyTreeCommand = new RelayCommand(() => Window?.CopyText(TreeWithHeader()), () => Roots.Count > 0);
         ExportSetupCommand = new RelayCommand(() => Window?.ExportSetup(), () => Roots.Count > 0);
+        ExportPdfCommand = new RelayCommand(() => Window?.ExportPdf(), () => ExportPdfTip == null);
         RefreshCommand = new RelayCommand(() => Window?.ConfirmRefresh(), () => !IsLoading);
     }
 
@@ -283,17 +311,42 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>File > Settings.</summary>
     public RelayCommand SettingsCommand { get; }
 
+    /// <summary>Help > Unlock..., the top bar's Unlock... and the status line's "Unlocked to" (#238): opens the unlock popup.</summary>
+    public RelayCommand UnlockCommand { get; }
+
     /// <summary>Edit > Copy tree as text (#134): the same text the log gets.</summary>
     public RelayCommand CopyTreeCommand { get; }
 
     /// <summary>File > Export full setup (#135).</summary>
     public RelayCommand ExportSetupCommand { get; }
 
+    /// <summary>File > Export PDF (#232): enabled once the tree is read, when unlocked and a room name is entered.</summary>
+    public RelayCommand ExportPdfCommand { get; }
+
+    /// <summary>Why File > Export PDF is disabled, for its tooltip; null when it is enabled.</summary>
+    public string? ExportPdfTip =>
+        !Entitlements.IsUnlocked(Feature.Pro) ? Strings.ExportPdfLocked
+        : Room == null ? Strings.ExportPdfNeedsRoom
+        : Roots.Count == 0 ? Strings.ExportPdfNoTree
+        : null;
+
+    private void ExportPdfChanged()
+    {
+        OnPropertyChanged(nameof(ExportPdfTip));
+        ExportPdfCommand.Refresh();
+    }
+
     /// <summary>The room or system name the user typed (#186), for the setup export's file name. Not saved between runs.</summary>
     public string RoomName
     {
         get => roomName;
-        set => SetField(ref roomName, value ?? "");
+        set
+        {
+            if (SetField(ref roomName, value ?? ""))
+            {
+                ExportPdfChanged();
+            }
+        }
     }
 
     private string roomName = "";
@@ -302,23 +355,60 @@ public sealed class MainViewModel : ObservableObject
     /// <c>usb-helper_&lt;room or system name&gt;_YYYY-MM-DD_HH-mm-ss.zip</c>, or without the name when none is entered (#186);
     /// the save dialog lets the user change it. Characters a file name cannot hold become <c>-</c>.
     /// </summary>
-    public string SetupFileName(DateTime time)
+    public string SetupFileName(DateTime time) => FileName(time, "zip");
+
+    /// <summary>The PDF report's name (#232): as <see cref="SetupFileName"/>, ending in <c>.pdf</c>.</summary>
+    public string PdfFileName(DateTime time) => FileName(time, "pdf");
+
+    private string FileName(DateTime time, string extension)
     {
         var invalid = Path.GetInvalidFileNameChars().Concat(['\\', '/', ':', '*', '?', '"', '<', '>', '|']).ToHashSet();
         var room = new string(RoomName.Select(c => invalid.Contains(c) || char.IsControl(c) ? '-' : c).ToArray()).Trim();
         var stamp = time.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture);
-        return room.Length == 0 ? $"usb-helper_{stamp}.zip" : $"usb-helper_{room}_{stamp}.zip";
+        return room.Length == 0 ? $"usb-helper_{stamp}.{extension}" : $"usb-helper_{room}_{stamp}.{extension}";
     }
 
     /// <summary>
     /// Writes the full setup export (#135) to <paramref name="output"/>: setup.json, the tree as text, the window's
-    /// <paramref name="screenshot"/> (PNG) and the log.
+    /// <paramref name="screenshot"/> (PNG) and the log; when unlocked also the PDF report (#232), with or without a room.
     /// </summary>
-    public void ExportSetup(Stream output, byte[] screenshot, DateOnly date, string? appVersion = null)
+    public void ExportSetup(Stream output, byte[] screenshot, DateTime created, string? appVersion = null)
     {
-        SetupZip.Write(output, Setup(date, appVersion ?? AppVersion.Current).ToJson(), TreeText.Render(Roots[0]), screenshot, log.Export());
+        var version = appVersion ?? AppVersion.Current;
+        byte[]? report = null;
+        if (Entitlements.IsUnlocked(Feature.Pro))
+        {
+            // The zip never fails because of the PDF: without it, the other files are still written.
+            try
+            {
+                using var pdf = new MemoryStream();
+                WriteReport(pdf, BrandedReport(created, version));
+                report = pdf.ToArray();
+            }
+            catch (Exception e)
+            {
+                log.Add($"PDF report could not be made: {e.Message}");
+            }
+        }
+        SetupZip.Write(output, Setup(DateOnly.FromDateTime(created), version).ToJson(), TreeWithHeader(), screenshot, log.Export(), report);
         log.Add("Setup exported");
     }
+
+    /// <summary>File > Export PDF (#232): writes the PDF report to <paramref name="output"/>.</summary>
+    public void ExportPdf(Stream output, DateTime created, string? appVersion = null)
+    {
+        WriteReport(output, BrandedReport(created, appVersion ?? AppVersion.Current));
+        log.Add("PDF exported");
+    }
+
+    /// <summary>Writes the PDF report; tests replace it to make it fail.</summary>
+    internal Action<Stream, ReportModel> WriteReport { get; set; } = ReportPdf.Write;
+
+    private ReportModel BrandedReport(DateTime created, string appVersion) =>
+        Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
+
+    /// <summary>The logo for the PDF report (#232): the cropped vector logo when there is one, else the 512 pixel PNG.</summary>
+    public static string? ReportLogo(Branding? branding) => branding?.LogoSvg ?? branding?.LogoPngs.GetValueOrDefault(512);
 
     // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
     // ones included.
@@ -332,14 +422,111 @@ public sealed class MainViewModel : ObservableObject
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
-        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results);
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results)
+        {
+            CompanyName = CompanyName,
+            RoomName = Room,
+            LicensedTo = Entitlements.LicensedTo,
+        };
     }
+
+    // #230: the company name only while branding is unlocked; the room whenever one is entered.
+    private string? CompanyName => Settings.Branding?.CompanyName;
+
+    private string? Room => RoomName.Trim() is { Length: > 0 } room ? room : null;
+
+    // The tree for the clipboard and tree.txt, headed by the company, room and licensed email (#230).
+    private string TreeWithHeader() => TreeText.Render(Roots[0], CompanyName, Room, Entitlements.LicensedTo);
+
+    private void LogCompanyAndLicence() => log.CompanyAndLicence(CompanyName, Entitlements.LicensedTo);
 
     private static List<SetupFinding> Exported(IEnumerable<Finding> findings) =>
         [.. findings.Select(finding => new SetupFinding(finding.Kind, finding.SubjectName, finding.Message))];
 
+    /// <summary>
+    /// The PDF setup report's content (#231): the same as the setup export, for all controllers, with every finding of
+    /// every checked profile. A detected fact is listed once, without a profile.
+    /// </summary>
+    public ReportModel Report(DateTime created, string? companyName, string? logoPath, string appVersion)
+    {
+        var setup = Setup(DateOnly.FromDateTime(created), appVersion);
+        var several = setup.Results.Count > 1;
+        var findings = setup.Results
+            .SelectMany(result => result.Findings.Select(finding => new ReportFinding(finding.Kind,
+                several && finding.Kind != FactKind.DetectedFact ? result.Label : null, finding.Subject, finding.Message)))
+            .Distinct()
+            .ToList();
+        var counts = lastReport.Counts;
+        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
+        IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
+        var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
+            ? new ReportProfile(Strings.ReportNoProfile, result.Overall, [])
+            : new ReportProfile(setup.Results[i].Label, result.Overall, ReportChecks(result))).ToList();
+        var placement = MonitorPlacement.Place(tree, monitors ?? []);
+        var items = Flat(Roots[0]).ToDictionary(item => item.Id, item => item.Text);
+        var displays = monitors?.Select(monitor => new ReportDisplay(monitor.Name ?? Strings.MonitorUnnamed, NodeViewModel.OutputText(monitor.Output),
+            placement.Linked.FirstOrDefault(link => link.Value.Contains(monitor)).Key is { } node ? items.GetValueOrDefault(node) : null)).ToList();
+        return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
+            setup.Computer, lastReport.Overall,
+            new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
+                counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
+            profiles, displays, ReportRow.Of(Roots[0]), findings)
+        {
+            LicensedTo = Entitlements.LicensedTo,
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
+        };
+    }
+
+    /// <summary>
+    /// A profile's checks for the report, as the app judges them. The recommended depth only when it is known and the
+    /// maximum is kept, the same as the tree's lines; disconnected devices only when there are.
+    /// </summary>
+    public static List<ReportCheck> ReportChecks(DiagnosticReport result)
+    {
+        static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
+        {
+            LimitState.Within => ConnectionStatus.Green,
+            LimitState.Exceeded => exceeded,
+            _ => ConnectionStatus.Grey,
+        };
+        var checks = new List<ReportCheck>
+        {
+            new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
+            new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
+            new(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, Status(result.Hops.State)),
+            new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
+        };
+        if (result.RecommendedHops is { Limit: not null } recommended && result.Hops.State != LimitState.Exceeded)
+        {
+            checks.Add(new(Strings.LimitRecommendedHops, recommended.Limit, recommended.Actual, Status(recommended.State, ConnectionStatus.Orange)));
+        }
+        if (result.Missing.Count > 0)
+        {
+            checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
+        }
+        return checks;
+    }
+
+    private static IEnumerable<NodeViewModel> Flat(NodeViewModel item) => item.Children.SelectMany(Flat).Prepend(item);
+
     /// <summary>The settings window's content; also read by the update check.</summary>
     public SettingsViewModel Settings { get; }
+
+    /// <summary>What is unlocked (#234). Every feature check goes through this.</summary>
+    public IEntitlements Entitlements { get; }
+
+    /// <summary>True when the top bar shows the company logo or name (#229): unlocked, and at least one is set.</summary>
+    public bool ShowsBranding => Settings.Branding != null;
+
+    /// <summary>The company name in the top bar, only when there is no logo: never both. Null when locked or none.</summary>
+    public string? BrandingName => Settings.Branding is { LogoOriginal: null } branding ? branding.CompanyName : null;
+
+    /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
+    public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
+
+    /// <summary>The unlock popup's content and the unlock text of the top bar and the status line (#238).</summary>
+    public UnlockViewModel Unlock { get; }
 
     public IReadOnlyList<string> DatabaseErrors { get; private set; } = [];
 
@@ -452,6 +639,7 @@ public sealed class MainViewModel : ObservableObject
         LogTree();
         CopyTreeCommand.Refresh();
         ExportSetupCommand.Refresh();
+        ExportPdfChanged();
     }
 
     public void Apply(IReadOnlyList<UsbChange> changes)

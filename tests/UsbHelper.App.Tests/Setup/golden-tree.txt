@@ -1,3 +1,5 @@
+Room: Room 4.12
+
 Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 4, deepest hop: 2)
 |-- Intel USB 3.2 controller (Hubs: 1, deepest tier: 4, deepest hop: 2)
 |   `-- ROOT (has a display)

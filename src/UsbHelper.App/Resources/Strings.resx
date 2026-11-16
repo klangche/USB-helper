@@ -197,6 +197,12 @@
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
   </data>
+  <data name="LimitRecommendedHops" xml:space="preserve">
+    <value>Recommended hops</value>
+  </data>
+  <data name="LimitDisconnected" xml:space="preserve">
+    <value>Disconnected devices</value>
+  </data>
   <data name="LimitWithin" xml:space="preserve">
     <value>within limit</value>
   </data>
@@ -363,6 +369,27 @@ This version keeps running.</value>
   <data name="MenuExportSetup" xml:space="preserve">
     <value>Export full set_up...</value>
   </data>
+  <data name="MenuExportPdf" xml:space="preserve">
+    <value>Export _PDF...</value>
+  </data>
+  <data name="ExportPdfTitle" xml:space="preserve">
+    <value>Save the PDF report</value>
+  </data>
+  <data name="ExportPdfSaved" xml:space="preserve">
+    <value>Saved {0}: the setup report as PDF.</value>
+  </data>
+  <data name="ExportPdfFailed" xml:space="preserve">
+    <value>The PDF could not be saved: {0}</value>
+  </data>
+  <data name="ExportPdfLocked" xml:space="preserve">
+    <value>Enter a code to unlock PDF reports</value>
+  </data>
+  <data name="ExportPdfNeedsRoom" xml:space="preserve">
+    <value>Enter a room name to export a PDF</value>
+  </data>
+  <data name="ExportPdfNoTree" xml:space="preserve">
+    <value>Wait until the USB tree is read</value>
+  </data>
   <data name="RoomName" xml:space="preserve">
     <value>Room or system name</value>
   </data>
@@ -387,6 +414,9 @@ This version keeps running.</value>
   <data name="MenuCheckForUpdates" xml:space="preserve">
     <value>_Check for updates</value>
   </data>
+  <data name="MenuUnlock" xml:space="preserve">
+    <value>_Unlock...</value>
+  </data>
   <data name="MenuAbout" xml:space="preserve">
     <value>_About USB-helper</value>
   </data>
@@ -401,6 +431,9 @@ This version keeps running.</value>
   </data>
   <data name="AboutIconAttribution" xml:space="preserve">
     <value>The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc., licensed under CC BY 4.0. Changed: square view box and drawn white. USB is a trademark of its owner; the icon stands for USB connections, and no endorsement is implied.</value>
+  </data>
+  <data name="AboutQuirks" xml:space="preserve">
+    <value>Quirk: the tree shows the names devices give themselves. A USB 3 hub is two hubs, one on each bus, and many hub chips call their USB 2 half "USB2.1 Hub" and their USB 3 half "USB3.1 Hub" or "USB3.2 Hub". There is no USB 2.1: the "2.1" means a USB 2.0 hub with extra power saving.</value>
   </data>
   <data name="AboutClose" xml:space="preserve">
     <value>Close</value>
@@ -423,6 +456,99 @@ This version keeps running.</value>
   <data name="SettingsClose" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="SettingsCompanyName" xml:space="preserve">
+    <value>Company name</value>
+  </data>
+  <data name="SettingsCompanyLogo" xml:space="preserve">
+    <value>Company logo</value>
+  </data>
+  <data name="SettingsChooseLogo" xml:space="preserve">
+    <value>Choose image...</value>
+  </data>
+  <data name="SettingsAdjustCrop" xml:space="preserve">
+    <value>Adjust crop...</value>
+  </data>
+  <data name="LogoCropTitle" xml:space="preserve">
+    <value>Crop the logo</value>
+  </data>
+  <data name="LogoCropHint" xml:space="preserve">
+    <value>Every logo is 3 times wider than high. Drag the image to move it, and zoom with the slider or the mouse wheel. Only what is inside the frame is kept; empty parts of the frame stay transparent.</value>
+  </data>
+  <data name="LogoCropZoom" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="LogoCropFit" xml:space="preserve">
+    <value>Fit whole image</value>
+  </data>
+  <data name="LogoCropSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="LogoCropCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="SettingsRemoveLogo" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="LogoFileType" xml:space="preserve">
+    <value>SVG, PNG or WebP image</value>
+  </data>
+  <data name="LogoWrongType" xml:space="preserve">
+    <value>Only SVG, PNG and WebP images can be used as the logo.</value>
+  </data>
+  <data name="LogoUnreadable" xml:space="preserve">
+    <value>This file could not be read as the image its name says. The logo was not changed.</value>
+  </data>
+  <data name="LogoSvgWithoutSize" xml:space="preserve">
+    <value>This SVG has no width and height and no viewBox, so its size is unknown. The logo was not changed.</value>
+  </data>
+  <data name="LogoTooLarge" xml:space="preserve">
+    <value>This image has more than 50 megapixels. Make it smaller and try again. The logo was not changed.</value>
+  </data>
+  <data name="LogoNotSaved" xml:space="preserve">
+    <value>The logo could not be saved: {0}</value>
+  </data>
+  <data name="UnlockTitle" xml:space="preserve">
+    <value>Unlock extra features</value>
+  </data>
+  <data name="SupportNote" xml:space="preserve">
+    <value>Unlock codes for the extra features are given out by the project owner.</value>
+  </data>
+  <data name="UnlockEmail" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="UnlockCode" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="UnlockButton" xml:space="preserve">
+    <value>Unlock</value>
+  </data>
+  <data name="UnlockRemove" xml:space="preserve">
+    <value>Remove code</value>
+  </data>
+  <data name="UnlockCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="UnlockOpen" xml:space="preserve">
+    <value>Unlock...</value>
+  </data>
+  <data name="UnlockFreeBeta" xml:space="preserve">
+    <value>Unlocked (free beta)</value>
+  </data>
+  <data name="UnlockedFor" xml:space="preserve">
+    <value>Unlocked to {0}</value>
+  </data>
+  <data name="UnlockNoMatch" xml:space="preserve">
+    <value>This code does not match this email</value>
+  </data>
+  <data name="UnlockNeeded" xml:space="preserve">
+    <value>Enter a code to unlock</value>
+  </data>
+  <data name="UnlockBetasNeeded" xml:space="preserve">
+    <value>Enter a code to unlock beta updates</value>
+  </data>
+  <data name="UnlockNotAvailable" xml:space="preserve">
+    <value>Unlock codes are not available in this build</value>
+  </data>
   <data name="UpdateTitle" xml:space="preserve">
     <value>USB-helper update</value>
   </data>
@@ -431,5 +557,146 @@ This version keeps running.</value>
   </data>
   <data name="UpdateMacOsNote" xml:space="preserve">
     <value>Opens the release page in your browser. Quit USB-helper, open the new .dmg there and drag USB-helper.app to Applications, replacing the old one.</value>
+  </data>
+  <data name="ReportTitle" xml:space="preserve">
+    <value>USB setup report</value>
+  </data>
+  <data name="ReportPdfTitle" xml:space="preserve">
+    <value>USB setup report - {0}</value>
+  </data>
+  <data name="ReportCreator" xml:space="preserve">
+    <value>USB-helper {0}</value>
+  </data>
+  <data name="ReportRoomMissing" xml:space="preserve">
+    <value>Room: not entered</value>
+  </data>
+  <data name="ReportCreatedVersion" xml:space="preserve">
+    <value>{0} · USB-helper {1}</value>
+  </data>
+  <data name="ReportSummary" xml:space="preserve">
+    <value>Summary</value>
+  </data>
+  <data name="ReportComputer" xml:space="preserve">
+    <value>Computer</value>
+  </data>
+  <data name="ReportOverall" xml:space="preserve">
+    <value>Overall result</value>
+  </data>
+  <data name="ReportCheckedProfiles" xml:space="preserve">
+    <value>Checked profiles</value>
+  </data>
+  <data name="ReportNoProfile" xml:space="preserve">
+    <value>No profile checked</value>
+  </data>
+  <data name="ReportPerBus" xml:space="preserve">
+    <value>USB2 {0} · USB3 {1}</value>
+  </data>
+  <data name="ReportAtLeast" xml:space="preserve">
+    <value>at least {0}</value>
+  </data>
+  <data name="ReportResults" xml:space="preserve">
+    <value>Results</value>
+  </data>
+  <data name="ReportColumnProfile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="ReportAllStable" xml:space="preserve">
+    <value>Stable for all checked profiles</value>
+  </data>
+  <data name="ReportLimitations" xml:space="preserve">
+    <value>Limitations</value>
+  </data>
+  <data name="ReportColumnAppliesTo" xml:space="preserve">
+    <value>Applies to</value>
+  </data>
+  <data name="ReportNotInDatabase" xml:space="preserve">
+    <value>Not in the database: {0}</value>
+  </data>
+  <data name="ReportNotCounted" xml:space="preserve">
+    <value>Could not be counted: {0}</value>
+  </data>
+  <data name="ReportSeeFindings" xml:space="preserve">
+    <value>See Findings for the reasons.</value>
+  </data>
+  <data name="ReportUnknownItem" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="ReportColumnCheck" xml:space="preserve">
+    <value>Check</value>
+  </data>
+  <data name="ReportColumnLimit" xml:space="preserve">
+    <value>Limit</value>
+  </data>
+  <data name="ReportColumnMeasured" xml:space="preserve">
+    <value>Measured</value>
+  </data>
+  <data name="ReportColumnResult" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="ReportDisplays" xml:space="preserve">
+    <value>Displays</value>
+  </data>
+  <data name="ReportColumnMonitor" xml:space="preserve">
+    <value>Monitor</value>
+  </data>
+  <data name="ReportColumnOutput" xml:space="preserve">
+    <value>Output</value>
+  </data>
+  <data name="ReportColumnConnectedTo" xml:space="preserve">
+    <value>Connected to</value>
+  </data>
+  <data name="ReportNotLinked" xml:space="preserve">
+    <value>Not linked to a USB device</value>
+  </data>
+  <data name="ReportDisplaysUnknown" xml:space="preserve">
+    <value>The monitors could not be read.</value>
+  </data>
+  <data name="ReportNoDisplays" xml:space="preserve">
+    <value>No active monitors.</value>
+  </data>
+  <data name="ReportTree" xml:space="preserve">
+    <value>USB tree</value>
+  </data>
+  <data name="ReportTreeContinued" xml:space="preserve">
+    <value>USB tree (continued)</value>
+  </data>
+  <data name="ReportFindings" xml:space="preserve">
+    <value>Findings</value>
+  </data>
+  <data name="ReportDetectedFacts" xml:space="preserve">
+    <value>Detected facts</value>
+  </data>
+  <data name="ReportDatabaseFacts" xml:space="preserve">
+    <value>Verified database facts</value>
+  </data>
+  <data name="ReportRisks" xml:space="preserve">
+    <value>Predicted risks</value>
+  </data>
+  <data name="ReportUnknowns" xml:space="preserve">
+    <value>Unknowns</value>
+  </data>
+  <data name="ReportNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="ReportSourceDatabase" xml:space="preserve">
+    <value>Hardware database</value>
+  </data>
+  <data name="ReportSourceUnverified" xml:space="preserve">
+    <value>Hardware database, unverified</value>
+  </data>
+  <data name="ReportLimitOf" xml:space="preserve">
+    <value>the {0} limit of {1}</value>
+  </data>
+  <data name="ReportLimitIs" xml:space="preserve">
+    <value>the {0} limit is {1}</value>
+  </data>
+  <data name="ReportGeneratedBy" xml:space="preserve">
+    <value>Generated by USB-helper {0}</value>
+  </data>
+  <data name="ReportLicensedTo" xml:space="preserve">
+    <value>Licensed to {0}</value>
+  </data>
+  <data name="ReportPage" xml:space="preserve">
+    <value>Page {0} of {1}</value>
   </data>
 </root>

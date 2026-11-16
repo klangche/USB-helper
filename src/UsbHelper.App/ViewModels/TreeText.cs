@@ -10,9 +10,25 @@ namespace UsbHelper.App.ViewModels;
 /// </summary>
 public static class TreeText
 {
-    public static string Render(NodeViewModel root)
+    /// <summary>
+    /// The tree, after a header with the company, room and licensed email (#230) when any of them is given; each is
+    /// null or empty when not set.
+    /// </summary>
+    public static string Render(NodeViewModel root, string? companyName = null, string? roomName = null, string? licensedTo = null)
     {
-        var lines = new List<string> { Row(root) };
+        var lines = new List<string>();
+        foreach (var (label, value) in new[] { ("Company", companyName), ("Room", roomName), ("Licensed to", licensedTo) })
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                lines.Add($"{label}: {value}");
+            }
+        }
+        if (lines.Count > 0)
+        {
+            lines.Add("");
+        }
+        lines.Add(Row(root));
         AddChildren(root, "", lines);
         return string.Join(Environment.NewLine, lines);
     }

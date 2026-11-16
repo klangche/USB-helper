@@ -222,7 +222,7 @@ public static class DiagnosticEvaluator
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths };
+        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths, RecommendedHops = recommendedHops };
     }
 
     private static LimitCheck Check(ResolvedProfile? profile, string field, int actual, bool incomplete)

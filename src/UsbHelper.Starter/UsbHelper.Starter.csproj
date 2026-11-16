@@ -25,8 +25,8 @@
     <SuppressILLinkExplicitPackageReferenceWarning>true</SuppressILLinkExplicitPackageReferenceWarning>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.14" />
-    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.14" />
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.15" />
+    <PackageReference Include="Microsoft.NET.ILLink.Tasks" Version="10.0.15" />
   </ItemGroup>
 
   <!-- The app's texts; one strings file for the app and the starter. -->

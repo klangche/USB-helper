@@ -30,6 +30,7 @@ public sealed class SettingsFileTests : IDisposable
         Assert.False(settings.RememberCheckedProfiles);
         Assert.Empty(settings.CheckedOperatingSystems);
         Assert.Empty(settings.CheckedComputers);
+        Assert.Equal("", settings.CompanyName);
         Assert.False(File.Exists(FilePath)); // Nothing is written until a setting changes.
     }
 
@@ -44,6 +45,7 @@ public sealed class SettingsFileTests : IDisposable
             RememberCheckedProfiles = true,
             CheckedOperatingSystems = ["windows-amd"],
             CheckedComputers = ["lenovo-21k5", "dell-xps"],
+            CompanyName = "Acme AB",
         };
 
         file.Save(saved);
@@ -54,6 +56,7 @@ public sealed class SettingsFileTests : IDisposable
         Assert.True(loaded.RememberCheckedProfiles);
         Assert.Equal(["windows-amd"], loaded.CheckedOperatingSystems);
         Assert.Equal(["lenovo-21k5", "dell-xps"], loaded.CheckedComputers);
+        Assert.Equal("Acme AB", loaded.CompanyName);
     }
 
     [Fact]
@@ -66,6 +69,16 @@ public sealed class SettingsFileTests : IDisposable
 
         Assert.True(settings.CheckForUpdatesAtStart);
         Assert.False(settings.OfferBetas);
+        Assert.Equal("", settings.CompanyName); // A settings.json from before #228.
+    }
+
+    [Fact]
+    public void ANullCompanyNameIsEmpty()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, """{ "companyName": null }""");
+
+        Assert.Equal("", new SettingsFile(FilePath).Load(log).CompanyName);
     }
 
     [Theory]

@@ -3,7 +3,7 @@ using UsbHelper.App.Resources;
 
 namespace UsbHelper.App.ViewModels;
 
-/// <summary>The About window: name, running version, license, the icon's attribution and the repository.</summary>
+/// <summary>The About window: name, running version, license, the icon's attribution, known quirks and the repository.</summary>
 public sealed class AboutViewModel
 {
     public string Name => "USB-helper";
@@ -15,6 +15,9 @@ public sealed class AboutViewModel
     public string License => Strings.AboutLicense;
 
     public string IconAttribution => Strings.AboutIconAttribution;
+
+    /// <summary>Hub names that look wrong but come from the hub itself, such as "USB2.1 Hub" (#225).</summary>
+    public string Quirks => Strings.AboutQuirks;
 
     public Uri Repository { get; } = new("https://github.com/klangche/USB-helper");
 }

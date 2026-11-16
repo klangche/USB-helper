@@ -120,6 +120,61 @@ public class SetupFileTests
         Assert.Equal(setup.Marks, read.Marks);
     }
 
+    // #230: the company, room and licensed email are optional; the format stays 1 because older readers ignore them.
+    private static SetupFile Minimal() => new("0.9.0-test", new DateOnly(2026, 11, 13), new ComputerIdentity("Dell Inc.", "Latitude 7450"),
+        [], [], new Dictionary<string, int>(), null, []);
+
+    [Fact]
+    public void CompanyRoomAndLicensedEmailRoundTrip()
+    {
+        var setup = Minimal() with { CompanyName = "Acme AB", RoomName = "Room 4.12", LicensedTo = "test@example.com" };
+
+        var json = setup.ToJson();
+        var read = SetupFile.FromJson(json);
+
+        Assert.Contains("\"company_name\": \"Acme AB\"", json);
+        Assert.Contains("\"room_name\": \"Room 4.12\"", json);
+        Assert.Contains("\"licensed_to\": \"test@example.com\"", json);
+        Assert.Equal(("Acme AB", "Room 4.12", "test@example.com"), (read.CompanyName, read.RoomName, read.LicensedTo));
+        Assert.Equal(1, read.FormatVersion);
+    }
+
+    [Fact]
+    public void CompanyRoomAndLicensedEmailAreOmittedWhenEmpty()
+    {
+        var json = Minimal().ToJson();
+
+        Assert.DoesNotContain("company_name", json);
+        Assert.DoesNotContain("room_name", json);
+        Assert.DoesNotContain("licensed_to", json);
+    }
+
+    [Fact]
+    public void AnOldFileWithoutCompanyRoomOrEmailStillLoads()
+    {
+        // As written before #230.
+        const string json = """
+            {
+              "format_version": 1,
+              "app_version": "0.8.0",
+              "date": "2026-11-03",
+              "computer": {
+                "manufacturer": "Dell Inc.",
+                "model": "Latitude 7450"
+              },
+              "checked_profiles": [],
+              "controllers": [],
+              "marks": {},
+              "results": []
+            }
+            """;
+
+        var read = SetupFile.FromJson(json);
+
+        Assert.Equal((null, null, null), (read.CompanyName, read.RoomName, read.LicensedTo));
+        Assert.Equal("Latitude 7450", read.Computer.Model);
+    }
+
     [Fact]
     public void ANewerFormatIsRefused()
     {

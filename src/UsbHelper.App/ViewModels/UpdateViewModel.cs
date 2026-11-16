@@ -20,7 +20,7 @@ namespace UsbHelper.App.ViewModels;
 /// </param>
 /// <param name="restart">Runs the given .msi and closes this app (Msi only).</param>
 /// <param name="openPage">Opens a release page in the browser (portable only).</param>
-/// <param name="settings">Whether to check at start and to offer betas (#126); the defaults when null.</param>
+/// <param name="settings">Whether to check at start and to offer betas (#126, only while unlocked: #246); the defaults when null.</param>
 public sealed class UpdateViewModel(
     HttpClient http, string current, UpdateKind kind, string folder, Action<string> restart, Action<Uri> openPage, EventLog log,
     TimeSpan timeout, SettingsViewModel? settings = null)
@@ -140,10 +140,10 @@ public sealed class UpdateViewModel(
             result = new UpdateCheckResult(null, null, $"Update check skipped: {e.Message}", e.Message);
         }
         log.Add(result.Log);
-        if (!settings.OfferBetas && result.Beta != null)
+        if (!settings.BetasOffered && result.Beta != null)
         {
             result = result with { Beta = null };
-            log.Add("Betas are off in the settings: the beta is not offered");
+            log.Add(settings.BetasUnlocked ? "Betas are off in the settings: the beta is not offered" : "Beta updates need an unlock code: the beta is not offered");
         }
         var newer = result.Stable != null || result.Beta != null;
         if (!newer && !fromMenu)
