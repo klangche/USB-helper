@@ -69,6 +69,7 @@ public class RealDatabaseTests
         // Apple: one external display; macOS does not extend over MST, so a second DisplayPort display only mirrors.
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
         Assert.Equal(false, neo.Find("displays.mst")!.Scalar);
+        Assert.Equal("partial", neo.Find("verification.status")!.Scalar);
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
 
