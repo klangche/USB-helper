@@ -9,7 +9,7 @@ displays:
   mst: false
 notes:
   - "Generic profile for Macs with an Apple chip (M-series or A-series)."
-  - "max_hops 4: USB allows seven tiers on a path, so five hubs in a row (PureLink). Apple silicon Macs use two of the seven tiers themselves (Lightware): a built-in hub level per port, which leaves four hubs (owner decision 2026-11-16)."
+  - "max_hops 4: USB allows seven tiers on a path, so five hubs in a row (PureLink). M-series Macs use two of the seven tiers themselves (Lightware): a built-in hub level per port, which leaves four hubs (owner decision 2026-11-16). A-series Macs use three and set their own limits in their computer profile, as the MacBook Neo does."
   - "recommended_hops 1: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Tier 4 is 1 hub in front of the device here."
 sources:
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
