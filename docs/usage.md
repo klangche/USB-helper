@@ -14,9 +14,16 @@ computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
-status colour, with the result word after its name. Hubs and devices show
-the product name they report, falling back to the Windows name. Empty ports are left
-out. Only the USB controller rows can be collapsed: click a controller's
+status colour, and a dot in that colour is in front of its name. The result
+word ("unknown", "potentially unstable", "unstable", "disconnected") follows
+the name only when the item is not stable, and such a row has a light
+background in its status colour; a stable row shows no word. Hubs and devices show
+the product name they report, falling back to the Windows name. A port is not
+a row of its own: the hub or device on it shows the port number in a small box
+in front of its name (hover the box for the port's name), and a disconnected
+device keeps the number of its last port. Empty ports are left
+out. A port with a problem keeps its own row, "Port 2: ...", with what is on
+it below. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
 its tree; while it is hidden the controller's name is bold. Only the
 selected controller (see below) is open, and only when it has devices,
@@ -50,8 +57,8 @@ Selecting the group or a monitor in it does not change what the status field
 covers; a monitor shown under a USB node selects that node's controller, like
 anything else under it.
 The group follows monitors as they are connected and removed, and the log
-lists the monitors at start and each one connected or removed. A port in the
-tree that Windows reports as a USB-C connector (from its port connector
+lists the monitors at start and each one connected or removed. A hub or
+device on a port that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, deepest tier and deepest
@@ -66,8 +73,12 @@ name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4, deepest
 hop: 2". When the operating system reports no bus at all, there are no
 brackets. The counts say "at least" when a hub, port or bus could not be read;
 a hub on a port whose bus is not reported is in the total but on neither bus.
-Hovering a hub or device
-shows its own depth, for example "Tier 4, hubs in front: 2".
+Each hub and device row
+shows its own depth at the right, for example "Tier 4, hubs in front: 2";
+hovering the row shows it too. Controllers, hubs built into the computer and
+monitors show none. Copy tree as text, the log, the export and the PDF report
+keep one line per port ("Port 1 [USB-C]") and the result word on every hub and
+device.
 Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
@@ -101,7 +112,7 @@ unplugged stays red at its last port; one that comes back is purple
 (unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Click
-the small "+" in the middle of the line from the port to the hub or device
+the small "+" in the middle of the line into the hub or device
 behind the cable (or select that item and press Enter or the context menu
 key) and pick its extra hops (+1 to +5). The marked line is
 drawn dashed with a "+N hops" badge, so it is clear that you added it and
