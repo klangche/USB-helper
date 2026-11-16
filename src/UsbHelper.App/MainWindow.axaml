@@ -116,6 +116,8 @@
              controller's chevron (#91), a double-click or the arrow keys hide or show its tree. Everything else stays open. -->
         <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
              or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
+        <!-- A port with something on it is no row of its own (#264): its hub or device shows the port number in a small
+             box and the USB-C badge. A row shows its result word and a light background only when it is not stable. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">
           <TreeView.Styles>
             <!-- The "+" on a connection line: a small ring and cross in the line's own colour, so the colour stays visible. -->
@@ -191,9 +193,10 @@
             </Style>
           </TreeView.Styles>
           <TreeView.ItemTemplate>
-            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}">
-                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
+            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Rows}">
+              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}"
+                         Background="{Binding RowTint, Converter={x:Static app:HexBrushConverter.Instance}}">
+                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLastRow}"
                                HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
                                TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"
                                ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
@@ -213,9 +216,17 @@
                     </Button.Flyout>
                   </Button>
                 </app:TreeLines>
+                <!-- A hub's or device's depth at the right (#264): "Tier 4, hubs in front: 2". -->
+                <TextBlock DockPanel.Dock="Right" Text="{Binding DepthText}" Opacity="0.7" Margin="8,0" VerticalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
                   <ToggleButton Classes="expander" IsVisible="{Binding CanExpand}" IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                 ToolTip.Tip="{x:Static res:Strings.ExpandTip}" AutomationProperties.Name="{x:Static res:Strings.ExpandTip}" />
+                  <!-- The number of the port this hub or device is on. -->
+                  <Border Background="#339E9E9E" CornerRadius="3" Padding="4,0" MinWidth="16" VerticalAlignment="Center"
+                          IsVisible="{Binding PortNumber, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          ToolTip.Tip="{Binding PortName}">
+                    <TextBlock Text="{Binding PortNumber}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                  </Border>
                   <!-- A marked line's "+N hops" badge, in the line's colour, so it is clear the user added it. -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsUserMarked}"
                           BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
@@ -229,16 +240,20 @@
                     <TextBlock Text="{x:Static res:Strings.DisplayBadge}" FontWeight="SemiBold" />
                   </Border>
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
+                  <!-- The status dot, in the same colour as the elbow. -->
+                  <Ellipse Width="8" Height="8" VerticalAlignment="Center" IsVisible="{Binding HasStatus}"
+                           Fill="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <!-- A collapsed item's name is bold (#100). -->
                   <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
                   <!-- A port Windows reports as USB-C (#114). -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center"
-                          IsVisible="{Binding PortType, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          IsVisible="{Binding PortBadge, Converter={x:Static ObjectConverters.IsNotNull}}"
                           BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
-                    <TextBlock Text="{Binding PortType}" />
+                    <TextBlock Text="{Binding PortBadge}" />
                   </Border>
-                  <!-- The result word on the right, in the same colour as the elbow. -->
-                  <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
+                  <!-- The result word, in the same colour as the elbow, only when the row is not stable. -->
+                  <TextBlock Text="{Binding RowStatusWord}" FontWeight="SemiBold"
+                             IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
                   <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB2 first (#217); hovering shows the full text,

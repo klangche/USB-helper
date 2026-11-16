@@ -124,10 +124,13 @@ public class MainViewModelTests
         Assert.Equal(Strings.ReadingDevices, viewModel.LoadingStage);
     }
 
-    // The tree as text: the guide and elbow columns the view draws, then the id.
+    // The rows the window shows (#264), top down: a port with something on it is no row of its own.
+    private static IEnumerable<NodeViewModel> Shown(IEnumerable<NodeViewModel> items) => items.SelectMany(item => Shown(item.Rows).Prepend(item));
+
+    // The window's rows as text: the guide and elbow columns the view draws, then the id.
     private static IEnumerable<string> Drawn(MainViewModel viewModel) =>
-        All(viewModel.Roots).Select(item => (item.HasLine
-            ? string.Concat(item.Guides.Select(trunk => trunk != null ? "| " : "  ")) + (item.IsLast ? "`-" : "|-")
+        Shown(viewModel.Roots).Select(item => (item.HasLine
+            ? string.Concat(item.Guides.Select(trunk => trunk != null ? "| " : "  ")) + (item.IsLastRow ? "`-" : "|-")
             : "") + item.Id);
 
     [Fact]
@@ -156,12 +159,9 @@ public class MainViewModelTests
                 "host",
                 "`-C1",
                 "  `-ROOT",
-                "    |-ROOT|port1",
-                "    | `-HUB",
-                "    |   `-HUB|port1",
-                "    |     `-KEYBOARD",
-                "    `-ROOT|port2",
-                "      `-MOUSE",
+                "    |-HUB",
+                "    | `-KEYBOARD",
+                "    `-MOUSE",
             ],
             Drawn(viewModel));
     }
@@ -195,14 +195,11 @@ public class MainViewModelTests
                 "||G host",
                 "|G G|G C1",
                 " |G G|G ROOT",
-                "  |GGG|G ROOT|port1",
-                "  G|G G|G HUB",
-                "  G |G G|G HUB|port1",
-                "  G  |G G|  KEYBOARD",
-                "  |G G|G ROOT|port2",
-                "   |G G|  MOUSE",
+                "  |GGG|G HUB",
+                "  G|G G|  KEYBOARD",
+                "  |G G|  MOUSE",
             ],
-            All(viewModel.Roots).Select(Painted));
+            Shown(viewModel.Roots).Select(Painted));
     }
 
     [Fact]
@@ -218,14 +215,11 @@ public class MainViewModelTests
                 "||P host",
                 "|P P|P C1",
                 " |P P|P ROOT",
-                "  |PGP|P ROOT|port1", // The trunk below goes on to the green mouse.
-                "  G|P G|P HUB", // The elbow keeps the hub's own status.
-                "  G |P P|P HUB|port1",
-                "  G  |P P|  KEYBOARD",
-                "  |G G|G ROOT|port2",
-                "   |G G|  MOUSE",
+                "  |PGG|P HUB", // The trunk below goes on to the green mouse; the elbow keeps the hub's own status.
+                "  G|P P|  KEYBOARD",
+                "  |G G|  MOUSE",
             ],
-            All(viewModel.Roots).Select(Painted));
+            Shown(viewModel.Roots).Select(Painted));
     }
 
     [Fact]
@@ -241,14 +235,11 @@ public class MainViewModelTests
                 "||R host",
                 "|R R|R C1",
                 " |R R|R ROOT",
-                "  |RGR|R ROOT|port1",
-                "  G|R G|R HUB",
-                "  G |R R|R HUB|port1",
-                "  G  |R R|  KEYBOARD",
-                "  |G G|G ROOT|port2",
-                "   |G G|  MOUSE",
+                "  |RGG|R HUB",
+                "  G|R R|  KEYBOARD",
+                "  |G G|  MOUSE",
             ],
-            All(viewModel.Roots).Select(Painted));
+            Shown(viewModel.Roots).Select(Painted));
     }
 
     [Fact]
@@ -278,8 +269,8 @@ public class MainViewModelTests
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
-        Assert.Equal(["host", "|-C1", "| `-ROOT", "|   |-ROOT|port1"], Drawn(viewModel).Take(4));
-        Assert.Equal(["`-C2", "  `-ROOT2", "    `-ROOT2|port1", "      `-STICK"], Drawn(viewModel).Skip(9));
+        Assert.Equal(["host", "|-C1", "| `-ROOT", "|   |-HUB"], Drawn(viewModel).Take(4));
+        Assert.Equal(["`-C2", "  `-ROOT2", "    `-STICK"], Drawn(viewModel).Skip(6));
     }
 
     [Fact]
@@ -355,14 +346,10 @@ public class MainViewModelTests
                 "host",
                 "`-C1",
                 "  `-ROOT",
-                "    |-ROOT|port1",
-                "    | `-HUB",
-                "    |   |-HUB|port1",
-                "    |   | `-KEYBOARD",
-                "    |   `-HUB|port2",
-                "    |     `-STICK",
-                "    `-ROOT|port2",
-                "      `-MOUSE",
+                "    |-HUB",
+                "    | |-KEYBOARD",
+                "    | `-STICK",
+                "    `-MOUSE",
             ],
             Drawn(viewModel));
     }
@@ -383,17 +370,15 @@ public class MainViewModelTests
                 "host",
                 "`-C1",
                 "  `-ROOT",
-                "    |-ROOT|port1",
-                "    | `-HUB",
-                "    `-ROOT|port2",
-                "      `-MOUSE",
+                "    |-HUB",
+                "    `-MOUSE",
             ],
             Drawn(viewModel));
         Assert.True(Item(viewModel, "MOUSE").IsDisconnected);
 
         viewModel.Disconnected.Single().Clear.Execute(null);
 
-        Assert.Equal(["host", "`-C1", "  `-ROOT", "    `-ROOT|port1", "      `-HUB"], Drawn(viewModel));
+        Assert.Equal(["host", "`-C1", "  `-ROOT", "    `-HUB"], Drawn(viewModel));
     }
 
     [Fact]
@@ -410,6 +395,142 @@ public class MainViewModelTests
 
         Assert.NotNull(Find(viewModel.Roots, "HUB|port2"));
         Assert.NotNull(Find(viewModel.Roots, "ROOT|port2"));
+    }
+
+    [Fact]
+    public void PortFoldsIntoTheRowOfItsHubOrDevice()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk);
+
+        Assert.Equal(["host", "C1", "ROOT", "HUB", "KEYBOARD", "MOUSE"], Shown(viewModel.Roots).Select(item => item.Id));
+        Assert.Equal("1", Item(viewModel, "HUB").PortNumber);
+        Assert.Equal("1", Item(viewModel, "KEYBOARD").PortNumber);
+        Assert.Equal("2", Item(viewModel, "MOUSE").PortNumber);
+        Assert.Equal("Port 2", Item(viewModel, "MOUSE").PortName);
+        Assert.Null(Item(viewModel, "ROOT").PortNumber); // A root hub is on no port.
+        Assert.Null(Item(viewModel, "C1").PortNumber);
+    }
+
+    [Fact]
+    public void FoldedRowsStayTheSameItemsWhenTheTreeChanges()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+        var hub = Shown(viewModel.Roots).Single(item => item.Id == "HUB");
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, Device("STICK")))]);
+
+        Assert.Same(hub, Shown(viewModel.Roots).Single(item => item.Id == "HUB")); // So a selected row stays selected.
+        Assert.Equal(["KEYBOARD", "STICK"], hub.Rows.Select(item => item.Id));
+        Assert.Equal("2", Item(viewModel, "STICK").PortNumber);
+    }
+
+    [Fact]
+    public void UsbCBadgeOfAFoldedPortIsOnItsRow()
+    {
+        var viewModel = NewViewModel();
+        var root = Hub("ROOT", Device("PHONE"), Device("MOUSE"), Device("STICK"));
+        root = root with { Children = [root.Children[0] with { UsbC = true }, root.Children[1] with { UsbC = false }, root.Children[2]] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal(Strings.UsbCPort, Item(viewModel, "PHONE").PortBadge);
+        Assert.Null(Item(viewModel, "MOUSE").PortBadge);
+        Assert.Null(Item(viewModel, "STICK").PortBadge); // Unknown shows nothing.
+        Assert.Null(Item(viewModel, "ROOT").PortBadge);
+    }
+
+    [Fact]
+    public void PortWithAProblemKeepsItsOwnRow()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.Apply(
+            [
+                new UsbChange(UsbChangeKind.Changed, "HUB", Port("HUB", 2, null) with { Problem = "Could not read the port." }),
+                new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 2, Device("MOUSE")) with { Problem = "Over current.", UsbC = true }),
+            ]);
+
+        Assert.Equal(["host", "C1", "ROOT", "HUB", "KEYBOARD", "HUB|port2", "ROOT|port2", "MOUSE"], Shown(viewModel.Roots).Select(item => item.Id));
+        Assert.Equal("Port 2: Over current.", Item(viewModel, "ROOT|port2").Text);
+        Assert.Equal(Strings.UsbCPort, Item(viewModel, "ROOT|port2").PortBadge);
+        Assert.Null(Item(viewModel, "MOUSE").PortNumber); // The port's own row is right above it.
+        Assert.Null(Item(viewModel, "MOUSE").PortBadge);
+        Assert.True(Item(viewModel, "MOUSE").CanMark);
+    }
+
+    [Fact]
+    public void DisconnectedDeviceKeepsItsRowAtItsLastPort()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
+
+        Assert.Equal(["host", "C1", "ROOT", "HUB", "KEYBOARD", "MOUSE"], Shown(viewModel.Roots).Select(item => item.Id));
+        var mouse = Item(viewModel, "MOUSE");
+        Assert.True(mouse.IsDisconnected);
+        Assert.Equal("2", mouse.PortNumber);
+        Assert.Equal(Strings.WordDisconnected, mouse.RowStatusWord);
+        Assert.False(mouse.CanMark);
+    }
+
+    [Fact]
+    public void RowShowsItsResultWordAndTintOnlyWhenNotStable()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true; // max_hops 5: everything is stable.
+
+        var keyboard = Item(viewModel, "KEYBOARD");
+        Assert.Equal(ConnectionStatus.Green, keyboard.Status);
+        Assert.Null(keyboard.RowStatusWord);
+        Assert.Equal(StatusColors.None, keyboard.RowTint);
+        Assert.Equal(Strings.WordStable, keyboard.StatusWord); // The tree as text keeps the word.
+        Assert.Null(Item(viewModel, "C1").RowStatusWord);
+        Assert.Equal(StatusColors.None, Item(viewModel, "C1").RowTint);
+
+        Item(viewModel, "HUB").ExtraHops = 5; // KEYBOARD: 6 hops.
+
+        Assert.Equal(Strings.WordUnstable, keyboard.RowStatusWord);
+        Assert.Equal(StatusColors.Tint(ConnectionStatus.Purple), keyboard.RowTint);
+        Assert.Null(Item(viewModel, "HUB").RowStatusWord); // 5 hops: still stable.
+    }
+
+    [Fact]
+    public void UnknownRowShowsItsResultWord()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk); // No profile: limits unknown.
+
+        Assert.Equal(Strings.WordUnknown, Item(viewModel, "KEYBOARD").RowStatusWord);
+        Assert.Equal("#1A9E9E9E", Item(viewModel, "KEYBOARD").RowTint);
+    }
+
+    [Fact]
+    public void MarkOnAFoldedRowIsKeptOnItsPort()
+    {
+        var viewModel = TwoProfiles();
+        viewModel.Computers.Single().IsChecked = true; // max_hops 5; the keyboard has 1 hop.
+        var hub = Shown(viewModel.Roots).Single(item => item.Id == "HUB");
+        Assert.Equal("ROOT|port1", hub.PortId);
+        Assert.True(hub.CanMark);
+
+        hub.ExtraHops = 5;
+
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // 6 hops.
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
+        Assert.Same(hub, Shown(viewModel.Roots).Single(item => item.Id == "HUB"));
+        Assert.True(hub.IsUserMarked);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), hub.MarkBadge);
+
+        hub.ExtraHops = 0;
+
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
+        Assert.False(hub.IsUserMarked);
     }
 
     [Fact]
@@ -605,6 +726,9 @@ public class MainViewModelTests
 
         Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").RowTip);
         Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").RowTip);
+        // The window's row shows the same text at its right (#264).
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").DepthText);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").DepthText);
         Assert.Null(Item(viewModel, "C1").DepthText);
         Assert.Null(Item(viewModel, "ROOT|port1").DepthText);
     }
