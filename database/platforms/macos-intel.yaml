@@ -5,11 +5,15 @@ architecture: x64
 limits:
   max_hops: 7
   recommended_hops: 5
+displays:
+  mst: false
 notes:
   - "Generic Intel Mac platform profile."
   - "Hop limits from the usb-script config (Mac Intel): max 7, recommended 5. Tested in practice, not a manufacturer specification."
+  - "displays.mst false: macOS does not extend the desktop over DisplayPort MST; several displays on one DisplayPort output only mirror (Plugable, checked 2026-11-16; not an Apple statement). Plugable states it for macOS as a whole; its article is about Apple silicon Macs."
 sources:
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.macIntel; config version 1.0.0, 2026-02-24)"
+  - "https://plugable.com/blogs/news/understanding-multiple-displays-on-apple-silicon-macs (Plugable, 'Understanding Multiple Displays on Apple Silicon Macs': macOS does not support MST for extended displays)"
 verification:
   status: partial
   last_checked: 2026-10-29

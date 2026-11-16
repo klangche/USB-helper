@@ -56,6 +56,18 @@ public class RealDatabaseTests
         Assert.NotEmpty(platform.Find("sources")!.Items);
     }
 
+    // Owner decision 2026-11-16: no MST is a limit of the operating system, so the macOS platform profiles carry it.
+    [Theory]
+    [InlineData("macos-apple-silicon", false)]
+    [InlineData("macos-intel", false)]
+    [InlineData("windows-intel", null)]
+    public void MstIsSetForMacOsOnly(string id, bool? mst)
+    {
+        var platform = HardwareDatabase.Load(DatabaseFolder()).Platforms[id];
+
+        Assert.Equal(mst, platform.Find("displays.mst")?.Scalar);
+    }
+
     // Lightware: the MacBook Neo uses three tiers by itself (root hub, internal hub, device), leaving four hubs.
     [Fact]
     public void MacBookNeoHasItsOwnHopLimit()
@@ -66,9 +78,10 @@ public class RealDatabaseTests
         Assert.Equal(4L, neo.Find("limits.max_hops")!.Scalar);
         Assert.Equal(3L, neo.Find("limits.recommended_hops")!.Scalar);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
-        // Apple: one external display; macOS does not extend over MST, so a second DisplayPort display only mirrors.
+        // Apple: one external display. No MST is the operating system's limit, inherited from the platform profile.
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
         Assert.Equal(false, neo.Find("displays.mst")!.Scalar);
+        Assert.Equal("platforms/macos-apple-silicon.yaml", neo.Find("displays.mst")!.File);
         Assert.Equal("partial", neo.Find("verification.status")!.Scalar);
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
