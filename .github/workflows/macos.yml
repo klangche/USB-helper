@@ -94,7 +94,7 @@ jobs:
           fi
           for _ in $(seq 1 60); do
             # The Release run is read before the releases: when it is done, the release it made is already there.
-            released=$(gh api "repos/$GH_REPO/actions/workflows/release.yml/runs?head_sha=$GITHUB_SHA&event=push&per_page=1" --jq '.workflow_runs[0] | select(.status == "completed") | .conclusion // empty')
+            released=$(gh api "repos/$GH_REPO/actions/workflows/release.yml/runs?head_sha=$GITHUB_SHA&branch=$GITHUB_REF_NAME&event=push&per_page=1" --jq '.workflow_runs[0] | select(.status == "completed") | .conclusion // empty')
             tag=$(gh api "repos/$GH_REPO/releases?per_page=20" --jq "[.[] | select(.target_commitish == \"$GITHUB_SHA\" and $filter)] | first | .tag_name // empty")
             if [ -n "$tag" ]; then
               echo "tag=$tag" >> "$GITHUB_OUTPUT"
@@ -108,7 +108,7 @@ jobs:
               echo "::error::The Release workflow of $GITHUB_SHA ended with '$released' and made no $kind."
               exit 1
             fi
-            sleep "${POLL_SECONDS:-60}"
+            sleep 60
           done
           echo "::error::No $kind of $GITHUB_SHA appeared within an hour (did the Windows release fail or make no $kind?)."
           exit 1
