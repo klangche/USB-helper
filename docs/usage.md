@@ -61,22 +61,21 @@ lists the monitors at start and each one connected or removed. A hub or
 device on a port that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
-reports it for. Each controller shows its hub count, deepest tier and deepest
-hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop: 2". The
+reports it for. Each controller shows its hub count and deepest tier, for
+example "Hubs: 4 (3+1), deepest tier: 4". The
 numbers in brackets are the hubs per bus, always in the same order: USB2 first
 (the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), and
 hovering the counts shows them in full, as in the tree as text. A USB 3 hub has a half on each bus, and
-each bus has its own chain. The deepest tier and hop are those of any bus. The
+each bus has its own chain. The deepest tier is that of any bus. The
 computer's row shows the same over all controllers, and a controller with
 nothing connected shows no counts. Copy tree as text, the log and the export
-name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4, deepest
-hop: 2". When the operating system reports no bus at all, there are no
+name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4". When the operating system reports no bus at all, there are no
 brackets. The counts say "at least" when a hub, port or bus could not be read;
 a hub on a port whose bus is not reported is in the total but on neither bus.
-The side panel has a small table, "Hubs, tiers and hops", for what the status
+The side panel has a small table, "Hubs and tiers", for what the status
 field covers (the selected controller, or all controllers when the computer's
 row is selected): one line for USB 2 and one for USB 3, each with that bus's
-own hub count, deepest tier and deepest hop, the marked active cables counted.
+own hub count and deepest tier, the marked active cables counted.
 A bus with nothing on it shows zeros; when nothing is connected there is no
 table. The numbers say "at least" in the same cases as the row counts, and
 when the operating system reports no bus at all the table has one line, "USB 2
@@ -113,8 +112,7 @@ checked profiles, judged by the picked guide; the status field names the
 guide. The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour). Below it are only
-the checks that are exceeded: hubs, tiers, hops, the recommended hop depth
-(when the maximum is kept) and external displays, each with its count and
+the checks that are exceeded: hubs, tiers and external displays, each with its count and
 limit. A check that is within its limit, or whose limit or count is unknown,
 is not shown there; it is in the log. A stable profile shows only "stable".
 With several profiles checked, the findings come from
@@ -126,11 +124,12 @@ unplugged stays red at its last port; one that comes back is purple
 Is an active cable or extender plugged in that the tree does not show? Click
 the small "+" in the middle of the line into the hub or device
 behind the cable (or select that item and press Enter or the context menu
-key) and pick its extra hops (+1 to +5). The marked line is
-drawn dashed with a "+N hops" badge, so it is clear that you added it and
-Windows did not detect it. Every tier and hop check counts the extra hops for
-everything behind that line. Click the "+" again to change the mark, or pick
-"None" to remove it. Marks last until the app closes.
+key) and pick its extra tiers (+1 to +5). A mark of N adds N tiers to
+everything behind that line and min(N, 2) hubs to the hub count of that port's
+bus: a cable or extender can add up to 3 tiers but at most 2 hubs. The marked
+line is drawn dashed with a badge saying what it adds, for example "+2 tiers,
++2 hubs", so it is clear that you added it and Windows did not detect it.
+Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
@@ -189,7 +188,7 @@ read USB tree; until then the menu item is greyed out and its tooltip says why
 order:
 
 - **Summary**: the computer, the checked profiles, the overall result and the
-  hub, tier, hop and display counts.
+  hub, tier and display counts.
 - **USB tree**: the tree as in the window, with its status colours.
 - **Results**: each checked profile with its result, then each check that is
   not stable with its measured value, limit, result and the profiles it
@@ -222,18 +221,18 @@ the tree on the clipboard as plain text, the same text the log gets, for
 pasting into an email:
 
 ```
-Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)
-|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
+Dell Inc. Latitude 7450 (Hubs: 3, deepest tier: 5)
+|-- Controller (Hubs: 3, deepest tier: 5)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
-|           `-- [+2 hops] Dock - stable
+|           `-- [+2 tiers, +2 hubs] Dock - stable
 |               `-- Port 1
 |                   `-- Keyboard (046D:C31C) - stable
 `-- Displays
     `-- DELL U2723QE (HDMI)
 ```
 
-Each row has its badges in brackets ("+N hops" for a marked cable, "USB-C",
+Each row has its badges in brackets (what a marked cable adds, such as "+2 tiers, +2 hubs", "USB-C",
 "Display"), the result word after " - " and its notes in parentheses.
 
 Press Alt, or Alt with the underlined letter (for example Alt+F for File), to

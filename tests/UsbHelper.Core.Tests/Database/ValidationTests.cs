@@ -76,7 +76,7 @@ public class ValidationTests
     [Fact]
     public void ComputerMustNotHoldLimits()
     {
-        using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", "limits:\n  max_hops: 3");
+        using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", "limits:\n  max_tiers: 3");
 
         Single(db.LoadErrors(), "computers/c.yaml", 5, "Unknown field 'limits'");
     }
@@ -84,7 +84,7 @@ public class ValidationTests
     [Fact]
     public void PlatformMustNotHoldLimits()
     {
-        using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\nlimits:\n  max_hops: 3\n");
+        using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\nlimits:\n  max_tiers: 3\n");
 
         Single(db.LoadErrors(), TestDatabase.PlatformFile, 9, "Unknown field 'limits'");
     }
@@ -241,9 +241,9 @@ public class ValidationTests
     [Fact]
     public void UnknownChipFieldIsRejected()
     {
-        using var db = new TestDatabase().Write("platforms/p.yaml", "name: P\nchips:\n  c:\n    name: C\n    built_in_hub_levels: 0\n    max_hops: 5\n");
+        using var db = new TestDatabase().Write("platforms/p.yaml", "name: P\nchips:\n  c:\n    name: C\n    built_in_hub_levels: 0\n    max_tiers: 5\n");
 
-        Single(db.LoadErrors(), "platforms/p.yaml", 6, "Unknown field 'chips.c.max_hops'");
+        Single(db.LoadErrors(), "platforms/p.yaml", 6, "Unknown field 'chips.c.max_tiers'");
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public class ValidationTests
 
     // USB-Helper's guide is the fallback, so its global limits and every mst are filled in (owner decision 2026-11-17).
     [Theory]
-    [InlineData("hops.max", "Key 'limits.hops.max' must be filled in")]
+    [InlineData("tiers.max", "Key 'limits.tiers.max' must be filled in")]
     [InlineData("usb4.hubs.max", "Key 'limits.buses.usb4.hubs.max' must be filled in")]
     [InlineData("camera_audio.tiers.max", "Key 'limits.camera_audio.tiers.max' must be filled in")]
     [InlineData("platforms.test.chips.platform.limits.mst", "Key 'platforms.test.chips.platform.mst' must be filled in")]
@@ -333,7 +333,7 @@ public class ValidationTests
     public void UsbHelpersChipsMayLeaveLimitsEmpty()
     {
         using var db = new TestDatabase();
-        db.UsbHelper["platforms.test.chips.platform.limits.hops.max"] = "";
+        db.UsbHelper["platforms.test.chips.platform.limits.tiers.max"] = "";
 
         Assert.Single(db.Load().Guides);
     }
@@ -352,7 +352,7 @@ public class ValidationTests
     }
 
     [Theory]
-    [InlineData("hops.max", "-1", "expected a whole number, none, or nothing")]
+    [InlineData("hubs.max", "-1", "expected a whole number, none, or nothing")]
     [InlineData("usb3.hubs.max", "five", "expected a whole number, none, or nothing")]
     [InlineData("tiers.max", "8", "Key 'limits.tiers.max' (8) must not be above usb.max_tiers (7) in base.yaml")]
     [InlineData("camera_audio.tiers.recommended", "8", "must not be above usb.max_tiers")]
@@ -424,6 +424,20 @@ public class ValidationTests
         var error = Assert.Single(db.LoadErrors());
         Assert.Equal("guides/copy.yaml", error.File);
         Assert.Contains("Unknown key 'limits.usb5'", error.Message);
+        Assert.True(error.Line > 0);
+    }
+
+    // #297: hops are no longer a limit, so a guide that still has them is rejected like any other unknown key.
+    [Theory]
+    [InlineData("limits:\n", "limits:\n  hops:\n    recommended: 2\n    max: 4\n", "Unknown key 'limits.hops'")]
+    [InlineData("  camera_audio:\n", "  camera_audio:\n    hops:\n      recommended: 2\n      max: 4\n", "Unknown key 'limits.camera_audio.hops'")]
+    public void GuideWithHopsIsRejected(string before, string after, string message)
+    {
+        using var db = WithCopy(content => content.Replace(before, after));
+
+        var error = Assert.Single(db.LoadErrors());
+        Assert.Equal("guides/copy.yaml", error.File);
+        Assert.Contains(message, error.Message);
         Assert.True(error.Line > 0);
     }
 

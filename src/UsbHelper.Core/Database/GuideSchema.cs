@@ -3,7 +3,7 @@ namespace UsbHelper.Core.Database;
 /// <summary>
 /// The shape every guide file must have (owner decisions 2026-11-17, #285): a header, global <c>limits</c>, and
 /// <c>platforms</c> with exactly the platforms of <c>platforms/*.yaml</c>, each with <c>mst</c>, <c>limits</c> and exactly
-/// its chips, each with <c>mst</c> and <c>limits</c>. A limits block holds any of <c>hubs</c>, <c>tiers</c>, <c>hops</c>,
+/// its chips, each with <c>mst</c> and <c>limits</c>. A limits block holds any of <c>hubs</c>, <c>tiers</c>,
 /// <c>buses</c>, <c>camera_audio</c> and <c>exceeded_note</c>; USB-Helper's global block holds all of them, filled in.
 /// A file with a missing or extra platform, chip or key is rejected, naming file, line and key.
 /// </summary>
@@ -12,7 +12,7 @@ internal static class GuideSchema
     private static readonly string[] Header = ["name", "selectable", "notes", "sources", "verification"];
     private static readonly string[] Sections = ["limits", "platforms"];
     private static readonly string[] Buses = ["usb2", "usb3", "usb4"];
-    private static readonly string[] Kinds = ["hubs", "tiers", "hops"];
+    private static readonly string[] Kinds = ["hubs", "tiers"];
     private static readonly string[] Values = ["recommended", "max"];
     private static readonly string[] BlockKeys = [.. Kinds, "buses", "camera_audio", "exceeded_note"];
 
@@ -123,9 +123,8 @@ internal static class GuideSchema
             }
             if (Mapping(block.Fields.GetValueOrDefault("camera_audio"), path + ".camera_audio") is { } camera)
             {
-                Keys(camera, path + ".camera_audio.", ["tiers", "hops"], all);
+                Keys(camera, path + ".camera_audio.", ["tiers"], all);
                 Pair(camera.Fields.GetValueOrDefault("tiers"), path + ".camera_audio.tiers", tiers: true, all);
-                Pair(camera.Fields.GetValueOrDefault("hops"), path + ".camera_audio.hops", tiers: false, all);
             }
             if (block.Fields.GetValueOrDefault("exceeded_note") is { } note && !Empty(note, path + ".exceeded_note", required: false))
             {

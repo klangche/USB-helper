@@ -208,7 +208,7 @@ public class MainViewModelTests
         var viewModel = TwoProfiles();
         viewModel.Computers.Single().IsChecked = true;
 
-        Item(viewModel, "HUB").ExtraHops = 5; // KEYBOARD: 6 hops, purple; HUB itself: 5 hops, green.
+        Item(viewModel, "HUB").MarkLevel = 5; // KEYBOARD: tier 8, purple; HUB itself: tier 7, green.
 
         Assert.Equal(
             [
@@ -265,7 +265,7 @@ public class MainViewModelTests
         Assert.Equal(NodeViewModel.HostId, host.Id);
         Assert.False(host.HasLine);
         Assert.Null(host.Status);
-        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", host.Counts); // #210.
+        Assert.Equal("Hubs: 1, deepest tier: 3", host.Counts); // #210.
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
@@ -482,7 +482,7 @@ public class MainViewModelTests
     public void RowShowsItsResultWordAndTintOnlyWhenNotStable()
     {
         var viewModel = TwoProfiles();
-        viewModel.Computers.Single().IsChecked = true; // max_hops 5: everything is stable.
+        viewModel.Computers.Single().IsChecked = true; // max_tiers 7: everything is stable.
 
         var keyboard = Item(viewModel, "KEYBOARD");
         Assert.Equal(ConnectionStatus.Green, keyboard.Status);
@@ -492,11 +492,11 @@ public class MainViewModelTests
         Assert.Null(Item(viewModel, "C1").RowStatusWord);
         Assert.Equal(StatusColors.None, Item(viewModel, "C1").RowTint);
 
-        Item(viewModel, "HUB").ExtraHops = 5; // KEYBOARD: 6 hops.
+        Item(viewModel, "HUB").MarkLevel = 5; // KEYBOARD: tier 8.
 
         Assert.Equal(Strings.WordUnstable, keyboard.RowStatusWord);
         Assert.Equal(StatusColors.Tint(ConnectionStatus.Purple), keyboard.RowTint);
-        Assert.Null(Item(viewModel, "HUB").RowStatusWord); // 5 hops: still stable.
+        Assert.Null(Item(viewModel, "HUB").RowStatusWord); // Tier 7, 3 hubs: still stable.
     }
 
     [Fact]
@@ -514,20 +514,20 @@ public class MainViewModelTests
     public void MarkOnAFoldedRowIsKeptOnItsPort()
     {
         var viewModel = TwoProfiles();
-        viewModel.Computers.Single().IsChecked = true; // max_hops 5; the keyboard has 1 hop.
+        viewModel.Computers.Single().IsChecked = true; // max_tiers 7; the keyboard is on tier 3.
         var hub = Shown(viewModel.Roots).Single(item => item.Id == "HUB");
         Assert.Equal("ROOT|port1", hub.PortId);
         Assert.True(hub.CanMark);
 
-        hub.ExtraHops = 5;
+        hub.MarkLevel = 5;
 
-        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // 6 hops.
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // Tier 8.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
         Assert.Same(hub, Shown(viewModel.Roots).Single(item => item.Id == "HUB"));
         Assert.True(hub.IsUserMarked);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), hub.MarkBadge);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5, 2), hub.MarkBadge);
 
-        hub.ExtraHops = 0;
+        hub.MarkLevel = 0;
 
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(hub.IsUserMarked);
@@ -582,7 +582,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void EachControllerShowsItsHubCountAndDeepestTierAndHop()
+    public void EachControllerShowsItsHubCountAndDeepestTier()
     {
         var viewModel = NewViewModel();
         IReadOnlyList<UsbNode> tree =
@@ -593,27 +593,27 @@ public class MainViewModelTests
 
         viewModel.Load(tree);
 
-        // C1: HUB is tier 2, hop 0; KEYBOARD behind it is tier 3, hop 1.
-        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
-        Assert.Equal("Hubs: 0, deepest tier: 2, deepest hop: 0", Item(viewModel, "C2").Counts);
+        // C1: HUB is tier 2; KEYBOARD behind it is tier 3.
+        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, deepest tier: 2", Item(viewModel, "C2").Counts);
         Assert.Null(Item(viewModel, "ROOT").Counts);
     }
 
-    // Owner decision in #208: the host shows the hubs of all controllers and the deepest tier and hop of any of them.
+    // Owner decision in #208: the host shows the hubs of all controllers and the deepest tier of any of them.
     [Fact]
-    public void TheHostShowsTotalHubsAndTheDeepestTierAndHop()
+    public void TheHostShowsTotalHubsAndTheDeepestTier()
     {
         var viewModel = NewViewModel();
-        // C1: 1 hub, tier 3, hop 1. C2: DOCK tier 2, INNER tier 3, D tier 4 with 2 hops; 2 hubs.
+        // C1: 1 hub, tier 3. C2: DOCK tier 2, INNER tier 3, D tier 4; 2 hubs.
         var dock = new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [Hub("ROOT2", Hub("DOCK", Hub("INNER", Device("D"))))]);
 
         viewModel.Load([.. Desk, dock]);
 
-        Assert.Equal("Hubs: 3, deepest tier: 4, deepest hop: 2", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: 3, deepest tier: 4", Item(viewModel, NodeViewModel.HostId).Counts);
 
-        Item(viewModel, "KEYBOARD").ExtraHops = 2; // KEYBOARD: tier 5, hop 3.
+        Item(viewModel, "KEYBOARD").MarkLevel = 2; // KEYBOARD: tier 5, and the mark adds 2 hubs (#297).
 
-        Assert.Equal("Hubs: 3, deepest tier: 5, deepest hop: 3", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: 5, deepest tier: 5", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -624,7 +624,7 @@ public class MainViewModelTests
 
         viewModel.Load([.. Desk, broken]);
 
-        Assert.Equal("Hubs: at least 2, deepest tier: at least 3, deepest hop: at least 1", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: at least 2, deepest tier: at least 3", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -655,7 +655,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: 0, deepest tier: 2, deepest hop: 0", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, deepest tier: 2", Item(viewModel, "C1").Counts);
     }
 
     // #195: a USB 3 hub is one hub on each bus; the line shows both buses instead of adding the halves up.
@@ -681,12 +681,12 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        var expected = "Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 2";
+        var expected = "Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4";
         Assert.Equal(expected, Item(viewModel, "C1").Counts);
         Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
-        // The window shows "Hubs: 3 (2+1), deepest tier: 4, deepest hop: 2", USB2 first, then USB3 (#217).
+        // The window shows "Hubs: 3 (2+1), deepest tier: 4", USB2 first, then USB3 (#217).
         var controller = Item(viewModel, "C1");
-        Assert.Equal(("Hubs: 3 (", "2", "1", "), deepest tier: 4, deepest hop: 2"),
+        Assert.Equal(("Hubs: 3 (", "2", "1", "), deepest tier: 4"),
             (controller.CountsHead, controller.CountsUsb2, controller.CountsUsb3, controller.CountsTail));
         Assert.True(controller.HasCountsPerBus);
         Assert.False(Item(viewModel, "ROOT").HasCountsPerBus);
@@ -701,7 +701,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: at least 3 (USB2: 1, USB3: 1), deepest tier: at least 3, deepest hop: at least 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 3 (USB2: 1, USB3: 1), deepest tier: at least 3", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -714,31 +714,31 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal("Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 3", Item(viewModel, "C1").Counts);
         Assert.Null(Item(viewModel, "C2").Counts);
     }
 
     // #265: the side panel's table, one line per bus, for what the status field covers.
     private static string[] BusTable(MainViewModel viewModel) =>
-        [.. viewModel.BusCountsRows.Select(row => Line(row.Bus, row.Hubs, row.DeepestTier, row.DeepestHop))];
+        [.. viewModel.BusCountsRows.Select(row => Line(row.Bus, row.Hubs, row.DeepestTier))];
 
-    private static string Line(string bus, string hubs, string deepestTier, string deepestHop) => $"{bus}: {hubs}, {deepestTier}, {deepestHop}";
+    private static string Line(string bus, string hubs, string deepestTier) => $"{bus}: {hubs}, {deepestTier}";
 
     private static string AtLeast(int number) => string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number);
 
     [Fact]
-    public void TheCountsTableShowsEachBusWithItsOwnHubsTierAndHop()
+    public void TheCountsTableShowsEachBusWithItsOwnHubsAndTier()
     {
         var viewModel = NewViewModel();
-        // USB 2: HUB-USB2 tier 2, INNER tier 3, KEYBOARD tier 4 with 2 hops. USB 3: HUB-USB3 tier 2, DISK tier 3 with 1 hop.
+        // USB 2: HUB-USB2 tier 2, INNER tier 3, KEYBOARD tier 4. USB 3: HUB-USB3 tier 2, DISK tier 3.
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
         Assert.True(viewModel.HasBusCounts);
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4", "2"), Line(Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
         // The row counter stays as it was.
-        Assert.Equal("Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 2", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -746,22 +746,22 @@ public class MainViewModelTests
     {
         var viewModel = NewViewModel();
         var first = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
-        // USB 2: A tier 2, CAMERA tier 3 with 1 hop. USB 3: B, B2 and B3 on tiers 2 to 4, SSD tier 5 with 3 hops.
+        // USB 2: A tier 2, CAMERA tier 3. USB 3: B, B2 and B3 on tiers 2 to 4, SSD tier 5.
         var second = RootWithBuses("ROOT2", Hub("A", Device("CAMERA")), Hub("B", Hub("B2", Hub("B3", Device("SSD")))));
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [first]), new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [second])]);
 
         viewModel.SelectedNode = Item(viewModel, "C1");
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4", "2"), Line(Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
 
         viewModel.SelectedNode = Item(viewModel, "SSD"); // Anything under a controller selects that controller.
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3", "1"), Line(Strings.CountsBusUsb3, "3", "5", "3")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "3", "5")], BusTable(viewModel));
 
         viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
 
-        // The hubs of all controllers per bus, and each bus's deepest tier and hop on any controller.
-        Assert.Equal([Line(Strings.CountsBusUsb2, "3", "4", "2"), Line(Strings.CountsBusUsb3, "4", "5", "3")], BusTable(viewModel));
+        // The hubs of all controllers per bus, and each bus's deepest tier on any controller.
+        Assert.Equal([Line(Strings.CountsBusUsb2, "3", "4"), Line(Strings.CountsBusUsb3, "4", "5")], BusTable(viewModel));
     }
 
     [Fact]
@@ -775,7 +775,7 @@ public class MainViewModelTests
 
         // UNKNOWN and MOUSE are on neither bus, so each bus's numbers are minimums.
         Assert.Equal(
-            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3), AtLeast(1)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(3), AtLeast(1))],
+            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(3))],
             BusTable(viewModel));
     }
 
@@ -788,7 +788,7 @@ public class MainViewModelTests
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
         Assert.Equal(
-            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3), AtLeast(1)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(2), AtLeast(0))],
+            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(2))],
             BusTable(viewModel));
     }
 
@@ -799,27 +799,27 @@ public class MainViewModelTests
 
         viewModel.Load(Desk);
 
-        Assert.Equal([Line(Strings.CountsBusAll, "1", "3", "1")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusAll, "1", "3")], BusTable(viewModel));
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
 
-        Assert.Equal([Line(Strings.CountsBusAll, AtLeast(1), AtLeast(2), AtLeast(0))], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusAll, AtLeast(1), AtLeast(2))], BusTable(viewModel));
     }
 
     [Fact]
-    public void ACableMarkRaisesTheDepthOfItsBusInTheCountsTable()
+    public void ACableMarkRaisesTheTierAndHubsOfItsBusInTheCountsTable()
     {
         var viewModel = NewViewModel();
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Item(viewModel, "DISK").ExtraHops = 2; // DISK: tier 5, hop 3. The hub count stays.
+        Item(viewModel, "DISK").MarkLevel = 2; // DISK: tier 5, and 2 more hubs on USB 3 (#297).
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4", "2"), Line(Strings.CountsBusUsb3, "1", "5", "3")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "3", "5")], BusTable(viewModel));
 
-        Item(viewModel, "DISK").ExtraHops = 0;
+        Item(viewModel, "DISK").MarkLevel = 0;
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4", "2"), Line(Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
     }
 
     [Fact]
@@ -830,7 +830,7 @@ public class MainViewModelTests
         root = root with { Children = [root.Children[0], root.Children[1] with { Children = [] }] };
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3", "1"), Line(Strings.CountsBusUsb3, "0", "0", "0")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "0", "0")], BusTable(viewModel));
 
         var notified = new List<string?>();
         viewModel.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
@@ -864,7 +864,7 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
 
-        Assert.Equal("Hubs: at least 1, deepest tier: at least 2, deepest hop: at least 0", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 1, deepest tier: at least 2", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -966,36 +966,36 @@ public class MainViewModelTests
     private static readonly string Latitude = $"Dell Inc. Latitude 7450 ({ComputerProfileId.From("Dell Inc.", "Latitude 7450")})";
 
     [Fact]
-    public void MarkingAConnectionAddsHopsBehindItAndReEvaluates()
+    public void MarkingAConnectionAddsTiersAndHubsBehindItAndReEvaluates()
     {
         var viewModel = TwoProfiles();
-        viewModel.Computers.Single().IsChecked = true; // max_hops 5; the keyboard has 1 hop.
+        viewModel.Computers.Single().IsChecked = true; // max_tiers 7; the keyboard is on tier 3.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         var hub = Item(viewModel, "HUB"); // The line from ROOT|port1 to HUB.
         Assert.True(hub.CanMark);
         Assert.False(hub.IsUserMarked);
         Assert.Null(hub.MarkBadge);
 
-        hub.ExtraHops = 5;
+        hub.MarkLevel = 5;
 
-        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // 6 hops.
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // Tier 8.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
-        Assert.Equal(5, Item(viewModel, "HUB").ExtraHops);
+        Assert.Equal(5, Item(viewModel, "HUB").MarkLevel);
         Assert.True(Item(viewModel, "HUB").IsUserMarked);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5), Item(viewModel, "HUB").MarkBadge);
+        Assert.Equal("+5 tiers, +2 hubs", Item(viewModel, "HUB").MarkBadge);
         Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
         Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
-        Assert.Equal("Hubs: 1, deepest tier: 8, deepest hop: 6", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 3, deepest tier: 8", Item(viewModel, "C1").Counts);
 
         viewModel.Apply([]); // The mark lasts while the app runs.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
         Assert.True(Item(viewModel, "HUB").IsUserMarked);
 
-        Item(viewModel, "HUB").ExtraHops = 0;
+        Item(viewModel, "HUB").MarkLevel = 0;
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(Item(viewModel, "HUB").IsUserMarked);
         Assert.Null(Item(viewModel, "HUB").MarkBadge);
-        Assert.Equal("Hubs: 1, deepest tier: 3, deepest hop: 1", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -1007,15 +1007,16 @@ public class MainViewModelTests
 
         Assert.Equal(["HUB", "KEYBOARD"], All(viewModel.Roots).Where(item => item.CanMark).Select(item => item.Id));
         var mouse = Item(viewModel, "MOUSE");
-        mouse.ExtraHops = 2; // Ignored: nothing is behind a disconnected device's port now.
-        Assert.Equal(0, mouse.ExtraHops);
+        mouse.MarkLevel = 2; // Ignored: nothing is behind a disconnected device's port now.
+        Assert.Equal(0, mouse.MarkLevel);
         Assert.False(mouse.IsUserMarked);
     }
 
-    // Platform "os-p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
+    // Platform "os-p" allows no hub in front of a device (max_tiers: 2), so the keyboard behind HUB (tier 3) is above its
+    // maximum; computer "c" allows it.
     private static MainViewModel TwoProfiles()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
         return viewModel;
@@ -1034,10 +1035,10 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
     }
 
-    // An AMD Windows computer whose platform profile allows no hub (max_hops: 0): the keyboard behind HUB is unstable.
+    // An AMD Windows computer whose platform profile allows no hub (max_tiers: 2): the keyboard behind HUB is unstable.
     private static MainViewModel OnWindowsAmd(string? detectedPlatform)
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0", platform: "windows-amd");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2", platform: "windows-amd");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: detectedPlatform));
         viewModel.Load(Desk);
         return viewModel;
@@ -1111,17 +1112,17 @@ public class MainViewModelTests
         viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
-        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status); // In the root hub: no hop.
+        Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status); // In the root hub: tier 2.
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), viewModel.OverallColor);
         Assert.Equal(
             [("os-p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
             viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
-        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], viewModel.StatusRows[0].Details);
+        Assert.Equal(["Deepest tier: 3, limit 2 (exceeded)"], viewModel.StatusRows[0].Details);
         Assert.Empty(viewModel.StatusRows[1].Details);
     }
 
-    // Owner decision in #263: the status field lists only what is exceeded. "os-p" knows only max_hops, so its unknown hub,
-    // tier and display limits add no line.
+    // Owner decision in #263: the status field lists only what is exceeded. "os-p" knows only max_tiers, so its unknown hub
+    // and display limits add no line.
     [Fact]
     public void AProfileWithOneExceededLimitHasExactlyThatLineAndUnknownLimitsAddNone()
     {
@@ -1131,27 +1132,27 @@ public class MainViewModelTests
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("unstable", row.Word);
-        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], row.Details);
+        Assert.Equal(["Deepest tier: 3, limit 2 (exceeded)"], row.Details);
     }
 
     [Fact]
-    public void ExceededRecommendedHopsIsTheReasonOfAPotentiallyUnstableProfile()
+    public void ExceededRecommendedTiersMakeAProfilePotentiallyUnstable()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_hops: 0");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_tiers: 2");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
 
-        viewModel.OperatingSystems.Platform().IsChecked = true; // USB-Helper: hops.recommended 0 for its chip.
+        viewModel.OperatingSystems.Platform().IsChecked = true; // USB-Helper: tiers.recommended 2 for its chip.
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("potentially unstable", row.Word);
-        Assert.Equal(["Recommended hops: 1, limit 0 (exceeded)"], row.Details);
+        Assert.Equal(ConnectionStatus.Orange, Item(viewModel, "KEYBOARD").Status);
     }
 
     [Fact]
-    public void RecommendedHopsIsNotListedWhenTheMaximumIsExceeded()
+    public void OnlyTheExceededMaximumIsListedWhenTheRecommendationIsExceededToo()
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_hops: 0\n  max_hops: 0");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "recommended_tiers: 2\n  max_tiers: 2");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
 
@@ -1159,7 +1160,7 @@ public class MainViewModelTests
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("unstable", row.Word);
-        Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], row.Details);
+        Assert.Equal(["Deepest tier: 3, limit 2 (exceeded)"], row.Details);
     }
 
     [Fact]
@@ -1184,7 +1185,7 @@ public class MainViewModelTests
     [Fact]
     public void WithSeveralProfilesCheckedOnlyTheStrictestListsFindingsAndDetectedFactsAreListedOnce()
     {
-        var viewModel = TwoProfiles(); // "p" (max_hops 0) is stricter than the computer (max_hops 5).
+        var viewModel = TwoProfiles(); // "p" (max_tiers 2) is stricter than the computer (max_tiers 7).
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 2, Device("MOUSE") with { Problem = "code 43" }))]);
         viewModel.OperatingSystems.Platform().IsChecked = true;
         viewModel.Computers.Single().IsChecked = true;
@@ -1216,8 +1217,8 @@ public class MainViewModelTests
     public void UnknownLimitsShowNoFindingsWhileEverythingIsWithinTheKnownLimits()
     {
         var log = new EventLog();
-        // Only max_hops is known; the hub and tier limits and the display count are unknown.
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 5");
+        // Only max_tiers is known; the hub limits and the display count are unknown.
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 7");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
         viewModel.Load(Desk);
 
@@ -1227,7 +1228,7 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
         Assert.Contains(log.Entries, entry => entry.Text == "Finding (os-p, unknown): This computer: The number of external displays is not known.");
-        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, database): This computer: limits.max_hops = 5", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, database): This computer: limits.max_tiers = 7", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1244,7 +1245,7 @@ public class MainViewModelTests
     public void AnExceededLimitAnErrorAndADisconnectAreStillShown()
     {
         var log = new EventLog();
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => External(3), log);
         viewModel.Load(Desk);
         viewModel.OperatingSystems.Platform().IsChecked = true;
@@ -1590,13 +1591,13 @@ public class MainViewModelTests
     }
 
     // C1 is the desk (hub, keyboard, mouse: 3 connected); C2 has a phone in its root hub (1). Platform "os-p" allows no hub
-    // (max_hops 0), so C1 is unstable and C2 stable. "os-p" is the detected platform, so it is checked at start.
+    // in front of a device (max_tiers 2), so C1 is unstable and C2 stable. "os-p" is the detected platform, so it is checked at start.
     private static readonly UsbNode Phone =
         new("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("PHONE"))]);
 
     private static MainViewModel TwoControllers(params UsbNode[] controllers)
     {
-        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"));
         viewModel.Load(controllers.Length == 0 ? [.. Desk, Phone] : controllers);
         return viewModel;
@@ -2163,10 +2164,10 @@ public class LogViewModelTests
         viewModel.Load(Desk);
         var hub = viewModel.Roots[0].Children[0].Children[0].Children[0].Children[0]; // host > C1 > ROOT > ROOT|port1 > HUB.
 
-        hub.ExtraHops = 2;
+        hub.MarkLevel = 2;
 
         Assert.Equal("HUB", hub.Id);
-        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark: +2 hops on the line to HUB");
+        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark: +2 tiers, +2 hubs on the line to HUB");
     }
 
     [Fact]

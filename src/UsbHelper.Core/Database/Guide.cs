@@ -48,8 +48,8 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     public ProfileValue? Find(string path) => Root.Find(path);
 
     /// <summary>
-    /// A limit for one platform and chip, such as <c>hops.max</c>, <c>camera_audio.tiers.recommended</c> or, on one bus,
-    /// <c>usb2.hubs.max</c>. Tiers and hops are the same on every bus, so a bus in front of them is ignored; hubs on a bus
+    /// A limit for one platform and chip, such as <c>tiers.max</c>, <c>camera_audio.tiers.recommended</c> or, on one bus,
+    /// <c>usb2.hubs.max</c>. Tiers are the same on every bus, so a bus in front of them is ignored; hubs on a bus
     /// are <c>buses.&lt;bus&gt;.hubs</c>, else <c>hubs</c>, at each level. Looked up in the chip's limits, the platform's,
     /// the global ones, then USB-Helper's the same way; the first that is not empty. Null when every one is empty.
     /// </summary>

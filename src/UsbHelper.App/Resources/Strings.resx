@@ -197,14 +197,11 @@
   <data name="LimitTiers" xml:space="preserve">
     <value>Deepest tier</value>
   </data>
-  <data name="LimitHops" xml:space="preserve">
-    <value>Most hops</value>
+  <data name="LimitRecommendedTiers" xml:space="preserve">
+    <value>Recommended tiers</value>
   </data>
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
-  </data>
-  <data name="LimitRecommendedHops" xml:space="preserve">
-    <value>Recommended hops</value>
   </data>
   <data name="LimitDisconnected" xml:space="preserve">
     <value>Disconnected devices</value>
@@ -243,16 +240,16 @@
     <value>Hubs: at least {0}</value>
   </data>
   <data name="CountsDepth" xml:space="preserve">
-    <value>, deepest tier: {0}, deepest hop: {1}</value>
+    <value>, deepest tier: {0}</value>
   </data>
   <data name="CountsDepthAtLeast" xml:space="preserve">
-    <value>, deepest tier: at least {0}, deepest hop: at least {1}</value>
+    <value>, deepest tier: at least {0}</value>
   </data>
   <data name="CountsPerBusText" xml:space="preserve">
     <value> (USB2: {0}, USB3: {1})</value>
   </data>
   <data name="CountsTable" xml:space="preserve">
-    <value>Hubs, tiers and hops</value>
+    <value>Hubs and tiers</value>
   </data>
   <data name="CountsBusUsb2" xml:space="preserve">
     <value>USB 2</value>
@@ -266,11 +263,8 @@
   <data name="CountsColumnHubs" xml:space="preserve">
     <value>Hubs</value>
   </data>
-  <data name="CountsColumnHop" xml:space="preserve">
-    <value>Deepest hop</value>
-  </data>
   <data name="NodeDepthTip" xml:space="preserve">
-    <value>Tier {0}, hubs in front: {1}</value>
+    <value>Tier {0}</value>
   </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>
@@ -300,10 +294,13 @@
     <value>Unknown</value>
   </data>
   <data name="CableMark" xml:space="preserve">
-    <value>+{0} hops</value>
+    <value>+{0} tiers, +{1} hubs</value>
+  </data>
+  <data name="CableMarkOne" xml:space="preserve">
+    <value>+1 tier, +1 hub</value>
   </data>
   <data name="CableMarkTitle" xml:space="preserve">
-    <value>Active cable / extender on this connection, extra hops:</value>
+    <value>Active cable / extender on this connection, extra tiers (each adds a hub, at most 2):</value>
   </data>
   <data name="CableMarkTip" xml:space="preserve">
     <value>Add an active cable or extender on this connection that the operating system does not show.</value>
@@ -311,7 +308,7 @@
   <data name="MarkNone" xml:space="preserve">
     <value>None</value>
   </data>
-  <data name="MarkHops" xml:space="preserve">
+  <data name="MarkChoice" xml:space="preserve">
     <value>+{0}</value>
   </data>
   <data name="LogButton" xml:space="preserve">

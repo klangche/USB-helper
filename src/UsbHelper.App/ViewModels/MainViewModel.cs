@@ -59,15 +59,14 @@ public sealed class GuideOption(Guide guide) : ObservableObject
 
 /// <summary>One checked profile in the status field.</summary>
 /// <param name="Word">Its result: stable, potentially unstable, unstable or unknown.</param>
-/// <param name="Details">Its exceeded hub, tier, hop and display checks; none when nothing is exceeded.</param>
+/// <param name="Details">Its exceeded hub, tier and display checks; none when nothing is exceeded.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
 
 /// <summary>One line of the side panel's counts table (#265): a bus, or all buses together when none is reported.</summary>
 /// <param name="Bus">"USB 2", "USB 3", or the name of the combined line.</param>
-/// <param name="Hubs">The hubs on the bus; "at least N" when the number is a minimum, as are the next two.</param>
+/// <param name="Hubs">The hubs on the bus, the user's cable marks counted; "at least N" when the number is a minimum, as is the next.</param>
 /// <param name="DeepestTier">The deepest tier on the bus, the user's cable marks counted.</param>
-/// <param name="DeepestHop">The deepest hop on the bus, the user's cable marks counted.</param>
-public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier, string DeepestHop);
+public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 
 /// <param name="Header">
 /// Profile (the strictest, when several are checked; never for a detected fact), kind (detected, database, risk, unknown)
@@ -90,8 +89,9 @@ public sealed class MainViewModel : ObservableObject
     private readonly EventLog log;
     private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
-    // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
-    private readonly Dictionary<string, int> extraHops = [];
+    // The user's marks for active cables and extenders per port id: each adds that many tiers and at most 2 hubs. They
+    // last while the app runs.
+    private readonly Dictionary<string, int> marks = [];
     private IReadOnlyList<UsbNode> tree = [];
     private Guide? guide;
     private NodeViewModel? selectedNode;
@@ -517,14 +517,14 @@ public sealed class MainViewModel : ObservableObject
     private SetupFile Setup(DateOnly date, string appVersion)
     {
         var (containerFree, displays) = SetupFile.AnonymizeContainers(tree, monitors);
-        var (controllers, marks) = SetupFile.Anonymize(containerFree, extraHops);
+        var (controllers, anonymousMarks) = SetupFile.Anonymize(containerFree, marks);
         var options = Checked;
         IReadOnlyList<SetupResult> results = options.Count == 0
             ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
-        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results)
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, anonymousMarks, displays, results)
         {
             CompanyName = CompanyName,
             RoomName = Room,
@@ -559,7 +559,7 @@ public sealed class MainViewModel : ObservableObject
             .Distinct()
             .ToList();
         var counts = lastReport.Counts;
-        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var perBus = TopologyCounts.PerBus(tree, marks);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
         IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
         var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
@@ -572,7 +572,7 @@ public sealed class MainViewModel : ObservableObject
         return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
             setup.Computer, lastReport.Overall,
             new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
-                counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
+                counts.Tiers.Actual, atLeast, counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
@@ -581,28 +581,22 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A profile's checks for the report, as the app judges them. The recommended depth only when it is known and the
-    /// maximum is kept, the same as the tree's lines; disconnected devices only when there are.
+    /// A profile's checks for the report, as the app judges them; disconnected devices only when there are.
     /// </summary>
     public static List<ReportCheck> ReportChecks(DiagnosticReport result)
     {
-        static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
+        static ConnectionStatus Status(LimitState state) => state switch
         {
             LimitState.Within => ConnectionStatus.Green,
-            LimitState.Exceeded => exceeded,
+            LimitState.Exceeded => ConnectionStatus.Purple,
             _ => ConnectionStatus.Grey,
         };
         var checks = new List<ReportCheck>
         {
             new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
             new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
-            new(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, Status(result.Hops.State)),
             new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
         };
-        if (result.RecommendedHops is { Limit: not null } recommended && result.Hops.State != LimitState.Exceeded)
-        {
-            checks.Add(new(Strings.LimitRecommendedHops, recommended.Limit, recommended.Actual, Status(recommended.State, ConnectionStatus.Orange)));
-        }
         if (result.Missing.Count > 0)
         {
             checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
@@ -700,18 +694,18 @@ public sealed class MainViewModel : ObservableObject
     public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
         tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
-    // A mark for an active cable or extender the operating system does not show, on the line from a port: the extra
-    // hops count in every tier and hop check of everything behind the port. 0 removes the mark.
-    private void Mark(string portId, int hops)
+    // A mark for an active cable or extender the operating system does not show, on the line from a port: a mark of N
+    // adds N tiers to everything behind the port and min(N, 2) hubs on its bus (#297). 0 removes the mark.
+    private void Mark(string portId, int mark)
     {
-        log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, hops);
-        if (hops == 0)
+        log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, mark);
+        if (mark == 0)
         {
-            extraHops.Remove(portId);
+            marks.Remove(portId);
         }
         else
         {
-            extraHops[portId] = hops;
+            marks[portId] = mark;
         }
         Refresh();
     }
@@ -725,7 +719,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>
     /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2 then USB 3, each with its
-    /// own hubs, deepest tier and deepest hop; a bus with nothing on it shows zeros. One combined line when the operating
+    /// own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when the operating
     /// system reports no bus at all. Empty when nothing is connected.
     /// </summary>
     public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
@@ -736,12 +730,12 @@ public sealed class MainViewModel : ObservableObject
     private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
     {
         BusCountsRows.Clear();
-        if (NodeViewModel.Count(scope, extraHops) is { } counted)
+        if (NodeViewModel.Count(scope, marks) is { } counted)
         {
             string Cell(int number) => counted.AtLeast
                 ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
                 : number.ToString(CultureInfo.CurrentCulture);
-            BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier), Cell(counts.DeepestHops));
+            BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier));
             if (counted.PerBus.AnyBusKnown)
             {
                 BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
@@ -822,7 +816,7 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors, guide: Guide);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
         lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
@@ -858,7 +852,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree, monitors, Guide);
+                reconnectedIds, marks, tree, monitors, Guide);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
         UpdateBusCounts(selected == null ? tree : [selected]);
@@ -867,11 +861,11 @@ public sealed class MainViewModel : ObservableObject
         log.DisplayLinks(placement, tree);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, placement));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, marks, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, extraHops, placement);
+            Roots[0].UpdateHost(HostName, tree, lines, marks, placement);
         }
         // Owner decisions in #142 and #208: while following, only the selected controller is open, and only when it has
         // devices, connected or disconnected. Once the user opens or closes a controller, their choices are kept.
@@ -957,16 +951,12 @@ public sealed class MainViewModel : ObservableObject
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
     // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
-    // The recommended depth only when the maximum is kept, the same as the tree's lines and the report.
     private static IReadOnlyList<string> ExceededLines(DiagnosticReport result)
     {
-        var recommended = result.Hops.State == LimitState.Exceeded ? null : result.RecommendedHops;
         var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]
         {
             (Strings.LimitHubs, result.Hubs.State, result.Hubs.Actual, result.Hubs.Limit),
             (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
-            (Strings.LimitHops, result.Hops.State, result.Hops.Actual, result.Hops.Limit),
-            (Strings.LimitRecommendedHops, recommended?.State, recommended?.Actual, recommended?.Limit),
             (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
         };
         return [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>

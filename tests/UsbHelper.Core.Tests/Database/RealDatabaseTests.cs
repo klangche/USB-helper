@@ -87,34 +87,33 @@ public class RealDatabaseTests
         Assert.Equal(ValueKind.Null, profile.Find("built_in_hub_levels")!.Kind);
     }
 
-    // USB-Helper's guide (the owner's file of 2026-11-17): hops per chip, else per platform, else global; tiers and
-    // hubs the same way; cameras and audio devices tiers 3 / 5 and hops 2 / 4 everywhere.
+    // USB-Helper's guide (the owner's file of 2026-11-17, hops removed in #297): tiers per chip, else per platform, else
+    // global; hubs the same way; cameras and audio devices tiers 3 / 5 everywhere.
     [Theory]
-    [InlineData("windows-intel", 7, 5, 7, 6)]
-    [InlineData("windows-amd", 7, 5, 7, 6)]
-    [InlineData("windows-arm", 5, 3, 7, 6)]
-    [InlineData("macos-intel", 7, 5, 7, 6)]
-    [InlineData("macos-apple-silicon", 5, 3, 7, 6)]
-    [InlineData("macos-a-series", 5, 3, 7, 6)]
-    [InlineData("apple-mobile-a-series", 4, 2, 3, 2)]
-    [InlineData("ubuntu-intel", 6, 4, 7, 6)]
-    [InlineData("ubuntu-amd", 6, 4, 7, 6)]
-    [InlineData("ubuntu-arm", 5, 3, 7, 6)]
-    [InlineData("debian-intel", 6, 4, 7, 6)]
-    [InlineData("debian-arm", 5, 3, 7, 6)]
-    [InlineData("android-phone-qualcomm", 5, 0, 3, 2)]
-    [InlineData("android-tablet-exynos", 4, 0, 4, 2)]
-    public void UsbHelperGivesItsLimits(string id, long maxHops, long recommendedHops, long maxTiers, long maxHubs)
+    [InlineData("windows-intel", 7, 5, 6)]
+    [InlineData("windows-amd", 7, 5, 6)]
+    [InlineData("windows-arm", 7, 5, 6)]
+    [InlineData("macos-intel", 7, 5, 6)]
+    [InlineData("macos-apple-silicon", 7, 5, 6)]
+    [InlineData("macos-a-series", 7, 5, 6)]
+    [InlineData("apple-mobile-a-series", 3, 2, 2)]
+    [InlineData("ubuntu-intel", 7, 5, 6)]
+    [InlineData("ubuntu-amd", 7, 5, 6)]
+    [InlineData("ubuntu-arm", 7, 5, 6)]
+    [InlineData("debian-intel", 7, 5, 6)]
+    [InlineData("debian-arm", 7, 5, 6)]
+    [InlineData("android-phone-qualcomm", 3, 2, 2)]
+    [InlineData("android-tablet-exynos", 4, 3, 2)]
+    public void UsbHelperGivesItsLimits(string id, long maxTiers, long recommendedTiers, long maxHubs)
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
         var profile = db.Platforms[id];
 
-        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Value);
-        Assert.Equal(recommendedHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.recommended").Value);
-        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "usb2.hops.max").Value); // The same on every bus.
         Assert.Equal(maxTiers, GuideLimits.Of(profile, db.DefaultGuide, "tiers.max").Value);
-        Assert.Equal(2L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.recommended").Value);
-        Assert.Equal(4L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.max").Value);
+        Assert.Equal(recommendedTiers, GuideLimits.Of(profile, db.DefaultGuide, "tiers.recommended").Value);
+        Assert.Equal(maxTiers, GuideLimits.Of(profile, db.DefaultGuide, "usb2.tiers.max").Value); // The same on every bus.
+        Assert.Null(GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Value); // No hops any more (#297).
+        Assert.Equal(3L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.tiers.recommended").Value);
         Assert.Equal(5L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.tiers.max").Value);
         foreach (var bus in new[] { "usb2", "usb3", "usb4" })
         {
@@ -154,7 +153,7 @@ public class RealDatabaseTests
         }
         foreach (var profile in db.Platforms.Values)
         {
-            Assert.NotNull(guide.Limit(profile.Platform, profile.Chip, "hops.max"));
+            Assert.NotNull(guide.Limit(profile.Platform, profile.Chip, "tiers.max"));
             Assert.NotNull(guide.Mst(profile.Platform, profile.Chip));
         }
     }
@@ -190,10 +189,10 @@ public class RealDatabaseTests
     [InlineData("purelink", "windows-intel", "tiers.max", 7)]
     [InlineData("purelink", "windows-amd", "tiers.recommended", 3)]
     [InlineData("purelink", "windows-amd", "usb3.hubs.max", 5)] // The guide's own hubs before USB-Helper's per bus.
-    [InlineData("ochno", "windows-intel", "hops.max", 3)]
-    [InlineData("ochno", "ubuntu-arm", "hops.max", 2)]
-    [InlineData("unisynk", "debian-amd", "hops.max", 5)]
-    [InlineData("unisynk", "android-phone-qualcomm", "hops.recommended", 2)]
+    [InlineData("ochno", "windows-intel", "tiers.max", 6)]
+    [InlineData("ochno", "ubuntu-arm", "tiers.max", 4)]
+    [InlineData("unisynk", "debian-amd", "tiers.recommended", 4)]
+    [InlineData("unisynk", "android-phone-qualcomm", "tiers.recommended", 2)]
     [InlineData("unisynk", "apple-mobile-m-series", "tiers.max", 3)]
     public void GuidesReadTheirOwnValues(string id, string profile, string path, long value)
     {
@@ -247,8 +246,8 @@ public class RealDatabaseTests
         Assert.Equal("macos", neo.Platform);
         Assert.Equal("a-series", neo.Chip);
         Assert.Equal(2L, neo.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(5L, GuideLimits.Of(neo, db.DefaultGuide, "hops.max").Value);
-        Assert.Equal(3L, GuideLimits.Of(neo, db.DefaultGuide, "hops.recommended").Value);
+        Assert.Equal(7L, GuideLimits.Of(neo, db.DefaultGuide, "tiers.max").Value);
+        Assert.Equal(5L, GuideLimits.Of(neo, db.DefaultGuide, "tiers.recommended").Value);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
         // Apple: one external display. No MST comes from the guide (A-series: 0).
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
@@ -267,7 +266,7 @@ public class RealDatabaseTests
         Assert.Equal(4L, mac.Find("displays.max_external")!.Scalar);
         Assert.Equal(4L, mac.Find("ports.thunderbolt4.thunderbolt")!.Scalar);
         Assert.Equal(1L, mac.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(5L, GuideLimits.Of(mac, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
+        Assert.Equal(7L, GuideLimits.Of(mac, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "tiers.max").Value);
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
@@ -283,7 +282,7 @@ public class RealDatabaseTests
         Assert.Equal("windows-amd", $"{asus.Platform}-{asus.Chip}");
         Assert.Equal(0L, asus.Find("built_in_hub_levels")!.Scalar);
         Assert.Equal("platforms/windows.yaml", asus.Find("built_in_hub_levels")!.File);
-        Assert.Equal(7L, GuideLimits.Of(asus, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
+        Assert.Equal(7L, GuideLimits.Of(asus, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "tiers.max").Value);
         Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
         Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
         Assert.Equal(true, asus.Find("ports.hdmi.hdmi")!.Scalar);

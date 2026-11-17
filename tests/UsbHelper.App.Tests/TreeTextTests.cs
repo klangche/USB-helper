@@ -35,11 +35,11 @@ public class TreeTextTests
     }
 
     private static readonly string Golden = string.Join(Environment.NewLine,
-        "Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)", // All controllers (#210).
-        "|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)", // The marked line counts.
+        "Dell Inc. Latitude 7450 (Hubs: 3, deepest tier: 5)", // All controllers (#210).
+        "|-- Controller (Hubs: 3, deepest tier: 5)", // The marked line counts: +2 tiers and +2 hubs (#297).
         "|   `-- ROOT (has a display)",
         "|       |-- Port 1 [USB-C]",
-        "|       |   `-- [+2 hops] HUB - unknown", // No profile is checked, so every result is unknown.
+        "|       |   `-- [+2 tiers, +2 hubs] HUB - unknown", // No profile is checked, so every result is unknown.
         "|       |       `-- Port 1",
         "|       |           `-- KEYBOARD (046D:C31C) - unknown",
         "|       `-- Port 2",
@@ -52,7 +52,7 @@ public class TreeTextTests
     public void TheTreeIsDrawnWithPlainTextLines()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
 
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0]));
     }
@@ -62,7 +62,7 @@ public class TreeTextTests
     public void AHeaderNamesTheCompanyRoomAndLicensedEmail()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
 
         Assert.Equal(string.Join(Environment.NewLine, "Company: Acme AB", "Room: Room 4.12", "Licensed to: test@example.com", "", Golden),
             TreeText.Render(viewModel.Roots[0], "Acme AB", "Room 4.12", "test@example.com"));
@@ -73,7 +73,7 @@ public class TreeTextTests
     public void WithoutCompanyRoomOrEmailThereIsNoHeader()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
 
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0], null, null, null));
     }
@@ -119,7 +119,7 @@ public class TreeTextTests
     {
         var log = new EventLog();
         var viewModel = Loaded(log);
-        Find(viewModel.Roots[0], "HUB").ExtraHops = 2;
+        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
 
         viewModel.DisplaysChanged();
 

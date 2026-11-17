@@ -64,10 +64,10 @@ internal sealed class TestDatabase : IDisposable
 
     /// <summary>
     /// Values of USB-Helper's guide file, which <see cref="Load"/> writes in full unless the test wrote it itself. A key
-    /// such as <c>hops.max</c>, <c>camera_audio.hops.max</c> or <c>exceeded_note</c> sets the global value;
-    /// <c>usb2.hubs.max</c> sets one bus's hubs (<c>usb2.hops.max</c> is the same as <c>hops.max</c>: tiers and hops are
+    /// such as <c>tiers.max</c>, <c>camera_audio.tiers.max</c> or <c>exceeded_note</c> sets the global value;
+    /// <c>usb2.hubs.max</c> sets one bus's hubs (<c>usb2.tiers.max</c> is the same as <c>tiers.max</c>: tiers are
     /// the same on every bus; a bus's hubs default to the global hubs in USB-Helper's); <c>mst</c> sets every platform's and chip's mst; a path such as
-    /// <c>platforms.test.chips.platform.limits.hops.max</c> (or <c>.limits.mst</c>) sets one chip's value. Unset values are
+    /// <c>platforms.test.chips.platform.limits.tiers.max</c> (or <c>.limits.mst</c>) sets one chip's value. Unset values are
     /// <c>none</c>, a bus's hubs the global hubs, <c>mst</c> 0 and no note.
     /// </summary>
     public Dictionary<string, string> UsbHelper { get; } = [];
@@ -94,7 +94,7 @@ internal sealed class TestDatabase : IDisposable
     public static string GuideFile(string name, bool selectable, bool isDefault, IReadOnlyDictionary<string, string> values,
         IReadOnlyDictionary<string, IReadOnlyList<string>> platforms, string status)
     {
-        // A global value: the key itself, a bus's hubs as usbN.hubs.x, tiers and hops also as usb2.x or usb3.x.
+        // A global value: the key itself, a bus's hubs as usbN.hubs.x, tiers also as usb2.x or usb3.x.
         string? Global(string relative)
         {
             if (values.GetValueOrDefault(relative) is { } value)
@@ -106,7 +106,7 @@ internal sealed class TestDatabase : IDisposable
             {
                 return values.GetValueOrDefault(string.Join('.', parts[1..])) ?? (isDefault ? Global(string.Join('.', parts[2..])) : null);
             }
-            return parts[0] is "tiers" or "hops"
+            return parts[0] is "tiers"
                 ? values.GetValueOrDefault("usb2." + relative) ?? values.GetValueOrDefault("usb3." + relative)
                 : null;
         }
@@ -120,7 +120,7 @@ internal sealed class TestDatabase : IDisposable
         }
         string? Filled(string relative) => Global(relative) ?? (!isDefault || relative == "exceeded_note" ? null : "none");
         yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nverification:\n  status: {status}\nlimits:\n");
-        foreach (var kind in new[] { "hubs", "tiers", "hops" })
+        foreach (var kind in new[] { "hubs", "tiers" })
         {
             Pair("  ", kind, Filled);
         }
@@ -132,7 +132,6 @@ internal sealed class TestDatabase : IDisposable
         }
         yaml.Append("  camera_audio:\n");
         Pair("    ", "tiers", relative => Filled("camera_audio." + relative));
-        Pair("    ", "hops", relative => Filled("camera_audio." + relative));
         Leaf("  ", "exceeded_note", Global("exceeded_note"));
         var mst = values.GetValueOrDefault("mst") ?? (isDefault ? "0" : null);
         yaml.Append("platforms:\n");
@@ -149,7 +148,7 @@ internal sealed class TestDatabase : IDisposable
                 var own = values.Where(value => value.Key.StartsWith(prefix, StringComparison.Ordinal) && value.Key != prefix + "mst")
                     .Select(value => (Path: value.Key[prefix.Length..], value.Value)).ToList();
                 yaml.Append(own.Count == 0 ? "        limits: {}\n" : "        limits:\n");
-                // A chip value such as hops.max, usb2.hubs.max or camera_audio.tiers.max, nested; a pair gets both keys.
+                // A chip value such as tiers.max, usb2.hubs.max or camera_audio.tiers.max, nested; a pair gets both keys.
                 var tree = new SortedDictionary<string, object>(StringComparer.Ordinal);
                 foreach (var (path, value) in own)
                 {

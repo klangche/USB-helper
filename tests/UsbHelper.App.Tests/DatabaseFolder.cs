@@ -12,8 +12,8 @@ namespace UsbHelper.App.Tests;
 internal static class DatabaseFolder
 {
     /// <param name="platformLimits">
-    /// The platform profile's limits in USB-Helper's guide, as <c>max_hops: 0</c>, <c>recommended_hops: 0</c> or
-    /// <c>max_hubs: 1</c> lines; every other limit of it is <c>none</c>. The computer's are hubs 5, tiers 7 and hops 5.
+    /// The platform profile's limits in USB-Helper's guide, as <c>max_tiers: 2</c>, <c>recommended_tiers: 2</c> or
+    /// <c>max_hubs: 1</c> lines; every other limit of it is <c>none</c>. The computer's are hubs 5 and tiers 7.
     /// </param>
     /// <param name="name">The computer's human-readable <c>name</c>; none when null.</param>
     /// <param name="platform">The platform profile's id: the platform file's name, a dash, and the chip.</param>
@@ -52,7 +52,7 @@ internal static class DatabaseFolder
         var limits = (platformLimits ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim().Split(':', 2))
             .ToDictionary(
-                pair => pair[0] switch { "max_hops" => "hops.max", "recommended_hops" => "hops.recommended", "max_hubs" => "hubs.max", var other => other },
+                pair => pair[0] switch { "max_tiers" => "tiers.max", "recommended_tiers" => "tiers.recommended", "max_hubs" => "hubs.max", var other => other },
                 pair => pair[1].Trim());
         File.WriteAllText(Path.Combine(folder, "guides", "usb-helper.yaml"), UsbHelper(file, chip, limits, status));
         foreach (var (id, (guideName, selectable)) in guides ?? new Dictionary<string, (string, bool)>())
@@ -81,17 +81,17 @@ internal static class DatabaseFolder
     }
 
     // USB-Helper's guide file in the shape every guide has: the platform chip with the limits given (none otherwise),
-    // the global limits (which the computer's chip uses) hubs 5, tiers 7 and hops 5, hubs 5 on USB 2 and USB 3.
+    // the global limits (which the computer's chip uses) hubs 5 and tiers 7, hubs 5 on USB 2 and USB 3.
     private static string UsbHelper(string platform, string chip, IReadOnlyDictionary<string, string> limits, string status)
     {
-        var computer = new Dictionary<string, string> { ["hubs.max"] = "5", ["tiers.max"] = "7", ["hops.max"] = "5" };
+        var computer = new Dictionary<string, string> { ["hubs.max"] = "5", ["tiers.max"] = "7" };
         static string Block(string indent, IReadOnlyDictionary<string, string> values, bool buses)
         {
             var yaml = new StringBuilder();
             void Pair(string pad, string key, string path) => yaml.Append($"{indent}{pad}{key}:\n")
                 .Append($"{indent}{pad}  recommended: {values.GetValueOrDefault($"{path}.recommended", "none")}\n")
                 .Append($"{indent}{pad}  max: {values.GetValueOrDefault($"{path}.max", "none")}\n");
-            foreach (var kind in new[] { "hubs", "tiers", "hops" })
+            foreach (var kind in new[] { "hubs", "tiers" })
             {
                 Pair("", kind, kind);
             }
@@ -106,7 +106,6 @@ internal static class DatabaseFolder
             }
             yaml.Append($"{indent}camera_audio:\n");
             Pair("  ", "tiers", "camera_audio.tiers");
-            Pair("  ", "hops", "camera_audio.hops");
             return yaml.Append($"{indent}exceeded_note:\n").ToString();
         }
         return $"name: USB-Helper\nselectable: true\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"

@@ -13,12 +13,12 @@ public class ReportResultsTests
     {
         var limitations = ReportResults.Limitations(
         [
-            Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple)),
-            Profile("HP EliteBook 840", ConnectionStatus.Purple, new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple)),
+            Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 3, 4, ConnectionStatus.Purple)),
+            Profile("HP EliteBook 840", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 3, 4, ConnectionStatus.Purple)),
         ]);
 
         var row = Assert.Single(limitations);
-        Assert.Equal<(string, long?, int?, ConnectionStatus)>(("Most hops", 2, 3, ConnectionStatus.Purple), (row.Check, row.Limit, row.Measured, row.Status));
+        Assert.Equal<(string, long?, int?, ConnectionStatus)>(("Deepest tier", 3, 4, ConnectionStatus.Purple), (row.Check, row.Limit, row.Measured, row.Status));
         Assert.Equal(["Dell Latitude 7450", "HP EliteBook 840"], row.Profiles);
     }
 
@@ -27,11 +27,11 @@ public class ReportResultsTests
     {
         var limitations = ReportResults.Limitations(
         [
-            Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple)),
-            Profile("HP EliteBook 840", ConnectionStatus.Purple, new ReportCheck("Most hops", 1, 3, ConnectionStatus.Purple)),
+            Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 3, 4, ConnectionStatus.Purple)),
+            Profile("HP EliteBook 840", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 2, 4, ConnectionStatus.Purple)),
         ]);
 
-        Assert.Equal([2L, 1L], limitations.Select(row => row.Limit ?? 0));
+        Assert.Equal([3L, 2L], limitations.Select(row => row.Limit ?? 0));
     }
 
     [Fact]
@@ -41,12 +41,12 @@ public class ReportResultsTests
         [
             Profile("Windows on Intel", ConnectionStatus.Red,
                 new ReportCheck("External hubs", 4, 2, ConnectionStatus.Green),
-                new ReportCheck("Recommended hops", 2, 3, ConnectionStatus.Orange),
+                new ReportCheck("External displays", 2, 3, ConnectionStatus.Orange),
                 new ReportCheck("Deepest tier", 5, 6, ConnectionStatus.Purple),
                 new ReportCheck("Disconnected devices", null, 1, ConnectionStatus.Red)),
         ]);
 
-        Assert.Equal(["Disconnected devices", "Deepest tier", "Recommended hops"], limitations.Select(row => row.Check));
+        Assert.Equal(["Disconnected devices", "Deepest tier", "External displays"], limitations.Select(row => row.Check));
     }
 
     [Fact]
@@ -54,13 +54,13 @@ public class ReportResultsTests
     {
         IReadOnlyList<ReportProfile> profiles =
         [
-            Profile("Windows on Intel", ConnectionStatus.Green, new ReportCheck("External hubs", null, 2, ConnectionStatus.Grey), new ReportCheck("Most hops", null, 3, ConnectionStatus.Grey)),
+            Profile("Windows on Intel", ConnectionStatus.Green, new ReportCheck("External hubs", null, 2, ConnectionStatus.Grey), new ReportCheck("Deepest tier", null, 3, ConnectionStatus.Grey)),
             Profile("macOS on Apple silicon", ConnectionStatus.Green, new ReportCheck("External hubs", null, 2, ConnectionStatus.Grey)),
         ];
 
         Assert.Empty(ReportResults.Limitations(profiles));
         var unknowns = ReportResults.Unknowns(profiles);
-        Assert.Equal(["External hubs", "Most hops"], unknowns.Select(unknown => unknown.Check));
+        Assert.Equal(["External hubs", "Deepest tier"], unknowns.Select(unknown => unknown.Check));
         Assert.All(unknowns, unknown => Assert.False(unknown.InDatabase));
         Assert.Equal(["Windows on Intel", "macOS on Apple silicon"], unknowns[0].Profiles);
     }
@@ -86,10 +86,10 @@ public class ReportResultsTests
     [Fact]
     public void Findings_are_pointed_to_only_for_a_profile_not_stable_without_a_row_or_unknown()
     {
-        var limited = Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple));
+        var limited = Profile("Dell Latitude 7450", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 3, 4, ConnectionStatus.Purple));
         var unknown = Profile("Windows on Intel", ConnectionStatus.Grey, new ReportCheck("External hubs", 5, 2, ConnectionStatus.Grey));
-        var stable = Profile("macOS on Apple silicon", ConnectionStatus.Green, new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green));
-        var reconnected = Profile("HP EliteBook 840 G10", ConnectionStatus.Purple, new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green));
+        var stable = Profile("macOS on Apple silicon", ConnectionStatus.Green, new ReportCheck("Deepest tier", 7, 3, ConnectionStatus.Green));
+        var reconnected = Profile("HP EliteBook 840 G10", ConnectionStatus.Purple, new ReportCheck("Deepest tier", 7, 3, ConnectionStatus.Green));
 
         Assert.False(ReportResults.SeeFindings([limited, unknown, stable]));
         Assert.True(ReportResults.SeeFindings([limited, stable, reconnected]));

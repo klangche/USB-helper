@@ -24,15 +24,15 @@ public static class DiagnosticEvaluator
     /// <param name="guide">See <see cref="Evaluate"/>; the same guide for every profile.</param>
     public static SystemsReport EvaluateAll(
         IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
         IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
     {
         if (profiles.Count == 0)
         {
-            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, extraHops, wholeTree, monitors, guide);
+            var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide);
             return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
         }
-        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, extraHops, wholeTree, monitors, guide))).ToList();
+        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide))).ToList();
         var connections = results
             .SelectMany(result => result.Report.Connections)
             .GroupBy(line => line.Key, line => line.Value)
@@ -44,7 +44,10 @@ public static class DiagnosticEvaluator
     /// <param name="missing">From <see cref="SessionHistory.Missing"/>.</param>
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
     /// <param name="reconnected">Ids from <see cref="SessionHistory.Reconnected"/>.</param>
-    /// <param name="extraHops">The user's marks for active cables and extenders: extra hops per port id.</param>
+    /// <param name="marks">
+    /// The user's marks for active cables and extenders per port id: each adds that many tiers and at most 2 hubs
+    /// (<see cref="TopologyCounts"/>).
+    /// </param>
     /// <param name="wholeTree">
     /// All controllers, when <paramref name="tree"/> is only some of them: the hub count is the whole computer's (owner
     /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
@@ -56,7 +59,7 @@ public static class DiagnosticEvaluator
     /// </param>
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? extraHops = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
         IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
     {
         var findings = new List<Finding>();
@@ -79,10 +82,10 @@ public static class DiagnosticEvaluator
                 "The operating system does not say whether this hub's port is built into the computer, so it is counted as an external hub."));
         }
         var incomplete = unreadable.Count > 0;
-        var depths = TopologyCounts.Depths(tree, extraHops);
+        var depths = TopologyCounts.Depths(tree, marks);
         var computerTree = wholeTree ?? tree;
-        // Every limit comes from the guide and is checked on its own (#285): hubs, tiers and hops on each bus, each
-        // recommended and max, and tiers and hops for cameras and audio devices. No guide: no limits. A hub or device on
+        // Every limit comes from the guide and is checked on its own (#285): hubs and tiers on each bus, each
+        // recommended and max, and tiers for cameras and audio devices (#297). No guide: no limits. A hub or device on
         // a port whose bus is not reported is judged by the lowest of the values stated for USB 2 and USB 3.
         var notes = new Dictionary<string, string?>();
         LimitCheck Judge(GuideLimit limit, string path, int actual, bool open)
@@ -93,10 +96,10 @@ public static class DiagnosticEvaluator
         }
         static string? BusKey(UsbBus? bus) => bus switch { UsbBus.Usb2 => "usb2", UsbBus.Usb3 => "usb3", _ => null };
 
-        var perBus = TopologyCounts.PerBus(computerTree, extraHops);
+        var perBus = TopologyCounts.PerBus(computerTree, marks);
         var nodeBuses = TopologyCounts.Buses(computerTree);
         // Said in the log only when it matters: some limit differs between USB 2 and USB 3.
-        string[] busPaths = ["hubs.max", "hubs.recommended", "tiers.max", "tiers.recommended", "hops.max", "hops.recommended"];
+        string[] busPaths = ["hubs.max", "hubs.recommended", "tiers.max", "tiers.recommended"];
         if (perBus.BusUnknown && busPaths.Any(path => GuideLimits.Of(profile, guide, $"usb2.{path}").Value != GuideLimits.Of(profile, guide, $"usb3.{path}").Value))
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
@@ -105,8 +108,9 @@ public static class DiagnosticEvaluator
 
         // Hubs per bus: the two halves of a USB 3 hub are one hub on each bus, not two hubs (#195). Without any known
         // bus, all hubs are counted together. A hub on a port whose bus is unknown is in neither bus; the total of all
-        // hubs is an upper bound for each bus, so a count is open only when that total is above its limit.
-        var totalHubs = TopologyCounts.HubCount(computerTree);
+        // hubs is an upper bound for each bus, so a count is open only when that total is above its limit. The hubs a
+        // cable mark adds count on its port's bus, like the hubs on that port.
+        var totalHubs = TopologyCounts.HubCount(computerTree, marks);
         var computerOpen = TopologyCounts.Unreadable(computerTree).Any();
         List<(UsbBus? Bus, LimitCheck Check)> HubChecks(string path)
         {
@@ -144,30 +148,26 @@ public static class DiagnosticEvaluator
         var tiersOpen = incomplete || (profile != null && levelsValue?.Scalar is not long);
         int TierOf(ConnectionDepth depth) => depth.Tier + levels;
         var cameraAudioIds = AllNodes(tree).Where(IsCameraOrAudio).Select(node => node.Id).ToHashSet();
-        // The deepest tier or hop on a bus (null: every bus), or of cameras and audio devices.
-        int Deepest(Func<ConnectionDepth, int> measure, UsbBus? bus, bool cameraAudio) => depths
+        // The deepest tier on a bus (null: every bus), or of cameras and audio devices.
+        int Deepest(UsbBus? bus, bool cameraAudio) => depths
             .Where(depth => (!cameraAudio || cameraAudioIds.Contains(depth.Key)) && (bus == null || nodeBuses.GetValueOrDefault(depth.Key) == bus))
-            .Select(depth => measure(depth.Value)).DefaultIfEmpty(0).Max();
-        LimitCheck Depth(string path, Func<ConnectionDepth, int> measure, bool open)
+            .Select(depth => TierOf(depth.Value)).DefaultIfEmpty(0).Max();
+        LimitCheck Depth(string path)
         {
             if (!perBus.AnyBusKnown)
             {
-                return Judge(GuideLimits.OnBus(profile, guide, null, path), path, Deepest(measure, null, false), open);
+                return Judge(GuideLimits.OnBus(profile, guide, null, path), path, Deepest(null, false), tiersOpen);
             }
             return Summary([.. new[] { UsbBus.Usb2, UsbBus.Usb3 }.Select(bus =>
-                Judge(GuideLimits.OnBus(profile, guide, BusKey(bus), path), path, Deepest(measure, bus, false), open || perBus.BusUnknown))]);
+                Judge(GuideLimits.OnBus(profile, guide, BusKey(bus), path), path, Deepest(bus, false), tiersOpen || perBus.BusUnknown))]);
         }
-        var tiers = Depth("tiers.max", TierOf, tiersOpen);
-        var tiersRecommended = Depth("tiers.recommended", TierOf, tiersOpen);
-        var hops = Depth("hops.max", depth => depth.Hops, incomplete);
-        var hopsRecommended = Depth("hops.recommended", depth => depth.Hops, incomplete);
-        LimitCheck Camera(string path, Func<ConnectionDepth, int> measure, bool open) =>
-            Judge(GuideLimits.Of(profile, guide, path), path, Deepest(measure, null, true), open);
-        LimitCheck[] all = [hubs, Summary([.. hubsRecommended.Select(each => each.Check)]), tiers, tiersRecommended, hops, hopsRecommended,
-            Camera("camera_audio.tiers.max", TierOf, tiersOpen), Camera("camera_audio.tiers.recommended", TierOf, tiersOpen),
-            Camera("camera_audio.hops.max", depth => depth.Hops, incomplete), Camera("camera_audio.hops.recommended", depth => depth.Hops, incomplete)];
+        var tiers = Depth("tiers.max");
+        var tiersRecommended = Depth("tiers.recommended");
+        LimitCheck Camera(string path) => Judge(GuideLimits.Of(profile, guide, path), path, Deepest(null, true), tiersOpen);
+        LimitCheck[] all = [hubs, Summary([.. hubsRecommended.Select(each => each.Check)]), tiers, tiersRecommended,
+            Camera("camera_audio.tiers.max"), Camera("camera_audio.tiers.recommended")];
         // The maximums are always named in the log; a recommendation or camera limit only when known.
-        foreach (var limit in all.Where(limit => limit.Limit != null || limit == hubs || limit == tiers || limit == hops))
+        foreach (var limit in all.Where(limit => limit.Limit != null || limit == hubs || limit == tiers))
         {
             findings.Add(LimitFinding(limit, computer));
         }
@@ -226,7 +226,7 @@ public static class DiagnosticEvaluator
                 var bus = nodeBuses.GetValueOrDefault(node.Id);
                 if (depth != null)
                 {
-                    status = Max(status, JudgeDepth(node, BusKey(bus), TierOf(depth), depth.Hops, IsCameraOrAudio(node)));
+                    status = Max(status, JudgeDepth(node, BusKey(bus), TierOf(depth), IsCameraOrAudio(node)));
                 }
                 // Only hubs on a bus over a hub limit; a hub whose bus is unknown may be on any of them.
                 bool OnBusOver(List<(UsbBus? Bus, LimitCheck Check)> checks) => checks.Any(each =>
@@ -255,36 +255,31 @@ public static class DiagnosticEvaluator
 
         // Above any maximum is unstable; else above any recommendation is potentially unstable. Each exceeded limit is a
         // finding with its guide's exceeded_note.
-        ConnectionStatus JudgeDepth(UsbNode node, string? bus, int tier, int hop, bool cameraAudio)
+        ConnectionStatus JudgeDepth(UsbNode node, string? bus, int tier, bool cameraAudio)
         {
-            LimitCheck On(string path, int actual) => Judge(GuideLimits.OnBus(profile, guide, bus, path), path, actual, false);
-            LimitCheck OnCamera(string path, int actual) => Judge(GuideLimits.Of(profile, guide, path), path, actual, false);
-            var checks = new List<(LimitCheck Max, LimitCheck Recommended, string Kind, int Actual, bool Camera)>
-            {
-                (On("tiers.max", tier), On("tiers.recommended", tier), "Tier", tier, false),
-                (On("hops.max", hop), On("hops.recommended", hop), "Hop", hop, false),
-            };
+            LimitCheck On(string path) => Judge(GuideLimits.OnBus(profile, guide, bus, path), path, tier, false);
+            LimitCheck OnCamera(string path) => Judge(GuideLimits.Of(profile, guide, path), path, tier, false);
+            var checks = new List<(LimitCheck Max, LimitCheck Recommended, bool Camera)> { (On("tiers.max"), On("tiers.recommended"), false) };
             if (cameraAudio)
             {
-                checks.Add((OnCamera("camera_audio.tiers.max", tier), OnCamera("camera_audio.tiers.recommended", tier), "Tier", tier, true));
-                checks.Add((OnCamera("camera_audio.hops.max", hop), OnCamera("camera_audio.hops.recommended", hop), "Hop", hop, true));
+                checks.Add((OnCamera("camera_audio.tiers.max"), OnCamera("camera_audio.tiers.recommended"), true));
             }
             static string For(bool camera) => camera ? " for cameras and audio devices" : "";
-            var overMax = checks.Where(check => check.Actual > check.Max.Limit).ToList();
-            foreach (var (max, _, kind, actual, camera) in overMax)
+            var overMax = checks.Where(check => tier > check.Max.Limit).ToList();
+            foreach (var (max, _, camera) in overMax)
             {
                 findings.Add(Risk(node.Id, node.Name, unverified =>
-                    $"{kind} depth {actual} exceeds {max.Field} {max.Limit}{unverified(max)}{For(camera)}.{Note(max)}"));
+                    $"Tier depth {tier} exceeds {max.Field} {max.Limit}{unverified(max)}{For(camera)}.{Note(max)}"));
             }
             if (overMax.Count > 0)
             {
                 return ConnectionStatus.Purple;
             }
-            var overRecommended = checks.Where(check => check.Actual > check.Recommended.Limit).ToList();
-            foreach (var (max, recommended, kind, actual, camera) in overRecommended)
+            var overRecommended = checks.Where(check => tier > check.Recommended.Limit).ToList();
+            foreach (var (max, recommended, camera) in overRecommended)
             {
                 findings.Add(Risk(node.Id, node.Name, unverified =>
-                    $"{kind} depth {actual} exceeds the recommended {recommended.Field} {recommended.Limit}{unverified(recommended)}{For(camera)}; "
+                    $"Tier depth {tier} exceeds the recommended {recommended.Field} {recommended.Limit}{unverified(recommended)}{For(camera)}; "
                     + $"{max.Field} is {(max.Limit == null ? "unknown" : $"{max.Limit}{unverified(max)}")}.{Note(recommended)}"));
             }
             return overRecommended.Count > 0 ? ConnectionStatus.Orange : ConnectionStatus.Green;
@@ -332,13 +327,13 @@ public static class DiagnosticEvaluator
         }
 
         var overall = connections.Values
-            .Concat(new[] { hubs, tiers, hops }.Select(Contribution))
+            .Concat(new[] { hubs, tiers }.Select(Contribution))
             .Append(devicesOver ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(anyLimitKnown ? ConnectionStatus.Green : ConnectionStatus.Grey)
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths, RecommendedHops = hopsRecommended };
+        return new DiagnosticReport(overall, connections, hubs, tiers, displays, disconnected, findings) { Depths = depths };
     }
 
     private static LimitCheck Check(string field, GuideLimit limit, int actual, bool incomplete)

@@ -1,6 +1,6 @@
 # Hardware database, counting and diagnostic rules
 
-How the YAML database is built, how hubs, tiers and hops are counted, and how each connection gets its status.
+How the YAML database is built, how hubs and tiers are counted, and how each connection gets its status.
 
 ## Hardware database
 
@@ -50,7 +50,7 @@ chips:
 | `macos` | `intel` 0, `apple-silicon` (M-series) 1, `a-series` 2 |
 | `ubuntu`, `debian` | `intel` 0, `amd` 0, `arm` 0 (Ubuntu and Debian are separate systems, owner decision 2026-11-17) |
 | `apple-mobile` (iPhone and iPad) | `a-series` 2, `m-series` null (not measured yet) |
-| `android` | `phone-qualcomm` 0, `tablet-exynos` 1 (from the usb-script config's 4 hops) |
+| `android` | `phone-qualcomm` 0, `tablet-exynos` 1 (from the usb-script config) |
 
 ### Guide files
 
@@ -69,16 +69,12 @@ limits:                 # global: every system
   tiers:                # USB tiers as the specification counts them (host = tier 1), built-in hub levels included
     recommended: 4
     max: 7
-  hops:                 # external hubs in front of a device
-    recommended: 2
-    max: 4
   buses:                # hubs per bus; empty = the hubs above
     usb2: { hubs: { recommended: , max: } }
     usb3: { hubs: { recommended: , max: } }
     usb4: { hubs: { recommended: , max: } }
-  camera_audio:         # stricter tiers and hops for cameras and audio devices
+  camera_audio:         # stricter tiers for cameras and audio devices
     tiers: { recommended: 3, max: 4 }
-    hops: { recommended: 1, max: 2 }
   exceeded_note: "Too many hubs/tiers – video or audio may drop frames."   # at most 160 characters
 
 platforms:
@@ -102,11 +98,11 @@ How to read a value:
   above it: the chip's, then the platform's, then the global one, then USB-Helper's (`guides/usb-helper.yaml`) the same
   way. This is different from platform and computer files, where `null` means unknown.
 - `none` means: deliberately no limit, and nothing above it is used either.
-- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers and hops are the same on every bus.
+- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers are the same on every bus.
 - USB-Helper's guide is the default (ticked at start) and the fallback, so its global limits (`buses` included) and
   every `mst` are filled in. The per-bus hubs are filled in only there, until a manufacturer gives numbers.
 - `selectable: false` lists a guide that is not offered yet.
-- Each limit is checked on its own; nothing is worked out between hubs, tiers and hops. Above any `max` is unstable
+- Each limit is checked on its own; nothing is worked out between hubs and tiers. Above any `max` is unstable
   (purple), above any `recommended` potentially unstable (orange).
 - Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
   the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked but not judged yet: USB4
@@ -114,12 +110,12 @@ How to read a value:
 - A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
   the computer's own port is on tier 4.
 - Findings and the log name the guide, the key and the file, for example
-  `limits.max_hops = 7 (USB-Helper: platforms.windows.chips.intel.limits.hops.max 7 in guides/usb-helper.yaml)`, so a
+  `limits.max_tiers = 7 (USB-Helper: limits.tiers.max 7 in guides/usb-helper.yaml)`, so a
   value that fell back reads as USB-Helper's.
 
 | Guide | Values |
 |---|---|
-| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hops 4 / 6, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5 and hops 2 / 4, with hops per chip; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources: the owner keeps them in a separate document. |
+| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources: the owner keeps them in a separate document. |
 | `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty; `mst` 0 on macOS. Ochno links its guide page. |
 
 ### Computer files
@@ -238,13 +234,12 @@ chip, for example `macos-a-series`.
 
 ## Topology counting
 
-The three kinds of limits in a guide are checked independently:
+The two kinds of limits in a guide are checked independently (owner decision
+2026-11-17, #297: hubs and tiers are enough):
 
 - **Tier depth** (`tiers`): as the USB specification counts it: the host with
   its root hub is tier 1, each hub adds one, the device's own tier counts, and
   so do the chip's `built_in_hub_levels`.
-- **Hop depth** (`hops`): the number of hubs between the computer's own
-  port and the device.
 - **Hub count** (`hubs`): all external hubs connected to the computer, root
   hubs and built-in hubs excluded, counted per bus (see below).
 
@@ -270,23 +265,25 @@ Counting starts at the computer's own port, the one the user plugs into. Many
 laptops have a hub built in between the root hub and that port (for the webcam,
 Bluetooth or a card reader). On Windows the app asks for each port whether it is
 user-connectable; a hub reached only through ports that are not is built into
-the computer and does not count. A device in the laptop's own port has 0 hops.
+the computer and does not count.
 If Windows does not say for a port (older versions, some drivers), a hub on it
 is counted as before, as an external hub, and the log says so.
 
-Hops in the guides are counted the same way, from the computer's own port.
 Tiers add the built-in hub levels of the chip, or of the computer file when it
 sets its own.
 
 Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: laptop port, dock hub, monitor hub,
-keyboard. The keyboard is at tier 4 with 2 hops (on a chip without built-in hub
-levels), and there are 2 hubs.
+keyboard. The keyboard is at tier 4 (on a chip without built-in hub levels),
+and there are 2 hubs.
 
 Active cables and extenders that Windows shows as a hub count automatically.
 Ones it does not show are marked by the user on the port they are plugged into:
-a mark of +N hops adds N hops and N tiers to everything behind that port, in
-every checked profile. It does not change the hub count.
+a mark of N (+1 to +5) adds N tiers to everything behind that port and
+min(N, 2) hubs to the hub count of that port's bus, in every checked profile
+(#297): a cable or extender can add up to 3 tiers but at most 2 hubs. On a port
+whose bus is not reported, the added hubs count toward the total only, like
+any other hub on that port. A mark on a port with nothing on it adds nothing.
 
 ## Diagnostic rules
 
@@ -298,7 +295,7 @@ status per checked profile; when several apply, the first in this list wins:
 2. Purple (unstable): the operating system reports an error on the port or the
    device; or the hub or device disconnected and came back since the app
    started, however long or short the drop, until it leaves again or is
-   cleared; or its tier or hop depth is above a `max` of the selected guide
+   cleared; or its tier depth is above a `max` of the selected guide
    (`camera_audio` too for a camera or audio device); or it is a hub on a bus
    whose hub count is above `hubs.max` (a hub whose bus is not reported counts
    as on every bus over the limit).
@@ -318,8 +315,8 @@ its display check (purple above `displays.max_external`, orange for a
 DisplayLink adapter on a computer without DisplayLink support or a further
 DisplayPort display on a computer without MST). The findings
 list then shows only the findings of the strictest checked profile: the one
-with the lowest `hops.max`; on a tie the lowest `hops.recommended`, then
-`tiers.max`, `tiers.recommended` and `hubs.max`. An unknown limit counts as higher than any known
+with the lowest `tiers.max`; on a tie the lowest `tiers.recommended`, then
+`hubs.max`. An unknown limit counts as higher than any known
 one; when still tied, the first in the menus wins. Detected facts (operating
 system errors, disconnected and reconnected devices) are always listed. Every
 finding names its device, port or computer and the reason, and is marked as a

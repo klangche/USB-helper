@@ -1,10 +1,10 @@
 Room: Room 4.12
 
-Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 4, deepest hop: 2)
-|-- Intel USB 3.2 controller (Hubs: 1, deepest tier: 4, deepest hop: 2)
+Dell Inc. Latitude 7450 (Hubs: 2, deepest tier: 4)
+|-- Intel USB 3.2 controller (Hubs: 2, deepest tier: 4)
 |   `-- ROOT (has a display)
 |       |-- Port 1 [USB-C]
-|       |   `-- [+1 hops] DOCK - unknown (has a display)
+|       |   `-- [+1 tier, +1 hub] DOCK - unknown (has a display)
 |       |       |-- Port 1
 |       |       |   `-- KEYBOARD (046D:C31C) - unknown
 |       |       `-- Port 2

@@ -2,7 +2,7 @@
 # Unisynk  –  Manufacturer guide
 # =============================================================================
 # Hybrid profile: starts from USB-Helper defaults but applies Ochno-style
-# conservatism on tiers and hops (because many Unisynk installations use
+# conservatism on tiers (because many Unisynk installations use
 # similar switcher / extension topologies).
 #
 # How to edit
@@ -25,9 +25,6 @@ limits:
   tiers:
     recommended: 4
     max: 6
-  hops:
-    recommended: 2
-    max: 4
   buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
@@ -45,9 +42,6 @@ limits:
     tiers:
       recommended: 3
       max: 4
-    hops:
-      recommended: 1
-      max: 2
   exceeded_note: "Topology is getting deep – Unisynk recommends keeping chains short."
 
 
@@ -63,18 +57,12 @@ platforms:
     chips:
       intel:
         mst: 1
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       amd:
         mst: 1
         limits:
           tiers:
-            recommended: 3
-            max: 5
-          hops:
             recommended: 3
             max: 5
 
@@ -84,9 +72,6 @@ platforms:
           tiers:
             recommended: 3
             max: 4
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -99,10 +84,7 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       apple-silicon:
         mst: 0
@@ -110,9 +92,6 @@ platforms:
           tiers:
             recommended: 3
             max: 5
-          hops:
-            recommended: 2
-            max: 4
 
       a-series:
         mst: 0
@@ -132,17 +111,11 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
       amd:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
       arm:
         mst: 0
@@ -150,9 +123,6 @@ platforms:
           tiers:
             recommended: 3
             max: 4
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -165,17 +135,11 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
       amd:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
       arm:
         mst: 0
@@ -183,9 +147,6 @@ platforms:
           tiers:
             recommended: 3
             max: 4
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -200,9 +161,6 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 1
-        max: 2
 
     chips:
       a-series:
@@ -226,27 +184,18 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 1
-        max: 2
 
     chips:
       phone-qualcomm:
         mst: 0
-        limits:
-          hops:
-            recommended: 2
-            max: 3
+        limits: {}
 
       tablet-exynos:
         mst: 0
-        limits:
-          hops:
-            recommended: 1
-            max: 2
+        limits: {}
 
 
 # -----------------------------------------------------------------------------
 sources:
-  - "USB-Helper base limits + Ochno-style conservatism on tiers/hops"
+  - "USB-Helper base limits + Ochno-style conservatism on tiers"
   - "Unisynk practical experience with switcher and extension topologies"

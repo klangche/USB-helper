@@ -14,7 +14,6 @@
 # Keys
 #   hubs            external hubs counted per bus
 #   tiers           USB-IF tier count (host = tier 1)
-#   hops            external hubs in front of a device
 #   buses           hubs per bus (usb2, usb3, usb4); global or per chip
 #   camera_audio    stricter limits for isochronous devices (webcams, mics)
 # =============================================================================
@@ -33,9 +32,6 @@ limits:
   tiers:
     recommended: 5
     max: 7
-  hops:
-    recommended: 4
-    max: 6
   buses:                              # external hubs per bus; a chip may override
     usb2:
       hubs:
@@ -53,9 +49,6 @@ limits:
     tiers:
       recommended: 3
       max: 5
-    hops:
-      recommended: 2
-      max: 4
   exceeded_note: "USB topology is getting deep – expect reduced reliability."
 
 
@@ -71,24 +64,15 @@ platforms:
     chips:
       intel:
         mst: 1
-        limits:
-          hops:
-            recommended: 5
-            max: 7
+        limits: {}
 
       amd:
         mst: 1
-        limits:
-          hops:
-            recommended: 5
-            max: 7
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -101,24 +85,15 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 5
-            max: 7
+        limits: {}
 
       apple-silicon:                    # M1 / M2 / M3 / M4 / M-series
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
       a-series:                         # A-series Macs if they appear
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -131,24 +106,15 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       amd:
         mst: 0
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -161,24 +127,15 @@ platforms:
     chips:
       intel:
         mst: 0
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       amd:
         mst: 0
-        limits:
-          hops:
-            recommended: 4
-            max: 6
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          hops:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -193,9 +150,6 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 2
-        max: 4
 
     chips:
       a-series:
@@ -219,25 +173,16 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 0
-        max: 4
 
     chips:
       phone-qualcomm:
         mst: 0
-        limits:
-          hops:
-            recommended: 0
-            max: 5
+        limits: {}
 
       tablet-exynos:                    # one built-in hub level, so one tier more than a phone
         mst: 0
         limits:
           tiers:
             recommended: 3
-            max: 4
-          hops:
-            recommended: 0
             max: 4
 

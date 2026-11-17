@@ -9,21 +9,21 @@ namespace UsbHelper.Core.Tests.Diagnostics;
 
 public class DiagnosticEvaluatorTests
 {
-    // Root port 1: hub with a keyboard (tier 3, 1 hop); root port 2: mouse (tier 2, 0 hops). One external hub.
+    // Root port 1: hub with a keyboard (tier 3); root port 2: mouse (tier 2). One external hub.
     private static readonly IReadOnlyList<UsbNode> Desk = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD")), Device("MOUSE")))];
 
     /// <summary>A computer profile and the guide to judge it by (#285).</summary>
     private sealed record Judge(ResolvedProfile Profile, Guide? Guide);
 
-    private const string HopsSource = "USB-Helper: limits.hops.max 5 in guides/usb-helper.yaml";
+    private const string TiersSource = "USB-Helper: limits.tiers.max 7 in guides/usb-helper.yaml";
 
-    // USB-Helper's guide with the hub and hop limits given ("null" states none) and the status given, for every file.
-    private static Judge Profile(string hubs = "5", string hops = "5", string status = "verified", string extra = "", string recommendedHops = "null")
+    // USB-Helper's guide with the hub and tier limits given ("null" states none) and the status given, for every file.
+    private static Judge Profile(string hubs = "5", string tiers = "7", string status = "verified", string extra = "", string recommendedTiers = "null")
     {
         using var db = new TestDatabase { UsbHelperStatus = status };
         db.UsbHelper["hubs.max"] = None(hubs);
-        db.UsbHelper["hops.max"] = None(hops);
-        db.UsbHelper["hops.recommended"] = None(recommendedHops);
+        db.UsbHelper["tiers.max"] = None(tiers);
+        db.UsbHelper["tiers.recommended"] = None(recommendedTiers);
         db.Write("computers/c.yaml", $"""
             platform: test
             chip_family: platform
@@ -39,19 +39,19 @@ public class DiagnosticEvaluatorTests
 
     private static string None(string value) => value == "null" ? Guide.None : value;
 
-    // Platform profiles of one database, one per chip, each with its own hops.max and hops.recommended in USB-Helper's
+    // Platform profiles of one database, one per chip, each with its own tiers.max and tiers.recommended in USB-Helper's
     // guide, and that guide.
-    private static (IReadOnlyList<ResolvedProfile> Profiles, Guide Guide) Chips(params (string Max, string Recommended)[] hops)
+    private static (IReadOnlyList<ResolvedProfile> Profiles, Guide Guide) Chips(params (string Max, string Recommended)[] tiers)
     {
         using var db = new TestDatabase().Write("platforms/chips.yaml", "name: Chips\nchips:\n"
-            + string.Concat(hops.Select((_, i) => $"  c{i}: {{ name: C{i}, built_in_hub_levels: 0 }}\n")));
-        for (var i = 0; i < hops.Length; i++)
+            + string.Concat(tiers.Select((_, i) => $"  c{i}: {{ name: C{i}, built_in_hub_levels: 0 }}\n")));
+        for (var i = 0; i < tiers.Length; i++)
         {
-            db.UsbHelper[$"platforms.chips.chips.c{i}.limits.hops.max"] = hops[i].Max;
-            db.UsbHelper[$"platforms.chips.chips.c{i}.limits.hops.recommended"] = hops[i].Recommended;
+            db.UsbHelper[$"platforms.chips.chips.c{i}.limits.tiers.max"] = tiers[i].Max;
+            db.UsbHelper[$"platforms.chips.chips.c{i}.limits.tiers.recommended"] = tiers[i].Recommended;
         }
         var loaded = db.Load();
-        return ([.. hops.Select((_, i) => loaded.Platforms[$"chips-c{i}"])], loaded.DefaultGuide);
+        return ([.. tiers.Select((_, i) => loaded.Platforms[$"chips-c{i}"])], loaded.DefaultGuide);
     }
 
     // No external displays: these tests are about topology. Display rules are in DisplayEvaluatorTests.
@@ -67,8 +67,7 @@ public class DiagnosticEvaluatorTests
         Assert.All(report.Connections.Values, status => Assert.Equal(ConnectionStatus.Green, status));
         Assert.Equal(["HUB", "KEYBOARD", "MOUSE"], report.Connections.Keys.Order());
         Assert.Equal(new LimitCheck("limits.max_hubs", 1, 5, true, "USB-Helper: limits.buses.usb2.hubs.max 5 in guides/usb-helper.yaml", LimitState.Within), report.Hubs);
-        Assert.Equal(3, report.Tiers.Actual);
-        Assert.Equal(new LimitCheck("limits.max_hops", 1, 5, true, HopsSource, LimitState.Within), report.Hops);
+        Assert.Equal(new LimitCheck("limits.max_tiers", 3, 7, true, TiersSource, LimitState.Within), report.Tiers);
         Assert.Equal(2, report.Findings.Count(finding => finding.Kind == FactKind.VerifiedDatabaseFact));
     }
 
@@ -86,24 +85,22 @@ public class DiagnosticEvaluatorTests
     {
         var report = Evaluate(Desk, Profile(status: status));
 
-        Assert.Equal(verified, report.Hops.Verified);
-        Assert.Equal(verified, report.Findings.Any(finding => finding.Kind == FactKind.VerifiedDatabaseFact && finding.Message == $"limits.max_hops = 5 ({HopsSource})."));
+        Assert.Equal(verified, report.Tiers.Verified);
+        Assert.Equal(verified, report.Findings.Any(finding => finding.Kind == FactKind.VerifiedDatabaseFact && finding.Message == $"limits.max_tiers = 7 ({TiersSource})."));
     }
 
     // #285: tiers as the USB specification counts them, the chip's built-in hub levels included (here an A-series chip,
-    // two levels). Hops stay external hubs in front of the device.
+    // two levels).
     [Fact]
     public void TiersCountTheBuiltInHubLevels()
     {
         using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform.Replace("built_in_hub_levels: 0", "built_in_hub_levels: 2"));
         db.UsbHelper["tiers.max"] = "4";
-        db.UsbHelper["hops.max"] = "3";
         var loaded = db.Load();
 
         var report = DiagnosticEvaluator.Evaluate(Desk, loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.DefaultGuide);
 
         Assert.Equal(5, report.Tiers.Actual); // The keyboard: tier 3 counted from the port, plus two built-in levels.
-        Assert.Equal(1, report.Hops.Actual);
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["HUB"]); // Tier 4.
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]); // Tier 4.
@@ -157,76 +154,75 @@ public class DiagnosticEvaluatorTests
         var report = Evaluate(Desk, Profile(status: "unverified"));
 
         Assert.Equal(ConnectionStatus.Green, report.Overall);
-        Assert.False(report.Hops.Verified);
-        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("limits.max_hops = 5 comes from an unverified profile"));
+        Assert.False(report.Tiers.Verified);
+        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("limits.max_tiers = 7 comes from an unverified profile"));
         Assert.DoesNotContain(report.Findings, finding => finding.Kind == FactKind.VerifiedDatabaseFact);
     }
 
     [Fact]
-    public void HopsAboveLimitIsUnstableOnlyWhereExceeded()
+    public void TiersAboveLimitIsUnstableOnlyWhereExceeded()
     {
-        var report = Evaluate(Desk, Profile(hops: "0"));
+        var report = Evaluate(Desk, Profile(tiers: "2"));
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        Assert.Equal(ConnectionStatus.Green, report.Connections["HUB"]); // 0 hubs in front of it: within the limit.
-        Assert.Equal(LimitState.Exceeded, report.Hops.State);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["HUB"]); // Tier 2: within the limit.
+        Assert.Equal(LimitState.Exceeded, report.Tiers.State);
         Assert.Equal(ConnectionStatus.Purple, report.Overall);
     }
 
     [Fact]
-    public void HopsAboveLimitIsUnstable()
+    public void TiersAboveLimitIsUnstable()
     {
-        var report = Evaluate(Desk, Profile(hops: "0"));
+        var report = Evaluate(Desk, Profile(tiers: "2"));
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        Assert.Contains(report.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message == "Hop depth 1 exceeds limits.max_hops 0.");
+        Assert.Contains(report.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message == "Tier depth 3 exceeds limits.max_tiers 2.");
     }
 
     [Fact]
-    public void HopsAboveRecommendedIsPotentiallyUnstable()
+    public void TiersAboveRecommendedIsPotentiallyUnstable()
     {
-        var report = Evaluate(Desk, Profile(recommendedHops: "0"));
+        var report = Evaluate(Desk, Profile(recommendedTiers: "2"));
 
         Assert.Equal(ConnectionStatus.Orange, report.Overall);
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        const string Source = "USB-Helper: limits.hops.recommended 0 in guides/usb-helper.yaml";
-        Assert.Equal(new LimitCheck("limits.recommended_hops", 1, 0, true, Source, LimitState.Exceeded), report.RecommendedHops);
+        const string Source = "USB-Helper: limits.tiers.recommended 2 in guides/usb-helper.yaml";
         Assert.Contains(new Finding(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD",
-            "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5."), report.Findings);
+            "Tier depth 3 exceeds the recommended limits.recommended_tiers 2; limits.max_tiers is 7."), report.Findings);
         Assert.Contains(new Finding(FactKind.VerifiedDatabaseFact, DiagnosticEvaluator.ComputerId, "Test laptop",
-            $"limits.recommended_hops = 0 ({Source})."), report.Findings);
+            $"limits.recommended_tiers = 2 ({Source})."), report.Findings);
     }
 
     [Fact]
-    public void HopsAboveMaximumReportsOnlyTheMaximum()
+    public void TiersAboveMaximumReportsOnlyTheMaximum()
     {
-        var report = Evaluate(Desk, Profile(hops: "0", recommendedHops: "0"));
+        var report = Evaluate(Desk, Profile(tiers: "2", recommendedTiers: "2"));
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Single(report.Findings, finding => finding.SubjectId == "KEYBOARD");
     }
 
     [Fact]
-    public void UnknownRecommendedHopsIsNeitherGreyNorNamed()
+    public void UnknownRecommendedTiersIsNeitherGreyNorNamed()
     {
         var report = Evaluate(Desk, Profile());
 
         Assert.Equal(ConnectionStatus.Green, report.Overall);
-        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("recommended_hops"));
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("recommended_tiers"));
     }
 
     [Fact]
-    public void ExceededUnverifiedRecommendedHopsSaysUnverified()
+    public void ExceededUnverifiedRecommendedTiersSaysUnverified()
     {
-        var report = Evaluate(Desk, Profile(status: "unverified", recommendedHops: "0"));
+        var report = Evaluate(Desk, Profile(status: "unverified", recommendedTiers: "2"));
 
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Contains(report.Findings, finding => finding.Message
-            == "Hop depth 1 exceeds the recommended limits.recommended_hops 0 (unverified limit); limits.max_hops is 5 (unverified limit)."
-            && finding.Brief == "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5.");
+            == "Tier depth 3 exceeds the recommended limits.recommended_tiers 2 (unverified limit); limits.max_tiers is 7 (unverified limit)."
+            && finding.Brief == "Tier depth 3 exceeds the recommended limits.recommended_tiers 2; limits.max_tiers is 7.");
     }
 
     [Fact]
@@ -271,7 +267,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal((2, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
         Assert.Equal(ConnectionStatus.Purple, report.Connections["HUB"]);
         Assert.False(report.Connections.ContainsKey("DOCK")); // Only this controller's lines.
-        Assert.Equal(3, report.Tiers.Actual); // Tiers and hops are this controller's.
+        Assert.Equal(3, report.Tiers.Actual); // Tiers are this controller's.
     }
 
     [Fact]
@@ -283,7 +279,7 @@ public class DiagnosticEvaluatorTests
         var report = DiagnosticEvaluator.Evaluate(Desk, judge.Profile, [], externalDisplays: 0, wholeTree: computer, guide: judge.Guide);
 
         Assert.Equal((2, LimitState.Unknown), (report.Hubs.Actual, report.Hubs.State));
-        Assert.Equal(LimitState.Within, report.Hops.State);
+        Assert.Equal(LimitState.Within, report.Tiers.State);
     }
 
     [Fact]
@@ -292,11 +288,11 @@ public class DiagnosticEvaluatorTests
         // Root port 1 holds the laptop's built-in hub; its port 1 is a laptop socket with a mouse.
         IReadOnlyList<UsbNode> laptop = [Controller("C1", Hub("ROOT", Hub("INTERNAL", Device("MOUSE")).Connectable(true)).Connectable(false))];
 
-        var report = Evaluate(laptop, Profile(hubs: "0", hops: "0"));
+        var report = Evaluate(laptop, Profile(hubs: "0", tiers: "2"));
 
         Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.Equal(ConnectionStatus.Green, report.Connections["INTERNAL"]);
-        Assert.Equal((0, 2, 0), (report.Hubs.Actual, report.Tiers.Actual, report.Hops.Actual));
+        Assert.Equal((0, 2), (report.Hubs.Actual, report.Tiers.Actual));
         Assert.DoesNotContain(report.Findings, finding => finding.SubjectId == "INTERNAL");
     }
 
@@ -314,12 +310,12 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void ExceededUnverifiedLimitIsUnstableAndSaysUnverified()
     {
-        var report = Evaluate(Desk, Profile(hops: "0", status: "unverified"));
+        var report = Evaluate(Desk, Profile(tiers: "2", status: "unverified"));
 
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        Assert.Contains(report.Findings, finding => finding.Message == "Hop depth 1 exceeds limits.max_hops 0 (unverified limit)."
-            && finding.Brief == "Hop depth 1 exceeds limits.max_hops 0.");
+        Assert.Contains(report.Findings, finding => finding.Message == "Tier depth 3 exceeds limits.max_tiers 2 (unverified limit)."
+            && finding.Brief == "Tier depth 3 exceeds limits.max_tiers 2.");
     }
 
     [Fact]
@@ -351,7 +347,7 @@ public class DiagnosticEvaluatorTests
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD", "code 43"))))];
 
-        Assert.Equal(ConnectionStatus.Purple, Evaluate(tree, Profile(hops: "0")).Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Purple, Evaluate(tree, Profile(tiers: "2")).Connections["KEYBOARD"]);
     }
 
     [Fact]
@@ -488,7 +484,7 @@ public class DiagnosticEvaluatorTests
         var report = DiagnosticEvaluator.Evaluate(Desk, db.Load().Computers.Values.Single(), [], externalDisplays: 0);
 
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.Unknown && finding.Message.StartsWith("Platform-wide note."));
-        Assert.False(report.Hops.Verified);
+        Assert.False(report.Tiers.Verified);
     }
 
     [Fact]
@@ -512,7 +508,7 @@ public class DiagnosticEvaluatorTests
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Device("MOUSE")))];
 
-        var report = DiagnosticEvaluator.EvaluateAll(tree, Chips(("5", "2"), ("9", "2")).Profiles, [], 0, ["MOUSE"]);
+        var report = DiagnosticEvaluator.EvaluateAll(tree, Chips(("7", "4"), ("6", "4")).Profiles, [], 0, ["MOUSE"]);
 
         Assert.All(report.Profiles, result => Assert.Equal(ConnectionStatus.Purple, result.Report.Connections["MOUSE"]));
         Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
@@ -545,16 +541,16 @@ public class DiagnosticEvaluatorTests
     public static TheoryData<string, string, string> PartlyKnownProfiles => new()
     {
         { "5", "null", "verified" },
-        { "null", "5", "partial" }, // Like a profile without a guide: only the USB maximum.
-        { "5", "5", "unverified" },
+        { "null", "7", "partial" }, // Like a profile without a guide: only the USB maximum.
+        { "5", "7", "unverified" },
     };
 
     // Owner decision in #39: stability is judged on the limits a profile knows.
     [Theory]
     [MemberData(nameof(PartlyKnownProfiles))]
-    public void KnownLimitsAloneJudgeStability(string hubs, string hops, string status)
+    public void KnownLimitsAloneJudgeStability(string hubs, string tiers, string status)
     {
-        var report = Evaluate(Desk, Profile(hubs, hops, status));
+        var report = Evaluate(Desk, Profile(hubs, tiers, status));
 
         Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.All(report.Connections.Values, line => Assert.Equal(ConnectionStatus.Green, line));
@@ -573,7 +569,7 @@ public class DiagnosticEvaluatorTests
     public void SeveralProfilesTakeTheWorstPerLine()
     {
         // Three chips: within, above the recommendation, above the maximum for the keyboard behind one hub.
-        var (profiles, guide) = Chips(("5", "1"), ("5", "0"), ("0", "0"));
+        var (profiles, guide) = Chips(("7", "3"), ("7", "2"), ("2", "2"));
 
         var report = DiagnosticEvaluator.EvaluateAll(Desk, profiles, [], externalDisplays: 0, guide: guide);
 
@@ -585,16 +581,16 @@ public class DiagnosticEvaluatorTests
     }
 
     [Fact]
-    public void MarkedHopsCountInEveryProfilesChecks()
+    public void MarksCountInEveryProfilesChecks()
     {
-        // +2 hops on the hub's port: the hub is tier 4 with 2 hops, the keyboard tier 5 with 3 hops.
+        // A mark of 2 on the hub's port: the hub is tier 4, the keyboard tier 5, and the mark adds 2 hubs (#297).
         var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
 
-        var (profiles, guide) = Chips(("2", "0"), ("5", "2"));
-        var report = DiagnosticEvaluator.EvaluateAll(Desk, profiles, [], externalDisplays: 0, extraHops: marks, guide: guide);
+        var (profiles, guide) = Chips(("4", "2"), ("7", "4"));
+        var report = DiagnosticEvaluator.EvaluateAll(Desk, profiles, [], externalDisplays: 0, marks: marks, guide: guide);
 
-        Assert.All(report.Profiles, result => Assert.Equal((5, 3), (result.Report.Tiers.Actual, result.Report.Hops.Actual)));
-        Assert.All(report.Profiles, result => Assert.Equal(1, result.Report.Hubs.Actual));
+        Assert.All(report.Profiles, result => Assert.Equal(5, result.Report.Tiers.Actual));
+        Assert.All(report.Profiles, result => Assert.Equal(3, result.Report.Hubs.Actual));
         Assert.Equal([ConnectionStatus.Purple, ConnectionStatus.Orange],
             report.Profiles.Select(result => result.Report.Connections["KEYBOARD"]));
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
@@ -604,7 +600,7 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void OnlyARecommendationKnownIsJudged()
     {
-        var report = Evaluate(Desk, Profile("null", "null", recommendedHops: "0"));
+        var report = Evaluate(Desk, Profile("null", "null", recommendedTiers: "2"));
 
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
@@ -625,7 +621,7 @@ public class DiagnosticEvaluatorTests
         history.Record(Desk);
         IReadOnlyList<UsbNode> now = [Controller("C1", Hub("ROOT", Hub("HUB", Device("KEYBOARD", "code 43")), null))];
 
-        var report = DiagnosticEvaluator.EvaluateAll(now, Chips(("5", "2"), ("0", "0")).Profiles, [.. history.Missing(now)], externalDisplays: 0);
+        var report = DiagnosticEvaluator.EvaluateAll(now, Chips(("7", "4"), ("2", "2")).Profiles, [.. history.Missing(now)], externalDisplays: 0);
 
         Assert.Equal(ConnectionStatus.Red, report.Connections["MOUSE"]);
         Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
@@ -689,7 +685,7 @@ public class DiagnosticEvaluatorTests
     }
 
     // #285: hubs on a port whose bus is not reported get the lower of the USB 2 and USB 3 values, and the log says so
-    // when they differ. Only hubs have values per bus; tiers and hops are the same on every bus.
+    // when they differ. Only hubs have values per bus; tiers are the same on every bus.
     [Fact]
     public void UnknownBusIsJudgedByTheLowerBusValue()
     {
@@ -728,6 +724,36 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void ReportCarriesEveryDepth()
     {
-        Assert.Equal(new ConnectionDepth(3, 1), Evaluate(Desk, Profile()).Depths["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(3), Evaluate(Desk, Profile()).Depths["KEYBOARD"]);
+    }
+
+    // #297: a cable mark adds min(N, 2) hubs to the hub count of its port's bus.
+    [Fact]
+    public void MarkedHubsCountTowardTheHubLimit()
+    {
+        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 3 };
+        var judge = Profile(hubs: "2");
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, judge.Profile, [], externalDisplays: 0, marks: marks, guide: judge.Guide);
+
+        Assert.Equal((3, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["HUB"]);
+        Assert.Equal(6, report.Tiers.Actual); // The keyboard: tier 3, plus 3 from the mark.
+        Assert.Contains(report.Findings, finding => finding.Message == "3 external hubs are connected; limits.max_hubs is 2.");
+    }
+
+    [Fact]
+    public void MarkedHubsCountOnlyOnTheirOwnBus()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
+        var marks = new Dictionary<string, int> { ["ROOT|port2"] = 1 };
+        var judge = Profile(hubs: "1");
+
+        var report = DiagnosticEvaluator.Evaluate(tree, judge.Profile, [], externalDisplays: 0, marks: marks, guide: judge.Guide);
+
+        Assert.Equal(LimitState.Exceeded, report.Hubs.State);
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["HUB-USB3"]);
+        Assert.NotEqual(ConnectionStatus.Purple, report.Connections["HUB-USB2"]);
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("2 hubs are on the USB 3 bus; limits.max_hubs is 1", StringComparison.Ordinal));
     }
 }

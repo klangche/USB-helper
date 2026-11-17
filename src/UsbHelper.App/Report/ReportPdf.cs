@@ -200,7 +200,6 @@ public static class ReportPdf
             (Strings.LimitHubs, Number(counts.Hubs), counts.Usb2Hubs is { } usb2 && counts.Usb3Hubs is { } usb3
                 ? string.Format(CultureInfo.InvariantCulture, Strings.ReportPerBus, usb2, usb3) : null),
             (Strings.LimitTiers, Number(counts.DeepestTier), null),
-            (Strings.LimitHops, Number(counts.DeepestHop), null),
             (Strings.LimitDisplays, counts.ExternalDisplays?.ToString(CultureInfo.InvariantCulture) ?? Strings.WordUnknown, null),
         };
         layout.Space(4);
