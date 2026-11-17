@@ -149,7 +149,7 @@ public class GuideRulesTests
             && finding.Message == "Tier depth 5 exceeds limits.camera_audio_max_tiers 4 for cameras and audio devices.");
     }
 
-    // An exceeded limit shows the most specific exceeded_note of the guide that set it: the chip's over all.yaml's.
+    // An exceeded limit shows the most specific exceeded_note of the guide that set it: the chip's over the platform's or global note.
     [Fact]
     public void ExceededLimitShowsTheChipsNote()
     {

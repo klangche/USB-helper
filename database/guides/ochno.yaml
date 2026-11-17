@@ -28,7 +28,7 @@ limits:
   hops:
     recommended: 2
     max: 3
-  buses:                              # empty: USB-Helper's values per bus
+  buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
         recommended:
