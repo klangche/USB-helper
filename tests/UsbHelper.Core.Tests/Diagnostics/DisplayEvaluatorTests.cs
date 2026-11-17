@@ -40,16 +40,16 @@ public class DisplayEvaluatorTests
 
     private static readonly DisplayMonitor Left = new("L", "LS27A600U", MonitorOutput.DisplayPort);
     private static readonly DisplayMonitor Right = new("R", "LS27A600U", MonitorOutput.UsbTunnel);
-    private const string NoMst = "No MST on Test laptop: this display is duplicated; use a second USB-C port or DisplayLink.";
+    private const string NoMst = "No MST on Test laptop: this display is duplicated. Use a second USB-C port or DisplayLink to extend it.";
 
     private static DiagnosticReport Evaluate(ResolvedProfile profile, params DisplayMonitor[] monitors) =>
         DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors, guide: Guides.GetValueOrDefault(profile));
 
     // Owner decision 2026-11-17 (#285): MST comes from the guide (1 or 0) unless the computer file states it.
     [Theory]
-    [InlineData("0", ConnectionStatus.Orange)]
-    [InlineData("1", ConnectionStatus.Green)]
-    public void MstComesFromTheGuide(string mst, ConnectionStatus second)
+    [InlineData("0", true)]
+    [InlineData("1", false)]
+    public void MstComesFromTheGuide(string mst, bool noMst)
     {
         using var db = new TestDatabase();
         db.UsbHelper["platforms.test.chips.platform.limits.mst"] = mst;
@@ -59,18 +59,20 @@ public class DisplayEvaluatorTests
         var report = DiagnosticEvaluator.Evaluate(Desk, loaded.Computers.Values.Single(), [], 2, monitors: [Left, Right], guide: loaded.DefaultGuide);
 
         Assert.Equal(ConnectionStatus.Green, report.Connections.GetValueOrDefault("L", ConnectionStatus.Green));
-        Assert.Equal(second, report.Connections.GetValueOrDefault("R", ConnectionStatus.Green));
+        Assert.Equal(ConnectionStatus.Green, report.Connections.GetValueOrDefault("R", ConnectionStatus.Green)); // #296: never unstable.
+        Assert.Equal(noMst, report.NoMst);
     }
 
     // Owner decision in #144: without MST, the first DisplayPort display is judged as usual, every further one is orange.
     [Fact]
-    public void WithoutMstASecondDisplayPortDisplayIsPotentiallyUnstable()
+    public void WithoutMstASecondDisplayPortDisplayIsAWarningNotAStatus()
     {
         var report = Evaluate(Profile(maxExternal: "3", displays: "  mst: false"), Left, Right);
 
         Assert.Equal(ConnectionStatus.Green, report.Connections["L"]);
-        Assert.Equal(ConnectionStatus.Orange, report.Connections["R"]);
-        Assert.Equal(ConnectionStatus.Orange, report.Overall);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["R"]);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.True(report.NoMst);
         var finding = Assert.Single(report.Findings, finding => finding.Message == NoMst);
         Assert.Equal(FactKind.PredictedRisk, finding.Kind);
         Assert.Equal("R", finding.SubjectId);
@@ -105,7 +107,7 @@ public class DisplayEvaluatorTests
         var report = Evaluate(Profile(maxExternal: "1", displays: "  mst: false"), Left, Right);
 
         Assert.Equal(ConnectionStatus.Purple, report.Overall);
-        Assert.Equal(ConnectionStatus.Orange, report.Connections["R"]);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["R"]);
         Assert.Contains(report.Findings, finding => finding.Message == NoMst);
     }
 

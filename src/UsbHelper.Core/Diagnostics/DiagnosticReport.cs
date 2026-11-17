@@ -22,4 +22,10 @@ public sealed record DiagnosticReport(
 {
     /// <summary>Tier of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
     public IReadOnlyDictionary<string, Topology.ConnectionDepth> Depths { get; init; } = new Dictionary<string, Topology.ConnectionDepth>();
+
+    /// <summary>
+    /// More than one DisplayPort display is active and the profile does not support MST (#296): a warning, not a status;
+    /// the displays stay green.
+    /// </summary>
+    public bool NoMst { get; init; }
 }
