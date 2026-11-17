@@ -321,7 +321,31 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
+          <!-- Counts table (#265), for what the status field covers: one line per bus with its own hubs, deepest tier and
+               deepest hop; one combined line when no bus is reported. Not shown when nothing is connected. -->
+          <StackPanel IsVisible="{Binding HasBusCounts}" Spacing="2" Margin="0,8,0,0">
+            <TextBlock Text="{x:Static res:Strings.CountsTable}" FontWeight="Bold" />
+            <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="3*,2*,3*,3*" Opacity="0.7">
+              <TextBlock Grid.Column="1" Text="{x:Static res:Strings.CountsColumnHubs}" TextWrapping="Wrap" />
+              <TextBlock Grid.Column="2" Text="{x:Static res:Strings.LimitTiers}" TextWrapping="Wrap" />
+              <TextBlock Grid.Column="3" Text="{x:Static res:Strings.CountsColumnHop}" TextWrapping="Wrap" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding BusCountsRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BusCountsRow">
+                  <Grid ColumnDefinitions="3*,2*,3*,3*">
+                    <TextBlock Grid.Column="0" Text="{Binding Bus}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" Text="{Binding Hubs}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="2" Text="{Binding DeepestTier}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="3" Text="{Binding DeepestHop}" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
+
           <ItemsControl ItemsSource="{Binding Disconnected}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:DisconnectedItem">

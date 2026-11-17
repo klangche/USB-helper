@@ -36,6 +36,13 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 /// <param name="Details">Its exceeded hub, tier, hop and display checks; none when nothing is exceeded.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
 
+/// <summary>One line of the side panel's counts table (#265): a bus, or all buses together when none is reported.</summary>
+/// <param name="Bus">"USB 2", "USB 3", or the name of the combined line.</param>
+/// <param name="Hubs">The hubs on the bus; "at least N" when the number is a minimum, as are the next two.</param>
+/// <param name="DeepestTier">The deepest tier on the bus, the user's cable marks counted.</param>
+/// <param name="DeepestHop">The deepest hop on the bus, the user's cable marks counted.</param>
+public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier, string DeepestHop);
+
 /// <param name="Header">
 /// Profile (the strictest, when several are checked; never for a detected fact), kind (detected, database, risk, unknown)
 /// and subject.
@@ -621,6 +628,38 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>One row per checked profile: operating systems first, then computers.</summary>
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
+    /// <summary>
+    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2 then USB 3, each with its
+    /// own hubs, deepest tier and deepest hop; a bus with nothing on it shows zeros. One combined line when the operating
+    /// system reports no bus at all. Empty when nothing is connected.
+    /// </summary>
+    public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
+
+    public bool HasBusCounts => BusCountsRows.Count > 0;
+
+    // The same numbers and the same "at least" as the row counter of the controller, or of the computer (NodeViewModel.Count).
+    private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
+    {
+        BusCountsRows.Clear();
+        if (NodeViewModel.Count(scope, extraHops) is { } counted)
+        {
+            string Cell(int number) => counted.AtLeast
+                ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
+                : number.ToString(CultureInfo.CurrentCulture);
+            BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier), Cell(counts.DeepestHops));
+            if (counted.PerBus.AnyBusKnown)
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
+                BusCountsRows.Add(Row(Strings.CountsBusUsb3, counted.PerBus.Usb3));
+            }
+            else
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusAll, counted.All));
+            }
+        }
+        OnPropertyChanged(nameof(HasBusCounts));
+    }
+
     /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
 
@@ -727,6 +766,7 @@ public sealed class MainViewModel : ObservableObject
                 reconnectedIds, extraHops, tree, monitors);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
+        UpdateBusCounts(selected == null ? tree : [selected]);
 
         var placement = MonitorPlacement.Place(tree, monitors ?? []);
         log.DisplayLinks(placement, tree);

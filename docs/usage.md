@@ -73,6 +73,14 @@ name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4, deepest
 hop: 2". When the operating system reports no bus at all, there are no
 brackets. The counts say "at least" when a hub, port or bus could not be read;
 a hub on a port whose bus is not reported is in the total but on neither bus.
+The side panel has a small table, "Hubs, tiers and hops", for what the status
+field covers (the selected controller, or all controllers when the computer's
+row is selected): one line for USB 2 and one for USB 3, each with that bus's
+own hub count, deepest tier and deepest hop, the marked active cables counted.
+A bus with nothing on it shows zeros; when nothing is connected there is no
+table. The numbers say "at least" in the same cases as the row counts, and
+when the operating system reports no bus at all the table has one line, "USB 2
+and USB 3 together".
 Each hub and device row
 shows its own depth at the right, for example "Tier 4, hubs in front: 2";
 hovering the row shows it too. Controllers, hubs built into the computer and
