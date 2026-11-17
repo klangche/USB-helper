@@ -81,7 +81,7 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>The choices for a mark, by number of extra tiers: none, then +1 to +5.</summary>
     public static IReadOnlyList<string> MarkChoices { get; } =
-        [Strings.MarkNone, .. Enumerable.Range(1, 5).Select(tiers => string.Format(CultureInfo.CurrentCulture, Strings.MarkChoice, tiers))];
+        [Strings.MarkNone, .. Enumerable.Range(1, 3).Select(tiers => string.Format(CultureInfo.CurrentCulture, Strings.MarkChoice, tiers))];
 
     /// <summary>For a connected hub or device: the port its line comes from, where a mark is kept. Null otherwise.</summary>
     public string? PortId { get; }
