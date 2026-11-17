@@ -16,10 +16,10 @@ that model's profile from a reviewed, cited hardware database.
   and a dock or hub plugged in later takes over until you pick something
   yourself. Refresh starts following again.
 - **Counts per USB bus.** Each controller and the computer's row show hubs,
-  with the hubs per bus in brackets (USB2, then USB3), the deepest tier and
-  the deepest hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop:
-  2". The two halves of a USB 3 hub are kept apart. Every hub and device
-  shows its own tier and the hubs in front of it on hover.
+  with the hubs per bus in brackets (USB 2, USB 3, USB 4), the connected
+  devices and the deepest tier, for example "Hubs: 4 (3+1+0), devices: 7,
+  deepest tier: 4". The two halves of a USB 3 hub are kept apart. Every hub
+  and device shows its own tier and the hubs in front of it.
 - **Checks against limits** of the computer model and its platform: hub count,
   tier depth, hop depth and recommended hops, each line coloured green
   (stable), orange (potentially unstable), purple (unstable), red (missing) or
@@ -28,7 +28,7 @@ that model's profile from a reviewed, cited hardware database.
   hubs placed under their hub, DisplayLink adapters, and display-count and MST
   checks.
 - **Active cables** the operating system does not show can be marked
-  ("+N hops") and count in every check.
+  ("+2 hubs", "+1 tier") and count in every check.
 - **Honest results**: detected facts, verified database facts, predicted risks
   and unknowns are kept apart. Unknown is never replaced by a guess. No
   bandwidth or speed analysis.

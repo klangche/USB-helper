@@ -279,9 +279,10 @@ and there are 2 hubs.
 
 Active cables and extenders that Windows shows as a hub count automatically.
 Ones it does not show are marked by the user on the port they are plugged into:
-a mark of N (+1 to +5) adds N tiers to everything behind that port and
-min(N, 2) hubs to the hub count of that port's bus, in every checked profile
-(#297): a cable or extender can add up to 3 tiers but at most 2 hubs. On a port
+"+N hubs" (+1 to +3) adds N hubs to the hub count of that port's bus and N
+tiers to everything behind that port, since every hub is a tier; "+N tiers"
+(+1 to +3) adds only N tiers, for an extender that is not a hub. Both count in
+every checked profile (#307). On a port
 whose bus is not reported, the added hubs count toward the total only, like
 any other hub on that port. A mark on a port with nothing on it adds nothing.
 

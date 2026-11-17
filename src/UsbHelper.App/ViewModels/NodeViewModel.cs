@@ -16,7 +16,7 @@ namespace UsbHelper.App.ViewModels;
 /// Every trunk segment, from the host down, is drawn in the worst status of everything it leads to (#89); the elbow to a
 /// hub or device keeps that item's own status.
 /// The line from a port to its hub or device can be marked by the user as an active cable or extender the operating
-/// system does not show (#76): a mark of N adds N tiers to everything behind that port and min(N, 2) hubs on its bus (#297).
+/// system does not show (#76): "+N hubs" adds N hubs on its bus and N tiers behind it, "+N tiers" only N tiers (#307).
 /// Only a controller can be collapsed, which hides its tree; the host and every item below a controller are always open
 /// (#142). A collapsed controller's name is bold (#100).
 /// A DisplayLink device is shown as a display, and every hub above it says it has one (#92).
@@ -45,16 +45,16 @@ public sealed class NodeViewModel : ObservableObject
     private bool isDisplay;
     private bool displayBelow;
     private bool isHub;
-    private int markLevel;
+    private CableMark? cableMark;
     private string? depthText;
     private bool isLastRow;
     private bool isFolded;
     private string? portNumber;
     private string? portName;
     private string? portBadge;
-    private readonly Action<string, int> mark;
+    private readonly Action<string, CableMark?> mark;
 
-    private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, int> mark)
+    private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, CableMark?> mark)
     {
         Id = id;
         PortId = portId;
@@ -79,9 +79,25 @@ public sealed class NodeViewModel : ObservableObject
 
     public string Id { get; }
 
-    /// <summary>The choices for a mark, by number of extra tiers: none, then +1 to +5.</summary>
+    /// <summary>
+    /// The choices for a mark, in the menu's order (#307): none, then <see cref="CableMark.Choices"/>, +1 to +3 hubs and
+    /// +1 to +3 tiers. "+2 hubs" says it is an active extension.
+    /// </summary>
     public static IReadOnlyList<string> MarkChoices { get; } =
-        [Strings.MarkNone, .. Enumerable.Range(1, 3).Select(tiers => string.Format(CultureInfo.CurrentCulture, Strings.MarkChoice, tiers))];
+        [Strings.MarkNone, .. CableMark.Choices.Select(choice => choice.IsActiveExtension
+            ? string.Format(CultureInfo.CurrentCulture, Strings.MarkActiveExtension, MarkText(choice))
+            : MarkText(choice))];
+
+    /// <summary>What a mark adds, as its badge says: "+1 hub", "+2 hubs", "+3 tiers" (#307).</summary>
+    public static string MarkText(CableMark mark)
+    {
+        string Hubs(int number) => number == 1 ? Strings.MarkHubOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkHubs, number);
+        string Tiers(int number) => number == 1 ? Strings.MarkTierOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkTiers, number);
+        // Hubs and more tiers than hubs: only from a hand-edited setup.json.
+        return mark.Hubs == 0 ? Tiers(mark.Tiers)
+            : mark.Hubs == mark.Tiers ? Hubs(mark.Hubs)
+            : string.Format(CultureInfo.CurrentCulture, Strings.MarkHubsAndTiers, Hubs(mark.Hubs), Tiers(mark.Tiers));
+    }
 
     /// <summary>For a connected hub or device: the port its line comes from, where a mark is kept. Null otherwise.</summary>
     public string? PortId { get; }
@@ -90,28 +106,42 @@ public sealed class NodeViewModel : ObservableObject
     public bool CanMark => PortId != null;
 
     /// <summary>
-    /// The user's mark on the line to this item for an active cable or extender, 0 for none: it adds that many tiers
-    /// and at most 2 hubs. Setting it re-evaluates everything; it is ignored when the line cannot be marked.
+    /// The user's mark on the line to this item for an active cable or extender, null for none (#307). Setting it
+    /// re-evaluates everything; it is ignored when the line cannot be marked.
     /// </summary>
-    public int MarkLevel
+    public CableMark? Mark
     {
-        get => markLevel;
+        get => cableMark;
         set
         {
-            if (PortId != null && value >= 0 && value != markLevel)
+            if (PortId != null && value != cableMark)
             {
                 mark(PortId, value);
             }
         }
     }
 
-    /// <summary>The user marked this line; the view draws it dashed with <see cref="MarkBadge"/>.</summary>
-    public bool IsUserMarked => MarkLevel > 0;
+    /// <summary>
+    /// The mark as its place in <see cref="MarkChoices"/>, for the menu: 0 for none; -1 for a mark that is not one of
+    /// the choices (from a hand-edited setup.json), which setting -1 keeps.
+    /// </summary>
+    public int MarkIndex
+    {
+        get => cableMark == null ? 0 : CableMark.Choices.ToList().IndexOf(cableMark) is var at and >= 0 ? at + 1 : -1;
+        set
+        {
+            if (value >= 0 && value < MarkChoices.Count)
+            {
+                Mark = value == 0 ? null : CableMark.Choices[value - 1];
+            }
+        }
+    }
 
-    /// <summary>What the mark adds, "+2 tiers, +2 hubs", on a marked line; null otherwise.</summary>
-    public string? MarkBadge => !IsUserMarked ? null
-        : MarkLevel == 1 ? Strings.CableMarkOne
-        : string.Format(CultureInfo.CurrentCulture, Strings.CableMark, MarkLevel, TopologyCounts.MarkHubs(MarkLevel));
+    /// <summary>The user marked this line; the view draws it dashed with <see cref="MarkBadge"/>.</summary>
+    public bool IsUserMarked => cableMark != null;
+
+    /// <summary>What the mark adds, "+2 hubs" or "+1 tier", on a marked line; null otherwise.</summary>
+    public string? MarkBadge => cableMark is { } value ? MarkText(value) : null;
 
     /// <summary>A device seen earlier, shown at its last port.</summary>
     public bool IsDisconnected { get; }
@@ -390,10 +420,10 @@ public sealed class NodeViewModel : ObservableObject
     /// group, when there are <paramref name="monitors"/>, as its children.
     /// </summary>
     /// <param name="marks">The user's marks per port id.</param>
-    /// <param name="mark">Sets the mark (0 for none) on a port id; called when the user marks a line.</param>
+    /// <param name="mark">Sets the mark (null for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
-        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> marks,
-        Action<string, int> mark, MonitorPlacement monitors)
+        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
+        Action<string, CableMark?> mark, MonitorPlacement monitors)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
         host.UpdateHost(name, controllers, report, marks, monitors);
@@ -405,7 +435,7 @@ public sealed class NodeViewModel : ObservableObject
     /// the marks and <paramref name="monitors"/>.
     /// </summary>
     public void UpdateHost(
-        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, int> marks,
+        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
         MonitorPlacement monitors)
     {
         Text = name;
@@ -548,7 +578,7 @@ public sealed class NodeViewModel : ObservableObject
     };
 
     private void Update(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, int> marks,
+        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
         IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, bool last)
     {
         IsLast = last;
@@ -557,8 +587,9 @@ public sealed class NodeViewModel : ObservableObject
         isController = node.Kind == UsbNodeKind.Controller;
         // An unplugged device is no display now.
         IsDisplay = node.IsDisplayLink && !IsDisconnected;
-        if (SetField(ref markLevel, PortId == null ? 0 : marks.GetValueOrDefault(PortId), nameof(MarkLevel)))
+        if (SetField(ref cableMark, PortId == null ? null : marks.GetValueOrDefault(PortId), nameof(Mark)))
         {
+            OnPropertyChanged(nameof(MarkIndex));
             OnPropertyChanged(nameof(IsUserMarked));
             OnPropertyChanged(nameof(MarkBadge));
         }
@@ -567,7 +598,7 @@ public sealed class NodeViewModel : ObservableObject
             : null;
         SetCounts(node.Kind == UsbNodeKind.Controller ? TreeCounts([node], marks) : null);
         DepthText = !IsDisconnected && node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Depths.TryGetValue(node.Id, out var depth)
-            ? string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, depth.Tier)
+            ? DepthLine(depth)
             : null;
         PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
@@ -608,8 +639,18 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// "Tier 4, 2 hubs in front" (#307): the hubs in front are information only, and are left out when there are none.
+    /// </summary>
+    internal static string DepthLine(ConnectionDepth depth) => depth.HubsInFront switch
+    {
+        0 => string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, depth.Tier),
+        1 => string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTipOneHub, depth.Tier),
+        _ => string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTipHubs, depth.Tier, depth.HubsInFront),
+    };
+
     private void UpdateChildren(
-        IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, int> marks,
+        IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
         IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, string? portId, int trailing, bool followed)
     {
         // The trailing monitor items (the host's Displays group, a USB node's linked monitors) stay after the USB children;
@@ -640,18 +681,19 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    // "Hubs: 4 (3+1+0), deepest tier: 4" (#217, #298): the sum of the hubs on each bus and, in brackets, per bus in a
+    // "Hubs: 4 (3+1+0), devices: 7, deepest tier: 4" (#217, #298, #307): the sum of the hubs on each bus and, in brackets, per bus in a
     // fixed order, USB 2, USB 3, USB 4 (#195). The deepest tier is of any bus. Without any known bus there are no brackets. "At least" when a hub, port or bus could not be read; a hub on a port whose bus is unknown
     // is in the total but on neither bus. Null when nothing is connected.
-    private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> marks)
+    private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark> marks)
     {
         if (Count(tree, marks) is not { } counted)
         {
             return null;
         }
-        var (all, perBus, atLeast) = counted;
+        var (all, perBus, devices, atLeast) = counted;
         var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, all.Hubs);
-        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth, all.DeepestTier);
+        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDevicesAtLeast : Strings.CountsDevices, devices)
+            + string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth, all.DeepestTier);
         if (!perBus.AnyBusKnown)
         {
             return new CountsText(hubs, HubsText(counted), null, null, null, depth);
@@ -676,17 +718,18 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>The counts of a tree, as the row counter and the side panel's table (#265) show them.</summary>
     /// <param name="All">All buses together: the sum of the hubs on each bus (#298), and the deepest tier of any bus.</param>
     /// <param name="PerBus">The same per bus; a hub or device on a port whose bus is not reported is on neither.</param>
+    /// <param name="Devices">The connected devices, hubs not counted (<see cref="TopologyCounts.DeviceCount"/>, #307).</param>
     /// <param name="AtLeast">
     /// A hub, port or controller could not be read, or a counted hub or device is on a port whose bus is not reported
     /// while another bus is: the numbers are minimums.
     /// </param>
-    internal sealed record CountedTree(BusCounts All, PerBusCounts PerBus, bool AtLeast);
+    internal sealed record CountedTree(BusCounts All, PerBusCounts PerBus, int Devices, bool AtLeast);
 
     /// <summary>
     /// Counts <paramref name="tree"/> for the row counter and the side panel's table (#265), so both follow one rule;
     /// the user's marks in <paramref name="marks"/> count in the tiers and hubs. Null when nothing is connected.
     /// </summary>
-    internal static CountedTree? Count(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> marks)
+    internal static CountedTree? Count(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark> marks)
     {
         var depths = TopologyCounts.Depths(tree, marks).Values;
         var perBus = TopologyCounts.PerBus(tree, marks);
@@ -697,7 +740,7 @@ public sealed class NodeViewModel : ObservableObject
         }
         return new CountedTree(
             new BusCounts(perBus.Hubs, depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max()),
-            perBus, atLeast);
+            perBus, TopologyCounts.DeviceCount(tree), atLeast);
     }
 
     /// <summary>
@@ -706,6 +749,7 @@ public sealed class NodeViewModel : ObservableObject
     /// </summary>
     /// <param name="Hubs">The hubs label with the total only: "Hubs: 4".</param>
     /// <param name="HubsText">The same with the hubs per bus: "Hubs: 4 (3+1+0)".</param>
+    /// <param name="Depth">What follows the hubs: ", devices: 7, deepest tier: 4".</param>
     private sealed record CountsText(string Hubs, string HubsText, string? Usb2, string? Usb3, string? Usb4, string Depth)
     {
         public string Head => Usb2 == null ? Hubs : Hubs + " (";

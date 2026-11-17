@@ -61,8 +61,10 @@ lists the monitors at start and each one connected or removed. A hub or
 device on a port that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
-reports it for. Each controller shows its hub count and deepest tier, for
-example "Hubs: 3 (2+1+0), deepest tier: 4". The
+reports it for. Each controller shows its hub count, device count and deepest
+tier, for example "Hubs: 3 (2+1+0), devices: 7, deepest tier: 4". The devices are
+the connected USB devices, each counted once whatever its bus; hubs (both halves
+of a USB 3 hub), root hubs, controllers and ports are not devices. The
 numbers in brackets are the hubs per bus, always in the same order: USB 2
 (the USB 2.0 tree), USB 3 (the SuperSpeed tree, USB 3.0 to 3.2), then USB 4.
 USB 4 is not detected yet, so its number is always 0 for now. The first number is
@@ -77,18 +79,21 @@ the counts the same way. When the operating system reports no bus at all, there
 are no brackets, just the total. The counts say "at least" when a hub, port or bus
 could not be read; a hub on a port whose bus is not reported is in the total but
 on no bus.
-The side panel has a small table, "Hubs and tiers", for what the status
+The side panel has a small table, "Hubs, devices and tiers", for what the status
 field covers (the selected controller, or all controllers when the computer's
-row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1+0)", then
-one line each for USB 2, USB 3 and USB 4, each with that bus's
+row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1+0)", and the
+devices, "Devices: 7", then one line each for USB 2, USB 3 and USB 4, each with that bus's
 own hub count and deepest tier, the marked active cables counted.
 A bus with nothing on it shows zeros; when nothing is connected there is no
 table. The numbers say "at least" in the same cases as the row counts, and
 when the operating system reports no bus at all the table has one line, "All
 buses together".
 Each hub and device row
-shows its own depth at the right, for example "Tier 4, hubs in front: 2";
-hovering the row shows it too. Controllers, hubs built into the computer and
+shows its own depth at the right, for example "Tier 4, 2 hubs in front" ("1 hub
+in front"; just "Tier 2" with none); hovering the row shows it too. The hubs in
+front are the external hubs between the computer's own port and the row, and
+the hubs marked on that path. They are information only: no limit is judged by
+them. Controllers, hubs built into the computer and
 monitors show none. Copy tree as text, the log, the export and the PDF report
 keep one line per port ("Port 1 [USB-C]") and the result word on every hub and
 device.
@@ -131,11 +136,13 @@ unplugged stays red at its last port; one that comes back is purple
 Is an active cable or extender plugged in that the tree does not show? Click
 the small "+" in the middle of the line into the hub or device
 behind the cable (or select that item and press Enter or the context menu
-key) and pick its extra tiers (+1 to +5). A mark of N adds N tiers to
-everything behind that line and min(N, 2) hubs to the hub count of that port's
-bus: a cable or extender can add up to 3 tiers but at most 2 hubs. The marked
-line is drawn dashed with a badge saying what it adds, for example "+2 tiers,
-+2 hubs", so it is clear that you added it and Windows did not detect it.
+key) and pick what it adds from a short list: None, +1 hub, +2 hubs (active
+extension), +3 hubs, +1 tier, +2 tiers or +3 tiers. "+N hubs" adds N hubs to the
+hub count of that port's bus and N tiers to everything behind that line, because
+every hub is a tier. "+N tiers" adds only N tiers, for an extender or repeater
+that is not a hub. The marked line is drawn dashed with a badge saying what it
+adds, for example "+2 hubs" or "+1 tier", so it is clear that you added it and
+Windows did not detect it.
 Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with
@@ -164,7 +171,9 @@ runs. The export saves one zip, `usb-helper_<room>_<date>_<time>.zip`
   the app version, the computer (manufacturer, model, processor, platform
   profile), the checked profiles, every controller, hub, port
   and device (name, vendor and product id, USB-C and user-connectable flags),
-  your active-cable marks, the monitors and their output type, and each
+  your active-cable marks (each as its hubs and tiers, `{"hubs": 2, "tiers": 2}`;
+  a file from an older version has one number N per mark, which is read as
+  +N hubs), the monitors and their output type, and each
   checked profile's result with every finding, the unknown ones included.
 - `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
 - `screenshot.png`: the main window as shown.
@@ -197,7 +206,7 @@ read USB tree; until then the menu item is greyed out and its tooltip says why
 order:
 
 - **Summary**: the computer, the checked profiles, the overall result and the
-  hub, tier and display counts; below the hub count, the hubs per bus, for
+  hub, USB device, tier and display counts; below the hub count, the hubs per bus, for
   example "(2+1+0): USB 2, USB 3, USB 4".
 - **USB tree**: the tree as in the window, with its status colours.
 - **Results**: each checked profile with its result, then each check that is
@@ -231,18 +240,18 @@ the tree on the clipboard as plain text, the same text the log gets, for
 pasting into an email:
 
 ```
-Dell Inc. Latitude 7450 (Hubs: 3, deepest tier: 5)
-|-- Controller (Hubs: 3, deepest tier: 5)
+Dell Inc. Latitude 7450 (Hubs: 3, devices: 1, deepest tier: 5)
+|-- Controller (Hubs: 3, devices: 1, deepest tier: 5)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
-|           `-- [+2 tiers, +2 hubs] Dock - stable
+|           `-- [+2 hubs] Dock - stable
 |               `-- Port 1
 |                   `-- Keyboard (046D:C31C) - stable
 `-- Displays
     `-- DELL U2723QE (HDMI)
 ```
 
-Each row has its badges in brackets (what a marked cable adds, such as "+2 tiers, +2 hubs", "USB-C",
+Each row has its badges in brackets (what a marked cable adds, such as "+2 hubs" or "+1 tier", "USB-C",
 "Display"), the result word after " - " and its notes in parentheses.
 
 Press Alt, or Alt with the underlined letter (for example Alt+F for File), to

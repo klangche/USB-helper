@@ -24,7 +24,7 @@ public static class DiagnosticEvaluator
     /// <param name="guide">See <see cref="Evaluate"/>; the same guide for every profile.</param>
     public static SystemsReport EvaluateAll(
         IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, CableMark>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
         IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
     {
         if (profiles.Count == 0)
@@ -45,7 +45,7 @@ public static class DiagnosticEvaluator
     /// <param name="externalDisplays">Active external displays as the operating system reports them; null when unknown.</param>
     /// <param name="reconnected">Ids from <see cref="SessionHistory.Reconnected"/>.</param>
     /// <param name="marks">
-    /// The user's marks for active cables and extenders per port id: each adds that many tiers and at most 2 hubs
+    /// The user's marks for active cables and extenders per port id: each adds its hubs and tiers
     /// (<see cref="TopologyCounts"/>).
     /// </param>
     /// <param name="wholeTree">
@@ -59,7 +59,7 @@ public static class DiagnosticEvaluator
     /// </param>
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
-        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, int>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
+        IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, CableMark>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
         IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
     {
         var findings = new List<Finding>();

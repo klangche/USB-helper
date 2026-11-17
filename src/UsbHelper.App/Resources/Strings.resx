@@ -206,6 +206,9 @@
   <data name="LimitRecommendedTiers" xml:space="preserve">
     <value>Recommended tiers</value>
   </data>
+  <data name="ReportDevices" xml:space="preserve">
+    <value>USB devices</value>
+  </data>
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
   </data>
@@ -245,6 +248,15 @@
   <data name="CountsHubsAtLeast" xml:space="preserve">
     <value>Hubs: at least {0}</value>
   </data>
+  <data name="CountsDevices" xml:space="preserve">
+    <value>, devices: {0}</value>
+  </data>
+  <data name="CountsDevicesAtLeast" xml:space="preserve">
+    <value>, devices: at least {0}</value>
+  </data>
+  <data name="CountsDevicesLine" xml:space="preserve">
+    <value>Devices: {0}</value>
+  </data>
   <data name="CountsDepth" xml:space="preserve">
     <value>, deepest tier: {0}</value>
   </data>
@@ -258,7 +270,7 @@
     <value>In brackets: the hubs on USB 2, USB 3 and USB 4.</value>
   </data>
   <data name="CountsTable" xml:space="preserve">
-    <value>Hubs and tiers</value>
+    <value>Hubs, devices and tiers</value>
   </data>
   <data name="CountsBusUsb2" xml:space="preserve">
     <value>USB 2</value>
@@ -277,6 +289,12 @@
   </data>
   <data name="NodeDepthTip" xml:space="preserve">
     <value>Tier {0}</value>
+  </data>
+  <data name="NodeDepthTipOneHub" xml:space="preserve">
+    <value>Tier {0}, 1 hub in front</value>
+  </data>
+  <data name="NodeDepthTipHubs" xml:space="preserve">
+    <value>Tier {0}, {1} hubs in front</value>
   </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>
@@ -305,14 +323,8 @@
   <data name="KindUnknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
-  <data name="CableMark" xml:space="preserve">
-    <value>+{0} tiers, +{1} hubs</value>
-  </data>
-  <data name="CableMarkOne" xml:space="preserve">
-    <value>+1 tier, +1 hub</value>
-  </data>
   <data name="CableMarkTitle" xml:space="preserve">
-    <value>Active cable / extender on this connection, extra tiers (each adds a hub, at most 2):</value>
+    <value>Active cable or extender on this connection:</value>
   </data>
   <data name="CableMarkTip" xml:space="preserve">
     <value>Add an active cable or extender on this connection that the operating system does not show.</value>
@@ -320,8 +332,23 @@
   <data name="MarkNone" xml:space="preserve">
     <value>None</value>
   </data>
-  <data name="MarkChoice" xml:space="preserve">
-    <value>+{0}</value>
+  <data name="MarkHubOne" xml:space="preserve">
+    <value>+1 hub</value>
+  </data>
+  <data name="MarkHubs" xml:space="preserve">
+    <value>+{0} hubs</value>
+  </data>
+  <data name="MarkTierOne" xml:space="preserve">
+    <value>+1 tier</value>
+  </data>
+  <data name="MarkTiers" xml:space="preserve">
+    <value>+{0} tiers</value>
+  </data>
+  <data name="MarkHubsAndTiers" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="MarkActiveExtension" xml:space="preserve">
+    <value>{0} (active extension)</value>
   </data>
   <data name="LogButton" xml:space="preserve">
     <value>Log</value>

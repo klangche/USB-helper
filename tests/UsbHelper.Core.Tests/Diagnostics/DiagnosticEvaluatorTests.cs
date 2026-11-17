@@ -583,8 +583,8 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void MarksCountInEveryProfilesChecks()
     {
-        // A mark of 2 on the hub's port: the hub is tier 4, the keyboard tier 5, and the mark adds 2 hubs (#297).
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
+        // +2 hubs on the hub's port: the hub is tier 4, the keyboard tier 5, and the mark adds 2 hubs (#307).
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) };
 
         var (profiles, guide) = Chips(("4", "2"), ("7", "4"));
         var report = DiagnosticEvaluator.EvaluateAll(Desk, profiles, [], externalDisplays: 0, marks: marks, guide: guide);
@@ -724,29 +724,42 @@ public class DiagnosticEvaluatorTests
     [Fact]
     public void ReportCarriesEveryDepth()
     {
-        Assert.Equal(new ConnectionDepth(3), Evaluate(Desk, Profile()).Depths["KEYBOARD"]);
+        Assert.Equal(3, Evaluate(Desk, Profile()).Depths["KEYBOARD"].Tier);
     }
 
-    // #297: a cable mark adds min(N, 2) hubs to the hub count of its port's bus.
+    // #307: a "+N hubs" mark adds N hubs to the hub count of its port's bus.
     [Fact]
     public void MarkedHubsCountTowardTheHubLimit()
     {
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 3 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) };
         var judge = Profile(hubs: "2");
 
         var report = DiagnosticEvaluator.Evaluate(Desk, judge.Profile, [], externalDisplays: 0, marks: marks, guide: judge.Guide);
 
         Assert.Equal((3, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
         Assert.Equal(ConnectionStatus.Purple, report.Connections["HUB"]);
-        Assert.Equal(6, report.Tiers.Actual); // The keyboard: tier 3, plus 3 from the mark.
+        Assert.Equal(5, report.Tiers.Actual); // The keyboard: tier 3, plus 2 from the mark.
         Assert.Contains(report.Findings, finding => finding.Message == "3 external hubs are connected; limits.max_hubs is 2.");
+    }
+
+    // #307: a "+N tiers" mark deepens, but adds no hub.
+    [Fact]
+    public void MarkedTiersAddNoHub()
+    {
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfTiers(3) };
+        var judge = Profile(hubs: "2");
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, judge.Profile, [], externalDisplays: 0, marks: marks, guide: judge.Guide);
+
+        Assert.Equal((1, LimitState.Within), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Equal(6, report.Tiers.Actual); // The keyboard: tier 3, plus 3 from the mark.
     }
 
     [Fact]
     public void MarkedHubsCountOnlyOnTheirOwnBus()
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
-        var marks = new Dictionary<string, int> { ["ROOT|port2"] = 1 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port2"] = CableMark.OfHubs(1) };
         var judge = Profile(hubs: "1");
 
         var report = DiagnosticEvaluator.Evaluate(tree, judge.Profile, [], externalDisplays: 0, marks: marks, guide: judge.Guide);
