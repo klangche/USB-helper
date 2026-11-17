@@ -83,4 +83,20 @@ public class ProfileMenuTests
         Assert.Equal(["USB-Helper", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }
+
+    // #295: clicking an operating system's name ticks all of its chips, and again unticks them all.
+    [Fact]
+    public void ClickingAnOperatingSystemTicksAllItsChips()
+    {
+        var window = Window();
+        var group = Assert.Single(window.PlatformGroups);
+
+        group.ToggleAll.Execute(null);
+
+        Assert.All(group.Chips, chip => Assert.True(chip.IsChecked));
+
+        group.ToggleAll.Execute(null);
+
+        Assert.All(group.Chips, chip => Assert.False(chip.IsChecked));
+    }
 }
