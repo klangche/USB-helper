@@ -248,7 +248,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-        private static string ComputerLabel(ResolvedProfile profile)
+    private static string ComputerLabel(ResolvedProfile profile)
     {
         var reported = $"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar}";
         return profile.Find("name")?.Scalar is string name ? $"{name} ({reported})" : $"{reported} ({profile.Id})";
