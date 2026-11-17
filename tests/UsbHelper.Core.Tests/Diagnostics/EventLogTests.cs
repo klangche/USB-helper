@@ -270,7 +270,6 @@ public class EventLogTests
     [InlineData(1, "Cable mark: +2 hubs (active extension) on the line to HUB")]
     [InlineData(2, "Cable mark: +3 hubs on the line to HUB")]
     [InlineData(3, "Cable mark: +1 tier on the line to HUB")]
-    [InlineData(5, "Cable mark: +3 tiers on the line to HUB")]
     [InlineData(-1, "Cable mark removed from the line to HUB")]
     public void ACableMarkIsOneEntry(int choice, string text)
     {

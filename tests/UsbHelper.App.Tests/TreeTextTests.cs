@@ -40,7 +40,7 @@ public class TreeTextTests
         "|-- Controller (Hubs: 3, devices: 2, deepest tier: 5)", // The marked line counts: +2 hubs, which are 2 tiers too (#307).
         "|   `-- ROOT (has a display)",
         "|       |-- Port 1 [USB-C]",
-        "|       |   `-- [+2 hubs] HUB - unknown", // No profile is checked, so every result is unknown.
+        "|       |   `-- [+2 Hub] HUB - unknown", // No profile is checked, so every result is unknown.
         "|       |       `-- Port 1",
         "|       |           `-- KEYBOARD (046D:C31C) - unknown",
         "|       `-- Port 2",

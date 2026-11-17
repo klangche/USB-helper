@@ -4,7 +4,7 @@ Dell Inc. Latitude 7450 (Hubs: 2, devices: 3, deepest tier: 4)
 |-- Intel USB 3.2 controller (Hubs: 2, devices: 3, deepest tier: 4)
 |   `-- ROOT (has a display)
 |       |-- Port 1 [USB-C]
-|       |   `-- [+1 hub] DOCK - unknown (has a display)
+|       |   `-- [+1 Hub] DOCK - unknown (has a display)
 |       |       |-- Port 1
 |       |       |   `-- KEYBOARD (046D:C31C) - unknown
 |       |       `-- Port 2

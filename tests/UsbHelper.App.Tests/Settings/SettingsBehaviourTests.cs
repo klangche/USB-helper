@@ -181,11 +181,12 @@ public sealed class SettingsBehaviourTests
         Assert.Null(settings.CheckedGuide);
     }
 
-    // #286: the picked guide is kept with the operating systems; USB-Helper's is the default, so it is not written.
+    // The picked guide is always kept through restarts and updates, "remember" or not (owner 2026-11-17); USB-Helper's
+    // is the default, so it is not written.
     [Fact]
     public void ThePickedGuideIsRememberedAtTheNextStart()
     {
-        var settings = new SettingsViewModel { RememberCheckedProfiles = true };
+        var settings = new SettingsViewModel();
         MainViewModel WithGuides() => new(DatabaseFolder.Load("LENOVO", "21K5", "verified", guides: new Dictionary<string, (string, bool)> { ["pure"] = ("Pure", true) }),
             [], Identity, settings: settings);
         var first = WithGuides();

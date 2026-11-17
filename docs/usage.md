@@ -114,7 +114,7 @@ judge by others. When no platform profile matches, nothing is checked and
 every line is grey (unknown). Computer profiles are never checked
 automatically. In the top bar, "USB philosophy" holds the philosophies (guides) on top (USB-Helper,
 then PureLink, Ochno, Unisynk and any other guide file, one at a time;
-USB-Helper is picked at start, and a guide that is not offered yet is greyed
+USB-Helper is picked at start and the picked one is kept through restarts and updates, and a guide that is not offered yet is greyed
 out) and, below a line, the operating systems with a tick per chip (Windows
 Intel / AMD / ARM, macOS Intel / M-series / A-series, Ubuntu, Debian, iPhone
 and iPad, Android). "Known issues" holds the computer profiles: machines with known problems or lower limits, never the default. Any mix of chips
@@ -136,12 +136,12 @@ unplugged stays red at its last port; one that comes back is purple
 Is an active cable or extender plugged in that the tree does not show? Click
 the small "+" in the middle of the line into the hub or device
 behind the cable (or select that item and press Enter or the context menu
-key) and pick what it adds from a short list: None, +1 hub, +2 hubs (active
-extension), +3 hubs, +1 tier, +2 tiers or +3 tiers. "+N hubs" adds N hubs to the
-hub count of that port's bus and N tiers to everything behind that line, because
-every hub is a tier. "+N tiers" adds only N tiers, for an extender or repeater
+key) and pick what it adds from a short menu: None, +1 Hub, +2 Hub (active
+extender), +3 Hub, +1 Tier or +2 Tier. "+N Hub" adds N hubs to the hub count of
+that port's bus and, by itself, N tiers to everything behind that line, because
+every hub is a tier. "+N Tier" adds only N tiers, for an extender or repeater
 that is not a hub. The marked line is drawn dashed with a badge saying what it
-adds, for example "+2 hubs" or "+1 tier", so it is clear that you added it and
+adds, for example "+2 Hub" or "+1 Tier", so it is clear that you added it and
 Windows did not detect it.
 Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 

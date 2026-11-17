@@ -18,11 +18,11 @@ public class ProfileMenuTests
         [], Identity);
 
     [Fact]
-    public void UsbHelperIsFirstAndPickedAtStartTheOthersByName()
+    public void UsbHelperIsPickedAtStartAndTheGuidesAreByName()
     {
         var window = Window();
 
-        Assert.Equal(["USB-Helper", "Alpha", "Later", "Pure"], window.Guides.Select(option => option.Label));
+        Assert.Equal(["Alpha", "Later", "Pure", "USB-Helper"], window.Guides.Select(option => option.Label));
         Assert.Equal(["USB-Helper"], window.Guides.Where(option => option.IsSelected).Select(option => option.Label));
         Assert.Equal("USB-Helper", window.Guide!.Name);
         Assert.Contains("USB-Helper", window.GuideText, StringComparison.Ordinal);
@@ -80,7 +80,9 @@ public class ProfileMenuTests
 
         Assert.Equal(["Windows", "macOS", "Ubuntu", "Debian", "iPhone and iPad", "Android"], window.PlatformGroups.Select(group => group.Name));
         Assert.Equal(["Intel", "AMD", "ARM"], window.PlatformGroups[0].Chips.Select(chip => chip.ChipLabel));
-        Assert.Equal(["USB-Helper", "Crestron", "Desktop", "Extron", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
+        // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17).
+        Assert.Equal(["Desktop", "Crestron", "Extron", "Ochno", "PureLink", "Unisynk", "USB-Helper"], window.Guides.Select(option => option.Label));
+        Assert.Equal("USB-Helper", window.Guide!.Name);
         Assert.Equal(["Desktop"], window.Guides.Where(option => !option.IsProAv).Select(option => option.Label));
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }

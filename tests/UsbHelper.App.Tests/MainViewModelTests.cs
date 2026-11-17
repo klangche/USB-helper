@@ -872,17 +872,16 @@ public class MainViewModelTests
     [Fact]
     public void TheMarkMenuListsNoneThenHubsThenTiers()
     {
-        Assert.Equal(["None", "+1 hub", "+2 hubs (active extension)", "+3 hubs", "+1 tier", "+2 tiers", "+3 tiers"], NodeViewModel.MarkChoices);
+        Assert.Equal(["None", "+1 Hub", "+2 Hub (active extender)", "+3 Hub", "+1 Tier", "+2 Tier"], NodeViewModel.MarkChoices);
     }
 
     // #307: each menu choice sets its mark and badge, and the menu shows it as chosen.
     [Theory]
-    [InlineData(1, 1, 1, "+1 hub")]
-    [InlineData(2, 2, 2, "+2 hubs")]
-    [InlineData(3, 3, 3, "+3 hubs")]
-    [InlineData(4, 0, 1, "+1 tier")]
-    [InlineData(5, 0, 2, "+2 tiers")]
-    [InlineData(6, 0, 3, "+3 tiers")]
+    [InlineData(1, 1, 1, "+1 Hub")]
+    [InlineData(2, 2, 2, "+2 Hub")]
+    [InlineData(3, 3, 3, "+3 Hub")]
+    [InlineData(4, 0, 1, "+1 Tier")]
+    [InlineData(5, 0, 2, "+2 Tier")]
     public void EachMenuChoiceMarksTheLineWithItsBadge(int index, int hubs, int tiers, string badge)
     {
         var viewModel = NewViewModel();
@@ -1057,7 +1056,7 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
         Assert.Equal(CableMark.OfTiers(5), Item(viewModel, "HUB").Mark);
         Assert.True(Item(viewModel, "HUB").IsUserMarked);
-        Assert.Equal("+5 tiers", Item(viewModel, "HUB").MarkBadge);
+        Assert.Equal("+5 Tier", Item(viewModel, "HUB").MarkBadge);
         Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
         Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
         Assert.Equal("Hubs: 1, devices: 2, deepest tier: 8", Item(viewModel, "C1").Counts);

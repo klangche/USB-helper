@@ -18,13 +18,13 @@ public sealed record CableMark(int Hubs, int Tiers)
     public static CableMark OfTiers(int tiers) => new(0, tiers);
 
     /// <summary>
-    /// The marks the user can choose, in the menu's order (#307): +1, +2 and +3 hubs, then +1, +2 and +3 tiers. No mark
-    /// (none) is not in the list.
+    /// The marks the user can choose, in the menu's order (owner 2026-11-17): +1, +2 (an active extender) and +3 hubs,
+    /// each with as many tiers, then +1 and +2 tiers. No mark (none) is not in the list.
     /// </summary>
     public static IReadOnlyList<CableMark> Choices { get; } =
-        [OfHubs(1), OfHubs(2), OfHubs(3), OfTiers(1), OfTiers(2), OfTiers(3)];
+        [OfHubs(1), OfHubs(2), OfHubs(3), OfTiers(1), OfTiers(2)];
 
-    /// <summary>"+2 hubs" adds as many hubs as an active USB extension cable (#307), so its menu entry and log say so.</summary>
+    /// <summary>"+2 hubs" adds as many hubs as an active USB extender (#307), so its menu entry and log say so.</summary>
     public bool IsActiveExtension => this == OfHubs(2);
 
     /// <summary>
