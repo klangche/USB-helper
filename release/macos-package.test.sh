@@ -37,7 +37,7 @@ archive="$output/usb-helper-0.8.0-ci-macos-universal.dmg"
 mountpoint="$temporary/mounted"
 mkdir "$mountpoint"
 hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
-trap 'hdiutil detach "$mountpoint" -quiet; rm -rf "$temporary"' EXIT
+trap 'hdiutil detach "$mountpoint" -quiet || hdiutil detach -force "$mountpoint" -quiet; rm -rf "$temporary"' EXIT
 [[ -f $mountpoint/USB-helper.app/Contents/Info.plist ]]
 [[ -f $mountpoint/USB-helper.app/Contents/MacOS/USB-helper ]]
 [[ $(plutil -extract CFBundleName raw "$mountpoint/USB-helper.app/Contents/Info.plist") == USB-helper ]]
@@ -67,6 +67,6 @@ fi
 (cd "$output" && shasum -a 256 -c "$(basename "$archive").sha256")
 TEST_ARCH=arm64 PATH="$bin:$PATH" "$mountpoint/USB-helper.app/Contents/MacOS/USB-helper" | grep -Fxq "arm64 apphost"
 TEST_ARCH=x86_64 PATH="$bin:$PATH" "$mountpoint/USB-helper.app/Contents/MacOS/USB-helper" | grep -Fxq "x64 apphost"
-hdiutil detach "$mountpoint" -quiet
+hdiutil detach "$mountpoint" || hdiutil detach -force "$mountpoint"
 trap 'rm -rf "$temporary"' EXIT
 echo "macos-package.sh: all checks passed"
