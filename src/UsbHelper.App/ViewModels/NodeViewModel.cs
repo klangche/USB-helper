@@ -218,14 +218,10 @@ public sealed class NodeViewModel : ObservableObject
     public bool HasStatus => Status != null;
 
     /// <summary>The result word on the right, in <see cref="LineColor"/>; null for controllers, root hubs and ports.</summary>
-    public string? StatusWord => Status is { } value ? Word(value) : null;
+    public string? StatusWord => Status is { } value ? StatusColors.Word(value) : null;
 
     /// <summary>The result word on the window's row, shown only when the item is not stable (#264); null otherwise.</summary>
-    public string? RowStatusWord => Status is { } value && value != ConnectionStatus.Green ? Word(value) : null;
-
-    // A display is judged only by the No MST rule (#144): it is duplicated, not unstable (#296).
-    private string Word(ConnectionStatus value) =>
-        value == ConnectionStatus.Orange && Id.StartsWith(MonitorPrefix, StringComparison.Ordinal) ? Strings.MonitorDuplicated : StatusColors.Word(value);
+    public string? RowStatusWord => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Word(value) : null;
 
     /// <summary>The light background of the window's row of an item that is not stable, in its status colour; none otherwise.</summary>
     public string RowTint => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Tint(value) : StatusColors.None;
@@ -361,9 +357,7 @@ public sealed class NodeViewModel : ObservableObject
 
     public string LineColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
 
-    public string? StatusText => Status is { } value
-        ? value == ConnectionStatus.Orange && Id.StartsWith(MonitorPrefix, StringComparison.Ordinal) ? Strings.MonitorDuplicatedText : StatusColors.Text(value)
-        : null;
+    public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
 
     /// <summary>
     /// For a counted hub or device: "Tier N, N hubs in front" (#195), so a tester cannot read the hop the other way.

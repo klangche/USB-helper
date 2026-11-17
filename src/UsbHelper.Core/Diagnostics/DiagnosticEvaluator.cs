@@ -326,9 +326,11 @@ public static class DiagnosticEvaluator
         }
 
         var (displays, displayContribution) = DisplayEvaluator.Evaluate(tree, profile, externalDisplays, computer, findings);
+        var noMst = false;
         foreach (var (monitor, status) in DisplayEvaluator.Mst(profile, monitors ?? [], computer, findings, guide))
         {
             connections[monitor] = status;
+            noMst |= findings.Any(finding => finding.SubjectId == monitor && finding.Brief.StartsWith("No MST", StringComparison.Ordinal));
         }
 
         var overall = connections.Values
@@ -338,7 +340,7 @@ public static class DiagnosticEvaluator
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths, RecommendedHops = hopsRecommended };
+        return new DiagnosticReport(overall, connections, hubs, tiers, hops, displays, disconnected, findings) { Depths = depths, RecommendedHops = hopsRecommended, NoMst = noMst };
     }
 
     private static LimitCheck Check(string field, GuideLimit limit, int actual, bool incomplete)
