@@ -1,9 +1,9 @@
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// A guide file (<c>guides/*.yaml</c>): the limits and recommendations of one guide, such as PureLink, with a section
-/// for every platform and chip. Every guide file has the same shape. An empty value falls back to USB-Helper's
-/// (<c>guides/usb-helper.yaml</c>, the default guide); <c>none</c> states no limit.
+/// A guide (<c>guides/&lt;id&gt;/</c>): the limits and recommendations of one guide, such as PureLink, in small files:
+/// <c>guide.yaml</c>, <c>all.yaml</c> and one file per platform with a block per chip. Every guide has the same files. An empty value falls back to USB-Helper's
+/// (<c>guides/usb-helper/</c>, the default guide); <c>none</c> states no limit.
 /// </summary>
 public sealed class Guide(string id, string name, bool selectable, ProfileValue root, Guide? fallback)
 {
@@ -25,7 +25,7 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>False for a guide that is listed but not filled in yet; it is not offered as a choice.</summary>
     public bool Selectable { get; } = selectable;
 
-    /// <summary>The path relative to the database folder, for example <c>guides/purelink.yaml</c>.</summary>
+    /// <summary>The header file, for example <c>guides/purelink/guide.yaml</c>; limits name their own file.</summary>
     public string File => Root.File;
 
     /// <summary>The file's fields. Each value knows its line.</summary>
@@ -44,26 +44,25 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     public ProfileValue? Find(string path) => Root.Find(path);
 
     /// <summary>
-    /// A limit such as <c>hops.max</c> for one platform and chip: this guide's chip, platform and all-platforms values,
-    /// then USB-Helper's the same way; the first that is not empty. Null when every one is empty.
+    /// A limit such as <c>usb2.hops.max</c> for one platform and chip: this guide's chip value (in the platform's file),
+    /// then its all.yaml value, then USB-Helper's the same way; the first that is not empty. Null when every one is empty.
     /// </summary>
-    public GuideValue? Limit(string platform, string chip, string path) => Resolve(platform, chip, $"limits.{path}", allPlatforms: true);
+    public GuideValue? Limit(string platform, string chip, string path) => Resolve(platform, chip, path);
 
     /// <summary>Whether the platform or chip extends the desktop over MST (1 or 0), resolved like a limit.</summary>
-    public GuideValue? Mst(string platform, string chip) => Resolve(platform, chip, "mst", allPlatforms: false);
+    public GuideValue? Mst(string platform, string chip) => Resolve(platform, chip, "mst");
 
     /// <summary>
-    /// The <c>exceeded_note</c> to show with a finding about a limit this guide set: its chip's, platform's or
-    /// all-platforms note, the most specific that is not empty; else USB-Helper's the same way. Null when none.
+    /// The <c>exceeded_note</c> to show with a finding about a limit this guide set: its chip's note, else its all.yaml
+    /// note, else USB-Helper's the same way. Null when none.
     /// </summary>
     public string? ExceededNote(string platform, string chip) =>
-        Resolve(platform, chip, "limits.exceeded_note", allPlatforms: true)?.Value.Scalar as string;
+        Resolve(platform, chip, "exceeded_note")?.Value.Scalar as string;
 
-    private GuideValue? Resolve(string platform, string chip, string field, bool allPlatforms)
+    // The chip's block in the platform's file, then all.yaml.
+    private GuideValue? Resolve(string platform, string chip, string field)
     {
-        string[] paths = allPlatforms
-            ? [$"platforms.{platform}.chips.{chip}.{field}", $"platforms.{platform}.{field}", field]
-            : [$"platforms.{platform}.chips.{chip}.{field}", $"platforms.{platform}.{field}"];
+        string[] paths = [$"platforms.{platform}.chips.{chip}.limits.{field}", $"limits.{field}"];
         for (var guide = this; guide != null; guide = guide.Fallback)
         {
             foreach (var path in paths)

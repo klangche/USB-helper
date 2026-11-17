@@ -4,7 +4,7 @@ namespace UsbHelper.Core.Diagnostics;
 
 /// <summary>
 /// Owner decision in #68: with several profiles checked, the findings come from the strictest one only. The rule is
-/// from #72, with the limits of the selected guide (<see cref="GuideLimits"/>): the lowest <c>hops.max</c>; on a tie
+/// from #72, with the limits of the selected guide (<see cref="GuideLimits"/>, the lowest of USB 2 and USB 3): the lowest <c>hops.max</c>; on a tie
 /// the lowest <c>hops.recommended</c>, then <c>tiers.max</c>, <c>tiers.recommended</c> and <c>hubs.max</c>. An unknown
 /// limit counts as higher than any known one. Still tied: the first.
 /// </summary>
@@ -31,5 +31,5 @@ public static class StrictestProfile
         Limits(a, guide).Zip(Limits(b, guide), (x, y) => x.CompareTo(y)).FirstOrDefault(order => order != 0);
 
     private static IEnumerable<long> Limits(ResolvedProfile profile, Guide? guide) =>
-        Paths.Select(path => GuideLimits.Of(profile, guide, path).Value ?? long.MaxValue);
+        Paths.Select(path => GuideLimits.OnBus(profile, guide, null, path).Value ?? long.MaxValue);
 }

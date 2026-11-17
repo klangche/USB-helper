@@ -1,57 +1,47 @@
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// The shape every guide file must have (owner decision 2026-11-17, #285): the header, a <c>limits</c> block for all
-/// platforms, and under <c>platforms</c> every platform and chip of <c>platforms/*.yaml</c>, each with <c>mst</c> and a
-/// <c>limits</c> block. A returned file with a missing or extra key is rejected, naming file, line and key.
+/// The shape every guide folder must have (owner decisions 2026-11-17, #285): <c>guide.yaml</c> with the header,
+/// <c>all.yaml</c> with one limits block, and one file per platform of <c>platforms/*.yaml</c> with a limits block per
+/// chip. A returned folder with a missing or extra file or key is rejected, naming file, line and key.
 /// </summary>
 internal static class GuideSchema
 {
+    public const string HeaderFile = "guide.yaml";
+    public const string AllFile = "all.yaml";
+
     private static readonly string[] Header = ["name", "selectable", "notes", "sources", "verification"];
+    private static readonly string[] Buses = ["usb2", "usb3", "usb4"];
     private static readonly string[] Kinds = ["hubs", "tiers", "hops"];
     private static readonly string[] Values = ["recommended", "max"];
+    private static readonly string[] BlockKeys = [.. Buses, "camera_audio", "mst", "exceeded_note"];
 
-    /// <param name="chips">Every platform's chip keys, from <c>platforms/*.yaml</c>.</param>
-    /// <param name="isDefault">USB-Helper's guide: the fallback, so every number and <c>mst</c> must be filled in.</param>
-    /// <param name="maxTiers"><c>usb.max_tiers</c> from <c>base.yaml</c>; no tier value may be above it.</param>
-    public static void Validate(
-        ProfileValue root, IReadOnlyDictionary<string, IReadOnlyList<string>> chips, bool isDefault, long? maxTiers, List<DatabaseError> errors)
+    public static void ValidateHeader(ProfileValue root, List<DatabaseError> errors)
     {
-        var check = new Checker(root.File, isDefault, maxTiers, errors);
         ProfileSchema.Validate(
             ProfileValue.CreateMapping(root.Fields.Where(field => Header.Contains(field.Key)).ToDictionary(), root.File, root.Line),
             ProfileSchema.GuideHeaderFields, errors);
-        check.Keys(root, "", [.. Header, "limits", "platforms"], required: ["limits", "platforms"]);
-        check.Block(root.Fields.GetValueOrDefault("limits"), "limits");
-        if (check.Mapping(root.Fields.GetValueOrDefault("platforms"), "platforms") is not { } platforms)
+        foreach (var (key, value) in root.Fields.Where(field => !Header.Contains(field.Key)))
         {
-            return;
+            errors.Add(new DatabaseError(root.File, value.Line, $"Unknown key '{key}': every guide has the files and keys of guides/usb-helper/."));
         }
-        check.Keys(platforms, "platforms.", chips.Keys, chips.Keys);
-        foreach (var (platform, platformChips) in chips)
+    }
+
+    /// <param name="isDefault">USB-Helper's guide: the fallback, so every number and <c>mst</c> must be filled in.</param>
+    /// <param name="maxTiers"><c>usb.max_tiers</c> from <c>base.yaml</c>; no tier value may be above it.</param>
+    public static void Block(ProfileValue block, string path, bool isDefault, long? maxTiers, List<DatabaseError> errors) =>
+        new Checker(block.File, isDefault, maxTiers, errors).Block(block, path);
+
+    /// <summary>A platform file of a guide: one limits block per chip, exactly the platform's chips.</summary>
+    public static void Platform(ProfileValue root, IReadOnlyList<string> chips, bool isDefault, long? maxTiers, List<DatabaseError> errors)
+    {
+        var check = new Checker(root.File, isDefault, maxTiers, errors);
+        check.Keys(root, "", chips);
+        foreach (var chip in chips)
         {
-            var path = $"platforms.{platform}";
-            if (check.Mapping(platforms.Fields.GetValueOrDefault(platform), path) is not { } section)
+            if (check.Mapping(root.Fields.GetValueOrDefault(chip), chip) is { } block)
             {
-                continue;
-            }
-            check.Keys(section, path + ".", ["mst", "limits", "chips"], ["mst", "limits", "chips"]);
-            check.Mst(section.Fields.GetValueOrDefault("mst"), path + ".mst");
-            check.Block(section.Fields.GetValueOrDefault("limits"), path + ".limits");
-            if (check.Mapping(section.Fields.GetValueOrDefault("chips"), path + ".chips") is not { } chipSections)
-            {
-                continue;
-            }
-            check.Keys(chipSections, path + ".chips.", platformChips, platformChips);
-            foreach (var chip in platformChips)
-            {
-                var chipPath = $"{path}.chips.{chip}";
-                if (check.Mapping(chipSections.Fields.GetValueOrDefault(chip), chipPath) is { } chipSection)
-                {
-                    check.Keys(chipSection, chipPath + ".", ["mst", "limits"], ["mst", "limits"]);
-                    check.Mst(chipSection.Fields.GetValueOrDefault("mst"), chipPath + ".mst");
-                    check.Block(chipSection.Fields.GetValueOrDefault("limits"), chipPath + ".limits");
-                }
+                check.Block(block, chip);
             }
         }
     }
@@ -59,15 +49,15 @@ internal static class GuideSchema
     private sealed class Checker(string file, bool isDefault, long? maxTiers, List<DatabaseError> errors)
     {
         // Missing keys are reported on the line of the mapping that should hold them; extra keys on their own line.
-        public void Keys(ProfileValue mapping, string prefix, IEnumerable<string> allowed, IEnumerable<string> required)
+        public void Keys(ProfileValue mapping, string prefix, IReadOnlyCollection<string> keys)
         {
-            foreach (var (key, value) in mapping.Fields.Where(field => !allowed.Contains(field.Key)))
+            foreach (var (key, value) in mapping.Fields.Where(field => !keys.Contains(field.Key)))
             {
-                errors.Add(new DatabaseError(file, value.Line, $"Unknown key '{prefix}{key}': every guide file has the shape of guides/usb-helper.yaml."));
+                errors.Add(new DatabaseError(file, value.Line, $"Unknown key '{prefix}{key}': every guide has the files and keys of guides/usb-helper/."));
             }
-            foreach (var key in required.Where(key => !mapping.Fields.ContainsKey(key)))
+            foreach (var key in keys.Where(key => !mapping.Fields.ContainsKey(key)))
             {
-                errors.Add(new DatabaseError(file, mapping.Line, $"Missing key '{prefix}{key}': every guide file has the shape of guides/usb-helper.yaml."));
+                errors.Add(new DatabaseError(file, mapping.Line, $"Missing key '{prefix}{key}': every guide has the files and keys of guides/usb-helper/."));
             }
         }
 
@@ -85,38 +75,43 @@ internal static class GuideSchema
             return value;
         }
 
-        public void Block(ProfileValue? value, string path)
+        public void Block(ProfileValue block, string path)
         {
-            if (Mapping(value, path) is not { } block)
+            var prefix = path.Length == 0 ? "" : path + ".";
+            Keys(block, prefix, BlockKeys);
+            foreach (var bus in Buses)
             {
-                return;
+                if (Mapping(block.Fields.GetValueOrDefault(bus), prefix + bus) is { } limits)
+                {
+                    Keys(limits, $"{prefix}{bus}.", Kinds);
+                    foreach (var kind in Kinds)
+                    {
+                        Pair(limits.Fields.GetValueOrDefault(kind), $"{prefix}{bus}.{kind}", kind == "tiers");
+                    }
+                }
             }
-            Keys(block, path + ".", [.. Kinds, "camera_audio", "exceeded_note"], [.. Kinds, "camera_audio", "exceeded_note"]);
-            foreach (var kind in Kinds)
+            if (Mapping(block.Fields.GetValueOrDefault("camera_audio"), prefix + "camera_audio") is { } camera)
             {
-                Pair(block.Fields.GetValueOrDefault(kind), $"{path}.{kind}", kind == "tiers");
+                Keys(camera, prefix + "camera_audio.", ["tiers", "hops"]);
+                Pair(camera.Fields.GetValueOrDefault("tiers"), prefix + "camera_audio.tiers", tiers: true);
+                Pair(camera.Fields.GetValueOrDefault("hops"), prefix + "camera_audio.hops", tiers: false);
             }
-            if (Mapping(block.Fields.GetValueOrDefault("camera_audio"), path + ".camera_audio") is { } camera)
-            {
-                Keys(camera, path + ".camera_audio.", ["tiers", "hops"], ["tiers", "hops"]);
-                Pair(camera.Fields.GetValueOrDefault("tiers"), path + ".camera_audio.tiers", tiers: true);
-                Pair(camera.Fields.GetValueOrDefault("hops"), path + ".camera_audio.hops", tiers: false);
-            }
+            Mst(block.Fields.GetValueOrDefault("mst"), prefix + "mst");
             if (block.Fields.GetValueOrDefault("exceeded_note") is { Kind: not ValueKind.Null } note)
             {
                 if (note.Scalar is not string text)
                 {
-                    errors.Add(new DatabaseError(file, note.Line, $"Key '{path}.exceeded_note': expected text."));
+                    errors.Add(new DatabaseError(file, note.Line, $"Key '{prefix}exceeded_note': expected text."));
                 }
                 else if (text.Length > Guide.ExceededNoteMaxLength)
                 {
                     errors.Add(new DatabaseError(file, note.Line,
-                        $"Key '{path}.exceeded_note' has {text.Length} characters; at most {Guide.ExceededNoteMaxLength}."));
+                        $"Key '{prefix}exceeded_note' has {text.Length} characters; at most {Guide.ExceededNoteMaxLength}."));
                 }
             }
         }
 
-        public void Mst(ProfileValue? value, string path)
+        private void Mst(ProfileValue? value, string path)
         {
             if (value == null || Empty(value, path))
             {
@@ -134,7 +129,7 @@ internal static class GuideSchema
             {
                 return;
             }
-            Keys(pair, path + ".", Values, Values);
+            Keys(pair, path + ".", Values);
             foreach (var name in Values)
             {
                 Number(pair.Fields.GetValueOrDefault(name), $"{path}.{name}", tiers);
@@ -157,7 +152,7 @@ internal static class GuideSchema
             }
         }
 
-        // An empty value falls back to USB-Helper's, so USB-Helper's own file must fill every one in.
+        // An empty value falls back to USB-Helper's, so USB-Helper's own files must fill every one in.
         private bool Empty(ProfileValue value, string path)
         {
             if (value.Kind != ValueKind.Null)
@@ -166,7 +161,7 @@ internal static class GuideSchema
             }
             if (isDefault)
             {
-                errors.Add(new DatabaseError(file, value.Line, $"Key '{path}' must be filled in: guides/usb-helper.yaml is the fallback for every other guide (none states no limit)."));
+                errors.Add(new DatabaseError(file, value.Line, $"Key '{path}' must be filled in: guides/usb-helper/ is the fallback for every other guide (none states no limit)."));
             }
             return true;
         }

@@ -81,41 +81,53 @@ public static class DiagnosticEvaluator
         var incomplete = unreadable.Count > 0;
         var depths = TopologyCounts.Depths(tree, extraHops);
         var computerTree = wholeTree ?? tree;
-        // Every limit comes from the guide and is checked on its own (#285): hubs, tiers and hops, each recommended and
-        // max, and the same for cameras and audio devices. No guide: no limits.
+        // Every limit comes from the guide and is checked on its own (#285): hubs, tiers and hops on each bus, each
+        // recommended and max, and tiers and hops for cameras and audio devices. No guide: no limits. A hub or device on
+        // a port whose bus is not reported is judged by the lowest of the values stated for USB 2 and USB 3.
         var notes = new Dictionary<string, string?>();
-        LimitCheck Judge(string path, int actual, bool open)
+        LimitCheck Judge(GuideLimit limit, string path, int actual, bool open)
         {
-            var limit = GuideLimits.Of(profile, guide, path);
             var field = GuideLimits.Field(path);
             notes[field] = limit.Note;
             return Check(field, limit, actual, open);
         }
+        static string? BusKey(UsbBus? bus) => bus switch { UsbBus.Usb2 => "usb2", UsbBus.Usb3 => "usb3", _ => null };
 
-        // Hubs apply per bus (#195): the two halves of a USB 3 hub are one hub on each bus, not two hubs. Checked against
-        // the bus with the most hubs. A hub on a port whose bus is unknown is in neither bus; the total of all hubs is an
-        // upper bound for each bus, so the result is open only when that total is above the limit. Without any known bus,
-        // all hubs are counted together.
-        var perBus = TopologyCounts.PerBus(computerTree);
-        var totalHubs = TopologyCounts.HubCount(computerTree);
-        var lowestHubLimit = new[] { GuideLimits.Of(profile, guide, "hubs.max").Value, GuideLimits.Of(profile, guide, "hubs.recommended").Value }.Min();
-        var busOpen = perBus.AnyBusKnown && perBus.BusUnknown && totalHubs > lowestHubLimit;
-        if (busOpen)
+        var perBus = TopologyCounts.PerBus(computerTree, extraHops);
+        var nodeBuses = TopologyCounts.Buses(computerTree);
+        if (perBus.BusUnknown && guide != null)
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
-                "The operating system does not say which bus some ports are on, so the hubs on them are in neither bus's count; the counts per bus are at least what is shown."));
+                "The operating system does not say which bus some ports are on, so what is on them is judged by the lowest of the USB 2 and USB 3 limits."));
         }
-        var hubCount = perBus.AnyBusKnown ? Math.Max(perBus.Usb2.Hubs, perBus.Usb3.Hubs) : totalHubs;
-        var hubsOpen = busOpen || TopologyCounts.Unreadable(computerTree).Any();
-        var hubs = Judge("hubs.max", hubCount, hubsOpen);
-        var hubsRecommended = Judge("hubs.recommended", hubCount, hubsOpen);
-        // The buses over a hub limit, so only their hubs are marked; null means every counted hub (no bus known).
-        List<(UsbBus Bus, BusCounts Counts)>? BusesOver(LimitCheck limit) => !perBus.AnyBusKnown ? null
-            : new[] { (Bus: UsbBus.Usb2, Counts: perBus.Usb2), (Bus: UsbBus.Usb3, Counts: perBus.Usb3) }
-                .Where(bus => bus.Counts.Hubs > limit.Limit).ToList();
-        var busesOver = BusesOver(hubs);
-        var busesOverRecommended = BusesOver(hubsRecommended);
-        var hubBuses = TopologyCounts.Buses(computerTree);
+
+        // Hubs per bus: the two halves of a USB 3 hub are one hub on each bus, not two hubs (#195). Without any known
+        // bus, all hubs are counted together. A hub on a port whose bus is unknown is in neither bus; the total of all
+        // hubs is an upper bound for each bus, so a count is open only when that total is above its limit.
+        var totalHubs = TopologyCounts.HubCount(computerTree);
+        var computerOpen = TopologyCounts.Unreadable(computerTree).Any();
+        List<(UsbBus? Bus, LimitCheck Check)> HubChecks(string path)
+        {
+            var checks = new List<(UsbBus? Bus, LimitCheck Check)>();
+            if (!perBus.AnyBusKnown)
+            {
+                checks.Add((null, Judge(GuideLimits.OnBus(profile, guide, null, path), path, totalHubs, computerOpen)));
+                return checks;
+            }
+            foreach (var (bus, counts) in new[] { (UsbBus.Usb2, perBus.Usb2), (UsbBus.Usb3, perBus.Usb3) })
+            {
+                var limit = GuideLimits.OnBus(profile, guide, BusKey(bus), path);
+                checks.Add((bus, Judge(limit, path, counts.Hubs, computerOpen || (perBus.BusUnknown && totalHubs > limit.Value))));
+            }
+            return checks;
+        }
+        var hubsMax = HubChecks("hubs.max");
+        var hubsRecommended = HubChecks("hubs.recommended");
+        // The check shown for all buses: an exceeded one, else the one with the lowest limit.
+        static LimitCheck Summary(IReadOnlyList<LimitCheck> checks) =>
+            checks.FirstOrDefault(check => check.State == LimitState.Exceeded)
+            ?? checks.Where(check => check.Limit != null).MinBy(check => check.Limit) ?? checks.First();
+        var hubs = Summary([.. hubsMax.Select(each => each.Check)]);
 
         // A device's tier as the USB specification counts it (#285): the counted tier plus the chip's built-in hub
         // levels. Unknown levels count as none, so the tier is then at least what is counted.
@@ -124,44 +136,51 @@ public static class DiagnosticEvaluator
         var tiersOpen = incomplete || (profile != null && levelsValue?.Scalar is not long);
         int TierOf(ConnectionDepth depth) => depth.Tier + levels;
         var cameraAudioIds = AllNodes(tree).Where(IsCameraOrAudio).Select(node => node.Id).ToHashSet();
-        int Deepest(Func<ConnectionDepth, int> measure, bool cameraAudio) =>
-            depths.Where(depth => !cameraAudio || cameraAudioIds.Contains(depth.Key)).Select(depth => measure(depth.Value)).DefaultIfEmpty(0).Max();
-        var tiers = Judge("tiers.max", Deepest(TierOf, false), tiersOpen);
-        var tiersRecommended = Judge("tiers.recommended", Deepest(TierOf, false), tiersOpen);
-        var hops = Judge("hops.max", Deepest(depth => depth.Hops, false), incomplete);
-        var hopsRecommended = Judge("hops.recommended", Deepest(depth => depth.Hops, false), incomplete);
-        var cameraTiers = Judge("camera_audio.tiers.max", Deepest(TierOf, true), tiersOpen);
-        var cameraTiersRecommended = Judge("camera_audio.tiers.recommended", Deepest(TierOf, true), tiersOpen);
-        var cameraHops = Judge("camera_audio.hops.max", Deepest(depth => depth.Hops, true), incomplete);
-        var cameraHopsRecommended = Judge("camera_audio.hops.recommended", Deepest(depth => depth.Hops, true), incomplete);
-        LimitCheck[] all = [hubs, hubsRecommended, tiers, tiersRecommended, hops, hopsRecommended,
-            cameraTiers, cameraTiersRecommended, cameraHops, cameraHopsRecommended];
+        // The deepest tier or hop on a bus (null: every bus), or of cameras and audio devices.
+        int Deepest(Func<ConnectionDepth, int> measure, UsbBus? bus, bool cameraAudio) => depths
+            .Where(depth => (!cameraAudio || cameraAudioIds.Contains(depth.Key)) && (bus == null || nodeBuses.GetValueOrDefault(depth.Key) == bus))
+            .Select(depth => measure(depth.Value)).DefaultIfEmpty(0).Max();
+        LimitCheck Depth(string path, Func<ConnectionDepth, int> measure, bool open)
+        {
+            if (!perBus.AnyBusKnown)
+            {
+                return Judge(GuideLimits.OnBus(profile, guide, null, path), path, Deepest(measure, null, false), open);
+            }
+            return Summary([.. new[] { UsbBus.Usb2, UsbBus.Usb3 }.Select(bus =>
+                Judge(GuideLimits.OnBus(profile, guide, BusKey(bus), path), path, Deepest(measure, bus, false), open || perBus.BusUnknown))]);
+        }
+        var tiers = Depth("tiers.max", TierOf, tiersOpen);
+        var tiersRecommended = Depth("tiers.recommended", TierOf, tiersOpen);
+        var hops = Depth("hops.max", depth => depth.Hops, incomplete);
+        var hopsRecommended = Depth("hops.recommended", depth => depth.Hops, incomplete);
+        LimitCheck Camera(string path, Func<ConnectionDepth, int> measure, bool open) =>
+            Judge(GuideLimits.Of(profile, guide, path), path, Deepest(measure, null, true), open);
+        LimitCheck[] all = [hubs, Summary([.. hubsRecommended.Select(each => each.Check)]), tiers, tiersRecommended, hops, hopsRecommended,
+            Camera("camera_audio.tiers.max", TierOf, tiersOpen), Camera("camera_audio.tiers.recommended", TierOf, tiersOpen),
+            Camera("camera_audio.hops.max", depth => depth.Hops, incomplete), Camera("camera_audio.hops.recommended", depth => depth.Hops, incomplete)];
         // The maximums are always named in the log; a recommendation or camera limit only when known.
         foreach (var limit in all.Where(limit => limit.Limit != null || limit == hubs || limit == tiers || limit == hops))
         {
             findings.Add(LimitFinding(limit, computer));
         }
         string Note(LimitCheck limit) => notes.GetValueOrDefault(limit.Field) is { } note ? $" {note}" : "";
-        void HubFindings(LimitCheck limit, List<(UsbBus Bus, BusCounts Counts)>? over, string recommended)
+        void HubFindings(List<(UsbBus? Bus, LimitCheck Check)> checks, string recommended)
         {
-            if (over == null)
+            foreach (var (bus, check) in checks.Where(each => each.Check.State == LimitState.Exceeded))
             {
-                findings.Add(Risk(ComputerId, computer, unverified =>
-                    $"{limit.Actual} external hubs are connected; {recommended}{limit.Field} is {limit.Limit}{unverified(limit)}.{Note(limit)}"));
-            }
-            foreach (var (bus, counts) in over ?? [])
-            {
-                findings.Add(Risk(ComputerId, computer, unverified =>
-                    $"{counts.Hubs} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{limit.Field} is {limit.Limit}{unverified(limit)}.{Note(limit)}"));
+                findings.Add(Risk(ComputerId, computer, unverified => bus == null
+                    ? $"{check.Actual} external hubs are connected; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"
+                    : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"));
             }
         }
-        if (hubs.State == LimitState.Exceeded)
+        var hubsExceeded = hubsMax.Any(each => each.Check.State == LimitState.Exceeded);
+        if (hubsExceeded)
         {
-            HubFindings(hubs, busesOver, "");
+            HubFindings(hubsMax, "");
         }
-        else if (hubsRecommended.State == LimitState.Exceeded)
+        else
         {
-            HubFindings(hubsRecommended, busesOverRecommended, "the recommended ");
+            HubFindings(hubsRecommended, "the recommended ");
         }
 
         // A 7-bit device address: more devices than usb.max_devices_per_controller on one controller is unstable.
@@ -196,18 +215,19 @@ public static class DiagnosticEvaluator
                 var status = anyLimitKnown && (!countedHub || hubs.Limit == null || hubs.State != LimitState.Unknown)
                     ? ConnectionStatus.Green
                     : ConnectionStatus.Grey;
+                var bus = nodeBuses.GetValueOrDefault(node.Id);
                 if (depth != null)
                 {
-                    status = Max(status, JudgeDepth(node, TierOf(depth), depth.Hops, IsCameraOrAudio(node)));
+                    status = Max(status, JudgeDepth(node, BusKey(bus), TierOf(depth), depth.Hops, IsCameraOrAudio(node)));
                 }
-                // Only hubs on a bus over the limit; a hub whose bus is unknown may be on it.
-                bool OnBusOver(List<(UsbBus Bus, BusCounts Counts)>? over) =>
-                    over == null || hubBuses.GetValueOrDefault(node.Id) is not { } hubBus || over.Any(bus => bus.Bus == hubBus);
-                if (countedHub && hubs.State == LimitState.Exceeded && OnBusOver(busesOver))
+                // Only hubs on a bus over a hub limit; a hub whose bus is unknown may be on any of them.
+                bool OnBusOver(List<(UsbBus? Bus, LimitCheck Check)> checks) => checks.Any(each =>
+                    each.Check.State == LimitState.Exceeded && (each.Bus == null || bus == null || each.Bus == bus));
+                if (countedHub && OnBusOver(hubsMax))
                 {
                     status = ConnectionStatus.Purple; // This hub counts toward a bus over the hub limit.
                 }
-                else if (countedHub && hubsRecommended.State == LimitState.Exceeded && OnBusOver(busesOverRecommended))
+                else if (countedHub && !hubsExceeded && OnBusOver(hubsRecommended))
                 {
                     status = Max(status, ConnectionStatus.Orange);
                 }
@@ -227,17 +247,19 @@ public static class DiagnosticEvaluator
 
         // Above any maximum is unstable; else above any recommendation is potentially unstable. Each exceeded limit is a
         // finding with its guide's exceeded_note.
-        ConnectionStatus JudgeDepth(UsbNode node, int tier, int hop, bool cameraAudio)
+        ConnectionStatus JudgeDepth(UsbNode node, string? bus, int tier, int hop, bool cameraAudio)
         {
+            LimitCheck On(string path, int actual) => Judge(GuideLimits.OnBus(profile, guide, bus, path), path, actual, false);
+            LimitCheck OnCamera(string path, int actual) => Judge(GuideLimits.Of(profile, guide, path), path, actual, false);
             var checks = new List<(LimitCheck Max, LimitCheck Recommended, string Kind, int Actual, bool Camera)>
             {
-                (tiers, tiersRecommended, "Tier", tier, false),
-                (hops, hopsRecommended, "Hop", hop, false),
+                (On("tiers.max", tier), On("tiers.recommended", tier), "Tier", tier, false),
+                (On("hops.max", hop), On("hops.recommended", hop), "Hop", hop, false),
             };
             if (cameraAudio)
             {
-                checks.Add((cameraTiers, cameraTiersRecommended, "Tier", tier, true));
-                checks.Add((cameraHops, cameraHopsRecommended, "Hop", hop, true));
+                checks.Add((OnCamera("camera_audio.tiers.max", tier), OnCamera("camera_audio.tiers.recommended", tier), "Tier", tier, true));
+                checks.Add((OnCamera("camera_audio.hops.max", hop), OnCamera("camera_audio.hops.recommended", hop), "Hop", hop, true));
             }
             static string For(bool camera) => camera ? " for cameras and audio devices" : "";
             var overMax = checks.Where(check => check.Actual > check.Max.Limit).ToList();
