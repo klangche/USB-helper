@@ -19,6 +19,7 @@ internal static class WindowsUsbReader
     private const int NodeInformationSize = 76; // USB_NODE_INFORMATION
     private const int NumberOfPortsOffset = 6; // NodeType (4), bDescriptorLength, bDescriptorType
     private const int ConnectionInformationSize = 512; // USB_NODE_CONNECTION_INFORMATION_EX with room for the pipe list
+    private const int DeviceClassOffset = 8; // ConnectionIndex (4) + USB_DEVICE_DESCRIPTOR.bDeviceClass (4)
     private const int VendorIdOffset = 12; // ConnectionIndex (4) + USB_DEVICE_DESCRIPTOR.idVendor (8)
     private const int ProductIdOffset = 14;
     private const int DeviceIsHubOffset = 24;
@@ -183,7 +184,8 @@ internal static class WindowsUsbReader
             if (status == DeviceConnected && !isHub)
             {
                 IReadOnlyList<RawDevNode> interfaces = device != null && devNodes.ByParent.TryGetValue(device.InstanceId, out var children) ? children : [];
-                interfaceClasses = CompatibleIds.InterfaceClasses(device, interfaces, () => ReadInterfaceClasses(hub, port));
+                interfaceClasses = CompatibleIds.InterfaceClasses(
+                    information[DeviceClassOffset], device, interfaces, () => ReadInterfaceClasses(hub, port));
             }
             if (isHub && TryReadName(hub, IOCTL_USB_GET_NODE_CONNECTION_NAME, port) is { } hubName)
             {

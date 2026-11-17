@@ -5,8 +5,8 @@ namespace UsbHelper.Detection.Windows.Tests;
 // #274, owner decision 2026-11-17 ("both"): the kind is read first from what Windows already knows, the compatible ids of
 // the device node and of its interface child nodes (MI_nn), with no traffic to the device. Only when they give nothing
 // is the configuration descriptor read. Ids as Windows builds them ("Identifiers Generated for USB Devices"): a
-// composite device has USB\DevClass_xx and USB\COMPOSITE, each interface child USB\Class_xx, a single-function device
-// USB\Class_xx.
+// composite device has USB\DevClass_xx and USB\COMPOSITE, each interface child USB\Class_xx, a non-composite device
+// USB\Class_xx from its interface only when its bDeviceClass is 0.
 public class CompatibleIdsTests
 {
     private static RawDevNode Node(string instanceId, params string[] compatibleIds) =>
@@ -26,7 +26,7 @@ public class CompatibleIdsTests
     [Fact]
     public void AWebcamWithAMicrophoneIsReadFromItsInterfaceNodesWithoutTheDescriptor()
     {
-        Assert.Equal([0x0E, 0x01], CompatibleIds.InterfaceClasses(Webcam, WebcamInterfaces, NoDescriptor));
+        Assert.Equal([0x0E, 0x01], CompatibleIds.InterfaceClasses(0xEF, Webcam, WebcamInterfaces, NoDescriptor));
     }
 
     [Fact]
@@ -35,27 +35,37 @@ public class CompatibleIdsTests
         var headset = Node(@"USB\VID_046D&PID_0A87\5&2B0E5E8&0&2", @"USB\Class_01&SubClass_01&Prot_00", @"USB\Class_01&SubClass_01", @"USB\Class_01");
         var keyboard = Node(@"USB\VID_046D&PID_C31C\5&2B0E5E8&0&3", @"USB\Class_03&SubClass_01&Prot_01", @"USB\Class_03&SubClass_01", @"USB\Class_03");
 
-        Assert.Equal([0x01], CompatibleIds.InterfaceClasses(headset, [], NoDescriptor));
-        Assert.Equal([0x03], CompatibleIds.InterfaceClasses(keyboard, [], NoDescriptor));
+        Assert.Equal([0x01], CompatibleIds.InterfaceClasses(0, headset, [], NoDescriptor));
+        Assert.Equal([0x03], CompatibleIds.InterfaceClasses(0, keyboard, [], NoDescriptor));
     }
 
     [Fact]
     public void ACompositeDeviceWithoutInterfaceNodesFallsBackToTheDescriptor()
     {
         // No composite driver loaded: Windows made no MI_nn children, so it does not know the interfaces.
-        Assert.Equal([0x0E, 0x01], CompatibleIds.InterfaceClasses(Webcam, [], () => [0x0E, 0x01]));
+        Assert.Equal([0x0E, 0x01], CompatibleIds.InterfaceClasses(0xEF, Webcam, [], () => [0x0E, 0x01]));
     }
 
     [Fact]
     public void ADeviceWithoutADeviceNodeFallsBackToTheDescriptor()
     {
-        Assert.Equal([0x03], CompatibleIds.InterfaceClasses(null, [], () => [0x03]));
+        Assert.Equal([0x03], CompatibleIds.InterfaceClasses(0, null, [], () => [0x03]));
+    }
+
+    // When bDeviceClass is not 0, Windows builds the device node's USB\Class_xx from the device class, not from an
+    // interface, so it says nothing about the interfaces.
+    [Fact]
+    public void ADeviceWithItsOwnDeviceClassFallsBackToTheDescriptor()
+    {
+        var vendorSpecific = Node(@"USB\VID_1234&PID_5678\5&2B0E5E8&0&4", @"USB\Class_ff&SubClass_00&Prot_00", @"USB\Class_ff&SubClass_00", @"USB\Class_ff");
+
+        Assert.Equal([0x01], CompatibleIds.InterfaceClasses(0xFF, vendorSpecific, [], () => [0x01]));
     }
 
     [Fact]
     public void ADeviceNeitherPathCanReadIsUnknown()
     {
-        Assert.Null(CompatibleIds.InterfaceClasses(Node(@"USB\VID_1234&PID_5678\1"), [], () => null));
+        Assert.Null(CompatibleIds.InterfaceClasses(0, Node(@"USB\VID_1234&PID_5678\1"), [], () => null));
     }
 
     [Theory]
