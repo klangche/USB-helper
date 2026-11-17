@@ -984,8 +984,10 @@ public sealed class MainViewModel : ObservableObject
             (Strings.LimitRecommendedHops, recommended?.State, recommended?.Actual, recommended?.Limit),
             (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
         };
-        return [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>
+        IEnumerable<string> lines = [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>
             string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded))];
+        // #296: a warning on the profile, whatever its result word.
+        return result.NoMst ? [.. lines, Strings.NoMstWarning] : [.. lines];
     }
 
     private static string KindText(FactKind kind) => kind switch

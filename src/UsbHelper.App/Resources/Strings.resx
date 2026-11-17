@@ -19,6 +19,9 @@
   <data name="OperatingSystems" xml:space="preserve">
     <value>Operating systems</value>
   </data>
+  <data name="NoMstWarning" xml:space="preserve">
+    <value>Warning: no MST, so a second DisplayPort display is duplicated</value>
+  </data>
   <data name="ProfileMenu" xml:space="preserve">
     <value>USB philosophy</value>
   </data>

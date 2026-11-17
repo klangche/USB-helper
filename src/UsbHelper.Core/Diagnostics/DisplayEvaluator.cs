@@ -129,7 +129,7 @@ internal static class DisplayEvaluator
     /// The "No MST" rule (owner decision in #144): when the profile says <c>displays.mst: false</c> and more than one
     /// external DisplayPort display is active (DisplayPort or DisplayPort over USB4/Thunderbolt; DisplayLink, HDMI and
     /// built-in displays never count), the first is judged as usual (green) and every further one is potentially
-    /// unstable, because without MST it can only duplicate. Unknown MST is a finding only. Returns each judged monitor's
+    /// duplicated, because without MST it can only duplicate; it stays green and the profile gets a "No MST" warning (#296). Unknown MST is a finding only. Returns each judged monitor's
     /// status by monitor id. The message names the profile's computer, which need not be the one running the app.
     /// </summary>
     public static IEnumerable<(string Monitor, ConnectionStatus Status)> Mst(
@@ -162,16 +162,18 @@ internal static class DisplayEvaluator
         {
             yield break;
         }
+        // Owner decision 2026-11-17 (#296): a duplicated display is not unstable. Every display stays green; the
+        // profile is flagged with a warning instead.
         yield return (displayPort[0].Id, ConnectionStatus.Green);
         foreach (var monitor in displayPort.Skip(1))
         {
-            var message = $"No MST on {computer}: this display is duplicated; use a second USB-C port or DisplayLink.";
+            var message = $"No MST on {computer}: this display is duplicated. Use a second USB-C port or DisplayLink to extend it.";
             findings.Add(new Finding(FactKind.PredictedRisk, monitor.Id, monitor.Name ?? "Monitor",
                 verified ? message : $"{message} (displays.mst comes from an unverified profile, {file})")
             {
                 Brief = message,
             });
-            yield return (monitor.Id, ConnectionStatus.Orange);
+            yield return (monitor.Id, ConnectionStatus.Green);
         }
     }
 

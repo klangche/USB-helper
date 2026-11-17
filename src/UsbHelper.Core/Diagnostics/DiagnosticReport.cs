@@ -26,4 +26,10 @@ public sealed record DiagnosticReport(
 
     /// <summary>The deepest hop against <c>limits.recommended_hops</c>; above it but within the maximum is potentially unstable.</summary>
     public LimitCheck? RecommendedHops { get; init; }
+
+    /// <summary>
+    /// More than one DisplayPort display is active and the profile does not support MST (#296): a warning, not a status;
+    /// the displays stay green.
+    /// </summary>
+    public bool NoMst { get; init; }
 }
