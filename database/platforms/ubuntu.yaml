@@ -1,8 +1,12 @@
-name: Linux
+name: Ubuntu
 
 chips:
-  x64:
-    name: x64
+  intel:
+    name: Intel
+    architecture: x64
+    built_in_hub_levels: 0
+  amd:
+    name: AMD
     architecture: x64
     built_in_hub_levels: 0
   arm:
@@ -11,8 +15,8 @@ chips:
     built_in_hub_levels: 0
 
 notes:
-  - "Generic Linux platform profile, one entry per processor architecture."
-  - "built_in_hub_levels 0 for both: five hubs fit in a row (PureLink). Until 2026-11-16 x64 had max_hops 6 from the usb-script config, which is above the USB maximum; ARM had 5 from the same config, tested in practice."
+  - "Ubuntu, one entry per processor (owner decision 2026-11-17: Ubuntu and Debian are separate operating systems in the menu)."
+  - "built_in_hub_levels 0 for all chips, as the generic Linux profile before it: five hubs fit in a row (PureLink)."
 
 sources:
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"

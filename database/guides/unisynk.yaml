@@ -1,0 +1,252 @@
+# =============================================================================
+# Unisynk  –  Manufacturer guide
+# =============================================================================
+# Hybrid profile: starts from USB-Helper defaults but applies Ochno-style
+# conservatism on tiers and hops (because many Unisynk installations use
+# similar switcher / extension topologies).
+#
+# How to edit
+#   - Leave a value empty  → fall back to the value above it
+#   - Write a number       → that is the limit
+#   - Write "none"         → deliberately no limit
+# =============================================================================
+
+name: Unisynk
+selectable: true
+
+
+# -----------------------------------------------------------------------------
+# Global defaults
+# -----------------------------------------------------------------------------
+limits:
+  hubs:
+    recommended: 3
+    max: 5
+  tiers:
+    recommended: 4
+    max: 6
+  hops:
+    recommended: 2
+    max: 4
+  buses:                              # empty: USB-Helper's values per bus
+    usb2:
+      hubs:
+        recommended:
+        max:
+    usb3:
+      hubs:
+        recommended:
+        max:
+    usb4:
+      hubs:
+        recommended:
+        max:
+  camera_audio:
+    tiers:
+      recommended: 3
+      max: 4
+    hops:
+      recommended: 1
+      max: 2
+  exceeded_note: "Topology is getting deep – Unisynk recommends keeping chains short."
+
+
+# =============================================================================
+# WINDOWS
+# =============================================================================
+platforms:
+
+  windows:
+    mst: 1
+    limits: {}
+
+    chips:
+      intel:
+        mst: 1
+        limits:
+          hops:
+            recommended: 4
+            max: 6
+
+      amd:
+        mst: 1
+        limits:
+          tiers:
+            recommended: 3
+            max: 5
+          hops:
+            recommended: 3
+            max: 5
+
+      arm:
+        mst: 0
+        limits:
+          tiers:
+            recommended: 3
+            max: 4
+          hops:
+            recommended: 2
+            max: 3
+
+
+# =============================================================================
+# macOS
+# =============================================================================
+  macos:
+    mst: 1
+    limits: {}
+
+    chips:
+      intel:
+        mst: 1
+        limits:
+          hops:
+            recommended: 4
+            max: 6
+
+      apple-silicon:
+        mst: 1
+        limits:
+          tiers:
+            recommended: 3
+            max: 5
+          hops:
+            recommended: 2
+            max: 4
+
+      a-series:
+        mst: 0
+        limits:
+          tiers:
+            recommended: 3
+            max: 4
+
+
+# =============================================================================
+# LINUX: UBUNTU
+# =============================================================================
+  ubuntu:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits:
+          hops:
+            recommended: 3
+            max: 5
+
+      amd:
+        mst: 0
+        limits:
+          hops:
+            recommended: 3
+            max: 5
+
+      arm:
+        mst: 0
+        limits:
+          tiers:
+            recommended: 3
+            max: 4
+          hops:
+            recommended: 2
+            max: 3
+
+
+# =============================================================================
+# LINUX: DEBIAN
+# =============================================================================
+  debian:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits:
+          hops:
+            recommended: 3
+            max: 5
+
+      amd:
+        mst: 0
+        limits:
+          hops:
+            recommended: 3
+            max: 5
+
+      arm:
+        mst: 0
+        limits:
+          tiers:
+            recommended: 3
+            max: 4
+          hops:
+            recommended: 2
+            max: 3
+
+
+# =============================================================================
+# APPLE MOBILE  (iPhone / iPad)
+# =============================================================================
+  apple-mobile:
+    mst: 0
+    limits:
+      hubs:
+        recommended: 1
+        max: 2
+      tiers:
+        recommended: 2
+        max: 3
+      hops:
+        recommended: 1
+        max: 2
+
+    chips:
+      a-series:
+        mst: 0
+        limits: {}
+
+      m-series:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# ANDROID
+# =============================================================================
+  android:
+    mst: 0
+    limits:
+      hubs:
+        recommended: 1
+        max: 2
+      tiers:
+        recommended: 2
+        max: 3
+      hops:
+        recommended: 1
+        max: 2
+
+    chips:
+      phone-qualcomm:
+        mst: 0
+        limits:
+          hops:
+            recommended: 2
+            max: 3
+
+      tablet-exynos:
+        mst: 0
+        limits:
+          hops:
+            recommended: 1
+            max: 2
+
+
+# -----------------------------------------------------------------------------
+sources:
+  - "USB-Helper base limits + Ochno-style conservatism on tiers/hops"
+  - "Unisynk practical experience with switcher and extension topologies"
