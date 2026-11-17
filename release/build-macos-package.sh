@@ -34,6 +34,19 @@ detach() {
   done
   hdiutil detach -force "$1"
 }
+# hdiutil on the build runners also answers "Resource busy" for a moment to create, attach or convert, for example right
+# after another disk image was detached (#282). Retry such a step, 3 seconds apart; the last failure stops the script.
+retry() {
+  local attempt
+  for attempt in 1 2 3 4; do
+    if "$@"; then
+      return 0
+    fi
+    echo "$1 $2 failed (attempt $attempt of 5); retrying." >&2
+    sleep 3
+  done
+  "$@"
+}
 cleanup() {
   if ((mounted)); then
     detach "$mountpoint" || true
@@ -79,17 +92,17 @@ archive="$output/$name"
 # writable first, then compressed.
 cp "$script_dir/../src/UsbHelper.App/Assets/usb-helper.icns" "$stage/.VolumeIcon.icns"
 writable="$temporary/writable.dmg"
-hdiutil create -volname USB-helper -srcfolder "$stage" -ov -format UDRW "$writable"
+retry hdiutil create -volname USB-helper -srcfolder "$stage" -ov -format UDRW "$writable"
 mkdir "$mountpoint"
-hdiutil attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable" >/dev/null
+retry hdiutil attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable" >/dev/null
 mounted=1
 xattr -wx com.apple.FinderInfo 0000000000000000040000000000000000000000000000000000000000000000 "$mountpoint"
 detach "$mountpoint"
 mounted=0
 rm -f "$archive"
-hdiutil convert "$writable" -format UDZO -o "$archive"
+retry hdiutil convert "$writable" -format UDZO -ov -o "$archive"
 hdiutil verify "$archive"
-hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
+retry hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
 mounted=1
 for entry in \
   USB-helper.app/Contents/Info.plist \
