@@ -688,6 +688,23 @@ public class DiagnosticEvaluatorTests
         return [Controller("C1", root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] })];
     }
 
+    // #285: a hub or device on a port whose bus is not reported gets the lower of the USB 2 and USB 3 values, and the log
+    // says so when they differ.
+    [Fact]
+    public void UnknownBusIsJudgedByTheLowerBusValue()
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper["usb2.hops.max"] = "0";
+        db.UsbHelper["usb3.hops.max"] = "5";
+        db.WriteComputer("computers/c.yaml", "Test laptop");
+        var loaded = db.Load();
+
+        var report = DiagnosticEvaluator.Evaluate(WithUnknownBus(), loaded.Computers.Values.Single(), [], externalDisplays: 0, guide: loaded.DefaultGuide);
+
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["MOUSE"]);
+        Assert.Contains(report.Findings, finding => finding.Message.Contains("which bus", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void UnknownBusIsWithinWhenAllHubsTogetherAreWithin()
     {
