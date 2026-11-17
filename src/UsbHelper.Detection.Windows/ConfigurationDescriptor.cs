@@ -13,6 +13,7 @@ internal static class ConfigurationDescriptor
     private const int WLengthOffset = 10;
     private const byte ConfigurationType = 2;
     private const byte InterfaceType = 4;
+    private const int InterfaceLength = 9;
     private const int InterfaceClassOffset = 5;
 
     /// <summary>The length of the configuration descriptor itself, which holds the length of all of it (wTotalLength).</summary>
@@ -64,7 +65,7 @@ internal static class ConfigurationDescriptor
             }
             if (data[offset + 1] == InterfaceType)
             {
-                if (length < HeaderLength)
+                if (length < InterfaceLength)
                 {
                     return null;
                 }

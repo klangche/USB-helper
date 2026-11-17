@@ -196,24 +196,8 @@ internal static class UsbTreeBuilder
         };
     }
 
-    // #274: the bInterfaceClass of the device's interface entries, below it but not below another device.
-    private static List<int> InterfaceClasses(RegistryEntry device)
-    {
-        var classes = new List<int>();
-        void Walk(RegistryEntry entry)
-        {
-            foreach (var child in entry.Children.Where(child => !child.IsUsbDevice))
-            {
-                if (child.GetNumber("bInterfaceClass") is { } interfaceClass)
-                {
-                    classes.Add((int)interfaceClass);
-                }
-
-                Walk(child);
-            }
-        }
-
-        Walk(device);
-        return classes;
-    }
+    // #274: the bInterfaceClass of the device's own IOUSBHostInterface entries, its direct children.
+    private static List<int> InterfaceClasses(RegistryEntry device) =>
+        device.Children.Where(child => child.ClassName == "IOUSBHostInterface")
+            .Select(child => child.GetNumber("bInterfaceClass")).OfType<long>().Select(value => (int)value).ToList();
 }
