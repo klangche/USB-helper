@@ -11,7 +11,7 @@ computer files hold facts, guide files hold every limit and recommendation.
 database/
 ├── base.yaml          facts from the USB specification
 ├── platforms/         one file per operating system, with its chips
-├── guides/            one folder per guide: usb-helper/ (the default), purelink/, ochno/, unisynk/
+├── guides/            one file per guide: usb-helper.yaml (the default), purelink.yaml, ochno.yaml, unisynk.yaml
 └── computers/         one file per problem machine, by manufacturer
 ```
 
@@ -31,8 +31,8 @@ usb4:
 
 ### Platform files
 
-One file per operating system family. The file name is the platform (`windows`, `macos`, `linux`, `ipad`,
-`android`). Each chip is one platform profile, named after the file and the chip: `windows-intel`, `macos-a-series`.
+One file per operating system family. The file name is the platform (`windows`, `macos`, `ubuntu`, `debian`,
+`apple-mobile`, `android`), the same keys as under `platforms:` in the guide files. Each chip is one platform profile, named after the file and the chip: `windows-intel`, `macos-a-series`.
 Adding or renaming a chip is only a change to the file.
 
 ```yaml
@@ -48,75 +48,79 @@ chips:
 |---|---|
 | `windows` | `intel` 0, `amd` 0, `arm` 0 |
 | `macos` | `intel` 0, `apple-silicon` (M-series) 1, `a-series` 2 |
-| `linux` | `x64` 0, `arm` 0 |
-| `ipad` | `a-series` 2 |
+| `ubuntu`, `debian` | `intel` 0, `amd` 0, `arm` 0 (Ubuntu and Debian are separate systems, owner decision 2026-11-17) |
+| `apple-mobile` (iPhone and iPad) | `a-series` 2, `m-series` null (not measured yet) |
 | `android` | `phone-qualcomm` 0, `tablet-exynos` 1 (from the usb-script config's 4 hops) |
 
 ### Guide files
 
-Each guide is a folder of small files, the same files with the same keys in every guide, so a guide can be sent to a
-manufacturer, filled in and sent back; a returned folder with a missing or extra file or key is rejected, with file,
-line and key.
-
-```
-guides/usb-helper/      the default guide and the fallback of every other one
-  guide.yaml            name, selectable, notes, sources, verification, and the explanation for whoever fills it in
-  all.yaml              one limits block for every system
-  windows.yaml          one limits block per chip: intel, amd, arm
-  macos.yaml            intel, apple-silicon (M-series), a-series
-  linux.yaml            x64, arm
-  ipad.yaml             a-series
-  android.yaml          phone-qualcomm, tablet-exynos
-guides/purelink/, guides/ochno/, guides/unisynk/   the same files
-```
-
-A limits block (all of `all.yaml`, or one chip in a platform's file):
+Each guide is one file, `guides/<guide>.yaml`, with the same platforms and chips in every guide, so a guide can be sent
+to a manufacturer, filled in and sent back. A returned file with a missing or extra platform, chip or key is rejected,
+with file, line and key. A new file in `guides/` is a new guide; no code change is needed.
 
 ```yaml
-usb2:                 # each bus on its own; usb3 and usb4 the same
-  hubs:               # external hubs on that bus
-    recommended:
-    max: 4
-  tiers:              # USB tiers as the specification counts them, built-in hub levels included
-    recommended:
+name: PureLink
+selectable: true
+
+limits:                 # global: every system
+  hubs:                 # external hubs
+    recommended: 3
+    max: 5
+  tiers:                # USB tiers as the specification counts them (host = tier 1), built-in hub levels included
+    recommended: 4
     max: 7
-  hops:               # external hubs in front of a device
+  hops:                 # external hubs in front of a device
     recommended: 2
-    max: none
-camera_audio:         # tiers and hops for cameras and audio devices, on top of the general limits
-  tiers:
-    recommended:
-    max:
-  hops:
-    recommended:
-    max:
-mst:                  # 1: extends the desktop over DisplayPort MST, 0: does not
-exceeded_note:        # shown with the finding when a limit here is exceeded; at most 160 characters
+    max: 4
+  buses:                # hubs per bus; empty = the hubs above
+    usb2: { hubs: { recommended: , max: } }
+    usb3: { hubs: { recommended: , max: } }
+    usb4: { hubs: { recommended: , max: } }
+  camera_audio:         # stricter tiers and hops for cameras and audio devices
+    tiers: { recommended: 3, max: 4 }
+    hops: { recommended: 1, max: 2 }
+  exceeded_note: "Too many hubs/tiers – video or audio may drop frames."   # at most 160 characters
+
+platforms:
+  windows:
+    mst: 1              # 1: extends the desktop over DisplayPort MST, 0: does not
+    limits: {}          # only what differs from the global limits
+    chips:
+      amd:
+        mst: 1
+        limits:
+          tiers: { recommended: 3, max: 6 }
+  # macos, ubuntu, debian, apple-mobile, android: the same, with every chip of platforms/<platform>.yaml
+
+sources:
+  - "..."
 ```
 
 How to read a value:
 
-- A number is the guide's limit. An empty value means: use USB-Helper's value (`guides/usb-helper/`). This is
-  different from platform and computer files, where `null` means unknown.
-- `none` means: this guide states no limit here, and USB-Helper's value is not used either.
-- A chip's value wins over the one in `all.yaml`. The picked guide is read this way first, then USB-Helper's.
-- USB-Helper's guide is the default (ticked at start) and the fallback, so every number and `mst` in it is filled in.
-- `selectable: false` lists a guide that is not filled in yet; it is not offered.
+- A number is the limit. An empty value (or a key left out of a chip's or platform's `limits`) means: use the value
+  above it: the chip's, then the platform's, then the global one, then USB-Helper's (`guides/usb-helper.yaml`) the same
+  way. This is different from platform and computer files, where `null` means unknown.
+- `none` means: deliberately no limit, and nothing above it is used either.
+- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers and hops are the same on every bus.
+- USB-Helper's guide is the default (ticked at start) and the fallback, so its global limits (`buses` included) and
+  every `mst` are filled in. The per-bus hubs are filled in only there, until a manufacturer gives numbers.
+- `selectable: false` lists a guide that is not offered yet.
 - Each limit is checked on its own; nothing is worked out between hubs, tiers and hops. Above any `max` is unstable
   (purple), above any `recommended` potentially unstable (orange).
-- Each bus's limits apply to that bus's tree. A hub or device on a port whose bus the operating system does not report
-  is judged by the lowest of the values stated for USB 2 and USB 3, and the log says so. `usb4` is loaded and checked
-  but not judged yet: USB4 links are not detected yet (#267).
+- Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
+  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked but not judged yet: USB4
+  links are not detected yet (#267).
 - A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
   the computer's own port is on tier 4.
-- Findings and the log name the guide, the value and the file, for example
-  `limits.max_hops = 5 (USB-Helper: usb2.hops.max 5 in guides/usb-helper/windows.yaml)`, so a value that fell back
-  reads as USB-Helper's.
+- Findings and the log name the guide, the key and the file, for example
+  `limits.max_hops = 7 (USB-Helper: platforms.windows.chips.intel.limits.hops.max 7 in guides/usb-helper.yaml)`, so a
+  value that fell back reads as USB-Helper's.
 
 | Guide | Values |
 |---|---|
-| `usb-helper` | To be confirmed by the owner: today's merged values as hops per chip, the same on USB 2 and USB 3 (5 / 2 without built-in levels, 4 / 1 on M-series and Android tablets, 3 / 1 on A-series), `tiers.max` 7, cameras and audio 1 hop recommended, `mst` 1 on Windows and 0 elsewhere; hubs, `tiers.recommended`, camera tiers and `usb4` `none`. |
-| `purelink`, `ochno`, `unisynk` | Blank forms to send to each company (owner decision 2026-11-17): every value empty, so USB-Helper's apply. PureLink is selectable, Ochno and Unisynk are not. |
+| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hops 4 / 6, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5 and hops 2 / 4, with hops per chip; iPhone, iPad and Android stricter. |
+| `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty. |
 
 ### Computer files
 
@@ -138,9 +142,9 @@ nothing.
 
 Loading stops with a list of every problem found, each with file and line: invalid YAML, duplicate fields, unknown
 fields, wrong value types, invalid verification status or date, duplicate ids, a missing platform or chip, a guide file
-whose files or keys differ, an empty value in USB-Helper's guide, an `mst` other than 0 or 1, an `exceeded_note` over 160
+whose platforms, chips or keys differ, an empty global value or `mst` in USB-Helper's guide, an `mst` other than 0 or 1, an `exceeded_note` over 160
 characters, a tier above `usb.max_tiers`, or a file that is not read (only `base.yaml`, `platforms/*.yaml`,
-`guides/<guide>/*.yaml` and the `.yaml` files below `computers/` are; a file whose name starts with a dot, such as
+`guides/*.yaml` and the `.yaml` files below `computers/` are; a file whose name starts with a dot, such as
 `.template.yaml`, is left out on purpose).
 
 ### Ports and displays

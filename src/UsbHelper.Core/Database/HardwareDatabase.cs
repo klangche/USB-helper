@@ -2,7 +2,7 @@ namespace UsbHelper.Core.Database;
 
 /// <summary>
 /// The hardware database: <c>base.yaml</c> (facts from the USB specification), <c>platforms/*.yaml</c> (one operating
-/// system each, with its chips), <c>guides/&lt;guide&gt;/*.yaml</c> (limits and recommendations, one folder per guide) and <c>computers/**/*.yaml</c>
+/// system each, with its chips), <c>guides/*.yaml</c> (limits and recommendations, one file per guide) and <c>computers/**/*.yaml</c>
 /// (problem machines, each on one platform and chip). Files whose name starts with a dot, such as
 /// <c>.template.yaml</c>, are not loaded. Files are only read.
 /// The files come from a folder (the repository's <c>database/</c>) or from resources built into the app (#102).
@@ -25,7 +25,7 @@ public sealed class HardwareDatabase
 
     public IReadOnlyDictionary<string, ResolvedProfile> Computers { get; }
 
-    /// <summary>Every guide, selectable or not, by id (the folder name).</summary>
+    /// <summary>Every guide, selectable or not, by id (the file name).</summary>
     public IReadOnlyDictionary<string, Guide> Guides { get; }
 
     /// <summary>USB-Helper's guide (<see cref="Guide.DefaultId"/>): ticked at start, and the fallback of every other guide.</summary>
@@ -55,7 +55,7 @@ public sealed class HardwareDatabase
         foreach (var file in files.Keys.Where(file => !IsRead(file)).Order(StringComparer.Ordinal))
         {
             errors.Add(new DatabaseError(file, 0,
-                "This file is not read: only base.yaml, platforms/*.yaml, guides/<guide>/*.yaml and the .yaml files below computers/ are."));
+                "This file is not read: only base.yaml, platforms/*.yaml, guides/*.yaml and the .yaml files below computers/ are."));
         }
 
         if (errors.Count > 0)
@@ -172,91 +172,46 @@ public sealed class HardwareDatabase
         return computers;
     }
 
-    // Each guide is a folder (guides/<id>/) of small files. USB-Helper's is read first: it is the fallback of every other.
-    // The files are joined into one tree: guide.yaml's fields, all.yaml under "limits", and each chip's block of a
-    // platform file under "platforms.<platform>.chips.<chip>.limits"; every value keeps its own file and line.
+    // Each guide is one file (guides/<id>.yaml). USB-Helper's is read first: it is the fallback of every other.
     private static Dictionary<string, Guide> ReadGuides(
         IReadOnlyDictionary<string, string> files, ProfileValue usb, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
         var guides = new Dictionary<string, Guide>();
-        var folders = files.Keys.Where(IsGuideFile).GroupBy(file => file.Split('/')[1]).ToDictionary(group => group.Key, group => group.ToList());
-        if (!folders.ContainsKey(Guide.DefaultId))
+        var guideFiles = files.Keys.Where(IsGuideFile).ToDictionary(FileId);
+        if (!guideFiles.ContainsKey(Guide.DefaultId))
         {
-            errors.Add(new DatabaseError($"guides/{Guide.DefaultId}/", 0, "Folder not found: USB-Helper's guide is the default and the fallback of every other guide."));
+            errors.Add(new DatabaseError($"guides/{Guide.DefaultId}.yaml", 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
         }
         var maxTiers = usb.Find("usb.max_tiers")?.Scalar as long?;
-        string[] expected = [GuideSchema.HeaderFile, GuideSchema.AllFile, .. chips.Keys.Select(platform => $"{platform}.yaml")];
         Guide? fallback = null;
-        foreach (var (id, folderFiles) in folders.OrderBy(folder => folder.Key == Guide.DefaultId ? 0 : 1).ThenBy(folder => folder.Key, StringComparer.Ordinal))
+        foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key == Guide.DefaultId ? 0 : 1).ThenBy(guide => guide.Key, StringComparer.Ordinal))
         {
             var isDefault = id == Guide.DefaultId;
-            var folder = $"guides/{id}/";
-            foreach (var extra in folderFiles.Where(file => !expected.Contains(file[folder.Length..])).Order(StringComparer.Ordinal))
-            {
-                errors.Add(new DatabaseError(extra, 0, "Unknown file: every guide has the files of guides/usb-helper/."));
-            }
-            ProfileValue? Read(string name)
-            {
-                var file = folder + name;
-                if (!files.TryGetValue(file, out var yaml))
-                {
-                    errors.Add(new DatabaseError(file, 0, "File not found: every guide has the files of guides/usb-helper/."));
-                    return null;
-                }
-                return ProfileFileReader.Read(yaml, file, errors);
-            }
-            var header = Read(GuideSchema.HeaderFile);
-            var all = Read(GuideSchema.AllFile);
-            if (all != null)
-            {
-                GuideSchema.Block(all, "", isDefault, maxTiers, errors);
-            }
-            var platformSections = new Dictionary<string, ProfileValue>();
-            foreach (var (platform, platformChips) in chips)
-            {
-                if (Read($"{platform}.yaml") is not { } section)
-                {
-                    continue;
-                }
-                GuideSchema.Platform(section, platformChips, isDefault, maxTiers, errors);
-                var chipSections = section.Fields.Where(chip => chip.Value.Kind == ValueKind.Mapping).ToDictionary(
-                    chip => chip.Key,
-                    chip => ProfileValue.CreateMapping(new Dictionary<string, ProfileValue> { ["limits"] = chip.Value }, section.File, chip.Value.Line));
-                platformSections[platform] = ProfileValue.CreateMapping(
-                    new Dictionary<string, ProfileValue> { ["chips"] = ProfileValue.CreateMapping(chipSections, section.File, section.Line) }, section.File, section.Line);
-            }
-            if (header == null)
+            var root = ProfileFileReader.Read(files[file], file, errors);
+            if (root == null)
             {
                 continue;
             }
-            GuideSchema.ValidateHeader(header, errors);
-            var name = RequiredText(header, "name", errors);
-            var selectable = header.Fields.GetValueOrDefault("selectable");
+            GuideSchema.Validate(root, chips, isDefault, maxTiers, errors);
+            var name = RequiredText(root, "name", errors);
+            var selectable = root.Fields.GetValueOrDefault("selectable");
             if (selectable?.Kind != ValueKind.Boolean)
             {
-                errors.Add(new DatabaseError(header.File, selectable?.Line ?? header.Line, "Field 'selectable' is required and must be true or false."));
+                errors.Add(new DatabaseError(file, selectable?.Line ?? root.Line, "Field 'selectable' is required and must be true or false."));
             }
             if (name == null || selectable?.Scalar is not bool isSelectable)
             {
                 continue;
             }
-            var fields = header.Fields.ToDictionary();
-            fields["platforms"] = ProfileValue.CreateMapping(platformSections, header.File, header.Line);
-            if (all != null)
-            {
-                fields["limits"] = all;
-            }
-            var guide = new Guide(id, name, isSelectable, ProfileValue.CreateMapping(fields, header.File, header.Line), isDefault ? null : fallback);
+            var guide = new Guide(id, name, isSelectable, root, isDefault ? null : fallback);
             fallback = isDefault ? guide : fallback;
             guides.Add(id, guide);
         }
         return guides;
     }
 
-    // guides/<id>/<file>.yaml, one folder deep.
-    private static bool IsGuideFile(string file) =>
-        file.StartsWith("guides/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
-        && file.Count(c => c == '/') == 2 && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.');
+    // guides/<id>.yaml, directly in guides/.
+    private static bool IsGuideFile(string file) => IsInFolder(file, "guides", subfolders: false);
 
     // A file whose name starts with a dot is left out on purpose; any other file must be one of the files that are read.
     private static bool IsRead(string file) =>

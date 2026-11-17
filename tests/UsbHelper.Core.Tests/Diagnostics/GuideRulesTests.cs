@@ -26,25 +26,29 @@ public class GuideRulesTests
 
     private static UsbNode Camera => Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera };
 
-    // Today's merged values before #284: purple above the maximum, orange above the recommendation.
+    // Purple above the maximum, orange above the recommendation, both counted in hubs in front of the device.
     private static ConnectionStatus Today(int hubs, int max, int recommended) =>
         hubs > max ? ConnectionStatus.Purple : hubs > recommended ? ConnectionStatus.Orange : ConnectionStatus.Green;
 
-    // USB-Helper's guide (the default) keeps today's colours: Windows 5 / 2, M-series 4 / 1, A-series 3 / 1 (the
-    // recommendation never below 1 hub).
+    // USB-Helper's guide (the owner's file of 2026-11-17): the most hubs in front of a device is the lower of hops and
+    // tiers − 2 − the chip's built-in hub levels, for the maximum and the recommendation each. iPhone and iPad (tiers
+    // at most 3, two built-in levels) and Android (tiers at most 3) are strict enough that even the own port exceeds.
     [Theory]
-    [InlineData("windows-intel", 5, 2)]
-    [InlineData("windows-amd", 5, 2)]
-    [InlineData("windows-arm", 5, 2)]
-    [InlineData("macos-intel", 5, 2)]
-    [InlineData("macos-apple-silicon", 4, 1)]
+    [InlineData("windows-intel", 5, 3)]
+    [InlineData("windows-amd", 5, 3)]
+    [InlineData("windows-arm", 5, 3)]
+    [InlineData("macos-intel", 5, 3)]
+    [InlineData("macos-apple-silicon", 4, 2)]
     [InlineData("macos-a-series", 3, 1)]
-    [InlineData("ipad-a-series", 3, 1)]
-    [InlineData("linux-x64", 5, 2)]
-    [InlineData("linux-arm", 5, 2)]
-    [InlineData("android-phone-qualcomm", 5, 2)]
-    [InlineData("android-tablet-exynos", 4, 1)]
-    public void UsbHelperGivesTodaysColours(string profile, int max, int recommended)
+    [InlineData("apple-mobile-a-series", -1, -2)]
+    [InlineData("ubuntu-intel", 5, 3)]
+    [InlineData("ubuntu-amd", 5, 3)]
+    [InlineData("ubuntu-arm", 5, 3)]
+    [InlineData("debian-intel", 5, 3)]
+    [InlineData("debian-arm", 5, 3)]
+    [InlineData("android-phone-qualcomm", 1, 0)]
+    [InlineData("android-tablet-exynos", 0, -1)]
+    public void UsbHelperGivesItsColours(string profile, int max, int recommended)
     {
         for (var hubs = 0; hubs <= 7; hubs++)
         {
@@ -95,8 +99,8 @@ public class GuideRulesTests
 
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.SubjectId == "KEYBOARD"
             && finding.Message == "Tier depth 5 exceeds the recommended limits.recommended_tiers 4; limits.max_tiers is 7.");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: usb2.tiers.recommended 4 in guides/guide/all.yaml).");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: usb2.hops.max 3 in guides/usb-helper/test.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: limits.tiers.recommended 4 in guides/guide.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: limits.hops.max 3 in guides/usb-helper.yaml).");
     }
 
     // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hops 3 / 2, and a picked
@@ -120,13 +124,15 @@ public class GuideRulesTests
     {
         var device = Device("CAMERA") with { DeviceKind = kind };
 
+        // Cameras and audio: tiers 3 / 5 and hops 2 / 4, so on Windows Intel 1 hub is fine, 2 or 3 are orange, 4 purple.
         Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, device, UsbHelper));
         Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, device, UsbHelper));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 5, device, UsbHelper));
-        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 6, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 3, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 4, device, UsbHelper));
         Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("KEYBOARD") with { DeviceKind = UsbDeviceKind.Neither }, UsbHelper));
         Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("THING") with { DeviceKind = UsbDeviceKind.Unknown }, UsbHelper));
-        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 1, device, UsbHelper));
+        // Two built-in hub levels: one hub puts the camera on tier 5, above the recommendation.
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("macos-a-series", 1, device, UsbHelper));
     }
 
     // A guide's camera and audio limits: here 3 tiers recommended, 4 at most.
@@ -170,7 +176,7 @@ public class GuideRulesTests
         var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.Guides["guide"]);
 
         Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Use a powered hub.");
-        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: usb2.hops.max 0 in guides/guide/all.yaml)", StringComparison.Ordinal));
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: limits.hops.max 0 in guides/guide.yaml)", StringComparison.Ordinal));
     }
 
     // USB 2.0: a 7-bit device address, so at most 127 devices on one controller (base.yaml).

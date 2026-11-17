@@ -273,10 +273,10 @@ public class ReportPdfTests
         var model = viewModel.Report(new DateTime(2026, 11, 13, 9, 30, 0), null, null, "0.9.0");
         // The sources are there to hide, from the computer and the platform profile.
         Assert.Contains(model.Findings, finding => finding.Message.Contains("(computers/Dell XPS (1).yaml)", StringComparison.Ordinal));
-        Assert.Contains(model.Findings, finding => finding.Message.Contains("(USB-Helper: usb2.hubs.max 5 in guides/usb-helper/win (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(USB-Helper: limits.buses.usb2.hubs.max 5 in guides/usb-helper.yaml)", StringComparison.Ordinal));
         Assert.Contains("computers/Dell XPS (1).yaml", model.DatabaseFiles);
         Assert.Contains("platforms/win (1).yaml", model.DatabaseFiles);
-        Assert.Contains("guides/usb-helper/guide.yaml", model.DatabaseFiles);
+        Assert.Contains("guides/usb-helper.yaml", model.DatabaseFiles);
 
         foreach (var all in new[] { model, ReportSamples.Full(null) }.Select(item => string.Join("\n", PageTexts(Pdf(item)))))
         {

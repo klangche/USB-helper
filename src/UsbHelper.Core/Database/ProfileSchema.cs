@@ -75,7 +75,7 @@ internal static class ProfileSchema
         ["ports.*.limitations"] = FieldType.StringList,
     });
 
-    /// <summary>The header of a guide (<c>guides/&lt;guide&gt;/guide.yaml</c>); the rest of a guide is checked by <see cref="GuideSchema"/>.</summary>
+    /// <summary>The header of a guide (<c>guides/<c>guides/&lt;guide&gt;/guide.yaml</c>); the restlt;guide<c>guides/&lt;guide&gt;/guide.yaml</c>); the restgt;.yaml</c>); the rest of a guide is checked by <see cref="GuideSchema"/>.</summary>
     public static readonly IReadOnlyDictionary<string, FieldType> GuideHeaderFields = With(Common, new()
     {
         ["name"] = FieldType.String,
