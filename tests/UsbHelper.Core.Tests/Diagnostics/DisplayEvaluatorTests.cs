@@ -13,14 +13,12 @@ public class DisplayEvaluatorTests
     private static ResolvedProfile Profile(string maxExternal = "2", string status = "verified", string extra = "", string displays = "")
     {
         using var db = new TestDatabase();
+        db.UsbHelper["hops.max"] = "5";
         db.Write("computers/c.yaml", $"""
-            inherits: test-platform
+            platform: test
+            chip_family: platform
             manufacturer: Test
             model: Test laptop
-            limits:
-              max_hubs: 5
-              max_tiers: 7
-              max_hops: 5
             displays:
               max_external: {maxExternal}
             {displays}
@@ -28,18 +26,41 @@ public class DisplayEvaluatorTests
               status: {status}
             {extra}
             """);
-        return db.Load().Computers.Values.Single();
+        var loaded = db.Load();
+        var profile = loaded.Computers.Values.Single();
+        Guides.Add(profile, loaded.DefaultGuide);
+        return profile;
     }
 
+    // The guide each profile was loaded with: USB-Helper's, with a hop limit so the lines are judged.
+    private static readonly Dictionary<ResolvedProfile, Guide> Guides = [];
+
     private static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? displays) =>
-        DiagnosticEvaluator.Evaluate(tree, profile, [], displays);
+        DiagnosticEvaluator.Evaluate(tree, profile, [], displays, guide: profile == null ? null : Guides.GetValueOrDefault(profile));
 
     private static readonly DisplayMonitor Left = new("L", "LS27A600U", MonitorOutput.DisplayPort);
     private static readonly DisplayMonitor Right = new("R", "LS27A600U", MonitorOutput.UsbTunnel);
     private const string NoMst = "No MST on Test laptop: this display is duplicated; use a second USB-C port or DisplayLink.";
 
     private static DiagnosticReport Evaluate(ResolvedProfile profile, params DisplayMonitor[] monitors) =>
-        DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors);
+        DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors, guide: Guides.GetValueOrDefault(profile));
+
+    // Owner decision 2026-11-17 (#285): MST comes from the guide (1 or 0) unless the computer file states it.
+    [Theory]
+    [InlineData("0", ConnectionStatus.Orange)]
+    [InlineData("1", ConnectionStatus.Green)]
+    public void MstComesFromTheGuide(string mst, ConnectionStatus second)
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper["platforms.test.chips.platform.limits.mst"] = mst;
+        db.WriteComputer("computers/c.yaml", "Test laptop");
+        var loaded = db.Load();
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, loaded.Computers.Values.Single(), [], 2, monitors: [Left, Right], guide: loaded.DefaultGuide);
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections.GetValueOrDefault("L", ConnectionStatus.Green));
+        Assert.Equal(second, report.Connections.GetValueOrDefault("R", ConnectionStatus.Green));
+    }
 
     // Owner decision in #144: without MST, the first DisplayPort display is judged as usual, every further one is orange.
     [Fact]

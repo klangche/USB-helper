@@ -28,26 +28,27 @@ public class ComputerProfileExportTests
         Assert.Equal("Latitude \"7450\"", computer.Value.Find("model")!.Scalar);
         Assert.Equal("Intel(R) Core(TM) Ultra 7 165U", computer.Value.Find("chip")!.Scalar);
         Assert.Equal("unverified", computer.Value.Find("verification.status")!.Scalar);
-        foreach (var field in new[] { "limits.max_hubs", "limits.max_tiers", "limits.max_hops", "displays.max_external" })
-        {
-            Assert.Equal(ValueKind.Null, computer.Value.Find(field)!.Kind);
-        }
+        Assert.Equal(ValueKind.Null, computer.Value.Find("displays.max_external")!.Kind);
+        Assert.Equal("test", computer.Value.Platform);
+        Assert.Equal("platform", computer.Value.Chip);
     }
 
     [Fact]
-    public void ExportShowsThePlatformsLimits()
+    public void ExportInheritsTheChipsFacts()
     {
         using var db = new TestDatabase()
-            .Write("platforms/test-platform.yaml", TestDatabase.Platform + "\nlimits:\n  max_hops: 7\n  recommended_hops: 5\nverification:\n  status: partial\n")
+            .Write("base.yaml", TestDatabase.Base.Replace("unverified", "partial"))
+            .Write(TestDatabase.PlatformFile, TestDatabase.Platform.Replace("built_in_hub_levels: 0", "built_in_hub_levels: 1") + "\nverification:\n  status: partial\n")
             .Write("computers/export.yaml", Export(Computer));
 
         var computer = db.Load().Computers.Values.Single();
 
         Assert.DoesNotContain("limits:", Export(Computer));
-        Assert.Equal(7L, computer.Find("limits.max_hops")!.Scalar);
-        Assert.Equal(5L, computer.Find("limits.recommended_hops")!.Scalar);
-        Assert.Equal("platforms/test-platform.yaml", computer.Find("limits.max_hops")!.File);
-        Assert.True(DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Hops.Verified);
+        Assert.DoesNotContain("built_in_hub_levels", Export(Computer));
+        Assert.Equal(1L, computer.Find("built_in_hub_levels")!.Scalar);
+        Assert.Equal(TestDatabase.PlatformFile, computer.Find("built_in_hub_levels")!.File);
+        // Tiers count the built-in hub levels: the keyboard behind one hub is on tier 4.
+        Assert.Equal(4, DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Tiers.Actual);
     }
 
     [Fact]
@@ -89,10 +90,12 @@ public class ComputerProfileExportTests
     {
         var yaml = Export(Computer with { Platform = null });
 
-        Assert.Contains("inherits: null", yaml);
-        Assert.Contains("# Choose 'inherits' from database/platforms/.", yaml);
+        Assert.Contains("platform: null", yaml);
+        Assert.Contains("chip_family: null", yaml);
+        Assert.Contains("# Choose 'platform' (a file in database/platforms/) and 'chip_family' (one of its chips).", yaml);
         using var db = new TestDatabase().Write("computers/export.yaml", yaml);
-        Assert.Contains("'inherits' is required", Assert.Single(db.LoadErrors()).Message);
+        Assert.Equal(["Field 'platform' is required and must be text.", "Field 'chip_family' is required and must be text."],
+            db.LoadErrors().Select(error => error.Message));
     }
 
     // Reported names come from firmware and drivers: any character must still give a file that loads unchanged.

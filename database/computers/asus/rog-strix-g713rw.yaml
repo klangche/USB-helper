@@ -1,4 +1,5 @@
-inherits: "windows-amd"
+platform: windows
+chip_family: amd
 manufacturer: "ASUSTeK COMPUTER INC."
 model: "ROG Strix G713RW_G713RW"
 name: "ROG Strix G713RW"
@@ -28,7 +29,7 @@ notes:
   - "Detected: USB controllers: 5, external hubs: 0, active external displays: 0."
   - "Root hub ports per USB controller: 2, 5, 2, 1, 6."
   - "Ports from ASUS's specification page for the ROG Strix G17 (2022) G713, checked through search results only (2026-11-16). One retailer listing for a G713RW shows a single USB-C port, so the port list is to be confirmed on the machine. ASUS lists no Thunderbolt or USB4."
-  - "What makes this computer a problem machine is not recorded yet: no limit or exception differs from windows-amd."
+  - "What makes this computer a problem machine is not recorded yet: no fact or exception differs from amd in platforms/windows.yaml."
 sources:
   - "https://rog.asus.com/laptops/rog-strix/rog-strix-g17-2022-series/spec/ (ASUS, 'ROG Strix G17 (2022) G713' specifications: I/O ports)"
 verification:

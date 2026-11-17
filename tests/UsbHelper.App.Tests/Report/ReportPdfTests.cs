@@ -267,15 +267,16 @@ public class ReportPdfTests
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: status, platformLimits: "max_hubs: 6",
             computerFile: "Dell XPS (1)", platformFile: "win (1)");
         var viewModel = new MainViewModel(database, [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), () => [new DisplayMonitor("DELL", "DELL U2723QE", MonitorOutput.Hdmi)]);
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), () => [new DisplayMonitor("DELL", "DELL U2723QE", MonitorOutput.Hdmi)]);
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Device("KEYBOARD")))])]);
         viewModel.Computers.Single().IsChecked = true;
         var model = viewModel.Report(new DateTime(2026, 11, 13, 9, 30, 0), null, null, "0.9.0");
         // The sources are there to hide, from the computer and the platform profile.
         Assert.Contains(model.Findings, finding => finding.Message.Contains("(computers/Dell XPS (1).yaml)", StringComparison.Ordinal));
-        Assert.Contains(model.Findings, finding => finding.Message.Contains("(platforms/win (1).yaml)", StringComparison.Ordinal));
+        Assert.Contains(model.Findings, finding => finding.Message.Contains("(USB-Helper: usb2.hubs.max 5 in guides/usb-helper/win (1).yaml)", StringComparison.Ordinal));
         Assert.Contains("computers/Dell XPS (1).yaml", model.DatabaseFiles);
         Assert.Contains("platforms/win (1).yaml", model.DatabaseFiles);
+        Assert.Contains("guides/usb-helper/guide.yaml", model.DatabaseFiles);
 
         foreach (var all in new[] { model, ReportSamples.Full(null) }.Select(item => string.Join("\n", PageTexts(Pdf(item)))))
         {
@@ -498,7 +499,7 @@ public class ReportPdfTests
         var root = Hub("ROOT", Hub("DOCK", Device("KEYBOARD")), Device("MOUSE"));
         root = root with { Children = [root.Children[0] with { UsbC = true, UserConnectable = true }, root.Children[1] with { UserConnectable = true }] };
         var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p", MachineName: "ASSET-0042"),
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p", MachineName: "ASSET-0042"),
             () => [new DisplayMonitor("DELL", "DELL U2723QE", MonitorOutput.Hdmi)]);
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
         viewModel.Computers.Single().IsChecked = true;

@@ -1,26 +1,35 @@
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// The hardware database: <c>base.yaml</c>, <c>platforms/*.yaml</c> and <c>computers/**/*.yaml</c>.
-/// A platform inherits from <c>base</c>; a computer inherits from a platform.
-/// Files whose name starts with a dot, such as <c>.template.yaml</c>, are not loaded. Files are only read.
+/// The hardware database: <c>base.yaml</c> (facts from the USB specification), <c>platforms/*.yaml</c> (one operating
+/// system each, with its chips), <c>guides/&lt;guide&gt;/*.yaml</c> (limits and recommendations, one folder per guide) and <c>computers/**/*.yaml</c>
+/// (problem machines, each on one platform and chip). Files whose name starts with a dot, such as
+/// <c>.template.yaml</c>, are not loaded. Files are only read.
 /// The files come from a folder (the repository's <c>database/</c>) or from resources built into the app (#102).
 /// </summary>
 public sealed class HardwareDatabase
 {
     private const string BaseFile = "base.yaml";
-    private const int SchemaVersion = 1;
-    private static readonly IReadOnlySet<string> IdentityFields = new HashSet<string> { "id", "inherits" };
+    private const int SchemaVersion = 2;
 
-    private HardwareDatabase(Dictionary<string, ResolvedProfile> platforms, Dictionary<string, ResolvedProfile> computers)
+    private HardwareDatabase(
+        Dictionary<string, ResolvedProfile> platforms, Dictionary<string, ResolvedProfile> computers, Dictionary<string, Guide> guides)
     {
         Platforms = platforms;
         Computers = computers;
+        Guides = guides;
     }
 
+    /// <summary>One profile per operating system and chip, by id (platform and chip, for example <c>windows-intel</c>).</summary>
     public IReadOnlyDictionary<string, ResolvedProfile> Platforms { get; }
 
     public IReadOnlyDictionary<string, ResolvedProfile> Computers { get; }
+
+    /// <summary>Every guide, selectable or not, by id (the folder name).</summary>
+    public IReadOnlyDictionary<string, Guide> Guides { get; }
+
+    /// <summary>USB-Helper's guide (<see cref="Guide.DefaultId"/>): ticked at start, and the fallback of every other guide.</summary>
+    public Guide DefaultGuide => Guides[Guide.DefaultId];
 
     /// <summary>Loads and validates the database in <paramref name="folder"/>.</summary>
     /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
@@ -38,91 +47,241 @@ public sealed class HardwareDatabase
     public static HardwareDatabase Load(IReadOnlyDictionary<string, string> files)
     {
         var errors = new List<DatabaseError>();
-        var defaults = ReadBase(files, errors);
-        var platformFiles = ReadProfiles(files, "platforms", subfolders: false, isComputer: false, errors);
-        var computerFiles = ReadProfiles(files, "computers", subfolders: true, isComputer: true, errors);
+        var usb = ReadBase(files, errors);
+        var chips = new Dictionary<string, List<string>>();
+        var platforms = ReadPlatforms(files, usb, chips, errors);
+        var computers = ReadComputers(files, platforms, errors);
+        var guides = ReadGuides(files, usb, chips, errors);
         foreach (var file in files.Keys.Where(file => !IsRead(file)).Order(StringComparer.Ordinal))
         {
-            errors.Add(new DatabaseError(file, 0, "This file is not read: only base.yaml, platforms/*.yaml and the .yaml files below computers/ are."));
-        }
-
-        var seen = new Dictionary<string, string>();
-        foreach (var profile in platformFiles.Concat(computerFiles))
-        {
-            if (!seen.TryAdd(profile.Id, profile.Body.File))
-            {
-                var computed = profile.IdComputed ? " (computed from manufacturer and model)" : "";
-                errors.Add(new DatabaseError(profile.Body.File, profile.IdLine, $"Duplicate id '{profile.Id}'{computed}, already used in {seen[profile.Id]}."));
-            }
-        }
-
-        var platforms = new Dictionary<string, ResolvedProfile>();
-        foreach (var profile in platformFiles)
-        {
-            if (profile.Inherits != "base")
-            {
-                errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, $"A platform profile must inherit from 'base', not '{profile.Inherits}'."));
-                continue;
-            }
-            var root = ProfileMerger.Merge(defaults, profile.Body);
-            CheckHopLimits(root, profile.Body.File, errors);
-            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(defaults), [profile.Body.File] = Status(profile.Body) };
-            platforms.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [BaseFile, profile.Body.File], root, statuses));
-        }
-
-        var computers = new Dictionary<string, ResolvedProfile>();
-        foreach (var profile in computerFiles)
-        {
-            if (!platforms.TryGetValue(profile.Inherits, out var parent))
-            {
-                var reason = profile.Inherits == "base" || computerFiles.Any(other => other.Id == profile.Inherits)
-                    ? $"'{profile.Inherits}' is not a platform profile; a computer profile must inherit from a platform profile."
-                    : $"Parent profile '{profile.Inherits}' does not exist.";
-                errors.Add(new DatabaseError(profile.Body.File, profile.InheritsLine, reason));
-                continue;
-            }
-            var root = ProfileMerger.Merge(parent.Root, profile.Body);
-            CheckHopLimits(root, profile.Body.File, errors);
-            var statuses = parent.Files.ToDictionary(file => file, parent.StatusOf);
-            statuses[profile.Body.File] = Status(profile.Body);
-            computers.TryAdd(profile.Id, new ResolvedProfile(profile.Id, [.. parent.Files, profile.Body.File], root, statuses));
+            errors.Add(new DatabaseError(file, 0,
+                "This file is not read: only base.yaml, platforms/*.yaml, guides/<guide>/*.yaml and the .yaml files below computers/ are."));
         }
 
         if (errors.Count > 0)
         {
             throw new DatabaseException(errors);
         }
-        return new HardwareDatabase(platforms, computers);
+        return new HardwareDatabase(platforms, computers, guides);
     }
 
-    // A recommended hop depth above the maximum can never apply. Reported for the file that sets one of the two, so a
-    // platform's mistake is not repeated for every computer that inherits it.
-    private static void CheckHopLimits(ProfileValue root, string file, List<DatabaseError> errors)
+    // chips: every platform file's chip keys, also of a file with errors, for the guides' shape.
+    private static Dictionary<string, ResolvedProfile> ReadPlatforms(
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, Dictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
-        var recommended = root.Find("limits.recommended_hops");
-        var max = root.Find("limits.max_hops");
-        if (recommended?.Scalar is long recommendedHops && max?.Scalar is long maxHops && recommendedHops > maxHops
-            && (recommended.File == file || max.File == file))
+        var platforms = new Dictionary<string, ResolvedProfile>();
+        foreach (var file in FilesIn(files, "platforms", subfolders: false))
         {
-            var written = recommended.File == file ? recommended : max;
-            errors.Add(new DatabaseError(file, written.Line,
-                $"limits.recommended_hops ({recommendedHops}) must not be above limits.max_hops ({maxHops})."));
+            var root = ProfileFileReader.Read(files[file], file, errors);
+            if (root == null)
+            {
+                continue;
+            }
+            ProfileSchema.Validate(root, ProfileSchema.PlatformFields, errors);
+            var name = RequiredText(root, "name", errors);
+            var chipList = root.Fields.GetValueOrDefault("chips");
+            if (chipList is not { Kind: ValueKind.Mapping, Fields.Count: > 0 })
+            {
+                errors.Add(new DatabaseError(file, chipList?.Line ?? root.Line, "Field 'chips' is required: at least one chip, each with 'name' and 'built_in_hub_levels'."));
+                continue;
+            }
+            var platform = FileId(file);
+            chips[platform] = [.. chipList.Fields.Keys];
+            var body = Without(root, "name", "chips");
+            var statuses = new Dictionary<string, string?> { [BaseFile] = Status(usb), [file] = Status(body) };
+            var platformRoot = ProfileMerger.Merge(usb, body);
+            foreach (var (key, chip) in chipList.Fields.Where(chip => chip.Value.Kind == ValueKind.Mapping))
+            {
+                var chipName = RequiredText(chip, "name", errors, $"chips.{key}.");
+                if (chip.Find("built_in_hub_levels") == null)
+                {
+                    errors.Add(new DatabaseError(file, chip.Line, $"Chip '{key}' must set 'built_in_hub_levels' (null when unknown)."));
+                }
+                if (name == null || chipName == null)
+                {
+                    continue;
+                }
+                var id = $"{platform}-{key}";
+                var profile = new ResolvedProfile(id, [BaseFile, file], ProfileMerger.Merge(platformRoot, Without(chip, "name")), statuses)
+                {
+                    Platform = platform,
+                    PlatformName = name,
+                    Chip = key,
+                    ChipName = chipName,
+                };
+                if (!platforms.TryAdd(id, profile))
+                {
+                    errors.Add(new DatabaseError(file, chip.Line, $"Duplicate id '{id}', already used in {platforms[id].Files[^1]}."));
+                }
+            }
         }
+        return platforms;
     }
+
+    private static Dictionary<string, ResolvedProfile> ReadComputers(
+        IReadOnlyDictionary<string, string> files, Dictionary<string, ResolvedProfile> platforms, List<DatabaseError> errors)
+    {
+        var computers = new Dictionary<string, ResolvedProfile>();
+        foreach (var file in FilesIn(files, "computers", subfolders: true))
+        {
+            var root = ProfileFileReader.Read(files[file], file, errors);
+            if (root == null)
+            {
+                continue;
+            }
+            var (id, idLine) = ComputedId(root, errors);
+            ProfileSchema.Validate(Without(root, "id"), ProfileSchema.ComputerFields, errors);
+            foreach (var field in new[] { "manufacturer", "model" })
+            {
+                if (root.Find(field) == null)
+                {
+                    errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly."));
+                }
+            }
+            var platform = RequiredText(root, "platform", errors);
+            var chip = RequiredText(root, "chip_family", errors);
+            if (id == null || platform == null || chip == null)
+            {
+                continue;
+            }
+            if (computers.TryGetValue(id, out var other))
+            {
+                errors.Add(new DatabaseError(file, idLine, $"Duplicate id '{id}' (computed from manufacturer and model), already used in {other.Files[^1]}."));
+                continue;
+            }
+            var parent = platforms.Values.FirstOrDefault(profile => profile.Platform == platform && profile.Chip == chip);
+            if (parent == null)
+            {
+                var known = platforms.Values.Any(profile => profile.Platform == platform);
+                errors.Add(known
+                    ? new DatabaseError(file, root.Fields["chip_family"].Line, $"Platform '{platform}' has no chip '{chip}'.")
+                    : new DatabaseError(file, root.Fields["platform"].Line, $"Platform '{platform}' does not exist (platforms/{platform}.yaml)."));
+                continue;
+            }
+            var body = Without(root, "platform", "chip_family");
+            var statuses = parent.Files.ToDictionary(path => path, parent.StatusOf);
+            statuses[file] = Status(body);
+            computers.Add(id, new ResolvedProfile(id, [.. parent.Files, file], ProfileMerger.Merge(parent.Root, body), statuses)
+            {
+                Platform = parent.Platform,
+                PlatformName = parent.PlatformName,
+                Chip = parent.Chip,
+                ChipName = parent.ChipName,
+            });
+        }
+        return computers;
+    }
+
+    // Each guide is a folder (guides/<id>/) of small files. USB-Helper's is read first: it is the fallback of every other.
+    // The files are joined into one tree: guide.yaml's fields, all.yaml under "limits", and each chip's block of a
+    // platform file under "platforms.<platform>.chips.<chip>.limits"; every value keeps its own file and line.
+    private static Dictionary<string, Guide> ReadGuides(
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
+    {
+        var guides = new Dictionary<string, Guide>();
+        var folders = files.Keys.Where(IsGuideFile).GroupBy(file => file.Split('/')[1]).ToDictionary(group => group.Key, group => group.ToList());
+        if (!folders.ContainsKey(Guide.DefaultId))
+        {
+            errors.Add(new DatabaseError($"guides/{Guide.DefaultId}/", 0, "Folder not found: USB-Helper's guide is the default and the fallback of every other guide."));
+        }
+        var maxTiers = usb.Find("usb.max_tiers")?.Scalar as long?;
+        string[] expected = [GuideSchema.HeaderFile, GuideSchema.AllFile, .. chips.Keys.Select(platform => $"{platform}.yaml")];
+        Guide? fallback = null;
+        foreach (var (id, folderFiles) in folders.OrderBy(folder => folder.Key == Guide.DefaultId ? 0 : 1).ThenBy(folder => folder.Key, StringComparer.Ordinal))
+        {
+            var isDefault = id == Guide.DefaultId;
+            var folder = $"guides/{id}/";
+            foreach (var extra in folderFiles.Where(file => !expected.Contains(file[folder.Length..])).Order(StringComparer.Ordinal))
+            {
+                errors.Add(new DatabaseError(extra, 0, "Unknown file: every guide has the files of guides/usb-helper/."));
+            }
+            ProfileValue? Read(string name)
+            {
+                var file = folder + name;
+                if (!files.TryGetValue(file, out var yaml))
+                {
+                    errors.Add(new DatabaseError(file, 0, "File not found: every guide has the files of guides/usb-helper/."));
+                    return null;
+                }
+                return ProfileFileReader.Read(yaml, file, errors);
+            }
+            var header = Read(GuideSchema.HeaderFile);
+            var all = Read(GuideSchema.AllFile);
+            if (all != null)
+            {
+                GuideSchema.Block(all, "", isDefault, maxTiers, errors);
+            }
+            var platformSections = new Dictionary<string, ProfileValue>();
+            foreach (var (platform, platformChips) in chips)
+            {
+                if (Read($"{platform}.yaml") is not { } section)
+                {
+                    continue;
+                }
+                GuideSchema.Platform(section, platformChips, isDefault, maxTiers, errors);
+                var chipSections = section.Fields.Where(chip => chip.Value.Kind == ValueKind.Mapping).ToDictionary(
+                    chip => chip.Key,
+                    chip => ProfileValue.CreateMapping(new Dictionary<string, ProfileValue> { ["limits"] = chip.Value }, section.File, chip.Value.Line));
+                platformSections[platform] = ProfileValue.CreateMapping(
+                    new Dictionary<string, ProfileValue> { ["chips"] = ProfileValue.CreateMapping(chipSections, section.File, section.Line) }, section.File, section.Line);
+            }
+            if (header == null)
+            {
+                continue;
+            }
+            GuideSchema.ValidateHeader(header, errors);
+            var name = RequiredText(header, "name", errors);
+            var selectable = header.Fields.GetValueOrDefault("selectable");
+            if (selectable?.Kind != ValueKind.Boolean)
+            {
+                errors.Add(new DatabaseError(header.File, selectable?.Line ?? header.Line, "Field 'selectable' is required and must be true or false."));
+            }
+            if (name == null || selectable?.Scalar is not bool isSelectable)
+            {
+                continue;
+            }
+            var fields = header.Fields.ToDictionary();
+            fields["platforms"] = ProfileValue.CreateMapping(platformSections, header.File, header.Line);
+            if (all != null)
+            {
+                fields["limits"] = all;
+            }
+            var guide = new Guide(id, name, isSelectable, ProfileValue.CreateMapping(fields, header.File, header.Line), isDefault ? null : fallback);
+            fallback = isDefault ? guide : fallback;
+            guides.Add(id, guide);
+        }
+        return guides;
+    }
+
+    // guides/<id>/<file>.yaml, one folder deep.
+    private static bool IsGuideFile(string file) =>
+        file.StartsWith("guides/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
+        && file.Count(c => c == '/') == 2 && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.');
 
     // A file whose name starts with a dot is left out on purpose; any other file must be one of the files that are read.
     private static bool IsRead(string file) =>
         file == BaseFile || file[(file.LastIndexOf('/') + 1)..].StartsWith('.')
-        || IsProfileFile(file, "platforms", subfolders: false) || IsProfileFile(file, "computers", subfolders: true);
+        || IsInFolder(file, "platforms", subfolders: false) || IsGuideFile(file)
+        || IsInFolder(file, "computers", subfolders: true);
 
-    private static bool IsProfileFile(string file, string subfolder, bool subfolders) =>
+    private static IEnumerable<string> FilesIn(IReadOnlyDictionary<string, string> files, string subfolder, bool subfolders) =>
+        files.Keys.Where(file => IsInFolder(file, subfolder, subfolders)).Order(StringComparer.Ordinal);
+
+    private static bool IsInFolder(string file, string subfolder, bool subfolders) =>
         file.StartsWith($"{subfolder}/", StringComparison.Ordinal) && file.EndsWith(".yaml", StringComparison.Ordinal)
         && (subfolders || file.LastIndexOf('/') == subfolder.Length)
         && !file[(file.LastIndexOf('/') + 1)..].StartsWith('.');
 
+    // "platforms/macos.yaml" is the platform "macos".
+    private static string FileId(string file) => file[(file.LastIndexOf('/') + 1)..^".yaml".Length];
+
+    private static ProfileValue Without(ProfileValue mapping, params string[] fields) =>
+        ProfileValue.CreateMapping(mapping.Fields.Where(field => !fields.Contains(field.Key)).ToDictionary(), mapping.File, mapping.Line);
+
     // The status a file writes itself; null (unverified) when it writes none, whatever it inherits.
     private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
 
+    // base.yaml without schema_version: the USB facts every profile starts from.
     private static ProfileValue ReadBase(IReadOnlyDictionary<string, string> files, List<DatabaseError> errors)
     {
         var empty = ProfileValue.CreateMapping(new Dictionary<string, ProfileValue>(), BaseFile, 0);
@@ -137,72 +296,17 @@ public sealed class HardwareDatabase
             return empty;
         }
 
-        foreach (var (key, value) in root.Fields)
-        {
-            if (key is not ("schema_version" or "defaults"))
-            {
-                errors.Add(new DatabaseError(BaseFile, value.Line, $"Unknown field '{key}'."));
-            }
-        }
+        var body = Without(root, "schema_version");
+        ProfileSchema.Validate(body, ProfileSchema.BaseFields, errors);
         if (!root.Fields.TryGetValue("schema_version", out var version) || version.Scalar is not long number || number != SchemaVersion)
         {
             errors.Add(new DatabaseError(BaseFile, version?.Line ?? root.Line, $"'schema_version' must be {SchemaVersion}."));
         }
-        if (!root.Fields.TryGetValue("defaults", out var defaults))
+        if (body.Find("usb.max_tiers") == null)
         {
-            return empty;
+            errors.Add(new DatabaseError(BaseFile, root.Line, "Field 'usb.max_tiers' is required (null when unknown)."));
         }
-        if (defaults.Kind != ValueKind.Mapping)
-        {
-            errors.Add(new DatabaseError(BaseFile, defaults.Line, "Field 'defaults': expected a mapping."));
-            return empty;
-        }
-        ProfileSchema.Validate(defaults, new HashSet<string>(), errors);
-        ProfileSchema.RejectComputerOnlyFields(defaults, "base.yaml", errors);
-        return defaults;
-    }
-
-    private static List<ProfileFile> ReadProfiles(
-        IReadOnlyDictionary<string, string> files, string subfolder, bool subfolders, bool isComputer, List<DatabaseError> errors)
-    {
-        var profiles = new List<ProfileFile>();
-        var inFolder = files.Keys.Where(file => IsProfileFile(file, subfolder, subfolders)).Order(StringComparer.Ordinal);
-        foreach (var file in inFolder)
-        {
-            var root = ProfileFileReader.Read(files[file], file, errors);
-            if (root == null)
-            {
-                continue;
-            }
-
-            var (id, idLine) = isComputer ? ComputedId(root, errors) : (RequiredText(root, "id", errors), root.Fields.GetValueOrDefault("id")?.Line ?? 0);
-            var inherits = RequiredText(root, "inherits", errors);
-            ProfileSchema.Validate(root, IdentityFields, errors);
-            if (isComputer)
-            {
-                foreach (var field in new[] { "manufacturer", "model" })
-                {
-                    if (root.Find(field) == null)
-                    {
-                        errors.Add(new DatabaseError(file, root.Line, $"Computer profiles must set '{field}' explicitly."));
-                    }
-                }
-            }
-            else
-            {
-                ProfileSchema.RejectComputerOnlyFields(root, "platform profiles", errors);
-            }
-            if (id == null || inherits == null)
-            {
-                continue;
-            }
-
-            var body = ProfileValue.CreateMapping(
-                root.Fields.Where(field => !IdentityFields.Contains(field.Key)).ToDictionary(),
-                file, root.Line);
-            profiles.Add(new ProfileFile(id, idLine, isComputer, inherits, root.Fields["inherits"].Line, body));
-        }
-        return profiles;
+        return body;
     }
 
     // A computer profile's id is never written: it is computed from manufacturer and model, so nobody can set it.
@@ -227,15 +331,13 @@ public sealed class HardwareDatabase
         return (null, 0);
     }
 
-    private static string? RequiredText(ProfileValue root, string field, List<DatabaseError> errors)
+    private static string? RequiredText(ProfileValue mapping, string field, List<DatabaseError> errors, string prefix = "")
     {
-        if (root.Fields.TryGetValue(field, out var value) && value.Scalar is string text && text.Length > 0)
+        if (mapping.Fields.TryGetValue(field, out var value) && value.Scalar is string text && text.Length > 0)
         {
             return text;
         }
-        errors.Add(new DatabaseError(root.File, value?.Line ?? root.Line, $"Field '{field}' is required and must be text."));
+        errors.Add(new DatabaseError(mapping.File, value?.Line ?? mapping.Line, $"Field '{prefix}{field}' is required and must be text."));
         return null;
     }
-
-    private sealed record ProfileFile(string Id, int IdLine, bool IdComputed, string Inherits, int InheritsLine, ProfileValue Body);
 }

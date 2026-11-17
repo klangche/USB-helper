@@ -67,6 +67,7 @@ public sealed class MainViewModel : ObservableObject
     // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
     private readonly Dictionary<string, int> extraHops = [];
     private IReadOnlyList<UsbNode> tree = [];
+    private Guide? guide;
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
@@ -224,6 +225,7 @@ public sealed class MainViewModel : ObservableObject
             IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
         }));
         HostName = HostNameFor(loaded, identity);
+        guide = loaded?.DefaultGuide;
         LoadingStage = Strings.ReadingDevices;
     }
 
@@ -235,6 +237,18 @@ public sealed class MainViewModel : ObservableObject
     {
         get => loadingStage;
         private set => SetField(ref loadingStage, value);
+    }
+
+    // Every file of the selected guide and of its fallback: findings name them as sources.
+    private IEnumerable<string> GuideFiles()
+    {
+        for (var each = Guide; each != null; each = each.Fallback)
+        {
+            foreach (var file in each.Files)
+            {
+                yield return file;
+            }
+        }
     }
 
     private static string ComputerLabel(ResolvedProfile profile)
@@ -267,6 +281,21 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProfileOption> OperatingSystems { get; } = [];
 
     public ObservableCollection<ProfileOption> Computers { get; } = [];
+
+    /// <summary>
+    /// The guide whose limits apply (#285): USB-Helper's from the start; the guide menu of Step 2 (#286) changes it.
+    /// </summary>
+    public Guide? Guide
+    {
+        get => guide;
+        set
+        {
+            if (SetField(ref guide, value))
+            {
+                Refresh();
+            }
+        }
+    }
 
     private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
     {
@@ -481,7 +510,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
-            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
     }
 
@@ -727,7 +756,7 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors, guide: Guide);
         lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
@@ -763,7 +792,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree, monitors);
+                reconnectedIds, extraHops, tree, monitors, Guide);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
         UpdateBusCounts(selected == null ? tree : [selected]);
@@ -832,7 +861,7 @@ public sealed class MainViewModel : ObservableObject
         // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
         // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
         // Owner decision in #85: only real findings are listed; unknowns and database facts are in the log only.
-        var strictest = StrictestProfile.Of(profiles);
+        var strictest = StrictestProfile.Of(profiles, Guide);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
             .Where(finding => finding.IsReal)

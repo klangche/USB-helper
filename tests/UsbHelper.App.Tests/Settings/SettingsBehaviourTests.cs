@@ -117,7 +117,7 @@ public sealed class SettingsBehaviourTests
         Assert.Null(update.BetaText);
     }
 
-    private static readonly ComputerIdentity Identity = new("LENOVO", "21K5", Platform: "p");
+    private static readonly ComputerIdentity Identity = new("LENOVO", "21K5", Platform: "os-p");
 
     private static MainViewModel Window(SettingsViewModel settings) =>
         new(DatabaseFolder.Load("LENOVO", "21K5", "verified"), [], Identity, settings: settings);
@@ -127,16 +127,16 @@ public sealed class SettingsBehaviourTests
     {
         var settings = new SettingsViewModel { RememberCheckedProfiles = true };
         var first = Window(settings);
-        Assert.True(first.OperatingSystems.Single().IsChecked); // The detected platform, as always on a first start.
+        Assert.True(first.OperatingSystems.Platform().IsChecked); // The detected platform, as always on a first start.
 
-        first.OperatingSystems.Single().IsChecked = false;
+        first.OperatingSystems.Platform().IsChecked = false;
         first.Computers.Single().IsChecked = true;
 
         Assert.Empty(settings.CheckedOperatingSystems);
         Assert.Equal([first.Computers.Single().Profile.Id], settings.CheckedComputers);
 
         var next = Window(settings);
-        Assert.False(next.OperatingSystems.Single().IsChecked);
+        Assert.False(next.OperatingSystems.Platform().IsChecked);
         Assert.True(next.Computers.Single().IsChecked);
     }
 
@@ -145,13 +145,13 @@ public sealed class SettingsBehaviourTests
     {
         var settings = new SettingsViewModel();
         var first = Window(settings);
-        first.OperatingSystems.Single().IsChecked = false;
+        first.OperatingSystems.Platform().IsChecked = false;
         first.Computers.Single().IsChecked = true;
 
         Assert.Empty(settings.CheckedComputers);
 
         var next = Window(settings);
-        Assert.True(next.OperatingSystems.Single().IsChecked);
+        Assert.True(next.OperatingSystems.Platform().IsChecked);
         Assert.False(next.Computers.Single().IsChecked);
     }
 
@@ -164,7 +164,7 @@ public sealed class SettingsBehaviourTests
 
         settings.RememberCheckedProfiles = true;
 
-        Assert.Equal(["p"], settings.CheckedOperatingSystems);
+        Assert.Equal(["os-p"], settings.CheckedOperatingSystems);
         Assert.Equal([window.Computers.Single().Profile.Id], settings.CheckedComputers);
 
         settings.RememberCheckedProfiles = false;
