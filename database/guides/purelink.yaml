@@ -1,18 +1,369 @@
+# A guide file. Every guide file has exactly this shape, with a section for every platform and chip in
+# database/platforms/; only the header (name, selectable, notes, sources) and the numbers differ.
+#   - An empty value means: use USB-Helper's value (guides/usb-helper.yaml).
+#   - none means: this guide states no limit here.
+#   - A chip's value wins over its platform's, which wins over the one under limits (all platforms).
+#   - hubs: external hubs; the limit applies to each bus on its own (USB 2, USB 3), or to all hubs together
+#     when the operating system does not report the bus.
+#   - tiers: USB tiers on a path as the USB specification counts them: the host with its root hub is tier 1,
+#     the device's own tier counts, and the chip's built-in hub levels count.
+#   - hops: external hubs in front of a device.
+#   - camera_audio: the same for cameras and audio devices, on top of the general limits.
+#   - exceeded_note: shown with the finding when a limit in this block is exceeded; at most 160 characters.
+#   - mst: 1 when the platform or chip extends the desktop over DisplayPort MST, 0 when not.
+
 name: PureLink
 selectable: true
 
-# Tiers as the guide writes them. The app turns them into hubs in front of a device:
-# tiers - 2 - the chip's built_in_hub_levels, never below min_recommended_hubs.
 limits:
-  recommended_tiers: 4
-  camera_audio_recommended_tiers: 3
-  min_recommended_hubs: 1
+  hubs:
+    recommended:
+    max:
+  tiers:
+    recommended: 4
+    max: 7
+  hops:
+    recommended:
+    max:
+  camera_audio:
+    tiers:
+      recommended: 3
+      max: 4
+    hops:
+      recommended:
+      max:
+  exceeded_note:
+
+platforms:
+  windows:
+    mst:
+    limits:
+      hubs:
+        recommended:
+        max:
+      tiers:
+        recommended:
+        max:
+      hops:
+        recommended:
+        max:
+      camera_audio:
+        tiers:
+          recommended:
+          max:
+        hops:
+          recommended:
+          max:
+      exceeded_note:
+    chips:
+      intel:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      amd:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      arm:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+  macos:
+    mst:
+    limits:
+      hubs:
+        recommended:
+        max:
+      tiers:
+        recommended:
+        max:
+      hops:
+        recommended:
+        max:
+      camera_audio:
+        tiers:
+          recommended:
+          max:
+        hops:
+          recommended:
+          max:
+      exceeded_note:
+    chips:
+      intel:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      apple-silicon:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      a-series:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+  linux:
+    mst:
+    limits:
+      hubs:
+        recommended:
+        max:
+      tiers:
+        recommended:
+        max:
+      hops:
+        recommended:
+        max:
+      camera_audio:
+        tiers:
+          recommended:
+          max:
+        hops:
+          recommended:
+          max:
+      exceeded_note:
+    chips:
+      x64:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      arm:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+  apple-mobile:
+    mst:
+    limits:
+      hubs:
+        recommended:
+        max:
+      tiers:
+        recommended:
+        max:
+      hops:
+        recommended:
+        max:
+      camera_audio:
+        tiers:
+          recommended:
+          max:
+        hops:
+          recommended:
+          max:
+      exceeded_note:
+    chips:
+      a-series:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+  android:
+    mst:
+    limits:
+      hubs:
+        recommended:
+        max:
+      tiers:
+        recommended:
+        max:
+      hops:
+        recommended:
+        max:
+      camera_audio:
+        tiers:
+          recommended:
+          max:
+        hops:
+          recommended:
+          max:
+      exceeded_note:
+    chips:
+      phone-qualcomm:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
+      tablet-exynos:
+        mst:
+        limits:
+          hubs:
+            recommended:
+            max:
+          tiers:
+            recommended:
+            max:
+          hops:
+            recommended:
+            max:
+          camera_audio:
+            tiers:
+              recommended:
+              max:
+            hops:
+              recommended:
+              max:
+          exceeded_note:
 
 notes:
-  - "recommended_tiers 4: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Deeper still works up to the USB maximum, but less reliably."
-  - "camera_audio_recommended_tiers 3: webcams and audio interfaces send a steady stream (isochronous transfers) and need low, consistent latency; PureLink: 'limit to 3 to 4 tiers max, prefer direct or self-powered hubs'. Read as one tier fewer than the general recommendation; the maximum stays the USB maximum (owner decision 2026-11-17, #275)."
-  - "min_recommended_hubs 1: the recommendation never asks for a device without any hub in front of it, because a camera or device behind no hub at all is not a real room (owner decision 2026-11-17, #284)."
-  - "No max_tiers: the USB maximum in base.yaml applies."
+  - "Strict to PureLink's guide: four tiers recommended (a conservative design preference, not a USB-IF limit), seven at most; webcams and audio interfaces send a steady stream (isochronous transfers): limit to 3 to 4 tiers. Everything else is empty, so USB-Helper's values apply."
+  - "Tiers count the chip's built-in hub levels, so on an A-series chip a device behind any hub is above four tiers: PureLink's rule, intended (owner decision 2026-11-17)."
 
 sources:
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended, three to four tiers for cameras and audio devices"

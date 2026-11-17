@@ -4,12 +4,14 @@ namespace UsbHelper.Core.Diagnostics;
 
 /// <summary>
 /// Owner decision in #68: with several profiles checked, the findings come from the strictest one only. The rule is
-/// from #72, with the limits worked out by <see cref="DepthLimits"/> for the selected guide: the lowest maximum hop
-/// depth; on a tie the lowest recommended hop depth, then the lowest <c>max_hubs</c>. An unknown limit counts as higher
-/// than any known one. Still tied: the first.
+/// from #72, with the limits of the selected guide (<see cref="GuideLimits"/>): the lowest <c>hops.max</c>; on a tie
+/// the lowest <c>hops.recommended</c>, then <c>tiers.max</c>, <c>tiers.recommended</c> and <c>hubs.max</c>. An unknown
+/// limit counts as higher than any known one. Still tied: the first.
 /// </summary>
 public static class StrictestProfile
 {
+    private static readonly string[] Paths = ["hops.max", "hops.recommended", "tiers.max", "tiers.recommended", "hubs.max"];
+
     /// <summary>The index of the strictest of <paramref name="profiles"/>, which must not be empty.</summary>
     /// <param name="guide">The selected guide; null for none.</param>
     public static int Of(IReadOnlyList<ResolvedProfile> profiles, Guide? guide = null)
@@ -29,6 +31,5 @@ public static class StrictestProfile
         Limits(a, guide).Zip(Limits(b, guide), (x, y) => x.CompareTo(y)).FirstOrDefault(order => order != 0);
 
     private static IEnumerable<long> Limits(ResolvedProfile profile, Guide? guide) =>
-        new[] { DepthLimits.MaxHops(profile, guide), DepthLimits.RecommendedHops(profile, guide), DepthLimits.MaxHubs(guide) }
-            .Select(limit => limit.Value ?? long.MaxValue);
+        Paths.Select(path => GuideLimits.Of(profile, guide, path).Value ?? long.MaxValue);
 }

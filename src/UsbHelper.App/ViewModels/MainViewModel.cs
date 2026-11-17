@@ -67,6 +67,7 @@ public sealed class MainViewModel : ObservableObject
     // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
     private readonly Dictionary<string, int> extraHops = [];
     private IReadOnlyList<UsbNode> tree = [];
+    private Guide? guide;
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
@@ -224,6 +225,7 @@ public sealed class MainViewModel : ObservableObject
             IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
         }));
         HostName = HostNameFor(loaded, identity);
+        guide = loaded?.DefaultGuide;
         LoadingStage = Strings.ReadingDevices;
     }
 
@@ -269,15 +271,14 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProfileOption> Computers { get; } = [];
 
     /// <summary>
-    /// The guide whose limits and recommendations apply (#284); none until the guide menu of Step 2 (#286), so only the
-    /// USB maximum applies and nothing is potentially unstable by depth.
+    /// The guide whose limits apply (#285): USB-Helper's from the start; the guide menu of Step 2 (#286) changes it.
     /// </summary>
     public Guide? Guide
     {
-        get;
+        get => guide;
         set
         {
-            if (SetField(ref field, value))
+            if (SetField(ref guide, value))
             {
                 Refresh();
             }

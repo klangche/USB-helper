@@ -133,32 +133,41 @@ internal static class DisplayEvaluator
     /// status by monitor id. The message names the profile's computer, which need not be the one running the app.
     /// </summary>
     public static IEnumerable<(string Monitor, ConnectionStatus Status)> Mst(
-        ResolvedProfile? profile, IReadOnlyList<DisplayMonitor> monitors, string computer, List<Finding> findings)
+        ResolvedProfile? profile, IReadOnlyList<DisplayMonitor> monitors, string computer, List<Finding> findings, Guide? guide = null)
     {
         var displayPort = monitors.Where(monitor => monitor.Output is MonitorOutput.DisplayPort or MonitorOutput.UsbTunnel).ToList();
-        var mst = profile?.Find("displays.mst");
         if (displayPort.Count < 2 || profile == null)
         {
             yield break;
         }
-        if (mst?.Kind != ValueKind.Boolean)
+        // A computer file may state MST as a hardware fact; otherwise the guide's mst (1 or 0) for the platform and chip.
+        var mst = profile.Find("displays.mst");
+        bool? supported = mst?.Scalar as bool?;
+        var verified = mst != null && DiagnosticEvaluator.IsVerified(profile, mst);
+        var file = mst?.File;
+        if (mst == null && guide?.Mst(profile.Platform, profile.Chip) is { } fromGuide)
         {
-            var source = mst == null ? "" : $" ({mst.File})";
+            supported = fromGuide.Number is { } number ? number == 1 : null;
+            verified = fromGuide.Guide.Verified;
+            file = fromGuide.Guide.File;
+        }
+        if (supported == null)
+        {
+            var source = file == null ? "" : $" ({file})";
             findings.Add(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, computer,
                 $"{displayPort.Count} DisplayPort displays are active; whether {computer} supports MST (displays.mst) is unknown{source}."));
             yield break;
         }
-        if ((bool)mst.Scalar!)
+        if (supported.Value)
         {
             yield break;
         }
-        var verified = DiagnosticEvaluator.IsVerified(profile, mst);
         yield return (displayPort[0].Id, ConnectionStatus.Green);
         foreach (var monitor in displayPort.Skip(1))
         {
             var message = $"No MST on {computer}: this display is duplicated; use a second USB-C port or DisplayLink.";
             findings.Add(new Finding(FactKind.PredictedRisk, monitor.Id, monitor.Name ?? "Monitor",
-                verified ? message : $"{message} (displays.mst comes from an unverified profile, {mst.File})")
+                verified ? message : $"{message} (displays.mst comes from an unverified profile, {file})")
             {
                 Brief = message,
             });

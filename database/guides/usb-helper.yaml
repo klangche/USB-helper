@@ -1,0 +1,378 @@
+# A guide file. Every guide file has exactly this shape, with a section for every platform and chip in
+# database/platforms/; only the header (name, selectable, notes, sources) and the numbers differ.
+#   - An empty value means: use USB-Helper's value (guides/usb-helper.yaml).
+#   - none means: this guide states no limit here.
+#   - A chip's value wins over its platform's, which wins over the one under limits (all platforms).
+#   - hubs: external hubs; the limit applies to each bus on its own (USB 2, USB 3), or to all hubs together
+#     when the operating system does not report the bus.
+#   - tiers: USB tiers on a path as the USB specification counts them: the host with its root hub is tier 1,
+#     the device's own tier counts, and the chip's built-in hub levels count.
+#   - hops: external hubs in front of a device.
+#   - camera_audio: the same for cameras and audio devices, on top of the general limits.
+#   - exceeded_note: shown with the finding when a limit in this block is exceeded; at most 160 characters.
+#   - mst: 1 when the platform or chip extends the desktop over DisplayPort MST, 0 when not.
+
+name: USB-Helper
+selectable: true
+
+limits:
+  hubs:
+    recommended: none
+    max: none
+  tiers:
+    recommended: none
+    max: 7
+  hops:
+    recommended: 2
+    max: 5
+  camera_audio:
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: 1
+      max: 5
+  exceeded_note:
+
+platforms:
+  windows:
+    mst: 1
+    limits:
+      hubs:
+        recommended: none
+        max: none
+      tiers:
+        recommended: none
+        max: 7
+      hops:
+        recommended: 2
+        max: 5
+      camera_audio:
+        tiers:
+          recommended: none
+          max: none
+        hops:
+          recommended: 1
+          max: 5
+      exceeded_note:
+    chips:
+      intel:
+        mst: 1
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+      amd:
+        mst: 1
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+      arm:
+        mst: 1
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+  macos:
+    mst: 0
+    limits:
+      hubs:
+        recommended: none
+        max: none
+      tiers:
+        recommended: none
+        max: 7
+      hops:
+        recommended: 2
+        max: 5
+      camera_audio:
+        tiers:
+          recommended: none
+          max: none
+        hops:
+          recommended: 1
+          max: 5
+      exceeded_note:
+    chips:
+      intel:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+      apple-silicon:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 1
+            max: 4
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 4
+          exceeded_note:
+      a-series:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 1
+            max: 3
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 3
+          exceeded_note:
+  linux:
+    mst: 0
+    limits:
+      hubs:
+        recommended: none
+        max: none
+      tiers:
+        recommended: none
+        max: 7
+      hops:
+        recommended: 2
+        max: 5
+      camera_audio:
+        tiers:
+          recommended: none
+          max: none
+        hops:
+          recommended: 1
+          max: 5
+      exceeded_note:
+    chips:
+      x64:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+      arm:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+  apple-mobile:
+    mst: 0
+    limits:
+      hubs:
+        recommended: none
+        max: none
+      tiers:
+        recommended: none
+        max: 7
+      hops:
+        recommended: 2
+        max: 5
+      camera_audio:
+        tiers:
+          recommended: none
+          max: none
+        hops:
+          recommended: 1
+          max: 5
+      exceeded_note:
+    chips:
+      a-series:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 1
+            max: 3
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 3
+          exceeded_note:
+  android:
+    mst: 0
+    limits:
+      hubs:
+        recommended: none
+        max: none
+      tiers:
+        recommended: none
+        max: 7
+      hops:
+        recommended: 2
+        max: 5
+      camera_audio:
+        tiers:
+          recommended: none
+          max: none
+        hops:
+          recommended: 1
+          max: 5
+      exceeded_note:
+    chips:
+      phone-qualcomm:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 2
+            max: 5
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 5
+          exceeded_note:
+      tablet-exynos:
+        mst: 0
+        limits:
+          hubs:
+            recommended: none
+            max: none
+          tiers:
+            recommended: none
+            max: 7
+          hops:
+            recommended: 1
+            max: 4
+          camera_audio:
+            tiers:
+              recommended: none
+              max: none
+            hops:
+              recommended: 1
+              max: 4
+          exceeded_note:
+
+notes:
+  - "The default guide: it applies when no other guide is picked, and every empty value in another guide falls back to it. Every value is filled in (none where no limit is stated)."
+  - "Values to be confirmed by the owner (2026-11-17): today's merged values, as hubs in front of a device: 5 hubs and 2 recommended without built-in hub levels, 4 / 1 on M-series and Android tablets, 3 / 1 on A-series. The recommendation is never below 1 hub, because a device behind no hub at all is not a real room (owner decision 2026-11-17, #284)."
+  - "camera_audio.hops: one hub fewer than the general recommendation, never below 1, so 1 on every chip; the maximum is the general maximum (owner decisions 2026-11-17, #275 and #284)."
+  - "tiers.max 7: the USB maximum (base.yaml)."
+  - "mst: 1 on Windows, which extends the desktop over DisplayPort Multi-Stream Transport; 0 elsewhere, which is the default (owner decision 2026-11-17). macOS does not extend the desktop over MST (Plugable)."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended"
+  - "https://www.lightware.com/en/news/macbook-neo-usbc-av-design-usb-topology-challenges (Lightware, 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15: tiers used by M-series MacBooks and the MacBook Neo)"
+  - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: mst)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

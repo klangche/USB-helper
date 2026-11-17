@@ -1,8 +1,5 @@
 name: Android
 
-displays:
-  mst: null
-
 chips:
   phone-qualcomm:
     name: Phone (Qualcomm)
@@ -17,7 +14,6 @@ notes:
   - "Generic Android profiles: a phone with a Qualcomm chip and a tablet with an Exynos chip."
   - "phone-qualcomm, built_in_hub_levels 0: the usb-script config (Android Phone (Qualcomm)) has max_hops 5, tested in practice, not a manufacturer specification. That is the USB maximum (PureLink)."
   - "tablet-exynos, built_in_hub_levels 1: the usb-script config (Android Tablet (Exynos)) has max_hops 4, tested in practice, not a manufacturer specification. Kept as one built-in hub level, which gives the same 4 hubs; it is not a measured tier count (owner decision 2026-11-16)."
-  - "displays.mst is unknown."
 
 sources:
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.androidPhone and platformStability.androidTablet; config version 1.0.0, 2026-02-24)"

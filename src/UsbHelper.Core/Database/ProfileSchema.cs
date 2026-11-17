@@ -33,10 +33,13 @@ internal static class ProfileSchema
     {
         ["usb"] = FieldType.Mapping,
         ["usb.max_tiers"] = FieldType.Integer, // Seven tiers on a path: the host with its root hub, up to five hubs, the device.
+        ["usb.max_devices_per_controller"] = FieldType.Integer, // A 7-bit device address: 127.
+        ["usb4"] = FieldType.Mapping,
+        ["usb4.max_router_depth"] = FieldType.Integer, // Loaded, not judged yet: USB4 links are not detected yet (#267).
     });
 
     /// <summary><c>platforms/*.yaml</c>: one operating system with its chips. "*" stands for any chip key.</summary>
-    public static readonly IReadOnlyDictionary<string, FieldType> PlatformFields = With(Common, Displays, new()
+    public static readonly IReadOnlyDictionary<string, FieldType> PlatformFields = With(Common, new()
     {
         ["name"] = FieldType.String,
         ["exceptions"] = FieldType.StringList,
@@ -72,17 +75,11 @@ internal static class ProfileSchema
         ["ports.*.limitations"] = FieldType.StringList,
     });
 
-    /// <summary><c>guides/*.yaml</c>: the limits and recommendations of one guide, in tiers as the guide writes them.</summary>
-    public static readonly IReadOnlyDictionary<string, FieldType> GuideFields = With(Common, new()
+    /// <summary>The header of <c>guides/*.yaml</c>; the rest of a guide file is checked by <see cref="GuideSchema"/>.</summary>
+    public static readonly IReadOnlyDictionary<string, FieldType> GuideHeaderFields = With(Common, new()
     {
         ["name"] = FieldType.String,
         ["selectable"] = FieldType.Boolean,
-        ["limits"] = FieldType.Mapping,
-        ["limits.max_tiers"] = FieldType.Integer, // Stricter than usb.max_tiers; left out, the USB maximum applies.
-        ["limits.max_hubs"] = FieldType.Integer, // External hubs on one bus.
-        ["limits.recommended_tiers"] = FieldType.Integer, // Deeper still works up to the maximum, but less reliably.
-        ["limits.camera_audio_recommended_tiers"] = FieldType.Integer,
-        ["limits.min_recommended_hubs"] = FieldType.Integer, // A recommendation never asks for fewer hubs than this.
     });
 
     public static readonly string[] VerificationStatuses = ["verified", "partial", "unverified"];

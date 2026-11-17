@@ -1,8 +1,5 @@
 name: Windows
 
-displays:
-  mst: true
-
 chips:
   intel:
     name: Intel
@@ -20,12 +17,10 @@ chips:
 notes:
   - "Generic Windows platform profile, one entry per processor family."
   - "built_in_hub_levels 0 for every chip: the computer's own port is on tier 1, so five hubs fit in a row (PureLink). Until 2026-11-16 Intel and AMD had max_hops 7 from the usb-script config, which is above the USB maximum; ARM had 5 from the same config, tested in practice."
-  - "displays.mst true: Windows extends the desktop over DisplayPort Multi-Stream Transport."
 
 sources:
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
   - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windowsArm; config version 1.0.0, 2026-02-24)"
-  - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: displays.mst)"
 
 verification:
   status: partial

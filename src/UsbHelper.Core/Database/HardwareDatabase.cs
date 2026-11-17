@@ -28,6 +28,9 @@ public sealed class HardwareDatabase
     /// <summary>Every guide, selectable or not, by id (the file name without <c>.yaml</c>).</summary>
     public IReadOnlyDictionary<string, Guide> Guides { get; }
 
+    /// <summary>USB-Helper's guide (<see cref="Guide.DefaultId"/>): ticked at start, and the fallback of every other guide.</summary>
+    public Guide DefaultGuide => Guides[Guide.DefaultId];
+
     /// <summary>Loads and validates the database in <paramref name="folder"/>.</summary>
     /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
     public static HardwareDatabase Load(string folder) =>
@@ -47,7 +50,7 @@ public sealed class HardwareDatabase
         var usb = ReadBase(files, errors);
         var platforms = ReadPlatforms(files, usb, errors);
         var computers = ReadComputers(files, platforms, errors);
-        var guides = ReadGuides(files, usb, errors);
+        var guides = ReadGuides(files, usb, platforms, errors);
         foreach (var file in files.Keys.Where(file => !IsRead(file)).Order(StringComparer.Ordinal))
         {
             errors.Add(new DatabaseError(file, 0,
@@ -166,57 +169,43 @@ public sealed class HardwareDatabase
         return computers;
     }
 
-    private static Dictionary<string, Guide> ReadGuides(IReadOnlyDictionary<string, string> files, ProfileValue usb, List<DatabaseError> errors)
+    // USB-Helper's guide is read first: it is the fallback of every other one.
+    private static Dictionary<string, Guide> ReadGuides(
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, Dictionary<string, ResolvedProfile> platforms, List<DatabaseError> errors)
     {
         var guides = new Dictionary<string, Guide>();
-        foreach (var file in FilesIn(files, "guides", subfolders: false))
+        var defaultFile = $"guides/{Guide.DefaultId}.yaml";
+        if (!files.ContainsKey(defaultFile))
+        {
+            errors.Add(new DatabaseError(defaultFile, 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
+        }
+        var chips = platforms.Values.GroupBy(profile => profile.Platform)
+            .ToDictionary(group => group.Key, IReadOnlyList<string> (group) => group.Select(profile => profile.Chip).ToList());
+        var maxTiers = usb.Find("usb.max_tiers")?.Scalar as long?;
+        Guide? fallback = null;
+        foreach (var file in FilesIn(files, "guides", subfolders: false).OrderBy(file => file == defaultFile ? 0 : 1))
         {
             var root = ProfileFileReader.Read(files[file], file, errors);
             if (root == null)
             {
                 continue;
             }
-            ProfileSchema.Validate(root, ProfileSchema.GuideFields, errors);
+            var isDefault = file == defaultFile;
+            GuideSchema.Validate(root, chips, isDefault, maxTiers, errors);
             var name = RequiredText(root, "name", errors);
             var selectable = root.Fields.GetValueOrDefault("selectable");
             if (selectable?.Kind != ValueKind.Boolean)
             {
                 errors.Add(new DatabaseError(file, selectable?.Line ?? root.Line, "Field 'selectable' is required and must be true or false."));
             }
-            var limits = root.Fields.GetValueOrDefault("limits");
-            if (selectable?.Scalar is true && (limits is not { Kind: ValueKind.Mapping } || limits.Fields.Values.All(limit => limit.Kind == ValueKind.Null)))
-            {
-                errors.Add(new DatabaseError(file, limits?.Line ?? root.Line,
-                    "A selectable guide must set at least one limit under 'limits'; a guide that is not filled in yet has 'selectable: false'."));
-            }
-            CheckTiers(root, usb, errors);
             if (name != null && selectable?.Scalar is bool isSelectable)
             {
-                guides.Add(FileId(file), new Guide(FileId(file), name, isSelectable, root));
+                var guide = new Guide(FileId(file), name, isSelectable, root, isDefault ? null : fallback);
+                fallback = isDefault ? guide : fallback;
+                guides.Add(guide.Id, guide);
             }
         }
         return guides;
-    }
-
-    // A guide's maximum can only be stricter than the USB maximum, and a recommendation above the maximum can never apply.
-    private static void CheckTiers(ProfileValue guide, ProfileValue usb, List<DatabaseError> errors)
-    {
-        var usbMax = usb.Find("usb.max_tiers")?.Scalar as long?;
-        var guideMax = guide.Find("limits.max_tiers");
-        if (guideMax?.Scalar is long stricter && stricter > usbMax)
-        {
-            errors.Add(new DatabaseError(guide.File, guideMax.Line, $"limits.max_tiers ({stricter}) must not be above usb.max_tiers ({usbMax}) in {BaseFile}."));
-        }
-        var max = guideMax?.Scalar as long? ?? usbMax;
-        var maxName = guideMax?.Scalar is long ? "limits.max_tiers" : $"usb.max_tiers in {BaseFile}";
-        foreach (var field in new[] { "limits.recommended_tiers", "limits.camera_audio_recommended_tiers" })
-        {
-            var value = guide.Find(field);
-            if (value?.Scalar is long tiers && tiers > max)
-            {
-                errors.Add(new DatabaseError(guide.File, value.Line, $"{field} ({tiers}) must not be above {maxName} ({max})."));
-            }
-        }
     }
 
     // A file whose name starts with a dot is left out on purpose; any other file must be one of the files that are read.

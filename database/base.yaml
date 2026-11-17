@@ -2,14 +2,25 @@ schema_version: 2
 
 # Facts from the USB specification. They hold for every computer.
 usb:
+  # Seven tiers on a path: the host with its root hub, up to five hubs, and the device.
   max_tiers: 7
+  # A 7-bit device address: at most 127 devices, hubs included, on one host controller.
+  max_devices_per_controller: 127
+
+usb4:
+  # Routers in a row below the host router (USB4 connection manager). Loaded, not judged yet: USB4 links are not
+  # detected yet (#267).
+  max_router_depth: 5
 
 notes:
   - "max_tiers 7: USB allows seven tiers on a path: the host with its root hub, up to five hubs, and the device (USB 2.0 specification, section 4.1.1; PureLink cites it too)."
-  - "The app counts a device in the computer's own port as tier 2 with 0 hubs in front of it, so the hubs allowed in front of a device are max_tiers - 2 - the chip's built_in_hub_levels."
+  - "max_devices_per_controller 127: USB 2.0 specification, the 7-bit device address. Above it is unstable."
+  - "usb4.max_router_depth 5: the Linux Thunderbolt/USB4 driver (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview (#267)."
+  - "A device's tier is counted as the USB specification does: a device in the computer's own port is on tier 2, each hub adds one, and the chip's built_in_hub_levels (platforms/) add theirs."
 
 sources:
-  - "USB 2.0 specification, section 4.1.1 (bus topology: seven tiers at most)"
+  - "USB 2.0 specification, section 4.1.1 (bus topology: seven tiers at most) and section 9.6.1 (7-bit device address)"
+  - "https://github.com/torvalds/linux/blob/master/drivers/thunderbolt/tb.h (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview, as found on #267"
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
 
 verification:
