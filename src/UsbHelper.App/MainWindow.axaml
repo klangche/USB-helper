@@ -8,6 +8,10 @@
         Width="1100" Height="700"
         Title="{x:Static res:Strings.WindowTitle}">
 
+  <!-- F5 refreshes from anywhere in the window; the Refresh button left the top bar (owner order 2026-11-17). -->
+  <Window.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
+  </Window.KeyBindings>
   <DockPanel>
 
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
@@ -49,7 +53,13 @@
                 <ItemsControl ItemsSource="{Binding Guides}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:GuideOption">
-                      <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as Desktop has none. -->
+                        <Border IsVisible="{Binding IsProAv}" Background="#1F6FB2" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                          <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                        </Border>
+                      </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -121,12 +131,12 @@
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
       <!-- Right-hand group, docked from the right edge inwards, so it follows the window's right side when it grows. -->
       <!-- The unlock popup (#238), only while locked; once unlocked the status line at the bottom says who it is unlocked to. -->
+      <!-- From the left: PDF, Export, Log, Unlock (owner order 2026-11-17); Refresh is in the File menu and on F5. -->
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
-      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.PdfButton}" Command="{Binding ExportPdfCommand}"
-              ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
-      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.PdfButton}" Command="{Binding ExportPdfCommand}"
+              ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
       <TextBox DockPanel.Dock="Right" Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in

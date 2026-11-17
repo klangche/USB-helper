@@ -60,6 +60,7 @@ internal static class DatabaseFolder
             File.WriteAllText(Path.Combine(folder, "guides", $"{id}.yaml"), $$"""
                 name: {{guideName}}
                 selectable: {{(selectable ? "true" : "false")}}
+                proav: 1
                 limits: {}
                 platforms:
                   {{file}}:
@@ -108,7 +109,7 @@ internal static class DatabaseFolder
             Pair("  ", "tiers", "camera_audio.tiers");
             return yaml.Append($"{indent}exceeded_note:\n").ToString();
         }
-        return $"name: USB-Helper\nselectable: true\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"
+        return $"name: USB-Helper\nselectable: true\nproav: 1\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"
             + $"platforms:\n  {platform}:\n    mst: 0\n    limits: {{}}\n    chips:\n"
             + $"      {chip}:\n        mst: 0\n        limits:\n{Block("          ", limits, buses: false)}"
             + "      computer:\n        mst: 0\n        limits: {}\n";

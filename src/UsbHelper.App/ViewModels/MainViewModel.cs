@@ -65,6 +65,9 @@ public sealed class GuideOption(Guide guide) : ObservableObject
 
     public bool IsEnabled => Guide.Selectable;
 
+    /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
+    public bool IsProAv => Guide.ProAv;
+
     public bool IsSelected
     {
         get => isSelected;

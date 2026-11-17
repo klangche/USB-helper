@@ -31,7 +31,7 @@ public class RealDatabaseTests
                 "ubuntu-amd", "ubuntu-arm", "ubuntu-intel", "windows-amd", "windows-arm", "windows-intel",
             ],
             db.Platforms.Keys.Order());
-        Assert.Equal(["crestron", "extron", "ochno", "purelink", "unisynk", "usb-helper"], db.Guides.Keys.Order());
+        Assert.Equal(["crestron", "desktop", "extron", "ochno", "purelink", "unisynk", "usb-helper"], db.Guides.Keys.Order());
         Assert.Equal("arm64", db.Platforms["macos-apple-silicon"].Find("architecture")!.Scalar);
     }
 
@@ -323,5 +323,29 @@ public class RealDatabaseTests
         var windows = db.Platforms["windows-intel"];
 
         Assert.Equal(value, db.Guides[id].Limit(windows.Platform, windows.Chip, path)!.Number);
+    }
+
+    // #299: every ProAV guide carries the mark; Desktop is the general-purpose one, more generous, on the USB maximum.
+    [Theory]
+    [InlineData("usb-helper", true)]
+    [InlineData("purelink", true)]
+    [InlineData("ochno", true)]
+    [InlineData("unisynk", true)]
+    [InlineData("extron", true)]
+    [InlineData("crestron", true)]
+    [InlineData("desktop", false)]
+    public void GuidesSayWhetherTheyAreProAv(string id, bool proAv) =>
+        Assert.Equal(proAv, HardwareDatabase.Load(DatabaseFolder()).Guides[id].ProAv);
+
+    [Fact]
+    public void DesktopFollowsTheUsbMaximum()
+    {
+        var db = HardwareDatabase.Load(DatabaseFolder());
+        var windows = db.Platforms["windows-intel"];
+        var desktop = db.Guides["desktop"];
+
+        Assert.Equal(7L, desktop.Limit(windows.Platform, windows.Chip, "tiers.max")!.Number);
+        Assert.Equal(6L, desktop.Limit(windows.Platform, windows.Chip, "tiers.recommended")!.Number);
+        Assert.Null(desktop.Limit(windows.Platform, windows.Chip, "usb2.hubs.max")!.Number); // none: no hub count limit.
     }
 }

@@ -199,6 +199,12 @@ public sealed class HardwareDatabase
             {
                 errors.Add(new DatabaseError(file, selectable?.Line ?? root.Line, "Field 'selectable' is required and must be true or false."));
             }
+            // 1: a ProAV guide (shown with a ProAV mark), 0: a general-purpose one such as Desktop (#299).
+            var proav = root.Fields.GetValueOrDefault("proav");
+            if (proav?.Scalar is not (0L or 1L))
+            {
+                errors.Add(new DatabaseError(file, proav?.Line ?? root.Line, "Field 'proav' is required and must be 1 (ProAV) or 0 (general purpose)."));
+            }
             if (name == null || selectable?.Scalar is not bool isSelectable)
             {
                 continue;

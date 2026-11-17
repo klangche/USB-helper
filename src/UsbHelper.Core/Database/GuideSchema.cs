@@ -9,7 +9,7 @@ namespace UsbHelper.Core.Database;
 /// </summary>
 internal static class GuideSchema
 {
-    private static readonly string[] Header = ["name", "selectable", "notes", "sources", "verification"];
+    private static readonly string[] Header = ["name", "selectable", "proav", "notes", "sources", "verification"];
     private static readonly string[] Sections = ["limits", "platforms"];
     private static readonly string[] Buses = ["usb2", "usb3", "usb4"];
     private static readonly string[] Kinds = ["hubs", "tiers"];

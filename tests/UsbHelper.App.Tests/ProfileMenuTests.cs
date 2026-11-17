@@ -80,7 +80,8 @@ public class ProfileMenuTests
 
         Assert.Equal(["Windows", "macOS", "Ubuntu", "Debian", "iPhone and iPad", "Android"], window.PlatformGroups.Select(group => group.Name));
         Assert.Equal(["Intel", "AMD", "ARM"], window.PlatformGroups[0].Chips.Select(chip => chip.ChipLabel));
-        Assert.Equal(["USB-Helper", "Crestron", "Extron", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
+        Assert.Equal(["USB-Helper", "Crestron", "Desktop", "Extron", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
+        Assert.Equal(["Desktop"], window.Guides.Where(option => !option.IsProAv).Select(option => option.Label));
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }
 

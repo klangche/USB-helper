@@ -80,6 +80,7 @@ internal static class ProfileSchema
     {
         ["name"] = FieldType.String,
         ["selectable"] = FieldType.Boolean,
+        ["proav"] = FieldType.Integer,
     });
 
     public static readonly string[] VerificationStatuses = ["verified", "partial", "unverified"];
