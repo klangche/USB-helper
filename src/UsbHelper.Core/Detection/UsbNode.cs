@@ -58,6 +58,12 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     public ushort? ProductId { get; init; }
 
     /// <summary>
+    /// Set for devices only: camera, audio, both or neither, from the classes of the device's interfaces, or
+    /// <see cref="UsbDeviceKind.Unknown"/> when the operating system does not say (#274). Null for hubs, ports and controllers.
+    /// </summary>
+    public UsbDeviceKind? DeviceKind { get; init; }
+
+    /// <summary>
     /// DisplayLink's USB vendor id, 0x17E9. Sources: the USB ID Repository's usb.ids ("17e9  DisplayLink",
     /// http://www.linux-usb.org/usb.ids, read from its mirror https://github.com/usbids/usbids, version 2026.06.26), and the
     /// Linux DisplayLink driver, which matches on ".idVendor = 0x17e9" (drivers/gpu/drm/udl/udl_drv.c).

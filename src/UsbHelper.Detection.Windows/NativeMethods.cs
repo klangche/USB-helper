@@ -48,6 +48,7 @@ internal static class NativeMethods
     // CTL_CODE(FILE_DEVICE_USB, function, METHOD_BUFFERED, FILE_ANY_ACCESS) from usbioctl.h.
     public const uint IOCTL_USB_GET_ROOT_HUB_NAME = 0x220408;
     public const uint IOCTL_USB_GET_NODE_INFORMATION = 0x220408;
+    public const uint IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION = 0x220410;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_NAME = 0x220414;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME = 0x220420;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX = 0x220448;

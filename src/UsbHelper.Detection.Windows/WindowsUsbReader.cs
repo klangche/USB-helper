@@ -27,6 +27,7 @@ internal static class WindowsUsbReader
     private const int ConnectionNameOffset = 8; // ConnectionIndex, ActualLength
     private const int NameBufferSize = 2048;
     private const int PortConnectorPropertiesSize = 512; // USB_PORT_CONNECTOR_PROPERTIES with room for the companion hub name
+    private const int DeviceConnected = 1; // USB_CONNECTION_STATUS
 
     private sealed record DevNodeIndex(Dictionary<string, RawDevNode> ByDriverKey, Dictionary<string, RawDevNode> ByInstanceId);
 
@@ -163,8 +164,14 @@ internal static class WindowsUsbReader
 
         RawDevNode? device = null;
         RawHub? childHub = null;
+        IReadOnlyList<int>? interfaceClasses = null;
         if (status != 0)
         {
+            // Only a device that finished enumeration has a configuration descriptor (USB_CONNECTION_STATUS DeviceConnected).
+            if (status == DeviceConnected && !isHub)
+            {
+                interfaceClasses = ReadInterfaceClasses(hub, port);
+            }
             if (TryReadName(hub, IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME, port) is { } driverKey)
             {
                 devNodes.ByDriverKey.TryGetValue(driverKey, out device);
@@ -189,7 +196,24 @@ internal static class WindowsUsbReader
             Bus = ReadBus(hub, port),
             CompanionPortNumber = companion?.Port,
             CompanionHubName = companion?.HubName,
+            InterfaceClasses = interfaceClasses,
         };
+    }
+
+    // #274: the classes of the device's interfaces from its configuration descriptor, read in two steps as USBView does:
+    // the first 9 bytes for the total length, then all of it. Null when Windows does not return it whole.
+    private static IReadOnlyList<int>? ReadInterfaceClasses(SafeFileHandle hub, int port)
+    {
+        var head = ConfigurationDescriptor.Request(port, ConfigurationDescriptor.HeaderLength);
+        if (!DeviceIoControl(hub, IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION, head, head.Length, head, head.Length, out var returned, IntPtr.Zero)
+            || ConfigurationDescriptor.TotalLength(head, returned) is not { } total)
+        {
+            return null;
+        }
+        var all = ConfigurationDescriptor.Request(port, total);
+        return DeviceIoControl(hub, IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION, all, all.Length, all, all.Length, out returned, IntPtr.Zero)
+            ? ConfigurationDescriptor.InterfaceClasses(all, returned)
+            : null;
     }
 
     // Null when Windows does not say, for example before Windows 8 or when the hub driver does not answer (#193).

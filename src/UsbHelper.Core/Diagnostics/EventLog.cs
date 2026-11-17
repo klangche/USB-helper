@@ -73,7 +73,10 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
     }
 
-    /// <summary>The first full read of the USB tree: per hub, which ports the operating system calls USB-C or not, and every error it reports.</summary>
+    /// <summary>
+    /// The first full read of the USB tree: per hub, which ports the operating system calls USB-C or not, the kind of every
+    /// device, and every error it reports.
+    /// </summary>
     public void TreeRead(IReadOnlyList<UsbNode> tree)
     {
         Add($"USB devices read: {tree.Count} controllers");
@@ -87,6 +90,10 @@ public sealed class EventLog(TimeProvider? clock = null)
                 {
                     Add($"USB-C ports of {hub.Name}: {string.Join(", ", ports)}");
                 }
+            }
+            foreach (var (node, _) in Below(controller, location: null))
+            {
+                LogDeviceKind(node);
             }
             foreach (var (text, problem) in Problems(controller, location: null))
             {
@@ -131,9 +138,14 @@ public sealed class EventLog(TimeProvider? clock = null)
             {
                 Add($"Disconnected: {node.Name} from {port}");
             }
-            foreach (var (node, port) in now.Where(item => old.All(other => other.Node.Id != item.Node.Id)))
+            var connected = now.Where(item => old.All(other => other.Node.Id != item.Node.Id)).ToList();
+            foreach (var (node, port) in connected)
             {
                 Add($"Connected: {node.Name} on {port}");
+            }
+            foreach (var (node, _) in connected)
+            {
+                LogDeviceKind(node);
             }
             if (after != null)
             {
@@ -268,6 +280,24 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
         return text.ToString();
     }
+
+    // #274: the kind of a device as the operating system reports it; hubs, ports and controllers have none.
+    private void LogDeviceKind(UsbNode node)
+    {
+        if (node.DeviceKind is { } kind)
+        {
+            Add($"Device kind of {node.Name}: {DeviceKindText(kind)}");
+        }
+    }
+
+    private static string DeviceKindText(UsbDeviceKind kind) => kind switch
+    {
+        UsbDeviceKind.Camera => "camera",
+        UsbDeviceKind.Audio => "audio",
+        UsbDeviceKind.CameraAndAudio => "camera and audio",
+        UsbDeviceKind.Neither => "neither camera nor audio",
+        _ => "unknown",
+    };
 
     private static string KindText(FactKind kind) => kind switch
     {

@@ -120,6 +120,25 @@ public class SetupFileTests
         Assert.Equal(setup.Marks, read.Marks);
     }
 
+    // #274: the kind of a device is optional and left out for hubs, ports and controllers; older readers ignore it, so
+    // the format stays 1.
+    [Fact]
+    public void TheDeviceKindRoundTripsAndIsLeftOutWhereThereIsNone()
+    {
+        var webcam = Device("WEBCAM") with { DeviceKind = UsbDeviceKind.CameraAndAudio };
+        var setup = Minimal() with { Controllers = [Controller("C1", Hub("ROOT", webcam, Device("STICK") with { DeviceKind = UsbDeviceKind.Unknown }))] };
+
+        var json = setup.ToJson();
+        var read = SetupFile.FromJson(json);
+
+        Assert.Contains("\"device_kind\": \"camera_and_audio\"", json);
+        Assert.Contains("\"device_kind\": \"unknown\"", json);
+        Assert.Equal(2, json.Split("device_kind").Length - 1);
+        Assert.Equal(1, read.FormatVersion);
+        Assert.Equal([UsbDeviceKind.CameraAndAudio, UsbDeviceKind.Unknown],
+            Flatten(read.Controllers).Where(node => node.Kind == UsbNodeKind.Device).Select(node => node.DeviceKind));
+    }
+
     // #230: the company, room and licensed email are optional; the format stays 1 because older readers ignore them.
     private static SetupFile Minimal() => new("0.9.0-test", new DateOnly(2026, 11, 13), new ComputerIdentity("Dell Inc.", "Latitude 7450"),
         [], [], new Dictionary<string, int>(), null, []);

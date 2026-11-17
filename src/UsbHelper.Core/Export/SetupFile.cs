@@ -36,7 +36,8 @@ public sealed record SetupFile(
     [JsonPropertyOrder(-1)]
     public int FormatVersion { get; init; } = CurrentFormat;
 
-    // #230: optional, left out when null; older readers ignore them, so the format stays 1.
+    // #230: optional, left out when null; older readers ignore them, so the format stays 1. The same holds for a
+    // device's kind in the tree (#274, UsbNode.DeviceKind).
 
     /// <summary>The company name from the branding; null while branding is locked or no name is set.</summary>
     [JsonPropertyOrder(-1)]

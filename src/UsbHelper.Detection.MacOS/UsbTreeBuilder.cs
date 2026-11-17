@@ -192,6 +192,12 @@ internal static class UsbTreeBuilder
             VendorId = vendor is >= 0 and <= ushort.MaxValue ? (ushort)vendor : null,
             ProductId = product is >= 0 and <= ushort.MaxValue ? (ushort)product : null,
             Problem = entry.Error == null ? null : $"Could not read the device: {entry.Error}",
+            DeviceKind = isHub ? null : UsbDeviceKinds.FromInterfaceClasses(InterfaceClasses(entry)),
         };
     }
+
+    // #274: the bInterfaceClass of the device's own IOUSBHostInterface entries, its direct children.
+    private static List<int> InterfaceClasses(RegistryEntry device) =>
+        device.Children.Where(child => child.ClassName == "IOUSBHostInterface")
+            .Select(child => child.GetNumber("bInterfaceClass")).OfType<long>().Select(value => (int)value).ToList();
 }
