@@ -42,7 +42,8 @@
       <!-- The profile menu (#286): the guides on top, one at a time; below the line a tick per chip, any mix. -->
       <DropDownButton Content="{x:Static res:Strings.ProfileMenu}">
         <DropDownButton.Flyout>
-          <Flyout Placement="BottomEdgeAlignedLeft">
+          <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295). -->
+          <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
             <ScrollViewer MaxHeight="480">
               <StackPanel Spacing="4">
                 <ItemsControl ItemsSource="{Binding Guides}">
@@ -57,7 +58,24 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:PlatformGroup">
                       <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="{Binding Name}" Width="120" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <!-- The name ticks or unticks all of its chips (#295); a plain word, not a button look. -->
+                        <Button Classes="word" Content="{Binding Name}" Command="{Binding ToggleAll}" Width="120" FontWeight="SemiBold"
+                                VerticalAlignment="Center" Cursor="Hand">
+                          <Button.Styles>
+                            <!-- Plain text in every state: no box, no hover or pressed background. -->
+                            <Style Selector="Button.word">
+                              <Setter Property="Background" Value="Transparent" />
+                              <Setter Property="BorderThickness" Value="0" />
+                              <Setter Property="Padding" Value="0" />
+                            </Style>
+                            <Style Selector="Button.word:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                              <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                            <Style Selector="Button.word:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                              <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                          </Button.Styles>
+                        </Button>
                         <ItemsControl ItemsSource="{Binding Chips}">
                           <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -81,7 +99,8 @@
       </DropDownButton>
       <DropDownButton Content="{x:Static res:Strings.Computers}">
         <DropDownButton.Flyout>
-          <Flyout Placement="BottomEdgeAlignedLeft">
+          <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295). -->
+          <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
             <!-- The profile export of this computer sits on top of the list (#189). -->
             <StackPanel Spacing="4">
               <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" HorizontalAlignment="Stretch" />
@@ -230,7 +249,8 @@
                     <Path Data="M0,2.5 H5 M2.5,0 V5" StrokeThickness="1.2"
                           Stroke="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                     <Button.Flyout>
-                      <Flyout Placement="BottomEdgeAlignedLeft">
+                      <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295). -->
+          <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
                         <StackPanel Spacing="6">
                           <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" />
                           <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}"

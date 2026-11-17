@@ -35,7 +35,22 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 }
 
 /// <summary>One operating system in the profile menu (#286), with a tick per chip.</summary>
-public sealed record PlatformGroup(string Name, IReadOnlyList<ProfileOption> Chips);
+public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chips)
+{
+    public string Name { get; } = name;
+
+    public IReadOnlyList<ProfileOption> Chips { get; } = chips;
+
+    /// <summary>Clicking the name (#295): ticks every chip, or unticks them all when every one is ticked already.</summary>
+    public RelayCommand ToggleAll => field ??= new RelayCommand(() =>
+    {
+        var tick = !Chips.All(chip => chip.IsChecked);
+        foreach (var chip in Chips)
+        {
+            chip.IsChecked = tick;
+        }
+    });
+}
 
 /// <summary>
 /// A guide in the profile menu (#286): one at a time. A guide with <c>selectable: false</c> is shown greyed out.
