@@ -53,9 +53,9 @@ internal static class DatabaseFolder
                 pair => pair[0] switch { "max_hops" => "hops.max", "recommended_hops" => "hops.recommended", "max_hubs" => "hubs.max", var other => other },
                 pair => pair[1].Trim());
         Directory.CreateDirectory(Path.Combine(folder, "guides", "usb-helper"));
-        foreach (var (name, content) in UsbHelper(file, chip, limits, status))
+        foreach (var (guideFile, content) in UsbHelper(file, chip, limits, status))
         {
-            File.WriteAllText(Path.Combine(folder, "guides", "usb-helper", name), content);
+            File.WriteAllText(Path.Combine(folder, "guides", "usb-helper", guideFile), content);
         }
         try
         {
