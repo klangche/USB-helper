@@ -63,11 +63,12 @@ internal sealed class TestDatabase : IDisposable
         """);
 
     /// <summary>
-    /// Values of USB-Helper's guide folder, which <see cref="Load"/> writes in full unless the test wrote it itself. A key
-    /// such as <c>hops.max</c> sets that value on USB 2 and USB 3 in all.yaml and every chip; <c>usb4.hops.max</c>,
-    /// <c>camera_audio.hops.max</c>, <c>mst</c> and <c>exceeded_note</c> likewise; a full path such as
-    /// <c>platforms.test.chips.platform.limits.hops.max</c> sets one chip's value. Unset values are <c>none</c>,
-    /// <c>mst</c> 0 and no note.
+    /// Values of USB-Helper's guide file, which <see cref="Load"/> writes in full unless the test wrote it itself. A key
+    /// such as <c>hops.max</c>, <c>camera_audio.hops.max</c> or <c>exceeded_note</c> sets the global value;
+    /// <c>usb2.hubs.max</c> sets one bus's hubs (<c>usb2.hops.max</c> is the same as <c>hops.max</c>: tiers and hops are
+    /// the same on every bus; a bus's hubs default to the global hubs in USB-Helper's); <c>mst</c> sets every platform's and chip's mst; a path such as
+    /// <c>platforms.test.chips.platform.limits.hops.max</c> (or <c>.limits.mst</c>) sets one chip's value. Unset values are
+    /// <c>none</c>, a bus's hubs the global hubs, <c>mst</c> 0 and no note.
     /// </summary>
     public Dictionary<string, string> UsbHelper { get; } = [];
 
@@ -75,8 +76,8 @@ internal sealed class TestDatabase : IDisposable
     public string UsbHelperStatus { get; set; } = "partial";
 
     /// <summary>
-    /// Another guide folder <c>guides/{id}/</c>, written in full by <see cref="Load"/>. A key such as <c>hops.max</c> sets
-    /// that value in all.yaml; a full path sets one chip's value; every other value is empty.
+    /// Another guide file <c>guides/{id}.yaml</c>, written in full by <see cref="Load"/>. Keys as for
+    /// <see cref="UsbHelper"/>; every value not given is empty.
     /// </summary>
     public TestDatabase WriteGuide(Dictionary<string, string> values, string id = "guide", string name = "Guide", bool selectable = true, string status = "partial")
     {
@@ -86,58 +87,107 @@ internal sealed class TestDatabase : IDisposable
 
     private readonly Dictionary<string, (string Name, bool Selectable, Dictionary<string, string> Values, string Status)> guides = [];
 
-    /// <summary>USB-Helper's guide files as <see cref="Load"/> writes them, by name (guide.yaml, all.yaml, test.yaml...).</summary>
-    public Dictionary<string, string> UsbHelperFiles() => GuideFiles("USB-Helper", true, true, UsbHelper, Platforms(), UsbHelperStatus);
+    /// <summary>USB-Helper's guide file as <see cref="Load"/> writes it.</summary>
+    public string UsbHelperFile() => GuideFile("USB-Helper", true, true, UsbHelper, Platforms(), UsbHelperStatus);
 
-    /// <summary>The files of a guide folder in the shape every guide must have, for <paramref name="platforms"/>.</summary>
-    public static Dictionary<string, string> GuideFiles(string name, bool selectable, bool isDefault, IReadOnlyDictionary<string, string> values,
+    /// <summary>A guide file in the shape every guide must have, for <paramref name="platforms"/>.</summary>
+    public static string GuideFile(string name, bool selectable, bool isDefault, IReadOnlyDictionary<string, string> values,
         IReadOnlyDictionary<string, IReadOnlyList<string>> platforms, string status)
     {
-        string Value(string? chipPath, string relative)
+        // A global value: the key itself, a bus's hubs as usbN.hubs.x, tiers and hops also as usb2.x or usb3.x.
+        string? Global(string relative)
         {
+            if (values.GetValueOrDefault(relative) is { } value)
+            {
+                return value;
+            }
             var parts = relative.Split('.');
-            var busless = parts[0] is "usb2" or "usb3" ? string.Join('.', parts[1..]) : null;
-            string? Find(string key) => values.GetValueOrDefault(key) ?? (busless == null ? null : values.GetValueOrDefault(key[..^relative.Length] + busless));
-            return (chipPath == null ? null : Find(chipPath + relative))
-                ?? (isDefault || chipPath == null ? Find(relative) : null)
-                ?? (!isDefault || relative == "exceeded_note" ? "" : relative == "mst" ? "0" : "none");
-        }
-        string Block(string indent, string? chipPath)
-        {
-            var yaml = new System.Text.StringBuilder();
-            void Leaf(string pad, string key, string relative) =>
-                yaml.Append($"{indent}{pad}{key}:{(Value(chipPath, relative) is { Length: > 0 } text ? " " + text : "")}\n");
-            foreach (var bus in new[] { "usb2", "usb3", "usb4" })
+            if (parts[0] == "buses")
             {
-                yaml.Append($"{indent}{bus}:\n");
-                foreach (var kind in new[] { "hubs", "tiers", "hops" })
-                {
-                    yaml.Append($"{indent}  {kind}:\n");
-                    Leaf("    ", "recommended", $"{bus}.{kind}.recommended");
-                    Leaf("    ", "max", $"{bus}.{kind}.max");
-                }
+                return values.GetValueOrDefault(string.Join('.', parts[1..])) ?? (isDefault ? Global(string.Join('.', parts[2..])) : null);
             }
-            yaml.Append($"{indent}camera_audio:\n");
-            foreach (var kind in new[] { "tiers", "hops" })
-            {
-                yaml.Append($"{indent}  {kind}:\n");
-                Leaf("    ", "recommended", $"camera_audio.{kind}.recommended");
-                Leaf("    ", "max", $"camera_audio.{kind}.max");
-            }
-            Leaf("", "mst", "mst");
-            Leaf("", "exceeded_note", "exceeded_note");
-            return yaml.ToString();
+            return parts[0] is "tiers" or "hops"
+                ? values.GetValueOrDefault("usb2." + relative) ?? values.GetValueOrDefault("usb3." + relative)
+                : null;
         }
-        var files = new Dictionary<string, string>
+        var yaml = new System.Text.StringBuilder();
+        void Leaf(string indent, string key, string? value) => yaml.Append($"{indent}{key}:{(value is { Length: > 0 } ? " " + value : "")}\n");
+        void Pair(string indent, string key, Func<string, string?> value)
         {
-            ["guide.yaml"] = $"name: {name}\nselectable: {(selectable ? "true" : "false")}\nverification:\n  status: {status}\n",
-            ["all.yaml"] = Block("", null),
-        };
+            yaml.Append($"{indent}{key}:\n");
+            Leaf(indent + "  ", "recommended", value($"{key}.recommended"));
+            Leaf(indent + "  ", "max", value($"{key}.max"));
+        }
+        string? Filled(string relative) => Global(relative) ?? (!isDefault || relative == "exceeded_note" ? null : "none");
+        yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nverification:\n  status: {status}\nlimits:\n");
+        foreach (var kind in new[] { "hubs", "tiers", "hops" })
+        {
+            Pair("  ", kind, Filled);
+        }
+        yaml.Append("  buses:\n");
+        foreach (var bus in new[] { "usb2", "usb3", "usb4" })
+        {
+            yaml.Append($"    {bus}:\n");
+            Pair("      ", "hubs", relative => Filled($"buses.{bus}.{relative}"));
+        }
+        yaml.Append("  camera_audio:\n");
+        Pair("    ", "tiers", relative => Filled("camera_audio." + relative));
+        Pair("    ", "hops", relative => Filled("camera_audio." + relative));
+        Leaf("  ", "exceeded_note", Global("exceeded_note"));
+        var mst = values.GetValueOrDefault("mst") ?? (isDefault ? "0" : null);
+        yaml.Append("platforms:\n");
         foreach (var (platform, chips) in platforms)
         {
-            files[$"{platform}.yaml"] = string.Concat(chips.Select(chip => $"{chip}:\n" + Block("  ", $"platforms.{platform}.chips.{chip}.limits.")));
+            yaml.Append($"  {platform}:\n");
+            Leaf("    ", "mst", mst);
+            yaml.Append("    limits: {}\n    chips:\n");
+            foreach (var chip in chips)
+            {
+                var prefix = $"platforms.{platform}.chips.{chip}.limits.";
+                yaml.Append($"      {chip}:\n");
+                Leaf("        ", "mst", values.GetValueOrDefault(prefix + "mst") ?? mst);
+                var own = values.Where(value => value.Key.StartsWith(prefix, StringComparison.Ordinal) && value.Key != prefix + "mst")
+                    .Select(value => (Path: value.Key[prefix.Length..], value.Value)).ToList();
+                yaml.Append(own.Count == 0 ? "        limits: {}\n" : "        limits:\n");
+                // A chip value such as hops.max, usb2.hubs.max or camera_audio.tiers.max, nested; a pair gets both keys.
+                var tree = new SortedDictionary<string, object>(StringComparer.Ordinal);
+                foreach (var (path, value) in own)
+                {
+                    var parts = path.Split('.');
+                    if (parts[0] is "usb2" or "usb3" or "usb4")
+                    {
+                        parts = parts[1] == "hubs" ? ["buses", .. parts] : parts[1..];
+                    }
+                    var node = tree;
+                    foreach (var part in parts[..^1])
+                    {
+                        node = (SortedDictionary<string, object>)(node.TryGetValue(part, out var child) ? child : node[part] = new SortedDictionary<string, object>(StringComparer.Ordinal));
+                    }
+                    node[parts[^1]] = value;
+                    if (parts[^1] is "recommended" or "max")
+                    {
+                        node.TryAdd(parts[^1] == "max" ? "recommended" : "max", "");
+                    }
+                }
+                void Emit(SortedDictionary<string, object> node, string indent)
+                {
+                    foreach (var (key, child) in node)
+                    {
+                        if (child is SortedDictionary<string, object> mapping)
+                        {
+                            yaml.Append($"{indent}{key}:\n");
+                            Emit(mapping, indent + "  ");
+                        }
+                        else
+                        {
+                            Leaf(indent, key, (string)child);
+                        }
+                    }
+                }
+                Emit(tree, "          ");
+            }
         }
-        return files;
+        return yaml.ToString();
     }
 
     // Each platform file's chip keys, read from the folder; a file that cannot be read is left out (the loader reports it).
@@ -166,21 +216,20 @@ internal sealed class TestDatabase : IDisposable
     private void WriteGuides()
     {
         var platforms = Platforms();
-        void WriteFolder(string id, Dictionary<string, string> files)
+        void WriteFile(string id, string content)
         {
-            Directory.CreateDirectory(Path.Combine(Folder, "guides", id));
-            foreach (var (file, content) in files.Where(file => !written.Contains($"guides/{id}/{file.Key}")))
+            if (!written.Contains($"guides/{id}.yaml"))
             {
-                File.WriteAllText(Path.Combine(Folder, "guides", id, file), content);
+                File.WriteAllText(Path.Combine(Folder, "guides", $"{id}.yaml"), content);
             }
         }
         if (WithDefaultGuide)
         {
-            WriteFolder("usb-helper", UsbHelperFiles());
+            WriteFile("usb-helper", UsbHelperFile());
         }
         foreach (var (id, guide) in guides)
         {
-            WriteFolder(id, GuideFiles(guide.Name, guide.Selectable, false, guide.Values, platforms, guide.Status));
+            WriteFile(id, GuideFile(guide.Name, guide.Selectable, false, guide.Values, platforms, guide.Status));
         }
     }
 

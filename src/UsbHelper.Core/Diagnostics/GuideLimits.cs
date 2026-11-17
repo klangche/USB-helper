@@ -6,7 +6,7 @@ namespace UsbHelper.Core.Diagnostics;
 /// <summary>A limit from a guide file for one platform and chip, with where it comes from.</summary>
 /// <param name="Value">The limit; null when no guide states one (<c>none</c>) or no guide is selected.</param>
 /// <param name="Verified">The guide file that set it is verified or partially verified.</param>
-/// <param name="Source">For example <c>PureLink: usb2.tiers.recommended 4 in guides/purelink/all.yaml</c>; null without a guide.</param>
+/// <param name="Source">For example <c>PureLink: limits.tiers.recommended 4 in guides/purelink.yaml</c>; null without a guide.</param>
 /// <param name="Note">The <c>exceeded_note</c> to show when the limit is exceeded; null for none.</param>
 public sealed record GuideLimit(long? Value, bool Verified, string? Source, string? Note);
 
@@ -24,7 +24,7 @@ public static class GuideLimits
             return new GuideLimit(null, false, null, null);
         }
         var text = found.Number?.ToString(CultureInfo.InvariantCulture) ?? Guide.None;
-        return new GuideLimit(found.Number, found.Guide.Verified, $"{found.Guide.Name}: {path} {text} in {found.Value.File}",
+        return new GuideLimit(found.Number, found.Guide.Verified, $"{found.Guide.Name}: {found.Path} {text} in {found.Value.File}",
             found.Guide.ExceededNote(profile.Platform, profile.Chip));
     }
 

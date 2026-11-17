@@ -52,11 +52,7 @@ internal static class DatabaseFolder
             .ToDictionary(
                 pair => pair[0] switch { "max_hops" => "hops.max", "recommended_hops" => "hops.recommended", "max_hubs" => "hubs.max", var other => other },
                 pair => pair[1].Trim());
-        Directory.CreateDirectory(Path.Combine(folder, "guides", "usb-helper"));
-        foreach (var (guideFile, content) in UsbHelper(file, chip, limits, status))
-        {
-            File.WriteAllText(Path.Combine(folder, "guides", "usb-helper", guideFile), content);
-        }
+        File.WriteAllText(Path.Combine(folder, "guides", "usb-helper.yaml"), UsbHelper(file, chip, limits, status));
         try
         {
             return HardwareDatabase.Load(folder);
@@ -67,39 +63,39 @@ internal static class DatabaseFolder
         }
     }
 
-    // USB-Helper's guide folder in the shape every guide has: the platform chip with the limits given (none otherwise),
-    // the computer's chip and all.yaml with hubs 5, tiers 7 and hops 5, the same on USB 2 and USB 3.
-    private static Dictionary<string, string> UsbHelper(string platform, string chip, IReadOnlyDictionary<string, string> limits, string status)
+    // USB-Helper's guide file in the shape every guide has: the platform chip with the limits given (none otherwise),
+    // the global limits (which the computer's chip uses) hubs 5, tiers 7 and hops 5, hubs 5 on USB 2 and USB 3.
+    private static string UsbHelper(string platform, string chip, IReadOnlyDictionary<string, string> limits, string status)
     {
         var computer = new Dictionary<string, string> { ["hubs.max"] = "5", ["tiers.max"] = "7", ["hops.max"] = "5" };
-        static string Block(string indent, IReadOnlyDictionary<string, string> values)
+        static string Block(string indent, IReadOnlyDictionary<string, string> values, bool buses)
         {
             var yaml = new StringBuilder();
-            foreach (var bus in new[] { "usb2", "usb3", "usb4" })
+            void Pair(string pad, string key, string path) => yaml.Append($"{indent}{pad}{key}:\n")
+                .Append($"{indent}{pad}  recommended: {values.GetValueOrDefault($"{path}.recommended", "none")}\n")
+                .Append($"{indent}{pad}  max: {values.GetValueOrDefault($"{path}.max", "none")}\n");
+            foreach (var kind in new[] { "hubs", "tiers", "hops" })
             {
-                yaml.Append($"{indent}{bus}:\n");
-                foreach (var kind in new[] { "hubs", "tiers", "hops" })
+                Pair("", kind, kind);
+            }
+            if (buses)
+            {
+                yaml.Append($"{indent}buses:\n");
+                foreach (var bus in new[] { "usb2", "usb3", "usb4" })
                 {
-                    yaml.Append($"{indent}  {kind}:\n");
-                    foreach (var which in new[] { "recommended", "max" })
-                    {
-                        yaml.Append($"{indent}    {which}: {(bus == "usb4" ? "none" : values.GetValueOrDefault($"{kind}.{which}", "none"))}\n");
-                    }
+                    yaml.Append($"{indent}  {bus}:\n");
+                    Pair("    ", "hubs", bus == "usb4" ? "none" : "hubs");
                 }
             }
             yaml.Append($"{indent}camera_audio:\n");
-            foreach (var kind in new[] { "tiers", "hops" })
-            {
-                yaml.Append($"{indent}  {kind}:\n{indent}    recommended: none\n{indent}    max: none\n");
-            }
-            return yaml.Append($"{indent}mst: 0\n{indent}exceeded_note:\n").ToString();
+            Pair("  ", "tiers", "camera_audio.tiers");
+            Pair("  ", "hops", "camera_audio.hops");
+            return yaml.Append($"{indent}exceeded_note:\n").ToString();
         }
-        return new()
-        {
-            ["guide.yaml"] = $"name: USB-Helper\nselectable: true\nverification:\n  status: {status}\n",
-            ["all.yaml"] = Block("", computer),
-            [$"{platform}.yaml"] = $"{chip}:\n{Block("  ", limits)}computer:\n{Block("  ", computer)}",
-        };
+        return $"name: USB-Helper\nselectable: true\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"
+            + $"platforms:\n  {platform}:\n    mst: 0\n    limits: {{}}\n    chips:\n"
+            + $"      {chip}:\n        mst: 0\n        limits:\n{Block("          ", limits, buses: false)}"
+            + "      computer:\n        mst: 0\n        limits: {}\n";
     }
 
     /// <summary>The platform profile's option, not the one of the computer's chip.</summary>
