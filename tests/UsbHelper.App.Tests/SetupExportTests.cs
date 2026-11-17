@@ -29,8 +29,9 @@ public class SetupExportTests
     // A known fake setup: a dock on a USB-C port with a keyboard and a DisplayLink adapter, and a mouse.
     private static IReadOnlyList<UsbNode> Desk()
     {
-        var root = Hub("ROOT", Hub("DOCK", Device("KEYBOARD") with { VendorId = 0x046D, ProductId = 0xC31C },
-            Device("DL") with { VendorId = UsbNode.DisplayLinkVendorId, ProductId = 0x6006 }), Device(@"USB\VID_046D&PID_C077\SERIAL123") with { Name = "USB Mouse" });
+        var root = Hub("ROOT", Hub("DOCK", Device("KEYBOARD") with { VendorId = 0x046D, ProductId = 0xC31C, DeviceKind = UsbDeviceKind.Neither },
+            Device("DL") with { VendorId = UsbNode.DisplayLinkVendorId, ProductId = 0x6006, DeviceKind = UsbDeviceKind.Unknown }),
+            Device(@"USB\VID_046D&PID_C077\SERIAL123") with { Name = "USB Mouse", DeviceKind = UsbDeviceKind.Neither });
         root = root with { Children = [root.Children[0] with { UsbC = true, UserConnectable = true }, root.Children[1] with { UserConnectable = true }] };
         return [new UsbNode("C1", UsbNodeKind.Controller, "Intel USB 3.2 controller", [root])];
     }

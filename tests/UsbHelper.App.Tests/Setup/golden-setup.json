@@ -44,7 +44,8 @@
                           "name": "KEYBOARD",
                           "children": [],
                           "vendor_id": "046D",
-                          "product_id": "C31C"
+                          "product_id": "C31C",
+                          "device_kind": "neither"
                         }
                       ],
                       "port_number": 1
@@ -60,7 +61,8 @@
                           "name": "DL",
                           "children": [],
                           "vendor_id": "17E9",
-                          "product_id": "6006"
+                          "product_id": "6006",
+                          "device_kind": "unknown"
                         }
                       ],
                       "port_number": 2
@@ -81,7 +83,8 @@
                   "id": "1/1/2/1",
                   "kind": "device",
                   "name": "USB Mouse",
-                  "children": []
+                  "children": [],
+                  "device_kind": "neither"
                 }
               ],
               "port_number": 2,
