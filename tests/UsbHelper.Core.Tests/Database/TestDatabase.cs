@@ -119,7 +119,7 @@ internal sealed class TestDatabase : IDisposable
             Leaf(indent + "  ", "max", value($"{key}.max"));
         }
         string? Filled(string relative) => Global(relative) ?? (!isDefault || relative == "exceeded_note" ? null : "none");
-        yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nverification:\n  status: {status}\nlimits:\n");
+        yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nproav: 1\nverification:\n  status: {status}\nlimits:\n");
         foreach (var kind in new[] { "hubs", "tiers" })
         {
             Pair("  ", kind, Filled);

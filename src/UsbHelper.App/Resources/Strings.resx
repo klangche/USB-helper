@@ -423,6 +423,12 @@ This version keeps running.</value>
   <data name="MenuExportSetup" xml:space="preserve">
     <value>Export full set_up...</value>
   </data>
+  <data name="ProAvMark" xml:space="preserve">
+    <value>ProAV</value>
+  </data>
+  <data name="PdfButton" xml:space="preserve">
+    <value>PDF</value>
+  </data>
   <data name="MenuExportPdf" xml:space="preserve">
     <value>Export _PDF...</value>
   </data>

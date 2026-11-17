@@ -15,6 +15,10 @@
     </Style>
   </Window.Styles>
 
+  <!-- F5 refreshes from anywhere in the window; the Refresh button left the top bar (owner order 2026-11-17). -->
+  <Window.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
+  </Window.KeyBindings>
   <DockPanel>
 
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
@@ -56,7 +60,13 @@
                 <ItemsControl ItemsSource="{Binding Guides}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:GuideOption">
-                      <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as Desktop has none. -->
+                        <Border IsVisible="{Binding IsProAv}" Background="#1F6FB2" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                          <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                        </Border>
+                      </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -126,12 +136,15 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
-      <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
-      <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
-      <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <!-- Right-hand group, docked from the right edge inwards, so it follows the window's right side when it grows. -->
       <!-- The unlock popup (#238), only while locked; once unlocked the status line at the bottom says who it is unlocked to. -->
+      <!-- From the left: PDF, Export, Log, Unlock (owner order 2026-11-17); Refresh is in the File menu and on F5. -->
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.PdfButton}" Command="{Binding ExportPdfCommand}"
+              ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
+      <TextBox DockPanel.Dock="Right" Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
            it with its aspect ratio kept. The name is
@@ -356,7 +369,14 @@
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
           <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
           <!-- Which guide every result is judged by (#286). -->
-          <TextBlock Text="{Binding GuideText}" TextWrapping="Wrap" Opacity="0.7" />
+          <!-- The guide's name links to its page when its file lists one. -->
+          <WrapPanel Opacity="0.7" IsVisible="{Binding Guide, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding GuideTextBefore}" VerticalAlignment="Center" />
+            <HyperlinkButton Content="{Binding GuideName}" NavigateUri="{Binding GuideLink}" IsVisible="{Binding HasGuideLink}"
+                             Padding="0" VerticalAlignment="Center" ToolTip.Tip="{Binding GuideLink}" />
+            <TextBlock Text="{Binding GuideName}" IsVisible="{Binding HasGuideNoLink}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GuideTextAfter}" VerticalAlignment="Center" />
+          </WrapPanel>
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">
             <ItemsControl.ItemTemplate>

@@ -38,6 +38,15 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>The files the guide was read from: its one file.</summary>
     public IReadOnlyList<string> Files => [File];
 
+    /// <summary><c>proav: 1</c>: a guide for ProAV rooms, marked in the menu; 0 for a general-purpose one (#299).</summary>
+    public bool ProAv => Root.Find("proav")?.Scalar is 1L;
+
+    /// <summary>The first web link among the guide's <c>sources</c>, such as PureLink's whitepaper; null when there is none.</summary>
+    public Uri? Link => Root.Find("sources")?.Items
+        .Select(item => (item.Scalar as string)?.Trim().Split(' ', 2)[0])
+        .Select(text => Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri : null)
+        .FirstOrDefault(uri => uri != null);
+
     /// <summary>The verification status the file writes; null when it writes none.</summary>
     public string? Status => Root.Find("verification.status")?.Scalar as string;
 
