@@ -62,7 +62,7 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     public void DatabaseLoaded(HardwareDatabase database) =>
-        Add($"Database loaded: {database.Platforms.Count} platform profiles, {database.Computers.Count} computer profiles");
+        Add($"Database loaded: {database.Platforms.Count} platform profiles, {database.Computers.Count} computer profiles, {database.Guides.Count} guides");
 
     public void DatabaseFailed(IReadOnlyList<DatabaseError> errors)
     {

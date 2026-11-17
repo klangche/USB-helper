@@ -268,6 +268,22 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<ProfileOption> Computers { get; } = [];
 
+    /// <summary>
+    /// The guide whose limits and recommendations apply (#284); none until the guide menu of Step 2 (#286), so only the
+    /// USB maximum applies and nothing is potentially unstable by depth.
+    /// </summary>
+    public Guide? Guide
+    {
+        get;
+        set
+        {
+            if (SetField(ref field, value))
+            {
+                Refresh();
+            }
+        }
+    }
+
     private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
     {
         foreach (var option in options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase))
@@ -727,7 +743,7 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors, guide: Guide);
         lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
@@ -763,7 +779,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree, monitors);
+                reconnectedIds, extraHops, tree, monitors, Guide);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
         UpdateBusCounts(selected == null ? tree : [selected]);
@@ -832,7 +848,7 @@ public sealed class MainViewModel : ObservableObject
         // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
         // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
         // Owner decision in #85: only real findings are listed; unknowns and database facts are in the log only.
-        var strictest = StrictestProfile.Of(profiles);
+        var strictest = StrictestProfile.Of(profiles, Guide);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
             .Where(finding => finding.IsReal)

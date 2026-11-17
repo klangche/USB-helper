@@ -10,9 +10,9 @@ public enum LimitState
 }
 
 /// <summary>One topology limit compared with the detected tree.</summary>
-/// <param name="Field">The profile field, for example <c>limits.max_hubs</c>.</param>
+/// <param name="Field">The check's name, for example <c>limits.max_hops</c>.</param>
 /// <param name="Actual">Hub count, or the highest tier or hop depth found.</param>
-/// <param name="Limit">The limit from the computer profile or the platform profile it inherits; null when unknown.</param>
-/// <param name="Verified">The limit comes from a verified or partially verified profile.</param>
-/// <param name="Source">The profile file that set the limit, or null.</param>
+/// <param name="Limit">The limit worked out by <see cref="DepthLimits"/>; null when unknown or not set.</param>
+/// <param name="Verified">Every file the limit comes from is verified or partially verified.</param>
+/// <param name="Source">The numbers the limit comes from and their files (<see cref="DepthLimit.Source"/>), or null.</param>
 public sealed record LimitCheck(string Field, int Actual, long? Limit, bool Verified, string? Source, LimitState State);
