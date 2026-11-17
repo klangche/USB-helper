@@ -287,7 +287,7 @@ public sealed class MainViewModel : ObservableObject
         }
         HostName = HostNameFor(loaded, identity);
         guide = picked;
-        OnPropertyChanged(nameof(GuideText));
+        OnGuideChanged();
         LoadingStage = Strings.ReadingDevices;
     }
 
@@ -364,7 +364,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 option.IsSelected = option.Guide == value;
             }
-            OnPropertyChanged(nameof(GuideText));
+            OnGuideChanged();
             log.GuidePicked(value?.Name);
             KeepCheckedProfiles();
             Refresh();
@@ -373,6 +373,33 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>Which guide the results are judged by, for the status field.</summary>
     public string GuideText => guide == null ? "" : string.Format(CultureInfo.CurrentCulture, Strings.JudgedBy, guide.Name);
+
+    /// <summary>The words before the guide's name in <see cref="GuideText"/>, so the name can be a link.</summary>
+    public string GuideTextBefore => guide == null ? "" : Strings.JudgedBy.Split("{0}")[0];
+
+    /// <summary>The words after the guide's name in <see cref="GuideText"/>.</summary>
+    public string GuideTextAfter => guide == null ? "" : Strings.JudgedBy.Split("{0}")[1];
+
+    /// <summary>The guide's name in the status field; a link when <see cref="GuideLink"/> is set.</summary>
+    public string GuideName => guide?.Name ?? "";
+
+    /// <summary>The guide's own page, the first web link among its sources; null when it has none.</summary>
+    public Uri? GuideLink => guide?.Link;
+
+    public bool HasGuideLink => GuideLink != null;
+
+    public bool HasGuideNoLink => guide != null && GuideLink == null;
+
+    private void OnGuideChanged()
+    {
+        OnPropertyChanged(nameof(GuideText));
+        OnPropertyChanged(nameof(GuideTextBefore));
+        OnPropertyChanged(nameof(GuideTextAfter));
+        OnPropertyChanged(nameof(GuideName));
+        OnPropertyChanged(nameof(GuideLink));
+        OnPropertyChanged(nameof(HasGuideLink));
+        OnPropertyChanged(nameof(HasGuideNoLink));
+    }
 
     // The profile menu's order of operating systems (#286); others after them by name.
     private static int PlatformOrder(string platform) =>

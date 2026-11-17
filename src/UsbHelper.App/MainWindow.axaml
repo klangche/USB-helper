@@ -119,12 +119,15 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
-      <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
-      <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
-      <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <!-- Right-hand group, docked from the right edge inwards, so it follows the window's right side when it grows. -->
       <!-- The unlock popup (#238), only while locked; once unlocked the status line at the bottom says who it is unlocked to. -->
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.PdfButton}" Command="{Binding ExportPdfCommand}"
+              ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
+      <TextBox DockPanel.Dock="Right" Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
            it with its aspect ratio kept. The name is
@@ -343,7 +346,14 @@
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
           <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
           <!-- Which guide every result is judged by (#286). -->
-          <TextBlock Text="{Binding GuideText}" TextWrapping="Wrap" Opacity="0.7" />
+          <!-- The guide's name links to its page when its file lists one. -->
+          <WrapPanel Opacity="0.7" IsVisible="{Binding Guide, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding GuideTextBefore}" VerticalAlignment="Center" />
+            <HyperlinkButton Content="{Binding GuideName}" NavigateUri="{Binding GuideLink}" IsVisible="{Binding HasGuideLink}"
+                             Padding="0" VerticalAlignment="Center" ToolTip.Tip="{Binding GuideLink}" />
+            <TextBlock Text="{Binding GuideName}" IsVisible="{Binding HasGuideNoLink}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GuideTextAfter}" VerticalAlignment="Center" />
+          </WrapPanel>
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">
             <ItemsControl.ItemTemplate>

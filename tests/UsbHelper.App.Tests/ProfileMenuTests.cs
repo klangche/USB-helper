@@ -80,7 +80,7 @@ public class ProfileMenuTests
 
         Assert.Equal(["Windows", "macOS", "Ubuntu", "Debian", "iPhone and iPad", "Android"], window.PlatformGroups.Select(group => group.Name));
         Assert.Equal(["Intel", "AMD", "ARM"], window.PlatformGroups[0].Chips.Select(chip => chip.ChipLabel));
-        Assert.Equal(["USB-Helper", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
+        Assert.Equal(["USB-Helper", "Crestron", "Extron", "Ochno", "PureLink", "Unisynk"], window.Guides.Select(option => option.Label));
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }
 
@@ -98,5 +98,22 @@ public class ProfileMenuTests
         group.ToggleAll.Execute(null);
 
         Assert.All(group.Chips, chip => Assert.False(chip.IsChecked));
+    }
+
+    // The guide's name in the status field links to its page when its file has one.
+    [Fact]
+    public void TheStatusFieldLinksTheGuidesPage()
+    {
+        var window = new MainViewModel(EmbeddedDatabase.Load(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+
+        Assert.False(window.HasGuideLink); // USB-Helper has no sources.
+        Assert.Equal("Judged by the ", window.GuideTextBefore);
+        Assert.Equal(" philosophy", window.GuideTextAfter);
+
+        window.Guides.Single(option => option.Label == "Extron").IsSelected = true;
+
+        Assert.True(window.HasGuideLink);
+        Assert.Equal("Extron", window.GuideName);
+        Assert.Equal("https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf", window.GuideLink!.ToString());
     }
 }

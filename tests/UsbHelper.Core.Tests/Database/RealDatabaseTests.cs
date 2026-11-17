@@ -31,7 +31,7 @@ public class RealDatabaseTests
                 "ubuntu-amd", "ubuntu-arm", "ubuntu-intel", "windows-amd", "windows-arm", "windows-intel",
             ],
             db.Platforms.Keys.Order());
-        Assert.Equal(["ochno", "purelink", "unisynk", "usb-helper"], db.Guides.Keys.Order());
+        Assert.Equal(["crestron", "extron", "ochno", "purelink", "unisynk", "usb-helper"], db.Guides.Keys.Order());
         Assert.Equal("arm64", db.Platforms["macos-apple-silicon"].Find("architecture")!.Scalar);
     }
 
@@ -297,5 +297,31 @@ public class RealDatabaseTests
             template.Replace("platform: platform-file", "platform: test").Replace("chip_family: chip", "chip_family: platform"));
 
         Assert.Equal([ComputerProfileId.From("Manufacturer", "Exact model name")], db.Load().Computers.Keys);
+    }
+
+    // The owner's files of 2026-11-17: Extron and Crestron, with their sources; the first web link is the guide's page.
+    [Theory]
+    [InlineData("extron", "Extron", "https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf")]
+    [InlineData("crestron", "Crestron", "https://community.crestron.com/s/article/3082")]
+    [InlineData("ochno", "Ochno", "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room")]
+    [InlineData("usb-helper", "USB-Helper", null)]
+    public void GuidesLinkTheirFirstWebSource(string id, string name, string? link)
+    {
+        var guide = HardwareDatabase.Load(DatabaseFolder()).Guides[id];
+
+        Assert.Equal(name, guide.Name);
+        Assert.Equal(link, guide.Link?.ToString());
+    }
+
+    [Theory]
+    [InlineData("extron", "hubs.max", 5)]
+    [InlineData("crestron", "hubs.max", 4)]
+    [InlineData("crestron", "tiers.max", 7)]
+    public void ExtronAndCrestronHoldTheirLimits(string id, string path, long value)
+    {
+        var db = HardwareDatabase.Load(DatabaseFolder());
+        var windows = db.Platforms["windows-intel"];
+
+        Assert.Equal(value, db.Guides[id].Limit(windows.Platform, windows.Chip, path)!.Number);
     }
 }
