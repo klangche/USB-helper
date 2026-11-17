@@ -239,7 +239,16 @@ public sealed class MainViewModel : ObservableObject
         private set => SetField(ref loadingStage, value);
     }
 
-    private static string ComputerLabel(ResolvedProfile profile)
+    // The selected guide's file and its fallback's: findings name them as sources.
+    private IEnumerable<string> GuideFiles()
+    {
+        for (var file = Guide; file != null; file = file.Fallback)
+        {
+            yield return file.File;
+        }
+    }
+
+        private static string ComputerLabel(ResolvedProfile profile)
     {
         var reported = $"{profile.Find("manufacturer")?.Scalar} {profile.Find("model")?.Scalar}";
         return profile.Find("name")?.Scalar is string name ? $"{name} ({reported})" : $"{reported} ({profile.Id})";
@@ -498,7 +507,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
-            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
     }
 

@@ -1141,7 +1141,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
 
-        viewModel.Computers.Single().IsChecked = true; // Inherits recommended_hops 0; its own max_hops is 5.
+        viewModel.OperatingSystems.Platform().IsChecked = true; // USB-Helper: hops.recommended 0 for its chip.
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("potentially unstable", row.Word);

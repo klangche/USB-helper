@@ -6,10 +6,10 @@
   "computer": {
     "manufacturer": "Dell Inc.",
     "model": "Latitude 7450",
-    "platform": "p"
+    "platform": "os-p"
   },
   "checked_profiles": [
-    "p",
+    "os-p",
     "y98inr"
   ],
   "controllers": [
@@ -111,24 +111,24 @@
   ],
   "results": [
     {
-      "profile": "p",
-      "label": "p",
+      "profile": "os-p",
+      "label": "os-p",
       "overall": "grey",
       "findings": [
         {
           "kind": "unknown",
           "subject": "This computer",
-          "message": "limits.max_hubs is unknown."
+          "message": "limits.max_hubs is unknown (USB-Helper: hubs.max none in guides/usb-helper.yaml)."
         },
         {
           "kind": "unknown",
           "subject": "This computer",
-          "message": "limits.max_tiers is unknown."
+          "message": "limits.max_tiers is unknown (USB-Helper: tiers.max none in guides/usb-helper.yaml)."
         },
         {
           "kind": "unknown",
           "subject": "This computer",
-          "message": "limits.max_hops is unknown."
+          "message": "limits.max_hops is unknown (USB-Helper: hops.max none in guides/usb-helper.yaml)."
         },
         {
           "kind": "detected_fact",
@@ -160,17 +160,17 @@
         {
           "kind": "verified_database_fact",
           "subject": "Latitude 7450",
-          "message": "limits.max_hubs = 5 (computers/c.yaml)."
+          "message": "limits.max_hubs = 5 (USB-Helper: hubs.max 5 in guides/usb-helper.yaml)."
         },
         {
           "kind": "verified_database_fact",
           "subject": "Latitude 7450",
-          "message": "limits.max_tiers = 7 (computers/c.yaml)."
+          "message": "limits.max_tiers = 7 (USB-Helper: tiers.max 7 in guides/usb-helper.yaml)."
         },
         {
           "kind": "verified_database_fact",
           "subject": "Latitude 7450",
-          "message": "limits.max_hops = 5 (computers/c.yaml)."
+          "message": "limits.max_hops = 5 (USB-Helper: hops.max 5 in guides/usb-helper.yaml)."
         },
         {
           "kind": "detected_fact",
