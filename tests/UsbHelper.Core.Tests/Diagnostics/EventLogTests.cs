@@ -154,6 +154,47 @@ public class EventLogTests
         Assert.Equal(clock.Now, entry.Time);
     }
 
+    // #274: the kind of a device as the operating system reports it, after its connect.
+    [Fact]
+    public void AConnectedDeviceHasItsKindLogged()
+    {
+        var log = NewLog();
+        var webcam = Device("WEBCAM") with { DeviceKind = UsbDeviceKind.CameraAndAudio };
+
+        log.Changes(Desk, [new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, webcam))]);
+
+        Assert.Equal(["Connected: WEBCAM on Port 2 of HUB", "Device kind of WEBCAM: camera and audio"], Texts(log));
+    }
+
+    [Fact]
+    public void AConnectedHubWithDevicesLogsTheKindOfEachDeviceButNotOfTheHub()
+    {
+        var log = NewLog();
+        var hub = Hub("HUB2", Device("HEADSET") with { DeviceKind = UsbDeviceKind.Audio },
+            Device("STICK") with { DeviceKind = UsbDeviceKind.Unknown });
+
+        log.Changes(Desk, [new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, hub))]);
+
+        Assert.Equal(
+        [
+            "Connected: HUB2 on Port 2 of HUB", "Connected: HEADSET on Port 1 of HUB2", "Connected: STICK on Port 2 of HUB2",
+            "Device kind of HEADSET: audio", "Device kind of STICK: unknown",
+        ], Texts(log));
+    }
+
+    [Fact]
+    public void ReadingTheTreeLogsTheKindOfEveryDevice()
+    {
+        var log = NewLog();
+
+        log.TreeRead([Controller("C1", Hub("ROOT", Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera },
+            Device("KEYBOARD") with { DeviceKind = UsbDeviceKind.Neither }))]);
+
+        Assert.Equal(
+            ["USB devices read: 1 controllers", "Device kind of CAMERA: camera", "Device kind of KEYBOARD: neither camera nor audio"],
+            Texts(log));
+    }
+
     [Fact]
     public void ADisconnectNamesEverythingThatWasBehindThePort()
     {
