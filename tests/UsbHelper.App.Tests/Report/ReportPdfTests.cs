@@ -38,6 +38,16 @@ public class ReportPdfTests
         Assert.Contains($"Page 1 of {pages.Count}", pages[0]);
     }
 
+    // #298: the hub figure is the sum of the buses, the note below it the hubs on USB 2, USB 3 and USB 4.
+    [Fact]
+    public void The_hub_figure_shows_the_hubs_per_bus()
+    {
+        var all = string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null))));
+
+        Assert.Contains("(3+1+0): USB 2, USB 3, USB 4", all);
+        Assert.Contains("Hubs: 4 (3+1+0), deepest tier: 4", all);
+    }
+
     // The Results section: from its heading to the next one.
     private static string Results(ReportModel model)
     {

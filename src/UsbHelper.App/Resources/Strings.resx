@@ -194,6 +194,9 @@
   <data name="LimitLine" xml:space="preserve">
     <value>{0}: {1}, limit {2} ({3})</value>
   </data>
+  <data name="LimitLineOnBus" xml:space="preserve">
+    <value>{0}: {1}, limit {2} on {3} ({4})</value>
+  </data>
   <data name="LimitHubs" xml:space="preserve">
     <value>External hubs</value>
   </data>
@@ -248,8 +251,11 @@
   <data name="CountsDepthAtLeast" xml:space="preserve">
     <value>, deepest tier: at least {0}</value>
   </data>
-  <data name="CountsPerBusText" xml:space="preserve">
-    <value> (USB2: {0}, USB3: {1})</value>
+  <data name="CountsHubsPerBus" xml:space="preserve">
+    <value>{0} ({1}+{2}+{3})</value>
+  </data>
+  <data name="CountsPerBusTip" xml:space="preserve">
+    <value>In brackets: the hubs on USB 2, USB 3 and USB 4.</value>
   </data>
   <data name="CountsTable" xml:space="preserve">
     <value>Hubs and tiers</value>
@@ -260,8 +266,11 @@
   <data name="CountsBusUsb3" xml:space="preserve">
     <value>USB 3</value>
   </data>
+  <data name="CountsBusUsb4" xml:space="preserve">
+    <value>USB 4</value>
+  </data>
   <data name="CountsBusAll" xml:space="preserve">
-    <value>USB 2 and USB 3 together</value>
+    <value>All buses together</value>
   </data>
   <data name="CountsColumnHubs" xml:space="preserve">
     <value>Hubs</value>
@@ -613,7 +622,7 @@ This version keeps running.</value>
     <value>No profile checked</value>
   </data>
   <data name="ReportPerBus" xml:space="preserve">
-    <value>USB2 {0} · USB3 {1}</value>
+    <value>({0}+{1}+{2}): USB 2, USB 3, USB 4</value>
   </data>
   <data name="ReportAtLeast" xml:space="preserve">
     <value>at least {0}</value>

@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 using UsbHelper.Detection.MacOS;
 
 namespace UsbHelper.Detection.MacOS.Tests;
@@ -173,6 +174,8 @@ public class UsbTreeBuilderTests
         Assert.Equal(4, hub2.Children[0].Children[0].Children.Count);
         Assert.All(hub3.Children, port => Assert.Equal(UsbBus.Usb3, port.Bus));
         Assert.Equal("USB 10/100/1000 LAN", hub3.Children[3].Children[0].Name);
+        // #298: the two halves of the USB 3 hub count once on each bus, the USB 2 hub on its USB 2 half on USB 2.
+        Assert.Equal("3 (2+1+0)", TopologyCounts.PerBus(tree).HubsText);
     }
 
     [Fact]

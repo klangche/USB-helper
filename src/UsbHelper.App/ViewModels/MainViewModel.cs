@@ -642,8 +642,8 @@ public sealed class MainViewModel : ObservableObject
             placement.Linked.FirstOrDefault(link => link.Value.Contains(monitor)).Key is { } node ? items.GetValueOrDefault(node) : null)).ToList();
         return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
             setup.Computer, lastReport.Overall,
-            new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
-                counts.Tiers.Actual, atLeast, counts.Displays.ExternalDisplays),
+            new ReportCounts(perBus.Hubs, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
+                perBus.AnyBusKnown ? perBus.Usb4.Hubs : null, counts.Tiers.Actual, atLeast, counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
@@ -789,20 +789,25 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
     /// <summary>
-    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2 then USB 3, each with its
-    /// own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when the operating
-    /// system reports no bus at all. Empty when nothing is connected.
+    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2, USB 3, then USB 4
+    /// (#298), each with its own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when
+    /// the operating system reports no bus at all. Empty when nothing is connected.
     /// </summary>
     public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
 
     public bool HasBusCounts => BusCountsRows.Count > 0;
 
+    /// <summary>Above the table: "Hubs: 3 (2+1+0)", the same as the row counter (#298); null when nothing is connected.</summary>
+    public string? BusCountsHubs { get; private set; }
+
     // The same numbers and the same "at least" as the row counter of the controller, or of the computer (NodeViewModel.Count).
     private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
     {
         BusCountsRows.Clear();
+        BusCountsHubs = null;
         if (NodeViewModel.Count(scope, marks) is { } counted)
         {
+            BusCountsHubs = NodeViewModel.HubsText(counted);
             string Cell(int number) => counted.AtLeast
                 ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
                 : number.ToString(CultureInfo.CurrentCulture);
@@ -811,6 +816,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
                 BusCountsRows.Add(Row(Strings.CountsBusUsb3, counted.PerBus.Usb3));
+                BusCountsRows.Add(Row(Strings.CountsBusUsb4, counted.PerBus.Usb4));
             }
             else
             {
@@ -818,6 +824,7 @@ public sealed class MainViewModel : ObservableObject
             }
         }
         OnPropertyChanged(nameof(HasBusCounts));
+        OnPropertyChanged(nameof(BusCountsHubs));
     }
 
     /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>
@@ -964,10 +971,16 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(OverallColor));
 
         StatusRows.Clear();
+        // The profiles judge the hubs of the whole computer.
+        var hubs = NodeViewModel.Count(tree, marks) is { } counted
+            ? counted.AtLeast
+                ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, NodeViewModel.HubsNumbers(counted))
+                : NodeViewModel.HubsNumbers(counted)
+            : null;
         for (var i = 0; i < options.Count; i++)
         {
             var result = report.Profiles[i].Report;
-            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result)));
+            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result, hubs)));
         }
         OnPropertyChanged(nameof(NothingChecked));
 
@@ -1022,7 +1035,8 @@ public sealed class MainViewModel : ObservableObject
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
     // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
-    private static IReadOnlyList<string> ExceededLines(DiagnosticReport result)
+    // #298: the hubs as everywhere, "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
+    private static IReadOnlyList<string> ExceededLines(DiagnosticReport result, string? hubs)
     {
         var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]
         {
@@ -1030,8 +1044,14 @@ public sealed class MainViewModel : ObservableObject
             (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
             (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
         };
-        IEnumerable<string> lines = [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>
-            string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded))];
+        string Line((string Label, LimitState? State, long? Actual, long? Limit) check) =>
+            check.Label != Strings.LimitHubs || hubs == null
+                ? string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded)
+                : result.HubsBus is { } bus
+                ? string.Format(CultureInfo.CurrentCulture, Strings.LimitLineOnBus, check.Label, hubs, check.Limit,
+                    bus == UsbBus.Usb2 ? Strings.CountsBusUsb2 : Strings.CountsBusUsb3, Strings.LimitExceeded)
+                : string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, hubs, check.Limit, Strings.LimitExceeded);
+        IEnumerable<string> lines = [.. checks.Where(check => check.State == LimitState.Exceeded).Select(Line)];
         // #296: a warning on the profile, whatever its result word.
         return result.NoMst ? [.. lines, Strings.NoMstWarning] : [.. lines];
     }

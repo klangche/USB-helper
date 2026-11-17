@@ -28,4 +28,10 @@ public sealed record DiagnosticReport(
     /// the displays stay green.
     /// </summary>
     public bool NoMst { get; init; }
+
+    /// <summary>
+    /// The bus whose hub check <see cref="Hubs"/> is, as hubs are judged per bus (#195); null when no bus is known and
+    /// all hubs are judged together.
+    /// </summary>
+    public Detection.UsbBus? HubsBus { get; init; }
 }

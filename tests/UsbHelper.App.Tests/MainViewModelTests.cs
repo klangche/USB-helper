@@ -681,13 +681,15 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        var expected = "Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4";
+        var expected = "Hubs: 3 (2+1+0), deepest tier: 4";
         Assert.Equal(expected, Item(viewModel, "C1").Counts);
         Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
-        // The window shows "Hubs: 3 (2+1), deepest tier: 4", USB2 first, then USB3 (#217).
+        // The window shows "Hubs: 3 (2+1+0), deepest tier: 4": USB 2, USB 3, USB 4 (#217, #298).
         var controller = Item(viewModel, "C1");
-        Assert.Equal(("Hubs: 3 (", "2", "1", "), deepest tier: 4"),
-            (controller.CountsHead, controller.CountsUsb2, controller.CountsUsb3, controller.CountsTail));
+        Assert.Equal(("Hubs: 3 (", "2", "1", "0", "), deepest tier: 4"),
+            (controller.CountsHead, controller.CountsUsb2, controller.CountsUsb3, controller.CountsUsb4, controller.CountsTail));
+        Assert.Equal(expected + Environment.NewLine + Strings.CountsPerBusTip, controller.CountsTip);
+        Assert.Equal("Hubs: 3 (2+1+0)", viewModel.BusCountsHubs);
         Assert.True(controller.HasCountsPerBus);
         Assert.False(Item(viewModel, "ROOT").HasCountsPerBus);
     }
@@ -701,7 +703,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: at least 3 (USB2: 1, USB3: 1), deepest tier: at least 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 3 (1+1+0), deepest tier: at least 3", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -714,7 +716,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal("Hubs: 1 (USB2: 1, USB3: 0), deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1 (1+0+0), deepest tier: 3", Item(viewModel, "C1").Counts);
         Assert.Null(Item(viewModel, "C2").Counts);
     }
 
@@ -736,9 +738,9 @@ public class MainViewModelTests
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
         Assert.True(viewModel.HasBusCounts);
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
         // The row counter stays as it was.
-        Assert.Equal("Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 3 (2+1+0), deepest tier: 4", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -752,16 +754,16 @@ public class MainViewModelTests
 
         viewModel.SelectedNode = Item(viewModel, "C1");
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
 
         viewModel.SelectedNode = Item(viewModel, "SSD"); // Anything under a controller selects that controller.
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "3", "5")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "3", "5"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
 
         viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
 
         // The hubs of all controllers per bus, and each bus's deepest tier on any controller.
-        Assert.Equal([Line(Strings.CountsBusUsb2, "3", "4"), Line(Strings.CountsBusUsb3, "4", "5")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "3", "4"), Line(Strings.CountsBusUsb3, "4", "5"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
     }
 
     [Fact]
@@ -775,7 +777,7 @@ public class MainViewModelTests
 
         // UNKNOWN and MOUSE are on neither bus, so each bus's numbers are minimums.
         Assert.Equal(
-            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(3))],
+            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb4, AtLeast(0), AtLeast(0))],
             BusTable(viewModel));
     }
 
@@ -788,7 +790,7 @@ public class MainViewModelTests
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
         Assert.Equal(
-            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(2))],
+            [Line(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3)), Line(Strings.CountsBusUsb3, AtLeast(1), AtLeast(2)), Line(Strings.CountsBusUsb4, AtLeast(0), AtLeast(0))],
             BusTable(viewModel));
     }
 
@@ -815,11 +817,11 @@ public class MainViewModelTests
 
         Item(viewModel, "DISK").MarkLevel = 2; // DISK: tier 5, and 2 more hubs on USB 3 (#297).
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "3", "5")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "3", "5"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
 
         Item(viewModel, "DISK").MarkLevel = 0;
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
     }
 
     [Fact]
@@ -830,7 +832,7 @@ public class MainViewModelTests
         root = root with { Children = [root.Children[0], root.Children[1] with { Children = [] }] };
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "0", "0")], BusTable(viewModel));
+        Assert.Equal([Line(Strings.CountsBusUsb2, "1", "3"), Line(Strings.CountsBusUsb3, "0", "0"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
 
         var notified = new List<string?>();
         viewModel.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
@@ -1697,6 +1699,55 @@ public class MainViewModelTests
         viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
 
         Assert.Equal("For: all controllers", viewModel.StatusScope);
+    }
+
+    // #298: one USB 3 hub is a hub on USB 2 and a hub on USB 3.
+    [Fact]
+    public void AUsbThreeHubCountsOnceOnEachBus()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal("Hubs: 2 (1+1+0), deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 2 (1+1+0)", viewModel.BusCountsHubs);
+    }
+
+    [Fact]
+    public void ACableMarkOfThreeOnAUsbThreePortAddsTwoHubsOnUsbThree()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Item(viewModel, "HUB-USB3").MarkLevel = 3;
+
+        Assert.Equal("Hubs: 4 (1+3+0), deepest tier: 6", Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
+    public void WithoutAnyKnownBusOnlyTheHubTotalIsShown()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Device("KEYBOARD")))])]);
+
+        Assert.Equal("Hubs: 1", viewModel.BusCountsHubs);
+        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").CountsTip);
+    }
+
+    // #298: judged per bus; the status line shows the hubs as everywhere and names the bus over its limit.
+    [Fact]
+    public void AnExceededHubLimitShowsTheHubsPerBusAndTheBusOverIt()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hubs: 1");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"));
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Contains("External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)", viewModel.StatusRows[0].Details);
     }
 
     [Fact]

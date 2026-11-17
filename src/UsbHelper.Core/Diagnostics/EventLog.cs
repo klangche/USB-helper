@@ -74,14 +74,20 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     /// <summary>
-    /// The first full read of the USB tree: per hub, which ports the operating system calls USB-C or not, the kind of every
-    /// device, and every error it reports.
+    /// The first full read of the USB tree: per controller, its hubs per bus; per hub, which ports the operating system
+    /// calls USB-C or not, the kind of every device, and every error it reports.
     /// </summary>
     public void TreeRead(IReadOnlyList<UsbNode> tree)
     {
         Add($"USB devices read: {tree.Count} controllers");
         foreach (var controller in tree)
         {
+            // #298: so a log shows how the operating system splits the hubs over the buses, without the user's marks.
+            if (Topology.TopologyCounts.PerBus([controller]) is { Hubs: > 0 } perBus)
+            {
+                var unknown = perBus.UnknownBusHubs > 0 ? $"; {perBus.UnknownBusHubs} on ports whose bus is not reported" : "";
+                Add($"Hubs of {controller.Name}: {perBus.HubsText}{(perBus.AnyBusKnown ? " (USB 2+USB 3+USB 4)" : "")}{unknown}");
+            }
             // So the owner can check that the firmware reports its USB-C ports (#114).
             foreach (var hub in Below(controller, location: null).Select(item => item.Node).Where(node => node.Kind == UsbNodeKind.Hub))
             {

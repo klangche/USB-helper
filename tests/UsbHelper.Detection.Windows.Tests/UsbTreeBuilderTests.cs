@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.Detection.Windows.Tests;
 
@@ -268,5 +269,22 @@ public class UsbTreeBuilderTests
         var properties = typeof(UsbNode).GetProperties().Select(property => property.Name);
 
         Assert.DoesNotContain(properties, name => name.Contains("Speed") || name.Contains("Bandwidth"));
+    }
+
+    // #298: Windows reports a USB 3 hub as two hubs, the USB 2 half on a USB 2 port and the SuperSpeed half on a USB 3
+    // port, each with its port's bus, so it counts once on each bus: "2 (1+1+0)", as on macOS.
+    [Fact]
+    public void AUsbThreeHubIsOneHubOnEachBus()
+    {
+        var usb2Node = new RawDevNode(@"USB\VID_0BDA&PID_5411\1", "Generic USB Hub", null);
+        var usb3Node = new RawDevNode(@"USB\VID_0BDA&PID_0411\2", "Generic SuperSpeed USB Hub", null);
+        var usb2Half = new RawPort(1, 1, true, 0x0BDA, 0x5411, usb2Node, new RawHub(usb2Node, [EmptyPort(1) with { Bus = UsbBus.Usb2 }], null)) { Bus = UsbBus.Usb2 };
+        var usb3Half = new RawPort(13, 1, true, 0x0BDA, 0x0411, usb3Node, new RawHub(usb3Node, [EmptyPort(1) with { Bus = UsbBus.Usb3 }], null)) { Bus = UsbBus.Usb3 };
+
+        var controller = BuildSingle(usb2Half, usb3Half);
+
+        Assert.Equal([UsbBus.Usb2, UsbBus.Usb3], controller.Children[0].Children.Select(port => port.Bus));
+        Assert.All(controller.Children[0].Children, port => Assert.Equal(UsbNodeKind.Hub, Assert.Single(port.Children).Kind));
+        Assert.Equal("2 (1+1+0)", TopologyCounts.PerBus([controller]).HubsText);
     }
 }

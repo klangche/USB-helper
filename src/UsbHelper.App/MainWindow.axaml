@@ -313,15 +313,17 @@
                              IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB2 first (#217); hovering shows the full text,
-                       as in the tree as text: "Hubs: 4 (USB2: 3, USB3: 1), ...". -->
-                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding Counts}"
+                  <!-- "Hubs: 4 (3+1+0), ...": the hubs per bus in brackets, USB 2, USB 3, USB 4 (#217, #298); hovering
+                       shows the text and which bus is which. -->
+                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding CountsTip}"
                               IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <TextBlock Text="{Binding CountsHead}" />
                     <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}">
                       <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
                       <TextBlock Text="+" />
                       <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" />
+                      <TextBlock Text="+" />
+                      <TextBlock Text="{Binding CountsUsb4}" FontWeight="SemiBold" />
                     </StackPanel>
                     <TextBlock Text="{Binding CountsTail}" />
                   </StackPanel>
@@ -387,11 +389,12 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <!-- Counts table (#265), for what the status field covers: one line per bus with its own hubs and deepest tier;
-               one combined line when no bus is reported. Not shown when nothing is connected. -->
+          <!-- Counts table (#265), for what the status field covers: "Hubs: 3 (2+1+0)" (#298), then one line per bus with
+               its own hubs and deepest tier; one combined line when no bus is reported. Not shown when nothing is connected. -->
           <StackPanel IsVisible="{Binding HasBusCounts}" Spacing="2" Margin="0,8,0,0">
             <TextBlock Text="{x:Static res:Strings.CountsTable}" FontWeight="Bold" />
             <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding BusCountsHubs}" ToolTip.Tip="{x:Static res:Strings.CountsPerBusTip}" TextWrapping="Wrap" />
             <Grid ColumnDefinitions="3*,2*,3*" Opacity="0.7">
               <TextBlock Grid.Column="1" Text="{x:Static res:Strings.CountsColumnHubs}" TextWrapping="Wrap" />
               <TextBlock Grid.Column="2" Text="{x:Static res:Strings.LimitTiers}" TextWrapping="Wrap" />

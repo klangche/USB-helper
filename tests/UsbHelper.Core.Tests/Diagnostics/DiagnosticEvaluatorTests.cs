@@ -756,4 +756,22 @@ public class DiagnosticEvaluatorTests
         Assert.NotEqual(ConnectionStatus.Purple, report.Connections["HUB-USB2"]);
         Assert.Contains(report.Findings, finding => finding.Message.StartsWith("2 hubs are on the USB 3 bus; limits.max_hubs is 1", StringComparison.Ordinal));
     }
+
+    // #298: judged per bus as before; the finding also names the hubs of all buses, as the app shows them.
+    [Fact]
+    public void ABusOverItsHubLimitNamesTheHubsOfAllBuses()
+    {
+        var report = Evaluate(TesterMac(), Profile(hubs: "5"));
+
+        Assert.Equal((6, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
+        Assert.Equal(UsbBus.Usb2, report.HubsBus);
+        Assert.Contains(report.Findings, finding =>
+            finding.Message == "6 hubs are on the USB 2 bus; limits.max_hubs is 5. Hubs: 8 (6+2+0): USB 2, USB 3, USB 4.");
+    }
+
+    [Fact]
+    public void WithoutAnyKnownBusTheHubCheckHasNoBus()
+    {
+        Assert.Null(Evaluate([Controller("C1", Hub("ROOT", Hub("DOCK", Device("KEYBOARD"))))], Profile(hubs: "5")).HubsBus);
+    }
 }
