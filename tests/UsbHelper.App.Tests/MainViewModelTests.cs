@@ -718,6 +718,127 @@ public class MainViewModelTests
         Assert.Null(Item(viewModel, "C2").Counts);
     }
 
+    // #265: the side panel's table, one line per bus, for what the status field covers.
+    private static (string Bus, string Hubs, string DeepestTier, string DeepestHop)[] BusTable(MainViewModel viewModel) =>
+        [.. viewModel.BusCountsRows.Select(row => (row.Bus, row.Hubs, row.DeepestTier, row.DeepestHop))];
+
+    private static string AtLeast(int number) => string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number);
+
+    [Fact]
+    public void TheCountsTableShowsEachBusWithItsOwnHubsTierAndHop()
+    {
+        var viewModel = NewViewModel();
+        // USB 2: HUB-USB2 tier 2, INNER tier 3, KEYBOARD tier 4 with 2 hops. USB 3: HUB-USB3 tier 2, DISK tier 3 with 1 hop.
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.True(viewModel.HasBusCounts);
+        Assert.Equal([(Strings.CountsBusUsb2, "2", "4", "2"), (Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+        // The row counter stays as it was.
+        Assert.Equal("Hubs: 3 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 2", Item(viewModel, "C1").Counts);
+    }
+
+    [Fact]
+    public void TheCountsTableFollowsTheSelectedControllerAndTheHostCoversAll()
+    {
+        var viewModel = NewViewModel();
+        var first = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+        // USB 2: A tier 2, CAMERA tier 3 with 1 hop. USB 3: B, B2 and B3 on tiers 2 to 4, SSD tier 5 with 3 hops.
+        var second = RootWithBuses("ROOT2", Hub("A", Device("CAMERA")), Hub("B", Hub("B2", Hub("B3", Device("SSD")))));
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [first]), new UsbNode("C2", UsbNodeKind.Controller, "Controller 2", [second])]);
+
+        viewModel.SelectedNode = Item(viewModel, "C1");
+
+        Assert.Equal([(Strings.CountsBusUsb2, "2", "4", "2"), (Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+
+        viewModel.SelectedNode = Item(viewModel, "SSD"); // Anything under a controller selects that controller.
+
+        Assert.Equal([(Strings.CountsBusUsb2, "1", "3", "1"), (Strings.CountsBusUsb3, "3", "5", "3")], BusTable(viewModel));
+
+        viewModel.SelectedNode = Item(viewModel, NodeViewModel.HostId);
+
+        // The hubs of all controllers per bus, and each bus's deepest tier and hop on any controller.
+        Assert.Equal([(Strings.CountsBusUsb2, "3", "4", "2"), (Strings.CountsBusUsb3, "4", "5", "3")], BusTable(viewModel));
+    }
+
+    [Fact]
+    public void TheCountsTableSaysAtLeastWhenAPortsBusIsUnknown()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN", Device("MOUSE")))] };
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        // UNKNOWN and MOUSE are on neither bus, so each bus's numbers are minimums.
+        Assert.Equal(
+            [(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3), AtLeast(1)), (Strings.CountsBusUsb3, AtLeast(1), AtLeast(3), AtLeast(1))],
+            BusTable(viewModel));
+    }
+
+    [Fact]
+    public void TheCountsTableSaysAtLeastWhenAHubCannotBeRead()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), new UsbNode("BAD", UsbNodeKind.Hub, "BAD", []));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal(
+            [(Strings.CountsBusUsb2, AtLeast(1), AtLeast(3), AtLeast(1)), (Strings.CountsBusUsb3, AtLeast(1), AtLeast(2), AtLeast(0))],
+            BusTable(viewModel));
+    }
+
+    [Fact]
+    public void TheCountsTableHasOneCombinedLineWhenNoBusIsKnown()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load(Desk);
+
+        Assert.Equal([(Strings.CountsBusAll, "1", "3", "1")], BusTable(viewModel));
+
+        viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
+
+        Assert.Equal([(Strings.CountsBusAll, AtLeast(1), AtLeast(2), AtLeast(0))], BusTable(viewModel));
+    }
+
+    [Fact]
+    public void ACableMarkRaisesTheDepthOfItsBusInTheCountsTable()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Item(viewModel, "DISK").ExtraHops = 2; // DISK: tier 5, hop 3. The hub count stays.
+
+        Assert.Equal([(Strings.CountsBusUsb2, "2", "4", "2"), (Strings.CountsBusUsb3, "1", "5", "3")], BusTable(viewModel));
+
+        Item(viewModel, "DISK").ExtraHops = 0;
+
+        Assert.Equal([(Strings.CountsBusUsb2, "2", "4", "2"), (Strings.CountsBusUsb3, "1", "3", "1")], BusTable(viewModel));
+    }
+
+    [Fact]
+    public void ABusWithNothingOnItShowsZerosAndAnEmptyControllerNoCountsTable()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", (UsbNode?)null));
+        root = root with { Children = [root.Children[0], root.Children[1] with { Children = [] }] };
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
+
+        Assert.Equal([(Strings.CountsBusUsb2, "1", "3", "1"), (Strings.CountsBusUsb3, "0", "0", "0")], BusTable(viewModel));
+
+        var notified = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+        viewModel.SelectedNode = Item(viewModel, "C2");
+
+        Assert.Empty(viewModel.BusCountsRows);
+        Assert.False(viewModel.HasBusCounts);
+        Assert.Contains(nameof(MainViewModel.HasBusCounts), notified);
+    }
+
     [Fact]
     public void EachHubAndDeviceSaysItsTierAndTheHubsInFront()
     {
