@@ -95,10 +95,12 @@ public static class DiagnosticEvaluator
 
         var perBus = TopologyCounts.PerBus(computerTree, extraHops);
         var nodeBuses = TopologyCounts.Buses(computerTree);
-        if (perBus.BusUnknown && guide != null)
+        // Said in the log only when it matters: some limit differs between USB 2 and USB 3.
+        string[] busPaths = ["hubs.max", "hubs.recommended", "tiers.max", "tiers.recommended", "hops.max", "hops.recommended"];
+        if (perBus.BusUnknown && busPaths.Any(path => GuideLimits.Of(profile, guide, $"usb2.{path}").Value != GuideLimits.Of(profile, guide, $"usb3.{path}").Value))
         {
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
-                "The operating system does not say which bus some ports are on, so what is on them is judged by the lowest of the USB 2 and USB 3 limits."));
+                "The operating system does not say which bus some ports are on, so what is on them is judged by the lowest of the USB 2 and USB 3 values."));
         }
 
         // Hubs per bus: the two halves of a USB 3 hub are one hub on each bus, not two hubs (#195). Without any known
