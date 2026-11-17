@@ -36,7 +36,16 @@ archive="$output/usb-helper-0.8.0-ci-macos-universal.dmg"
 [[ -f $archive && -f $archive.sha256 ]]
 mountpoint="$temporary/mounted"
 mkdir "$mountpoint"
-hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
+# Retried like the package script's steps (#282): the runner's disk images can be busy for a moment.
+for attempt in 1 2 3 4 5; do
+  if hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null; then
+    break
+  fi
+  if ((attempt == 5)); then
+    exit 1
+  fi
+  sleep 3
+done
 trap 'hdiutil detach "$mountpoint" -quiet || hdiutil detach -force "$mountpoint" -quiet; rm -rf "$temporary"' EXIT
 [[ -f $mountpoint/USB-helper.app/Contents/Info.plist ]]
 [[ -f $mountpoint/USB-helper.app/Contents/MacOS/USB-helper ]]

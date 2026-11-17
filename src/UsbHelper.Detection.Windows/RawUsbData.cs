@@ -8,6 +8,9 @@ internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCo
 {
     /// <summary>DEVPKEY_Device_ContainerId, or null when Windows gives none (#143).</summary>
     public Guid? ContainerId { get; init; }
+
+    /// <summary>SPDRP_COMPATIBLEIDS, empty when Windows gives none (#274).</summary>
+    public IReadOnlyList<string> CompatibleIds { get; init; } = [];
 }
 
 /// <param name="Error">Why the root hub could not be read, or null.</param>

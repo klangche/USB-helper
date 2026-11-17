@@ -19,6 +19,7 @@ internal static class WindowsUsbReader
     private const int NodeInformationSize = 76; // USB_NODE_INFORMATION
     private const int NumberOfPortsOffset = 6; // NodeType (4), bDescriptorLength, bDescriptorType
     private const int ConnectionInformationSize = 512; // USB_NODE_CONNECTION_INFORMATION_EX with room for the pipe list
+    private const int DeviceClassOffset = 8; // ConnectionIndex (4) + USB_DEVICE_DESCRIPTOR.bDeviceClass (4)
     private const int VendorIdOffset = 12; // ConnectionIndex (4) + USB_DEVICE_DESCRIPTOR.idVendor (8)
     private const int ProductIdOffset = 14;
     private const int DeviceIsHubOffset = 24;
@@ -29,7 +30,9 @@ internal static class WindowsUsbReader
     private const int PortConnectorPropertiesSize = 512; // USB_PORT_CONNECTOR_PROPERTIES with room for the companion hub name
     private const int DeviceConnected = 1; // USB_CONNECTION_STATUS
 
-    private sealed record DevNodeIndex(Dictionary<string, RawDevNode> ByDriverKey, Dictionary<string, RawDevNode> ByInstanceId);
+    /// <param name="ByParent">#274: the device nodes below each device node, by the parent's instance id.</param>
+    private sealed record DevNodeIndex(
+        Dictionary<string, RawDevNode> ByDriverKey, Dictionary<string, RawDevNode> ByInstanceId, Dictionary<string, List<RawDevNode>> ByParent);
 
     public static IReadOnlyList<RawController> Read()
     {
@@ -117,8 +120,13 @@ internal static class WindowsUsbReader
         {
             return null;
         }
+        return InstanceId(parent);
+    }
+
+    private static string? InstanceId(uint devInst)
+    {
         var buffer = new byte[NameBufferSize];
-        return CM_Get_Device_ID(parent, buffer, NameBufferSize / 2, 0) == CR_SUCCESS ? Decode(buffer, 0).ToUpperInvariant() : null;
+        return CM_Get_Device_ID(devInst, buffer, NameBufferSize / 2, 0) == CR_SUCCESS ? Decode(buffer, 0).ToUpperInvariant() : null;
     }
 
     private static RawHub ReadHub(string symbolicName, DevNodeIndex devNodes) =>
@@ -167,14 +175,17 @@ internal static class WindowsUsbReader
         IReadOnlyList<int>? interfaceClasses = null;
         if (status != 0)
         {
-            // Only a device that finished enumeration has a configuration descriptor (USB_CONNECTION_STATUS DeviceConnected).
-            if (status == DeviceConnected && !isHub)
-            {
-                interfaceClasses = ReadInterfaceClasses(hub, port);
-            }
             if (TryReadName(hub, IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME, port) is { } driverKey)
             {
                 devNodes.ByDriverKey.TryGetValue(driverKey, out device);
+            }
+            // #274: from the compatible ids first; the configuration descriptor only when they say nothing. Only a device
+            // that finished enumeration has one (USB_CONNECTION_STATUS DeviceConnected).
+            if (status == DeviceConnected && !isHub)
+            {
+                IReadOnlyList<RawDevNode> interfaces = device != null && devNodes.ByParent.TryGetValue(device.InstanceId, out var children) ? children : [];
+                interfaceClasses = CompatibleIds.InterfaceClasses(
+                    information[DeviceClassOffset], device, interfaces, () => ReadInterfaceClasses(hub, port));
             }
             if (isHub && TryReadName(hub, IOCTL_USB_GET_NODE_CONNECTION_NAME, port) is { } hubName)
             {
@@ -201,7 +212,8 @@ internal static class WindowsUsbReader
     }
 
     // #274: the classes of the device's interfaces from its configuration descriptor, read in two steps as USBView does:
-    // the first 9 bytes for the total length, then all of it. Null when Windows does not return it whole.
+    // the first 9 bytes for the total length, then all of it. Null when Windows does not return it whole. This sends two
+    // requests to the device, so it is only the fallback when the compatible ids say nothing.
     private static IReadOnlyList<int>? ReadInterfaceClasses(SafeFileHandle hub, int port)
     {
         var head = ConfigurationDescriptor.Request(port, ConfigurationDescriptor.HeaderLength);
@@ -238,7 +250,7 @@ internal static class WindowsUsbReader
     // All present devices enumerated by the USB bus driver: hubs and the devices on their ports.
     private static DevNodeIndex ReadUsbDevNodes()
     {
-        var index = new DevNodeIndex(new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase));
+        var index = new DevNodeIndex(new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase), new(StringComparer.OrdinalIgnoreCase));
         var set = SetupDiGetClassDevs(IntPtr.Zero, "USB", IntPtr.Zero, DIGCF_ALLCLASSES | DIGCF_PRESENT);
         if (set == InvalidHandleValue)
         {
@@ -262,6 +274,14 @@ internal static class WindowsUsbReader
                 if (StringProperty(set, ref info, SPDRP_DRIVER) is { } driverKey)
                 {
                     index.ByDriverKey[driverKey] = node;
+                }
+                if (CM_Get_Parent(out var parent, info.DevInst, 0) == CR_SUCCESS && InstanceId(parent) is { } parentId)
+                {
+                    if (!index.ByParent.TryGetValue(parentId, out var children))
+                    {
+                        index.ByParent[parentId] = children = [];
+                    }
+                    children.Add(node);
                 }
             }
         }
@@ -288,7 +308,11 @@ internal static class WindowsUsbReader
         var containerId = SetupDiGetDeviceProperty(set, ref info, DevpkeyDeviceContainerId, out var containerType, container, 16, out var size, 0)
             ? ContainerIds.FromProperty(containerType, container, size)
             : null;
-        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId };
+        var ids = new byte[NameBufferSize];
+        var compatibleIds = SetupDiGetDeviceRegistryProperty(set, ref info, SPDRP_COMPATIBLEIDS, out _, ids, NameBufferSize, out var idsSize)
+            ? CompatibleIds.Parse(ids, idsSize)
+            : [];
+        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId, CompatibleIds = compatibleIds };
     }
 
     private static string? StringProperty(IntPtr set, ref SP_DEVINFO_DATA info, uint property)

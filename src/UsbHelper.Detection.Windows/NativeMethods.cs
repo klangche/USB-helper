@@ -16,6 +16,7 @@ internal static class NativeMethods
     public const uint DIGCF_DEVICEINTERFACE = 0x10;
 
     public const uint SPDRP_DEVICEDESC = 0x0;
+    public const uint SPDRP_COMPATIBLEIDS = 0x2;
     public const uint SPDRP_DRIVER = 0x9;
     public const uint SPDRP_FRIENDLYNAME = 0xC;
 
