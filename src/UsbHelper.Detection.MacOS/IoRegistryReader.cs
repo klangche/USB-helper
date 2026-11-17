@@ -8,10 +8,12 @@ internal sealed class IoRegistryReader : IIoRegistryReader
 {
     private const string UsbPlane = "IOUSB";
     private const string ServicePlane = "IOService";
+    private const string UsbDeviceClass = "IOUSBHostDevice";
+    private const string UsbInterfaceClass = "IOUSBHostInterface";
 
     // Only these properties are read; a serial number or UUID is never touched.
     private static readonly string[] Keys =
-        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber", "port"];
+        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber", "port", "bInterfaceClass"];
 
     public IReadOnlyList<RegistryEntry> ReadControllers()
     {
@@ -53,16 +55,17 @@ internal sealed class IoRegistryReader : IIoRegistryReader
     private static RegistryEntry Read(uint entry, string plane, HashSet<ulong> seen, out string? error)
     {
         error = null;
-        var properties = new Dictionary<string, object>();
-        foreach (var key in Keys)
-        {
-            if (IoKit.Property(entry, key) is { } value)
-            {
-                properties[key] = value;
-            }
-        }
+        var properties = Properties(entry);
+        var isUsbDevice = IoKit.IOObjectConformsTo(entry, UsbDeviceClass);
 
         var children = new List<RegistryEntry>();
+        // #274: the IOUSB plane lists devices only; a device's interfaces, with their bInterfaceClass, are its children
+        // in the IOService plane.
+        if (isUsbDevice && plane == UsbPlane)
+        {
+            children.AddRange(Interfaces(entry));
+        }
+
         foreach (var child in Children(entry, plane))
         {
             try
@@ -87,7 +90,43 @@ internal sealed class IoRegistryReader : IIoRegistryReader
             error = "the registry did not return the entry's name";
         }
 
-        return new RegistryEntry(className ?? "", name ?? "", IoKit.IOObjectConformsTo(entry, "IOUSBHostDevice"), properties, children, error);
+        return new RegistryEntry(className ?? "", name ?? "", isUsbDevice, properties, children, error);
+    }
+
+    private static Dictionary<string, object> Properties(uint entry)
+    {
+        var properties = new Dictionary<string, object>();
+        foreach (var key in Keys)
+        {
+            if (IoKit.Property(entry, key) is { } value)
+            {
+                properties[key] = value;
+            }
+        }
+
+        return properties;
+    }
+
+    // The device's IOUSBHostInterface entries in the IOService plane, without what is below them.
+    private static List<RegistryEntry> Interfaces(uint device)
+    {
+        var interfaces = new List<RegistryEntry>();
+        foreach (var child in Children(device, ServicePlane))
+        {
+            try
+            {
+                if (IoKit.IOObjectConformsTo(child, UsbInterfaceClass))
+                {
+                    interfaces.Add(new RegistryEntry(IoKit.ClassName(child) ?? "", IoKit.EntryName(child) ?? "", false, Properties(child), []));
+                }
+            }
+            finally
+            {
+                IoKit.IOObjectRelease(child);
+            }
+        }
+
+        return interfaces;
     }
 
     private static List<uint> Children(uint entry, string plane)

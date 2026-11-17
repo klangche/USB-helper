@@ -192,6 +192,28 @@ internal static class UsbTreeBuilder
             VendorId = vendor is >= 0 and <= ushort.MaxValue ? (ushort)vendor : null,
             ProductId = product is >= 0 and <= ushort.MaxValue ? (ushort)product : null,
             Problem = entry.Error == null ? null : $"Could not read the device: {entry.Error}",
+            DeviceKind = isHub ? null : UsbDeviceKinds.FromInterfaceClasses(InterfaceClasses(entry)),
         };
+    }
+
+    // #274: the bInterfaceClass of the device's interface entries, below it but not below another device.
+    private static List<int> InterfaceClasses(RegistryEntry device)
+    {
+        var classes = new List<int>();
+        void Walk(RegistryEntry entry)
+        {
+            foreach (var child in entry.Children.Where(child => !child.IsUsbDevice))
+            {
+                if (child.GetNumber("bInterfaceClass") is { } interfaceClass)
+                {
+                    classes.Add((int)interfaceClass);
+                }
+
+                Walk(child);
+            }
+        }
+
+        Walk(device);
+        return classes;
     }
 }
