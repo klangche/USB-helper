@@ -1,0 +1,37 @@
+# A USB-Helper guide: the USB limits and recommendations of one guide, read by the USB-Helper app.
+#
+# The guide is this folder. Every guide folder has the same files with the same keys:
+#   guide.yaml    this file: the guide's name and sources
+#   all.yaml      limits for every system
+#   windows.yaml, macos.yaml, linux.yaml, ipad.yaml, android.yaml: limits per chip of that system
+#
+# How to fill it in
+#   - Write a whole number, or none, after a key. Do not add, remove or rename keys or files:
+#     a guide that differs from USB-Helper's is rejected.
+#   - A number is your limit. An empty value means: use USB-Helper's value (guides/usb-helper/).
+#     none means: you state no limit here, and USB-Helper's value is not used either.
+#   - A chip's value (in windows.yaml and the others) wins over the value in all.yaml.
+#   - recommended: above it the setup may be unreliable. max: above it the setup is unstable.
+#
+# Units, for each USB bus (usb2, usb3, usb4) on its own
+#   - hubs: external hubs on that bus.
+#   - tiers: USB tiers on a path, as the USB specification counts them: the computer with its root hub
+#     is tier 1, each hub adds one, the device's own tier counts, and so do hubs built into the computer.
+#   - hops: external hubs in front of a device.
+#   When the computer does not report a device's bus, the lowest of the stated bus values applies.
+#   usb4 is read but not judged yet: USB4 links are not detected yet.
+#   - camera_audio: tiers and hops for cameras and audio devices, on top of the general limits.
+#   - mst: 1 when the system extends the desktop over DisplayPort Multi-Stream Transport, 0 when not.
+#   - exceeded_note: a short text shown when a limit in that block is exceeded; at most 160 characters.
+
+name: Ochno
+selectable: false
+
+notes:
+  - "Listed, not selectable: Ochno's limits are not filled in yet."
+
+sources: []
+
+verification:
+  status: unverified
+  last_checked: null

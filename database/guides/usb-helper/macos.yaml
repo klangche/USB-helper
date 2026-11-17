@@ -1,0 +1,125 @@
+# macOS: limits per chip. A value here wins over all.yaml.
+# A number is the limit; empty: USB-Helper's value; none: no limit stated. Units: see guide.yaml.
+
+intel:  # Intel
+  usb2:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 2
+      max: 5
+  usb3:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 2
+      max: 5
+  usb4:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: none
+      max: none
+  camera_audio:
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: 1
+      max: 5
+  mst: 0
+  exceeded_note:
+
+apple-silicon:  # M-series
+  usb2:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 1
+      max: 4
+  usb3:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 1
+      max: 4
+  usb4:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: none
+      max: none
+  camera_audio:
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: 1
+      max: 4
+  mst: 0
+  exceeded_note:
+
+a-series:  # A-series
+  usb2:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 1
+      max: 3
+  usb3:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: 7
+    hops:
+      recommended: 1
+      max: 3
+  usb4:
+    hubs:
+      recommended: none
+      max: none
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: none
+      max: none
+  camera_audio:
+    tiers:
+      recommended: none
+      max: none
+    hops:
+      recommended: 1
+      max: 3
+  mst: 0
+  exceeded_note:

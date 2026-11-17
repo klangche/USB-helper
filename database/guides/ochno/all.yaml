@@ -1,0 +1,41 @@
+# Limits for every system.
+# A number is the limit; empty: USB-Helper's value; none: no limit stated. Units: see guide.yaml.
+usb2:
+  hubs:
+    recommended:
+    max:
+  tiers:
+    recommended:
+    max:
+  hops:
+    recommended:
+    max:
+usb3:
+  hubs:
+    recommended:
+    max:
+  tiers:
+    recommended:
+    max:
+  hops:
+    recommended:
+    max:
+usb4:
+  hubs:
+    recommended:
+    max:
+  tiers:
+    recommended:
+    max:
+  hops:
+    recommended:
+    max:
+camera_audio:
+  tiers:
+    recommended:
+    max:
+  hops:
+    recommended:
+    max:
+mst:
+exceeded_note:
