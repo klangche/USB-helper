@@ -15,7 +15,7 @@ public class DiagnosticEvaluatorTests
     /// <summary>A computer profile and the guide to judge it by (#285).</summary>
     private sealed record Judge(ResolvedProfile Profile, Guide? Guide);
 
-    private const string HopsSource = "USB-Helper: hops.max 5 in guides/usb-helper.yaml";
+    private const string HopsSource = "USB-Helper: usb2.hops.max 5 in guides/usb-helper/test.yaml";
 
     // USB-Helper's guide with the hub and hop limits given ("null" states none) and the status given, for every file.
     private static Judge Profile(string hubs = "5", string hops = "5", string status = "verified", string extra = "", string recommendedHops = "null")
@@ -66,7 +66,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.All(report.Connections.Values, status => Assert.Equal(ConnectionStatus.Green, status));
         Assert.Equal(["HUB", "KEYBOARD", "MOUSE"], report.Connections.Keys.Order());
-        Assert.Equal(new LimitCheck("limits.max_hubs", 1, 5, true, "USB-Helper: hubs.max 5 in guides/usb-helper.yaml", LimitState.Within), report.Hubs);
+        Assert.Equal(new LimitCheck("limits.max_hubs", 1, 5, true, "USB-Helper: usb2.hubs.max 5 in guides/usb-helper/test.yaml", LimitState.Within), report.Hubs);
         Assert.Equal(3, report.Tiers.Actual);
         Assert.Equal(new LimitCheck("limits.max_hops", 1, 5, true, HopsSource, LimitState.Within), report.Hops);
         Assert.Equal(2, report.Findings.Count(finding => finding.Kind == FactKind.VerifiedDatabaseFact));
@@ -140,7 +140,7 @@ public class DiagnosticEvaluatorTests
 
         Assert.Equal(ConnectionStatus.Green, report.Overall);
         Assert.Equal(LimitState.Unknown, report.Hubs.State);
-        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Test laptop", "limits.max_hubs is unknown (USB-Helper: hubs.max none in guides/usb-helper.yaml)."), report.Findings);
+        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Test laptop", "limits.max_hubs is unknown (USB-Helper: usb2.hubs.max none in guides/usb-helper/test.yaml)."), report.Findings);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class DiagnosticEvaluatorTests
     {
         var report = Evaluate(Desk, Profile(hubs: "null", extra: "name: Neo"));
 
-        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Neo", "limits.max_hubs is unknown (USB-Helper: hubs.max none in guides/usb-helper.yaml)."), report.Findings);
+        Assert.Contains(new Finding(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Neo", "limits.max_hubs is unknown (USB-Helper: usb2.hubs.max none in guides/usb-helper/test.yaml)."), report.Findings);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal(ConnectionStatus.Orange, report.Overall);
         Assert.Equal(ConnectionStatus.Orange, report.Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Green, report.Connections["MOUSE"]);
-        const string Source = "USB-Helper: hops.recommended 0 in guides/usb-helper.yaml";
+        const string Source = "USB-Helper: usb2.hops.recommended 0 in guides/usb-helper/test.yaml";
         Assert.Equal(new LimitCheck("limits.recommended_hops", 1, 0, true, Source, LimitState.Exceeded), report.RecommendedHops);
         Assert.Contains(new Finding(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD",
             "Hop depth 1 exceeds the recommended limits.recommended_hops 0; limits.max_hops is 5."), report.Findings);

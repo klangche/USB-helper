@@ -39,7 +39,7 @@ public class GuideRulesTests
     [InlineData("macos-intel", 5, 2)]
     [InlineData("macos-apple-silicon", 4, 1)]
     [InlineData("macos-a-series", 3, 1)]
-    [InlineData("apple-mobile-a-series", 3, 1)]
+    [InlineData("ipad-a-series", 3, 1)]
     [InlineData("linux-x64", 5, 2)]
     [InlineData("linux-arm", 5, 2)]
     [InlineData("android-phone-qualcomm", 5, 2)]
@@ -78,7 +78,7 @@ public class GuideRulesTests
     [Fact]
     public void GuideTiersCountTheBuiltInHubLevels()
     {
-        var (aSeries, guide) = Picked(2, new() { ["tiers.recommended"] = "4", ["tiers.max"] = "7" });
+        var (aSeries, guide) = Picked(2, new() { ["usb2.tiers.recommended"] = "4", ["usb2.tiers.max"] = "7", ["usb3.tiers.recommended"] = "4", ["usb3.tiers.max"] = "7" });
 
         Assert.Equal(ConnectionStatus.Green, Evaluate(aSeries, 0, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Orange, Evaluate(aSeries, 1, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
@@ -89,14 +89,14 @@ public class GuideRulesTests
     [Fact]
     public void FindingsNameTheGuideAndTheFile()
     {
-        var (aSeries, guide) = Picked(2, new() { ["tiers.recommended"] = "4", ["tiers.max"] = "7" });
+        var (aSeries, guide) = Picked(2, new() { ["usb2.tiers.recommended"] = "4", ["usb2.tiers.max"] = "7", ["usb3.tiers.recommended"] = "4", ["usb3.tiers.max"] = "7" });
 
         var report = Evaluate(aSeries, 1, Device("KEYBOARD"), guide);
 
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.SubjectId == "KEYBOARD"
             && finding.Message == "Tier depth 5 exceeds the recommended limits.recommended_tiers 4; limits.max_tiers is 7.");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: tiers.recommended 4 in guides/guide.yaml).");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: hops.max 3 in guides/usb-helper.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: usb2.tiers.recommended 4 in guides/guide/all.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: usb2.hops.max 3 in guides/usb-helper/test.yaml).");
     }
 
     // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hops 3 / 2, and a picked
@@ -143,13 +143,13 @@ public class GuideRulesTests
             && finding.Message == "Tier depth 5 exceeds limits.camera_audio_max_tiers 4 for cameras and audio devices.");
     }
 
-    // An exceeded limit shows the most specific exceeded_note of the guide that set it: the chip's over the platform's.
+    // An exceeded limit shows the most specific exceeded_note of the guide that set it: the chip's over all.yaml's.
     [Fact]
     public void ExceededLimitShowsTheChipsNote()
     {
         using var db = new TestDatabase();
         db.UsbHelper["hops.max"] = "0";
-        db.UsbHelper["platforms.test.limits.exceeded_note"] = "\"Platform note.\"";
+        db.UsbHelper["exceeded_note"] = "\"All note.\"";
         db.UsbHelper["platforms.test.chips.platform.limits.exceeded_note"] = "\"Chip note.\"";
         var loaded = db.Load();
 
@@ -164,13 +164,13 @@ public class GuideRulesTests
     {
         using var db = new TestDatabase();
         db.UsbHelper["exceeded_note"] = "\"Use a powered hub.\"";
-        db.WriteGuide(new() { ["hops.max"] = "0" });
+        db.WriteGuide(new() { ["usb2.hops.max"] = "0", ["usb3.hops.max"] = "0" });
         var loaded = db.Load();
 
         var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.Guides["guide"]);
 
         Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Use a powered hub.");
-        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: hops.max 0 in guides/guide.yaml)", StringComparison.Ordinal));
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: usb2.hops.max 0 in guides/guide/all.yaml)", StringComparison.Ordinal));
     }
 
     // USB 2.0: a 7-bit device address, so at most 127 devices on one controller (base.yaml).

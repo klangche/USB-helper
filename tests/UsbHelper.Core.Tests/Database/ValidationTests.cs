@@ -92,8 +92,9 @@ public class ValidationTests
     [Theory]
     [InlineData("notes.yaml")]
     [InlineData("platforms/more/p.yaml")]
-    [InlineData("guides/more/g.yaml")]
-    [InlineData("guides/g.yml")]
+    [InlineData("guides/g.yaml")]
+    [InlineData("guides/a/b/g.yaml")]
+    [InlineData("guides/usb-helper/g.yml")]
     [InlineData("computers/c.yml")]
     [InlineData("base.yml")]
     public void FileThatIsNotReadIsRejected(string file)
@@ -308,28 +309,22 @@ public class ValidationTests
     {
         using var db = new TestDatabase { WithDefaultGuide = false };
 
-        Single(db.LoadErrors(), "guides/usb-helper.yaml", 0, "File not found");
+        Single(db.LoadErrors(), "guides/usb-helper/", 0, "Folder not found");
     }
 
     // USB-Helper's guide is the fallback, so every value in it is filled in (owner decision 2026-11-17).
-    [Fact]
-    public void UsbHelpersGuideMustFillEveryValue()
+    [Theory]
+    [InlineData("platforms.test.chips.platform.limits.usb2.hops.max", "guides/usb-helper/test.yaml", "Key 'platform.usb2.hops.max' must be filled in")]
+    [InlineData("platforms.test.chips.platform.limits.mst", "guides/usb-helper/test.yaml", "Key 'platform.mst' must be filled in")]
+    [InlineData("usb4.tiers.max", "guides/usb-helper/all.yaml", "Key 'usb4.tiers.max' must be filled in")]
+    public void UsbHelpersGuideMustFillEveryValue(string key, string file, string message)
     {
         using var db = new TestDatabase();
-        db.UsbHelper["platforms.test.chips.platform.limits.hops.max"] = "";
+        db.UsbHelper[key] = "";
 
-        var error = Assert.Single(db.LoadErrors());
-        Assert.Equal("guides/usb-helper.yaml", error.File);
-        Assert.Contains("Key 'platforms.test.chips.platform.limits.hops.max' must be filled in", error.Message);
-    }
+        var errors = db.LoadErrors();
 
-    [Fact]
-    public void UsbHelpersMstMustBeFilledIn()
-    {
-        using var db = new TestDatabase();
-        db.UsbHelper["platforms.test.mst"] = "";
-
-        Assert.Contains("Key 'platforms.test.mst' must be filled in", Assert.Single(db.LoadErrors()).Message);
+        Assert.Contains(errors, error => error.File == file && error.Message.Contains(message, StringComparison.Ordinal) && error.Line > 0);
     }
 
     // An empty value in another guide falls back to USB-Helper's: allowed everywhere.
@@ -342,23 +337,23 @@ public class ValidationTests
 
         Assert.Equal("Later", guide.Name);
         Assert.False(guide.Selectable);
-        Assert.Equal("guides/later.yaml", guide.File);
+        Assert.Equal("guides/later/guide.yaml", guide.File);
     }
 
     [Theory]
-    [InlineData("hops.max", "-1", "expected a whole number, none, or nothing")]
-    [InlineData("hops.max", "five", "expected a whole number, none, or nothing")]
-    [InlineData("tiers.max", "8", "Key 'limits.tiers.max' (8) must not be above usb.max_tiers (7) in base.yaml")]
-    [InlineData("camera_audio.tiers.recommended", "8", "must not be above usb.max_tiers")]
-    [InlineData("platforms.test.mst", "2", "expected 1 (yes) or 0 (no)")]
-    [InlineData("platforms.test.mst", "true", "expected 1 (yes) or 0 (no)")]
-    [InlineData("exceeded_note", "5", "expected text")]
-    public void WrongGuideValueIsRejected(string key, string value, string messagePart)
+    [InlineData("usb2.hops.max", "-1", "guides/guide/all.yaml", "expected a whole number, none, or nothing")]
+    [InlineData("usb3.hops.max", "five", "guides/guide/all.yaml", "expected a whole number, none, or nothing")]
+    [InlineData("usb2.tiers.max", "8", "guides/guide/all.yaml", "Key 'usb2.tiers.max' (8) must not be above usb.max_tiers (7) in base.yaml")]
+    [InlineData("camera_audio.tiers.recommended", "8", "guides/guide/all.yaml", "must not be above usb.max_tiers")]
+    [InlineData("platforms.test.chips.platform.limits.mst", "2", "guides/guide/test.yaml", "Key 'platform.mst': expected 1 (yes) or 0 (no)")]
+    [InlineData("mst", "true", "guides/guide/all.yaml", "expected 1 (yes) or 0 (no)")]
+    [InlineData("exceeded_note", "5", "guides/guide/all.yaml", "expected text")]
+    public void WrongGuideValueIsRejected(string key, string value, string file, string messagePart)
     {
         using var db = new TestDatabase().WriteGuide(new() { [key] = value });
 
         var error = Assert.Single(db.LoadErrors());
-        Assert.Equal("guides/guide.yaml", error.File);
+        Assert.Equal(file, error.File);
         Assert.Contains(messagePart, error.Message);
     }
 
@@ -369,6 +364,7 @@ public class ValidationTests
         using var db = new TestDatabase().WriteGuide(new() { ["platforms.test.chips.platform.limits.exceeded_note"] = new string('x', Guide.ExceededNoteMaxLength + 1) });
 
         var error = Assert.Single(db.LoadErrors());
+        Assert.Equal("guides/guide/test.yaml", error.File);
         Assert.Contains($"has {Guide.ExceededNoteMaxLength + 1} characters; at most {Guide.ExceededNoteMaxLength}", error.Message);
         Assert.True(error.Line > 0);
     }
@@ -381,42 +377,61 @@ public class ValidationTests
         Assert.Single(db.Load().Guides, guide => guide.Key == "guide");
     }
 
-    // A returned file cannot quietly break anything: every guide has the shape of USB-Helper's.
+    // A returned guide cannot quietly break anything: every guide has the files and keys of USB-Helper's.
+    private static TestDatabase WithCopy(Func<string, string, string?> change)
+    {
+        var db = new TestDatabase();
+        foreach (var (file, content) in db.UsbHelperFiles())
+        {
+            if (change(file, content.Replace("name: USB-Helper", "name: Copy")) is { } changed)
+            {
+                db.Write($"guides/copy/{file}", changed);
+            }
+        }
+        return db;
+    }
+
+    [Fact]
+    public void GuideWithAMissingFileIsRejected()
+    {
+        using var db = WithCopy((file, content) => file == "test.yaml" ? null : content);
+
+        Single(db.LoadErrors(), "guides/copy/test.yaml", 0, "File not found");
+    }
+
+    [Fact]
+    public void GuideWithAnExtraFileIsRejected()
+    {
+        using var db = WithCopy((_, content) => content).Write("guides/copy/beos.yaml", "{}\n");
+
+        Single(db.LoadErrors(), "guides/copy/beos.yaml", 0, "Unknown file");
+    }
+
     [Fact]
     public void GuideWithAMissingChipIsRejected()
     {
-        using var db = new TestDatabase();
-        db.Load();
-        var yaml = File.ReadAllText(Path.Combine(db.Folder, "guides", "usb-helper.yaml"));
-        var chips = yaml.IndexOf("    chips:\n", StringComparison.Ordinal);
-        db.Write("guides/broken.yaml", yaml[..chips].Replace("name: USB-Helper", "name: Broken") + "    chips: {}\n" + yaml[yaml.IndexOf("verification:", StringComparison.Ordinal)..]);
+        using var db = WithCopy((file, content) => file == "test.yaml" ? "{}\n" : content);
 
         var error = Assert.Single(db.LoadErrors());
-        Assert.Equal("guides/broken.yaml", error.File);
-        Assert.Contains("Missing key 'platforms.test.chips.platform'", error.Message);
+        Assert.Equal("guides/copy/test.yaml", error.File);
+        Assert.Contains("Missing key 'platform'", error.Message);
     }
 
     [Fact]
     public void GuideWithAnExtraKeyIsRejected()
     {
-        using var db = new TestDatabase();
-        db.Load();
-        var yaml = File.ReadAllText(Path.Combine(db.Folder, "guides", "usb-helper.yaml"));
-        db.Write("guides/extra.yaml", yaml.Replace("name: USB-Helper", "name: Extra").Replace("platforms:\n", "platforms:\n  beos:\n    mst: 0\n"));
+        using var db = WithCopy((file, content) => file == "all.yaml" ? content + "usb5:\n  hubs:\n" : content);
 
         var error = Assert.Single(db.LoadErrors());
-        Assert.Equal("guides/extra.yaml", error.File);
-        Assert.Contains("Unknown key 'platforms.beos'", error.Message);
+        Assert.Equal("guides/copy/all.yaml", error.File);
+        Assert.Contains("Unknown key 'usb5'", error.Message);
         Assert.True(error.Line > 0);
     }
 
     [Fact]
     public void GuideMustHaveNameAndSelectable()
     {
-        using var db = new TestDatabase();
-        db.Load();
-        var yaml = File.ReadAllText(Path.Combine(db.Folder, "guides", "usb-helper.yaml"));
-        db.Write("guides/g.yaml", yaml.Replace("name: USB-Helper\n", "").Replace("selectable: true\n", ""));
+        using var db = WithCopy((file, content) => file == "guide.yaml" ? "verification:\n  status: partial\n" : content);
 
         var errors = db.LoadErrors();
 

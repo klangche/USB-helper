@@ -36,32 +36,26 @@ public class InheritanceTests
     [Fact]
     public void ExplicitNullOverridesInheritedValueAndMeansUnknown()
     {
-        using var db = new TestDatabase()
-            .Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\ndisplays:\n  max_external: 2\n")
-            .WriteComputer("computers/c.yaml", "test.c", """
-                displays:
-                  max_external: null
-                """);
+        using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", """
+            built_in_hub_levels: null
+            """);
 
-        var maxExternal = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.max_external")!;
+        var levels = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("built_in_hub_levels")!;
 
-        Assert.Equal(ValueKind.Null, maxExternal.Kind);
-        Assert.Equal("computers/c.yaml", maxExternal.File);
+        Assert.Equal(ValueKind.Null, levels.Kind);
+        Assert.Equal("computers/c.yaml", levels.File);
     }
 
-    // #144: displays.mst loads and inherits like the other display fields.
+    // #144: displays.mst loads in a computer file, a hardware fact that wins over the guide's mst.
     [Fact]
-    public void DisplaysMstLoadsAndIsInherited()
+    public void DisplaysMstLoadsInAComputer()
     {
-        using var db = new TestDatabase()
-            .Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\ndisplays:\n  mst: false\n")
-            .WriteComputer("computers/c.yaml", "test.c");
+        using var db = new TestDatabase().WriteComputer("computers/c.yaml", "test.c", "displays:\n  mst: false");
 
         var mst = db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.mst")!;
 
-        Assert.Equal(ValueKind.Boolean, mst.Kind);
         Assert.Equal(false, mst.Scalar);
-        Assert.Equal(TestDatabase.PlatformFile, mst.File);
+        Assert.Equal("computers/c.yaml", mst.File);
     }
 
     [Fact]
@@ -102,12 +96,12 @@ public class InheritanceTests
     public void EmptyMappingAddsNothing()
     {
         using var db = new TestDatabase()
-            .Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\ndisplays:\n  max_external: 2\n")
+            .Write(TestDatabase.PlatformFile, TestDatabase.Platform + "\nverification:\n  status: partial\n")
             .WriteComputer("computers/c.yaml", "test.c", """
-                displays: {}
+                verification: {}
                 """);
 
-        Assert.Equal(2L, db.Load().Computers[TestDatabase.IdOf("test.c")].Find("displays.max_external")!.Scalar);
+        Assert.Equal("partial", db.Load().Computers[TestDatabase.IdOf("test.c")].Find("verification.status")!.Scalar);
     }
 
     [Fact]

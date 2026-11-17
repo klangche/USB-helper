@@ -26,7 +26,7 @@ public class RealDatabaseTests
 
         Assert.Equal(
             [
-                "android-phone-qualcomm", "android-tablet-exynos", "apple-mobile-a-series", "linux-arm", "linux-x64",
+                "android-phone-qualcomm", "android-tablet-exynos", "ipad-a-series", "linux-arm", "linux-x64",
                 "macos-a-series", "macos-apple-silicon", "macos-intel", "windows-amd", "windows-arm", "windows-intel",
             ],
             db.Platforms.Keys.Order());
@@ -53,7 +53,7 @@ public class RealDatabaseTests
     [InlineData("macos-intel", "macos", "macOS", "Intel", 0)]
     [InlineData("macos-apple-silicon", "macos", "macOS", "M-series", 1)]
     [InlineData("macos-a-series", "macos", "macOS", "A-series", 2)]
-    [InlineData("apple-mobile-a-series", "apple-mobile", "iPhone and iPad", "A-series", 2)]
+    [InlineData("ipad-a-series", "ipad", "iPhone and iPad", "A-series", 2)]
     [InlineData("linux-x64", "linux", "Linux", "x64", 0)]
     [InlineData("linux-arm", "linux", "Linux", "ARM", 0)]
     [InlineData("android-phone-qualcomm", "android", "Android", "Phone (Qualcomm)", 0)]
@@ -81,7 +81,7 @@ public class RealDatabaseTests
     [InlineData("macos-intel", 5, 2)]
     [InlineData("macos-apple-silicon", 4, 1)]
     [InlineData("macos-a-series", 3, 1)]
-    [InlineData("apple-mobile-a-series", 3, 1)]
+    [InlineData("ipad-a-series", 3, 1)]
     [InlineData("linux-x64", 5, 2)]
     [InlineData("linux-arm", 5, 2)]
     [InlineData("android-phone-qualcomm", 5, 2)]
@@ -91,13 +91,13 @@ public class RealDatabaseTests
         var db = HardwareDatabase.Load(DatabaseFolder());
         var profile = db.Platforms[id];
 
-        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Value);
-        Assert.Equal(recommendedHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.recommended").Value);
+        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "usb2.hops.max").Value);
+        Assert.Equal(recommendedHops, GuideLimits.Of(profile, db.DefaultGuide, "usb2.hops.recommended").Value);
         Assert.Equal(1L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.recommended").Value);
         Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.max").Value);
-        Assert.Equal(7L, GuideLimits.Of(profile, db.DefaultGuide, "tiers.max").Value);
-        Assert.Null(GuideLimits.Of(profile, db.DefaultGuide, "hubs.max").Value);
-        Assert.True(GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Verified);
+        Assert.Equal(7L, GuideLimits.Of(profile, db.DefaultGuide, "usb2.tiers.max").Value);
+        Assert.Null(GuideLimits.Of(profile, db.DefaultGuide, "usb2.hubs.max").Value);
+        Assert.True(GuideLimits.Of(profile, db.DefaultGuide, "usb2.hops.max").Verified);
     }
 
     // Owner decision 2026-11-17: PureLink, Ochno and Unisynk are blank forms to send out; until they come back filled
@@ -110,7 +110,8 @@ public class RealDatabaseTests
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
         var guide = db.Guides[id];
-        string[] paths = ["hubs", "tiers", "hops", "camera_audio.tiers", "camera_audio.hops"];
+        string[] paths = ["usb2.hubs", "usb2.tiers", "usb2.hops", "usb3.hubs", "usb3.tiers", "usb3.hops", "usb4.hubs", "usb4.tiers", "usb4.hops",
+            "camera_audio.tiers", "camera_audio.hops"];
 
         Assert.Equal(name, guide.Name);
         Assert.Equal(selectable, guide.Selectable);
@@ -136,22 +137,27 @@ public class RealDatabaseTests
 
         Assert.Equal(name, guide.Name);
         Assert.False(guide.Selectable);
-        Assert.Equal(ValueKind.Null, guide.Find("limits.tiers.max")!.Kind);
-        Assert.Equal(ValueKind.Null, guide.Find("platforms.macos.chips.a-series.limits.hops.max")!.Kind);
+        Assert.Equal(ValueKind.Null, guide.Find("limits.usb2.tiers.max")!.Kind);
+        Assert.Equal(ValueKind.Null, guide.Find("platforms.macos.chips.a-series.limits.usb3.hops.max")!.Kind);
     }
 
     // Every guide file has the same shape: the same lines, only the values differ.
     [Fact]
     public void EveryGuideFileHasTheSameShape()
     {
-        static IEnumerable<string> Shape(string file) => File.ReadAllLines(Path.Combine(DatabaseFolder(), "guides", file))
-            .TakeWhile(line => !line.StartsWith("notes:", StringComparison.Ordinal))
-            .Where(line => line.StartsWith(' ') || line.StartsWith("limits:", StringComparison.Ordinal) || line.StartsWith("platforms:", StringComparison.Ordinal))
+        static IEnumerable<string> Shape(string guide, string file) => File.ReadAllLines(Path.Combine(DatabaseFolder(), "guides", guide, file))
+            .Where(line => line.Trim().Length > 0 && !line.TrimStart().StartsWith('#'))
             .Select(line => line.Split(':')[0]);
+        var files = Directory.GetFiles(Path.Combine(DatabaseFolder(), "guides", "usb-helper")).Select(Path.GetFileName).Order().ToList();
 
-        foreach (var file in new[] { "purelink.yaml", "ochno.yaml", "unisynk.yaml" })
+        Assert.Equal(["all.yaml", "android.yaml", "guide.yaml", "ipad.yaml", "linux.yaml", "macos.yaml", "windows.yaml"], files);
+        foreach (var guide in new[] { "purelink", "ochno", "unisynk" })
         {
-            Assert.Equal(Shape("usb-helper.yaml"), Shape(file));
+            Assert.Equal(files, Directory.GetFiles(Path.Combine(DatabaseFolder(), "guides", guide)).Select(Path.GetFileName).Order());
+            foreach (var file in files.Where(file => file != "guide.yaml"))
+            {
+                Assert.Equal(Shape("usb-helper", file!), Shape(guide, file!));
+            }
         }
     }
 
@@ -165,7 +171,7 @@ public class RealDatabaseTests
     [InlineData("windows-arm", 1)]
     [InlineData("linux-x64", 0)]
     [InlineData("android-tablet-exynos", 0)]
-    [InlineData("apple-mobile-a-series", 0)]
+    [InlineData("ipad-a-series", 0)]
     public void UsbHelperSaysWhetherEachPlatformSupportsMst(string id, long mst)
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
@@ -195,8 +201,8 @@ public class RealDatabaseTests
         Assert.Equal("macos", neo.Platform);
         Assert.Equal("a-series", neo.Chip);
         Assert.Equal(2L, neo.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(3L, GuideLimits.Of(neo, db.DefaultGuide, "hops.max").Value);
-        Assert.Equal(1L, GuideLimits.Of(neo, db.DefaultGuide, "hops.recommended").Value);
+        Assert.Equal(3L, GuideLimits.Of(neo, db.DefaultGuide, "usb2.hops.max").Value);
+        Assert.Equal(1L, GuideLimits.Of(neo, db.DefaultGuide, "usb2.hops.recommended").Value);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
         // Apple: one external display. No MST comes from the guide (macOS: 0).
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
@@ -215,7 +221,7 @@ public class RealDatabaseTests
         Assert.Equal(4L, mac.Find("displays.max_external")!.Scalar);
         Assert.Equal(4L, mac.Find("ports.thunderbolt4.thunderbolt")!.Scalar);
         Assert.Equal(1L, mac.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(4L, GuideLimits.Of(mac, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
+        Assert.Equal(4L, GuideLimits.Of(mac, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "usb2.hops.max").Value);
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
@@ -231,7 +237,7 @@ public class RealDatabaseTests
         Assert.Equal("windows-amd", $"{asus.Platform}-{asus.Chip}");
         Assert.Equal(0L, asus.Find("built_in_hub_levels")!.Scalar);
         Assert.Equal("platforms/windows.yaml", asus.Find("built_in_hub_levels")!.File);
-        Assert.Equal(5L, GuideLimits.Of(asus, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
+        Assert.Equal(5L, GuideLimits.Of(asus, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "usb2.hops.max").Value);
         Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
         Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
         Assert.Equal(true, asus.Find("ports.hdmi.hdmi")!.Scalar);
