@@ -47,4 +47,10 @@ internal sealed record RawPort(
 
     /// <summary>The companion port's hub, as a symbolic link name, or null when there is none.</summary>
     public string? CompanionHubName { get; init; }
+
+    /// <summary>
+    /// The bInterfaceClass of every interface in the connected device's configuration descriptor, or null when Windows
+    /// did not return it (#274).
+    /// </summary>
+    public IReadOnlyList<int>? InterfaceClasses { get; init; }
 }
