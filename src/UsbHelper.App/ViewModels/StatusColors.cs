@@ -22,6 +22,9 @@ public static class StatusColors
         _ => throw new ArgumentOutOfRangeException(nameof(status)),
     };
 
+    /// <summary>The status colour at a tenth of its strength: the background of a tree row that is not stable (#264).</summary>
+    public static string Tint(ConnectionStatus status) => "#1A" + Hex(status)[1..];
+
     /// <summary>The result word in the status field.</summary>
     public static string Word(ConnectionStatus status) => status switch
     {

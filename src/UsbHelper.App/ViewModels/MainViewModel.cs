@@ -33,8 +33,15 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 
 /// <summary>One checked profile in the status field.</summary>
 /// <param name="Word">Its result: stable, potentially unstable, unstable or unknown.</param>
-/// <param name="Details">Its hub, tier, hop and display checks.</param>
+/// <param name="Details">Its exceeded hub, tier, hop and display checks; none when nothing is exceeded.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
+
+/// <summary>One line of the side panel's counts table (#265): a bus, or all buses together when none is reported.</summary>
+/// <param name="Bus">"USB 2", "USB 3", or the name of the combined line.</param>
+/// <param name="Hubs">The hubs on the bus; "at least N" when the number is a minimum, as are the next two.</param>
+/// <param name="DeepestTier">The deepest tier on the bus, the user's cable marks counted.</param>
+/// <param name="DeepestHop">The deepest hop on the bus, the user's cable marks counted.</param>
+public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier, string DeepestHop);
 
 /// <param name="Header">
 /// Profile (the strictest, when several are checked; never for a detected fact), kind (detected, database, risk, unknown)
@@ -621,6 +628,38 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>One row per checked profile: operating systems first, then computers.</summary>
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
+    /// <summary>
+    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2 then USB 3, each with its
+    /// own hubs, deepest tier and deepest hop; a bus with nothing on it shows zeros. One combined line when the operating
+    /// system reports no bus at all. Empty when nothing is connected.
+    /// </summary>
+    public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
+
+    public bool HasBusCounts => BusCountsRows.Count > 0;
+
+    // The same numbers and the same "at least" as the row counter of the controller, or of the computer (NodeViewModel.Count).
+    private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
+    {
+        BusCountsRows.Clear();
+        if (NodeViewModel.Count(scope, extraHops) is { } counted)
+        {
+            string Cell(int number) => counted.AtLeast
+                ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
+                : number.ToString(CultureInfo.CurrentCulture);
+            BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier), Cell(counts.DeepestHops));
+            if (counted.PerBus.AnyBusKnown)
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
+                BusCountsRows.Add(Row(Strings.CountsBusUsb3, counted.PerBus.Usb3));
+            }
+            else
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusAll, counted.All));
+            }
+        }
+        OnPropertyChanged(nameof(HasBusCounts));
+    }
+
     /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
 
@@ -727,6 +766,7 @@ public sealed class MainViewModel : ObservableObject
                 reconnectedIds, extraHops, tree, monitors);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
+        UpdateBusCounts(selected == null ? tree : [selected]);
 
         var placement = MonitorPlacement.Place(tree, monitors ?? []);
         log.DisplayLinks(placement, tree);
@@ -767,13 +807,7 @@ public sealed class MainViewModel : ObservableObject
         for (var i = 0; i < options.Count; i++)
         {
             var result = report.Profiles[i].Report;
-            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall),
-                [
-                    LimitText(Strings.LimitHubs, result.Hubs),
-                    LimitText(Strings.LimitTiers, result.Tiers),
-                    LimitText(Strings.LimitHops, result.Hops),
-                    DisplaysText(result.Displays),
-                ]));
+            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result)));
         }
         OnPropertyChanged(nameof(NothingChecked));
 
@@ -827,23 +861,22 @@ public sealed class MainViewModel : ObservableObject
     private static string FindingHeader(Finding finding) =>
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
-    private static string DisplaysText(DisplayCheck displays) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
-            displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(displays.State));
-
-    private static string LimitText(string label, LimitCheck limit) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,
-            limit.Limit?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(limit.State));
-
-    private static string StateText(LimitState state) => state switch
+    // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
+    // The recommended depth only when the maximum is kept, the same as the tree's lines and the report.
+    private static IReadOnlyList<string> ExceededLines(DiagnosticReport result)
     {
-        LimitState.Within => Strings.LimitWithin,
-        LimitState.Exceeded => Strings.LimitExceeded,
-        _ => Strings.LimitUnknown,
-    };
+        var recommended = result.Hops.State == LimitState.Exceeded ? null : result.RecommendedHops;
+        var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]
+        {
+            (Strings.LimitHubs, result.Hubs.State, result.Hubs.Actual, result.Hubs.Limit),
+            (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
+            (Strings.LimitHops, result.Hops.State, result.Hops.Actual, result.Hops.Limit),
+            (Strings.LimitRecommendedHops, recommended?.State, recommended?.Actual, recommended?.Limit),
+            (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
+        };
+        return [.. checks.Where(check => check.State == LimitState.Exceeded).Select(check =>
+            string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded))];
+    }
 
     private static string KindText(FactKind kind) => kind switch
     {

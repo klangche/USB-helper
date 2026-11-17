@@ -24,6 +24,9 @@ namespace UsbHelper.App.ViewModels;
 /// After the controllers, a "Displays" group lists each active monitor with its name and output type (#133). A monitor
 /// that Windows puts in the same container as a USB hub or device is shown under that node instead (#143); no other
 /// placement is guessed (#93).
+/// The window shows <see cref="Rows"/>, where a port with something on it is no row of its own: its hub or device
+/// carries the port number and the USB-C badge (#264). <see cref="Children"/> keeps the port items, for the tree as
+/// text, the log, the export and the report.
 /// </summary>
 public sealed class NodeViewModel : ObservableObject
 {
@@ -44,6 +47,11 @@ public sealed class NodeViewModel : ObservableObject
     private bool isHub;
     private int markedHops;
     private string? depthText;
+    private bool isLastRow;
+    private bool isFolded;
+    private string? portNumber;
+    private string? portName;
+    private string? portBadge;
     private readonly Action<string, int> mark;
 
     private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, int> mark)
@@ -107,6 +115,12 @@ public sealed class NodeViewModel : ObservableObject
     public bool IsDisconnected { get; }
 
     public ObservableCollection<NodeViewModel> Children { get; } = [];
+
+    /// <summary>
+    /// The children as the window shows them (#264): in place of a port with something on it, the hubs and devices on
+    /// that port. A port with a problem keeps its own row, so the problem stays visible.
+    /// </summary>
+    public ObservableCollection<NodeViewModel> Rows { get; } = [];
 
     public bool HasChildren => Children.Count > 0;
 
@@ -180,6 +194,8 @@ public sealed class NodeViewModel : ObservableObject
                 OnPropertyChanged(nameof(StatusText));
                 OnPropertyChanged(nameof(RowTip));
                 OnPropertyChanged(nameof(StatusWord));
+                OnPropertyChanged(nameof(RowStatusWord));
+                OnPropertyChanged(nameof(RowTint));
                 OnPropertyChanged(nameof(HasStatus));
                 OnPropertyChanged(nameof(ElbowColor));
             }
@@ -203,6 +219,12 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>The result word on the right, in <see cref="LineColor"/>; null for controllers, root hubs and ports.</summary>
     public string? StatusWord => Status is { } value ? StatusColors.Word(value) : null;
+
+    /// <summary>The result word on the window's row, shown only when the item is not stable (#264); null otherwise.</summary>
+    public string? RowStatusWord => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Word(value) : null;
+
+    /// <summary>The light background of the window's row of an item that is not stable, in its status colour; none otherwise.</summary>
+    public string RowTint => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Tint(value) : StatusColors.None;
 
     /// <summary>
     /// The elbow from the parent: the item's own status colour for a hub or device; for a controller, root hub or port
@@ -258,11 +280,45 @@ public sealed class NodeViewModel : ObservableObject
         private set => SetField(ref isLast, value);
     }
 
+    /// <summary>The last of its parent's <see cref="Rows"/>: in the window its elbow ends the parent's trunk.</summary>
+    public bool IsLastRow
+    {
+        get => isLastRow;
+        private set => SetField(ref isLastRow, value);
+    }
+
     /// <summary>"USB-C" on a port the operating system calls USB-C; null for every other item.</summary>
     public string? PortType
     {
         get => portType;
         private set => SetField(ref portType, value);
+    }
+
+    /// <summary>
+    /// For a hub or device whose port is folded into its row: the port's number, shown in a small box before the name;
+    /// the port's name when it has no number. Null otherwise.
+    /// </summary>
+    public string? PortNumber
+    {
+        get => portNumber;
+        private set => SetField(ref portNumber, value);
+    }
+
+    /// <summary>The name of the folded port, such as "Port 2": the tool tip of <see cref="PortNumber"/>. Null otherwise.</summary>
+    public string? PortName
+    {
+        get => portName;
+        private set => SetField(ref portName, value);
+    }
+
+    /// <summary>
+    /// "USB-C" on the window's row: on a hub or device whose folded port the operating system calls USB-C, and on such a
+    /// port that keeps its own row. Null otherwise.
+    /// </summary>
+    public string? PortBadge
+    {
+        get => portBadge;
+        private set => SetField(ref portBadge, value);
     }
 
     /// <summary>
@@ -372,23 +428,60 @@ public sealed class NodeViewModel : ObservableObject
             group.Text = Strings.DisplaysGroup;
             group.IsLast = true;
             group.UpdateMonitors(listed, 0, report);
+            group.UpdateRows();
             group.PathStatus = Worst(group.Children.Select(child => child.PathStatus));
         }
         PathStatus = Worst(Children.Select(child => child.PathStatus));
+        UpdateRows();
         PaintChildren([]);
     }
 
-    // Top down, once every item knows its path status: the trunk colours and the guide columns.
+    // Top down, once every item knows its path status: the trunk colours and the guide columns of the window's rows.
     private void PaintChildren(IReadOnlyList<string?> childLines)
     {
-        TrunkColor = Color(Worst(Children.Select(child => child.PathStatus)));
-        for (var i = 0; i < Children.Count; i++)
+        TrunkColor = Color(Worst(Rows.Select(child => child.PathStatus)));
+        for (var i = 0; i < Rows.Count; i++)
         {
-            var child = Children[i];
+            var child = Rows[i];
             child.Guides = childLines;
-            child.TrunkAboveColor = Color(Worst(Children.Skip(i).Select(item => item.PathStatus)));
-            child.TrunkBelowColor = i < Children.Count - 1 ? Color(Worst(Children.Skip(i + 1).Select(item => item.PathStatus))) : null;
+            child.IsLastRow = i == Rows.Count - 1;
+            child.TrunkAboveColor = Color(Worst(Rows.Skip(i).Select(item => item.PathStatus)));
+            child.TrunkBelowColor = i < Rows.Count - 1 ? Color(Worst(Rows.Skip(i + 1).Select(item => item.PathStatus))) : null;
             child.PaintChildren([.. childLines, child.TrunkBelowColor]);
+        }
+    }
+
+    // The window's rows, once the children are up to date: each child, or what is on it when it is a folded port. Changed
+    // in place, so a row that stays keeps its place and its selection.
+    private void UpdateRows()
+    {
+        var wanted = new List<NodeViewModel>();
+        foreach (var child in Children)
+        {
+            if (child.isFolded)
+            {
+                wanted.AddRange(child.Children);
+            }
+            else
+            {
+                wanted.Add(child);
+            }
+        }
+        for (var i = 0; i < wanted.Count; i++)
+        {
+            var at = Rows.IndexOf(wanted[i]);
+            if (at < 0)
+            {
+                Rows.Insert(i, wanted[i]);
+            }
+            else if (at != i)
+            {
+                Rows.Move(at, i);
+            }
+        }
+        while (Rows.Count > wanted.Count)
+        {
+            Rows.RemoveAt(Rows.Count - 1);
         }
     }
 
@@ -487,6 +580,20 @@ public sealed class NodeViewModel : ObservableObject
         UpdateChildren(wanted, report, extraHops, linked, node.Kind == UsbNodeKind.Port ? node.Id : null,
             Children.Count(child => child.IsMonitorItem), monitors.Count > 0);
         UpdateMonitors(monitors, wanted.Count, report);
+        if (node.Kind == UsbNodeKind.Port)
+        {
+            // A port with something on it folds into the rows of what is on it (#264): a connected hub or device, or the
+            // disconnected devices kept at it. A port with a problem keeps its own row, with them below it.
+            isFolded = node.Problem == null && Children.Count > 0;
+            PortBadge = PortType;
+            foreach (var child in Children)
+            {
+                child.PortNumber = isFolded ? node.PortNumber?.ToString(CultureInfo.CurrentCulture) ?? node.Name : null;
+                child.PortName = isFolded ? node.Name : null;
+                child.PortBadge = isFolded ? PortType : null;
+            }
+        }
+        UpdateRows();
         PathStatus = Worst(Children.Select(child => child.PathStatus).Prepend(Status));
         if (SetField(ref displayBelow, Children.Any(child => child.IsDisplay || child.displayBelow), nameof(DisplayNote)))
         {
@@ -532,6 +639,33 @@ public sealed class NodeViewModel : ObservableObject
     // is in the total but on neither bus. Null when nothing is connected.
     private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
+        if (Count(tree, extraHops) is not { } counted)
+        {
+            return null;
+        }
+        var (all, perBus, atLeast) = counted;
+        var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, all.Hubs);
+        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth, all.DeepestTier, all.DeepestHops);
+        return perBus.AnyBusKnown
+            ? new CountsText(hubs, perBus.Usb2.Hubs.ToString(CultureInfo.CurrentCulture), perBus.Usb3.Hubs.ToString(CultureInfo.CurrentCulture), depth)
+            : new CountsText(hubs, null, null, depth);
+    }
+
+    /// <summary>The counts of a tree, as the row counter and the side panel's table (#265) show them.</summary>
+    /// <param name="All">All buses together: every counted hub, and the deepest tier and hop of any bus.</param>
+    /// <param name="PerBus">The same per bus; a hub or device on a port whose bus is not reported is on neither.</param>
+    /// <param name="AtLeast">
+    /// A hub, port or controller could not be read, or a counted hub or device is on a port whose bus is not reported
+    /// while another bus is: the numbers are minimums.
+    /// </param>
+    internal sealed record CountedTree(BusCounts All, PerBusCounts PerBus, bool AtLeast);
+
+    /// <summary>
+    /// Counts <paramref name="tree"/> for the row counter and the side panel's table (#265), so both follow one rule;
+    /// the user's marks in <paramref name="extraHops"/> count in the depths. Null when nothing is connected.
+    /// </summary>
+    internal static CountedTree? Count(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
+    {
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
         var perBus = TopologyCounts.PerBus(tree, extraHops);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
@@ -539,13 +673,11 @@ public sealed class NodeViewModel : ObservableObject
         {
             return null;
         }
-        var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, TopologyCounts.HubCount(tree));
-        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth,
-            depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
-            depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max());
-        return perBus.AnyBusKnown
-            ? new CountsText(hubs, perBus.Usb2.Hubs.ToString(CultureInfo.CurrentCulture), perBus.Usb3.Hubs.ToString(CultureInfo.CurrentCulture), depth)
-            : new CountsText(hubs, null, null, depth);
+        return new CountedTree(
+            new BusCounts(TopologyCounts.HubCount(tree),
+                depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
+                depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max()),
+            perBus, atLeast);
     }
 
     /// <summary>
