@@ -39,18 +39,42 @@
 
     <!-- The top bar: the buttons from the left, the company branding (#229) in what is left at the right end. -->
     <DockPanel DockPanel.Dock="Top" HorizontalSpacing="8" Margin="12">
-      <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
-      <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
+      <!-- The profile menu (#286): the guides on top, one at a time; below the line a tick per chip, any mix. -->
+      <DropDownButton Content="{x:Static res:Strings.ProfileMenu}">
         <DropDownButton.Flyout>
           <Flyout Placement="BottomEdgeAlignedLeft">
             <ScrollViewer MaxHeight="480">
-              <ItemsControl ItemsSource="{Binding OperatingSystems}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ProfileOption">
-                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <StackPanel Spacing="4">
+                <ItemsControl ItemsSource="{Binding Guides}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GuideOption">
+                      <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Separator />
+                <ItemsControl ItemsSource="{Binding PlatformGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlatformGroup">
+                      <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{Binding Name}" Width="120" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        <ItemsControl ItemsSource="{Binding Chips}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <StackPanel Orientation="Horizontal" Spacing="12" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileOption">
+                              <CheckBox Content="{Binding ChipLabel}" IsChecked="{Binding IsChecked}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </ScrollViewer>
           </Flyout>
         </DropDownButton.Flyout>
@@ -298,6 +322,8 @@
           <!-- Status field: every checked profile with its result word in its colour, for the selected controller. -->
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
           <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+          <!-- Which guide every result is judged by (#286). -->
+          <TextBlock Text="{Binding GuideText}" TextWrapping="Wrap" Opacity="0.7" />
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">
             <ItemsControl.ItemTemplate>

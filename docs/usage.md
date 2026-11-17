@@ -102,11 +102,15 @@ profile for the detected operating system and processor (for example
 `windows-amd` on Windows with an AMD processor) is checked; uncheck it to
 judge by others. When no platform profile matches, nothing is checked and
 every line is grey (unknown). Computer profiles are never checked
-automatically. In the top bar, check the systems to judge the setup by in
-the two drop-down lists,
-"Operating systems" (generic platform profiles such as `windows-intel`) and
-"Computers" (computer profiles); any mix can be checked. Each line then shows
-the worst result over the checked profiles. The
+automatically. In the top bar, "Judge by" holds the guides on top (USB-Helper,
+then PureLink, Ochno, Unisynk and any other guide file, one at a time;
+USB-Helper is picked at start, and a guide that is not offered yet is greyed
+out) and, below a line, the operating systems with a tick per chip (Windows
+Intel / AMD / ARM, macOS Intel / M-series / A-series, Ubuntu, Debian, iPhone
+and iPad, Android). "Computers" holds the computer profiles. Any mix of chips
+and computers can be checked. Each line then shows the worst result over the
+checked profiles, judged by the picked guide; the status field names the
+guide. The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour). Below it are only
 the checks that are exceeded: hubs, tiers, hops, the recommended hop depth
@@ -270,10 +274,11 @@ File > Settings opens the settings. Each change is saved at once:
   offered; "Enter a code to unlock beta updates" opens the unlock popup. The
   choice made while unlocked is kept and comes back on unlock.
 - **Remember the checked profiles between starts** (off by default): on, the
-  operating systems and computers checked in the two lists are checked again
-  at the next start, instead of only the detected platform profile. If
-  nothing was checked, the detected platform profile is checked, as without
-  the setting. Turning it off forgets them.
+  chips ticked and the guide picked in "Judge by" are ticked and picked again
+  at the next start, instead of only the detected platform profile and
+  USB-Helper's guide. Computers are never checked at start. If no chip was
+  ticked, the detected platform profile is checked, as without the setting.
+  Turning it off forgets them.
 - **Company name** and **Company logo** (only when unlocked): shown in the top
   bar and on the PDF report; the name is also in the exports. While locked
   they are greyed out ("Enter a code to unlock" opens the unlock popup), and

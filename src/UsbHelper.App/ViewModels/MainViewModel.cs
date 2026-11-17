@@ -29,6 +29,32 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
         get => isChecked;
         set => SetField(ref isChecked, value);
     }
+
+    /// <summary>The chip's name in the profile menu, for example <c>M-series</c>; the computer's label for a computer.</summary>
+    public string ChipLabel => Profile.ChipName is { Length: > 0 } chip ? chip : Label;
+}
+
+/// <summary>One operating system in the profile menu (#286), with a tick per chip.</summary>
+public sealed record PlatformGroup(string Name, IReadOnlyList<ProfileOption> Chips);
+
+/// <summary>
+/// A guide in the profile menu (#286): one at a time. A guide with <c>selectable: false</c> is shown greyed out.
+/// </summary>
+public sealed class GuideOption(Guide guide) : ObservableObject
+{
+    private bool isSelected;
+
+    public Guide Guide { get; } = guide;
+
+    public string Label => Guide.Name;
+
+    public bool IsEnabled => Guide.Selectable;
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set => SetField(ref isSelected, value);
+    }
 }
 
 /// <summary>One checked profile in the status field.</summary>
@@ -213,19 +239,40 @@ public sealed class MainViewModel : ObservableObject
         DatabaseErrors = errors.Select(error => error.ToString()).ToList();
         OnPropertyChanged(nameof(DatabaseErrors));
         OnPropertyChanged(nameof(HasDatabaseErrors));
-        // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
-        // match, are checked by the user. With "remember" on (#126), the profiles checked last time instead.
-        var remembered = Settings.RememberCheckedProfiles && (Settings.CheckedOperatingSystems.Count > 0 || Settings.CheckedComputers.Count > 0);
+        // Only the detected operating system's platform profile is checked at start, with USB-Helper's guide. With
+        // "remember" on (#126), the operating systems and the guide picked last time instead. Computer profiles, even an
+        // exact match, are never checked at start (#286).
+        var remembered = Settings.RememberCheckedProfiles && Settings.CheckedOperatingSystems.Count > 0;
         AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)
         {
             IsChecked = remembered ? Settings.CheckedOperatingSystems.Contains(profile.Id) : profile.Id == identity.Platform,
         }));
-        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)
+        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)));
+        foreach (var group in OperatingSystems.GroupBy(option => option.Profile.Platform)
+            .OrderBy(group => PlatformOrder(group.Key)).ThenBy(group => group.First().Profile.PlatformName, StringComparer.CurrentCultureIgnoreCase))
         {
-            IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
-        }));
+            // Chips in the order of the platform file.
+            PlatformGroups.Add(new PlatformGroup(group.First().Profile.PlatformName is { Length: > 0 } name ? name : group.Key,
+                [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))]));
+        }
+        var picked = Settings.RememberCheckedProfiles && Settings.CheckedGuide is { } id
+            && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
+        foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.Id == Guide.DefaultId ? 0 : 1)
+            .ThenBy(each => each.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var option = new GuideOption(each) { IsSelected = each == picked };
+            option.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(GuideOption.IsSelected) && option.IsSelected)
+                {
+                    Guide = option.Guide;
+                }
+            };
+            Guides.Add(option);
+        }
         HostName = HostNameFor(loaded, identity);
-        guide = loaded?.DefaultGuide;
+        guide = picked;
+        OnPropertyChanged(nameof(GuideText));
         LoadingStage = Strings.ReadingDevices;
     }
 
@@ -282,20 +329,39 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<ProfileOption> Computers { get; } = [];
 
-    /// <summary>
-    /// The guide whose limits apply (#285): USB-Helper's from the start; the guide menu of Step 2 (#286) changes it.
-    /// </summary>
+    /// <summary>The operating systems of the profile menu (#286), each with a tick per chip.</summary>
+    public ObservableCollection<PlatformGroup> PlatformGroups { get; } = [];
+
+    /// <summary>The guides of the profile menu (#286), USB-Helper's first; one is picked at a time.</summary>
+    public ObservableCollection<GuideOption> Guides { get; } = [];
+
+    /// <summary>The guide whose limits apply (#285): USB-Helper's from the start; picked in the profile menu (#286).</summary>
     public Guide? Guide
     {
         get => guide;
         set
         {
-            if (SetField(ref guide, value))
+            if (value is { Selectable: false } || !SetField(ref guide, value))
             {
-                Refresh();
+                return;
             }
+            foreach (var option in Guides)
+            {
+                option.IsSelected = option.Guide == value;
+            }
+            OnPropertyChanged(nameof(GuideText));
+            log.GuidePicked(value?.Name);
+            KeepCheckedProfiles();
+            Refresh();
         }
     }
+
+    /// <summary>Which guide the results are judged by, for the status field.</summary>
+    public string GuideText => guide == null ? "" : string.Format(CultureInfo.CurrentCulture, Strings.JudgedBy, guide.Name);
+
+    // The profile menu's order of operating systems (#286); others after them by name.
+    private static int PlatformOrder(string platform) =>
+        Array.IndexOf<string>(["windows", "macos", "ubuntu", "debian", "apple-mobile", "android"], platform) is var index and >= 0 ? index : int.MaxValue;
 
     private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
     {
@@ -314,7 +380,7 @@ public sealed class MainViewModel : ObservableObject
     // Kept only while "remember" is on; see SettingsViewModel.CheckedProfiles.
     private void KeepCheckedProfiles() => Settings.CheckedProfiles(
         [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)],
-        [.. Computers.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
+        guide is { Id: not Guide.DefaultId } picked ? picked.Id : null);
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
 
