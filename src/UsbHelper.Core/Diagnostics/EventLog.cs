@@ -218,6 +218,9 @@ public sealed class EventLog(TimeProvider? clock = null)
 
     public void ProfileChecked(string label, bool isChecked) => Add($"Profile {(isChecked ? "checked" : "unchecked")}: {label}");
 
+    /// <summary>A guide was picked in the profile menu (#286); null for none.</summary>
+    public void GuidePicked(string? name) => Add($"Guide picked: {name ?? "none"}");
+
     /// <param name="name">The hub or device the marked line leads to.</param>
     /// <param name="hops">The extra hops; 0 when the mark was removed.</param>
     public void CableMark(string name, int hops) =>

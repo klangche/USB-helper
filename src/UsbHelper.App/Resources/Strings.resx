@@ -19,6 +19,12 @@
   <data name="OperatingSystems" xml:space="preserve">
     <value>Operating systems</value>
   </data>
+  <data name="ProfileMenu" xml:space="preserve">
+    <value>Judge by</value>
+  </data>
+  <data name="JudgedBy" xml:space="preserve">
+    <value>Judged by the {0} guide</value>
+  </data>
   <data name="Computers" xml:space="preserve">
     <value>Computers</value>
   </data>

@@ -107,12 +107,13 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => current.RememberCheckedProfiles;
         set => Change(value ? current with { RememberCheckedProfiles = true }
-            : current with { RememberCheckedProfiles = false, CheckedOperatingSystems = [], CheckedComputers = [] });
+            : current with { RememberCheckedProfiles = false, CheckedOperatingSystems = [], CheckedComputers = [], CheckedGuide = null });
     }
 
     public IReadOnlyList<string> CheckedOperatingSystems => current.CheckedOperatingSystems;
 
-    public IReadOnlyList<string> CheckedComputers => current.CheckedComputers;
+    /// <summary>The guide picked when the app closed, by id; null for USB-Helper's or when not remembered.</summary>
+    public string? CheckedGuide => current.CheckedGuide;
 
     /// <summary>Trimmed when it is set; empty means none.</summary>
     public string CompanyName
@@ -190,12 +191,15 @@ public sealed class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(LogoPreview));
     }
 
-    /// <summary>The profiles checked now, by id; kept only while <see cref="RememberCheckedProfiles"/> is on.</summary>
-    public void CheckedProfiles(IReadOnlyList<string> operatingSystems, IReadOnlyList<string> computers)
+    /// <summary>
+    /// The operating systems checked now and the guide picked, by id; kept only while <see cref="RememberCheckedProfiles"/>
+    /// is on. Computers are never kept: none is checked at start (#286).
+    /// </summary>
+    public void CheckedProfiles(IReadOnlyList<string> operatingSystems, string? guide)
     {
         if (current.RememberCheckedProfiles)
         {
-            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = computers });
+            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = [], CheckedGuide = guide });
         }
     }
 
@@ -246,5 +250,6 @@ public sealed class SettingsViewModel : ObservableObject
         a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.OfferBetas == b.OfferBetas
         && a.RememberCheckedProfiles == b.RememberCheckedProfiles && a.CompanyName == b.CompanyName
         && a.LicenceEmail == b.LicenceEmail && a.LicenceCode == b.LicenceCode
-        && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers);
+        && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers)
+        && a.CheckedGuide == b.CheckedGuide;
 }

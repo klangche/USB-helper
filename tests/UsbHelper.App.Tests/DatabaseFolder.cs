@@ -21,9 +21,11 @@ internal static class DatabaseFolder
     /// <param name="computerFile">The computer profile's file name without extension.</param>
     /// <param name="platformFile">The platform file's name without extension; the part of the id before the dash when null.</param>
     /// <param name="status">The verification status of the computer file and of USB-Helper's guide.</param>
+    /// <param name="guides">More guides, by id: their name and whether they are selectable; every value in them empty.</param>
     public static HardwareDatabase Load(
         string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "os-p",
-        string? mst = null, string computerFile = "c", string? platformFile = null)
+        string? mst = null, string computerFile = "c", string? platformFile = null,
+        IReadOnlyDictionary<string, (string Name, bool Selectable)>? guides = null)
     {
         var dash = platform.IndexOf('-');
         var (file, chip) = (platformFile ?? platform[..dash], platform[(dash + 1)..]);
@@ -53,6 +55,21 @@ internal static class DatabaseFolder
                 pair => pair[0] switch { "max_hops" => "hops.max", "recommended_hops" => "hops.recommended", "max_hubs" => "hubs.max", var other => other },
                 pair => pair[1].Trim());
         File.WriteAllText(Path.Combine(folder, "guides", "usb-helper.yaml"), UsbHelper(file, chip, limits, status));
+        foreach (var (id, (guideName, selectable)) in guides ?? new Dictionary<string, (string, bool)>())
+        {
+            File.WriteAllText(Path.Combine(folder, "guides", $"{id}.yaml"), $$"""
+                name: {{guideName}}
+                selectable: {{(selectable ? "true" : "false")}}
+                limits: {}
+                platforms:
+                  {{file}}:
+                    mst:
+                    limits: {}
+                    chips:
+                      {{chip}}: { mst: , limits: {} }
+                      computer: { mst: , limits: {} }
+                """);
+        }
         try
         {
             return HardwareDatabase.Load(folder);

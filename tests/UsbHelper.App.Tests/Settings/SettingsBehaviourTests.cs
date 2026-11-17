@@ -129,15 +129,25 @@ public sealed class SettingsBehaviourTests
         var first = Window(settings);
         Assert.True(first.OperatingSystems.Platform().IsChecked); // The detected platform, as always on a first start.
 
+        first.OperatingSystems.Single(option => option.Profile.Chip == "computer").IsChecked = true;
+
+        Assert.Equal(["os-computer", "os-p"], settings.CheckedOperatingSystems.Order());
+
         first.OperatingSystems.Platform().IsChecked = false;
-        first.Computers.Single().IsChecked = true;
-
-        Assert.Empty(settings.CheckedOperatingSystems);
-        Assert.Equal([first.Computers.Single().Profile.Id], settings.CheckedComputers);
-
         var next = Window(settings);
         Assert.False(next.OperatingSystems.Platform().IsChecked);
-        Assert.True(next.Computers.Single().IsChecked);
+        Assert.True(next.OperatingSystems.Single(option => option.Profile.Chip == "computer").IsChecked);
+    }
+
+    // #286: computers are never checked at start, even with "remember" on.
+    [Fact]
+    public void ComputersAreNeverCheckedAtStart()
+    {
+        var settings = new SettingsViewModel { RememberCheckedProfiles = true };
+        var first = Window(settings);
+        first.Computers.Single().IsChecked = true;
+
+        Assert.False(Window(settings).Computers.Single().IsChecked);
     }
 
     [Fact]
@@ -148,7 +158,7 @@ public sealed class SettingsBehaviourTests
         first.OperatingSystems.Platform().IsChecked = false;
         first.Computers.Single().IsChecked = true;
 
-        Assert.Empty(settings.CheckedComputers);
+        Assert.Empty(settings.CheckedOperatingSystems);
 
         var next = Window(settings);
         Assert.True(next.OperatingSystems.Platform().IsChecked);
@@ -159,17 +169,34 @@ public sealed class SettingsBehaviourTests
     public void TurningRememberOnKeepsWhatIsCheckedNowAndTurningItOffForgetsIt()
     {
         var settings = new SettingsViewModel();
-        var window = Window(settings);
-        window.Computers.Single().IsChecked = true;
+        Window(settings);
 
         settings.RememberCheckedProfiles = true;
 
         Assert.Equal(["os-p"], settings.CheckedOperatingSystems);
-        Assert.Equal([window.Computers.Single().Profile.Id], settings.CheckedComputers);
 
         settings.RememberCheckedProfiles = false;
 
         Assert.Empty(settings.CheckedOperatingSystems);
-        Assert.Empty(settings.CheckedComputers);
+        Assert.Null(settings.CheckedGuide);
+    }
+
+    // #286: the picked guide is kept with the operating systems; USB-Helper's is the default, so it is not written.
+    [Fact]
+    public void ThePickedGuideIsRememberedAtTheNextStart()
+    {
+        var settings = new SettingsViewModel { RememberCheckedProfiles = true };
+        MainViewModel WithGuides() => new(DatabaseFolder.Load("LENOVO", "21K5", "verified", guides: new Dictionary<string, (string, bool)> { ["pure"] = ("Pure", true) }),
+            [], Identity, settings: settings);
+        var first = WithGuides();
+
+        first.Guides.Single(option => option.Label == "Pure").IsSelected = true;
+
+        Assert.Equal("pure", settings.CheckedGuide);
+        Assert.Equal("Pure", WithGuides().Guide!.Name);
+
+        first.Guides.Single(option => option.Label == "USB-Helper").IsSelected = true;
+
+        Assert.Null(settings.CheckedGuide);
     }
 }
