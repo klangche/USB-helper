@@ -1,10 +1,17 @@
-schema_version: 1
+schema_version: 2
 
-defaults:
-  limits:
-    max_hubs: null
-    max_tiers: null
-    max_hops: null
-    recommended_hops: null
-  verification:
-    status: unverified
+# Facts from the USB specification. They hold for every computer.
+usb:
+  max_tiers: 7
+
+notes:
+  - "max_tiers 7: USB allows seven tiers on a path: the host with its root hub, up to five hubs, and the device (USB 2.0 specification, section 4.1.1; PureLink cites it too)."
+  - "The app counts a device in the computer's own port as tier 2 with 0 hubs in front of it, so the hubs allowed in front of a device are max_tiers - 2 - the chip's built_in_hub_levels."
+
+sources:
+  - "USB 2.0 specification, section 4.1.1 (bus topology: seven tiers at most)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

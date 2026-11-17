@@ -1,0 +1,22 @@
+name: PureLink
+selectable: true
+
+# Tiers as the guide writes them. The app turns them into hubs in front of a device:
+# tiers - 2 - the chip's built_in_hub_levels, never below min_recommended_hubs.
+limits:
+  recommended_tiers: 4
+  camera_audio_recommended_tiers: 3
+  min_recommended_hubs: 1
+
+notes:
+  - "recommended_tiers 4: PureLink recommends staying within four tiers where possible, a conservative design preference and not a USB-IF limit. Deeper still works up to the USB maximum, but less reliably."
+  - "camera_audio_recommended_tiers 3: webcams and audio interfaces send a steady stream (isochronous transfers) and need low, consistent latency; PureLink: 'limit to 3 to 4 tiers max, prefer direct or self-powered hubs'. Read as one tier fewer than the general recommendation; the maximum stays the USB maximum (owner decision 2026-11-17, #275)."
+  - "min_recommended_hubs 1: the recommendation never asks for a device without any hub in front of it, because a camera or device behind no hub at all is not a real room (owner decision 2026-11-17, #284)."
+  - "No max_tiers: the USB maximum in base.yaml applies."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path, four tiers recommended, three to four tiers for cameras and audio devices"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

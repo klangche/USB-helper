@@ -1,0 +1,11 @@
+name: Unisynk
+selectable: false
+
+notes:
+  - "Listed, not selectable: Unisynk's limits are not filled in yet."
+
+sources: []
+
+verification:
+  status: unverified
+  last_checked: null

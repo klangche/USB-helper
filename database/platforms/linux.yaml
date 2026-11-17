@@ -1,0 +1,27 @@
+name: Linux
+
+displays:
+  mst: null
+
+chips:
+  x64:
+    name: x64
+    architecture: x64
+    built_in_hub_levels: 0
+  arm:
+    name: ARM
+    architecture: arm64
+    built_in_hub_levels: 0
+
+notes:
+  - "Generic Linux platform profile, one entry per processor architecture."
+  - "built_in_hub_levels 0 for both: five hubs fit in a row (PureLink). Until 2026-11-16 x64 had max_hops 6 from the usb-script config, which is above the USB maximum; ARM had 5 from the same config, tested in practice."
+  - "displays.mst is unknown."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.linuxArm; config version 1.0.0, 2026-02-24)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

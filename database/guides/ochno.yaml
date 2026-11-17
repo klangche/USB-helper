@@ -1,0 +1,11 @@
+name: Ochno
+selectable: false
+
+notes:
+  - "Listed, not selectable: Ochno's limits are not filled in yet."
+
+sources: []
+
+verification:
+  status: unverified
+  last_checked: null

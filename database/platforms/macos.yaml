@@ -1,0 +1,34 @@
+name: macOS
+
+displays:
+  mst: false
+
+chips:
+  intel:
+    name: Intel
+    architecture: x64
+    built_in_hub_levels: 0
+  apple-silicon:
+    name: M-series
+    architecture: arm64
+    built_in_hub_levels: 1
+  a-series:
+    name: A-series
+    architecture: arm64
+    built_in_hub_levels: 2
+
+notes:
+  - "Generic macOS platform profile, one entry per chip family."
+  - "intel, built_in_hub_levels 0: five hubs fit in a row (PureLink). Until 2026-11-16 this profile had max_hops 7 from the usb-script config, which is above the USB maximum."
+  - "apple-silicon, built_in_hub_levels 1: M-series Macs use two of the seven tiers themselves, a built-in hub level per port, which leaves four hubs (Lightware; owner decision 2026-11-16)."
+  - "a-series, built_in_hub_levels 2: A-series Macs, such as the MacBook Neo, use three of the seven tiers themselves, one more than M-series Macs, which leaves three hubs (Lightware, measured on the MacBook Neo; owner decision 2026-11-16)."
+  - "displays.mst false: macOS does not extend the desktop over DisplayPort Multi-Stream Transport."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://www.lightware.com/en/news/macbook-neo-usbc-av-design-usb-topology-challenges (Lightware, 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15: tiers used by M-series MacBooks and the MacBook Neo)"
+  - "https://kb.plugable.com/en_US/understanding-mst-multi-display-setups-with-windows-macos-and-displayport (Plugable, 'Understanding MST: Multi-Display Setups with Windows, macOS, and DisplayPort', checked 2026-11-16: displays.mst)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

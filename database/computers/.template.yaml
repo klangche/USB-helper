@@ -1,14 +1,16 @@
 # Only for a computer that differs from its platform profile (built-in hubs, unusual ports, display limits or
 # other quirks). Every other computer uses its platform profile and needs no file.
-inherits: platform-profile
+# platform: a file name in database/platforms/ without .yaml; chip_family: one of its chips.
+platform: platform-file
+chip_family: chip
 manufacturer: Manufacturer
 model: Exact model name
 name: Human-readable name
 chip: CPU or SoC variant
 
-# Limits inherit from the platform profile. Set a value only for this model
-# (for example built-in hubs), or null when the platform's value does not apply.
-limits: {}
+# Inherited from the chip in the platform file. Set it only when this model differs,
+# or null when the chip's value does not apply and the right one is unknown.
+# built_in_hub_levels: 0
 
 displays:
   max_external: null
