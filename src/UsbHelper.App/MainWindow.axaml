@@ -345,7 +345,7 @@
             </ItemsControl>
           </StackPanel>
 
-
+          <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
           <ItemsControl ItemsSource="{Binding Disconnected}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:DisconnectedItem">
