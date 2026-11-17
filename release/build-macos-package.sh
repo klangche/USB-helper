@@ -21,9 +21,22 @@ fi
 temporary=$(mktemp -d)
 mounted=0
 mountpoint="$temporary/mounted"
+# A freshly written volume can stay busy for a few seconds (Spotlight, fseventsd), and detach then fails (#278). Retry,
+# then force; never quiet, so a failure says why.
+detach() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if hdiutil detach "$1"; then
+      return 0
+    fi
+    echo "Detaching $1 failed (attempt $attempt of 5); retrying." >&2
+    sleep 3
+  done
+  hdiutil detach -force "$1"
+}
 cleanup() {
   if ((mounted)); then
-    hdiutil detach "$mountpoint" -quiet
+    detach "$mountpoint" || true
   fi
   rm -rf "$temporary"
 }
@@ -71,7 +84,7 @@ mkdir "$mountpoint"
 hdiutil attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable" >/dev/null
 mounted=1
 xattr -wx com.apple.FinderInfo 0000000000000000040000000000000000000000000000000000000000000000 "$mountpoint"
-hdiutil detach "$mountpoint" -quiet
+detach "$mountpoint"
 mounted=0
 rm -f "$archive"
 hdiutil convert "$writable" -format UDZO -o "$archive"
