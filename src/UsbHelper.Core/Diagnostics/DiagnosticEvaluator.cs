@@ -125,6 +125,12 @@ public static class DiagnosticEvaluator
         }
         var hubsMax = HubChecks("hubs.max");
         var hubsRecommended = HubChecks("hubs.recommended");
+        if (perBus.AnyBusKnown && perBus.BusUnknown && !computerOpen
+            && hubsMax.Concat(hubsRecommended).Any(each => each.Check.State == LimitState.Unknown && each.Check.Limit != null))
+        {
+            findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
+                "The operating system does not say which bus some ports are on, so the hubs on them are in neither bus's count; the counts per bus are at least what is shown."));
+        }
         // The check shown for all buses: an exceeded one, else the one with the lowest limit.
         static LimitCheck Summary(IReadOnlyList<LimitCheck> checks) =>
             checks.FirstOrDefault(check => check.State == LimitState.Exceeded)
