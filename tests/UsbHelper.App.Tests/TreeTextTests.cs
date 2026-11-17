@@ -1,6 +1,7 @@
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.App.Tests;
 
@@ -35,11 +36,11 @@ public class TreeTextTests
     }
 
     private static readonly string Golden = string.Join(Environment.NewLine,
-        "Dell Inc. Latitude 7450 (Hubs: 3, deepest tier: 5)", // All controllers (#210).
-        "|-- Controller (Hubs: 3, deepest tier: 5)", // The marked line counts: +2 tiers and +2 hubs (#297).
+        "Dell Inc. Latitude 7450 (Hubs: 3, devices: 2, deepest tier: 5)", // All controllers (#210).
+        "|-- Controller (Hubs: 3, devices: 2, deepest tier: 5)", // The marked line counts: +2 hubs, which are 2 tiers too (#307).
         "|   `-- ROOT (has a display)",
         "|       |-- Port 1 [USB-C]",
-        "|       |   `-- [+2 tiers, +2 hubs] HUB - unknown", // No profile is checked, so every result is unknown.
+        "|       |   `-- [+2 hubs] HUB - unknown", // No profile is checked, so every result is unknown.
         "|       |       `-- Port 1",
         "|       |           `-- KEYBOARD (046D:C31C) - unknown",
         "|       `-- Port 2",
@@ -52,7 +53,7 @@ public class TreeTextTests
     public void TheTreeIsDrawnWithPlainTextLines()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
+        Find(viewModel.Roots[0], "HUB").Mark = CableMark.OfHubs(2);
 
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0]));
     }
@@ -73,8 +74,8 @@ public class TreeTextTests
 
         var lines = TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine);
 
-        Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1+0), deepest tier: 3)", lines[0]);
-        Assert.Equal("|-- Controller (Hubs: 2 (1+1+0), deepest tier: 3)", lines[1]);
+        Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1+0), devices: 2, deepest tier: 3)", lines[0]);
+        Assert.Equal("|-- Controller (Hubs: 2 (1+1+0), devices: 2, deepest tier: 3)", lines[1]);
     }
 
     // #230: a header names the company, the room and the licensed email when any is set.
@@ -82,7 +83,7 @@ public class TreeTextTests
     public void AHeaderNamesTheCompanyRoomAndLicensedEmail()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
+        Find(viewModel.Roots[0], "HUB").Mark = CableMark.OfHubs(2);
 
         Assert.Equal(string.Join(Environment.NewLine, "Company: Acme AB", "Room: Room 4.12", "Licensed to: test@example.com", "", Golden),
             TreeText.Render(viewModel.Roots[0], "Acme AB", "Room 4.12", "test@example.com"));
@@ -93,7 +94,7 @@ public class TreeTextTests
     public void WithoutCompanyRoomOrEmailThereIsNoHeader()
     {
         var viewModel = Loaded(new EventLog());
-        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
+        Find(viewModel.Roots[0], "HUB").Mark = CableMark.OfHubs(2);
 
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0], null, null, null));
     }
@@ -139,7 +140,7 @@ public class TreeTextTests
     {
         var log = new EventLog();
         var viewModel = Loaded(log);
-        Find(viewModel.Roots[0], "HUB").MarkLevel = 2;
+        Find(viewModel.Roots[0], "HUB").Mark = CableMark.OfHubs(2);
 
         viewModel.DisplaysChanged();
 

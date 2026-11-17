@@ -45,7 +45,16 @@ public class ReportPdfTests
         var all = string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null))));
 
         Assert.Contains("(3+1+0): USB 2, USB 3, USB 4", all);
-        Assert.Contains("Hubs: 4 (3+1+0), deepest tier: 4", all);
+        Assert.Contains("Hubs: 4 (3+1+0), devices: 7, deepest tier: 4", all);
+    }
+
+    // #307: the figures name the connected USB devices next to the hubs.
+    [Fact]
+    public void The_figures_show_the_device_count()
+    {
+        var all = string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null))));
+
+        Assert.Contains("USB devices\n7", all);
     }
 
     // The Results section: from its heading to the next one.
@@ -521,6 +530,7 @@ public class ReportPdfTests
         Assert.Null(model.Computer.MachineName);
         Assert.Equal("Latitude 7450", model.Computer.Model);
         Assert.Equal(1, model.Counts.Hubs);
+        Assert.Equal(2, model.Counts.Devices); // The keyboard and the mouse; the dock is a hub (#307).
         Assert.Equal(2, model.Profiles.Count); // The detected platform's profile is checked at start.
         Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "External displays"],
             profile.Checks.Take(3).Select(check => check.Name)));

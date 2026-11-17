@@ -264,15 +264,19 @@ public class EventLogTests
         Assert.Equal([text], Texts(log));
     }
 
+    // #307: each choice as the menu names it.
     [Theory]
-    [InlineData(1, "Cable mark: +1 tiers, +1 hubs on the line to HUB")]
-    [InlineData(3, "Cable mark: +3 tiers, +2 hubs on the line to HUB")]
-    [InlineData(0, "Cable mark removed from the line to HUB")]
-    public void ACableMarkIsOneEntry(int mark, string text)
+    [InlineData(0, "Cable mark: +1 hub on the line to HUB")]
+    [InlineData(1, "Cable mark: +2 hubs (active extension) on the line to HUB")]
+    [InlineData(2, "Cable mark: +3 hubs on the line to HUB")]
+    [InlineData(3, "Cable mark: +1 tier on the line to HUB")]
+    [InlineData(5, "Cable mark: +3 tiers on the line to HUB")]
+    [InlineData(-1, "Cable mark removed from the line to HUB")]
+    public void ACableMarkIsOneEntry(int choice, string text)
     {
         var log = NewLog();
 
-        log.CableMark("HUB", mark);
+        log.CableMark("HUB", choice < 0 ? null : Core.Topology.CableMark.Choices[choice]);
 
         Assert.Equal([text], Texts(log));
     }

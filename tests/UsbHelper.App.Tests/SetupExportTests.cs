@@ -7,6 +7,7 @@ using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Export;
+using UsbHelper.Core.Topology;
 using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests;
@@ -50,7 +51,7 @@ public class SetupExportTests
         viewModel.RoomName = "Room 4.12";
         viewModel.Load(Desk());
         viewModel.Computers.Single().IsChecked = true;
-        All(viewModel.Roots).Single(item => item.Id == "DOCK").MarkLevel = 1;
+        All(viewModel.Roots).Single(item => item.Id == "DOCK").Mark = CableMark.OfHubs(1);
         return viewModel;
     }
 
@@ -67,7 +68,7 @@ public class SetupExportTests
         }
         foreach (var (port, mark) in setup.Marks)
         {
-            All(viewModel.Roots).Single(item => item.PortId == port).MarkLevel = mark;
+            All(viewModel.Roots).Single(item => item.PortId == port).Mark = mark;
         }
         return viewModel;
     }

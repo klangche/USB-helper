@@ -111,9 +111,9 @@ public sealed class MainViewModel : ObservableObject
     private readonly EventLog log;
     private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
-    // The user's marks for active cables and extenders per port id: each adds that many tiers and at most 2 hubs. They
-    // last while the app runs.
-    private readonly Dictionary<string, int> marks = [];
+    // The user's marks for active cables and extenders per port id: each adds its hubs and tiers (#307). They last
+    // while the app runs.
+    private readonly Dictionary<string, CableMark> marks = [];
     private IReadOnlyList<UsbNode> tree = [];
     private Guide? guide;
     private NodeViewModel? selectedNode;
@@ -643,7 +643,8 @@ public sealed class MainViewModel : ObservableObject
         return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
             setup.Computer, lastReport.Overall,
             new ReportCounts(perBus.Hubs, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
-                perBus.AnyBusKnown ? perBus.Usb4.Hubs : null, counts.Tiers.Actual, atLeast, counts.Displays.ExternalDisplays),
+                perBus.AnyBusKnown ? perBus.Usb4.Hubs : null, TopologyCounts.DeviceCount(tree), counts.Tiers.Actual, atLeast,
+                counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
@@ -765,12 +766,12 @@ public sealed class MainViewModel : ObservableObject
     public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
         tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
-    // A mark for an active cable or extender the operating system does not show, on the line from a port: a mark of N
-    // adds N tiers to everything behind the port and min(N, 2) hubs on its bus (#297). 0 removes the mark.
-    private void Mark(string portId, int mark)
+    // A mark for an active cable or extender the operating system does not show, on the line from a port: it adds its
+    // tiers to everything behind the port and its hubs on the port's bus (#307). Null removes the mark.
+    private void Mark(string portId, CableMark? mark)
     {
         log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, mark);
-        if (mark == 0)
+        if (mark == null)
         {
             marks.Remove(portId);
         }
@@ -800,17 +801,22 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Above the table: "Hubs: 3 (2+1+0)", the same as the row counter (#298); null when nothing is connected.</summary>
     public string? BusCountsHubs { get; private set; }
 
+    /// <summary>Below <see cref="BusCountsHubs"/>: "Devices: 7" (#307), with "at least" as the row counter; null when nothing is connected.</summary>
+    public string? BusCountsDevices { get; private set; }
+
     // The same numbers and the same "at least" as the row counter of the controller, or of the computer (NodeViewModel.Count).
     private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
     {
         BusCountsRows.Clear();
         BusCountsHubs = null;
+        BusCountsDevices = null;
         if (NodeViewModel.Count(scope, marks) is { } counted)
         {
             BusCountsHubs = NodeViewModel.HubsText(counted);
             string Cell(int number) => counted.AtLeast
                 ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
                 : number.ToString(CultureInfo.CurrentCulture);
+            BusCountsDevices = string.Format(CultureInfo.CurrentCulture, Strings.CountsDevicesLine, Cell(counted.Devices));
             BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier));
             if (counted.PerBus.AnyBusKnown)
             {
@@ -825,6 +831,7 @@ public sealed class MainViewModel : ObservableObject
         }
         OnPropertyChanged(nameof(HasBusCounts));
         OnPropertyChanged(nameof(BusCountsHubs));
+        OnPropertyChanged(nameof(BusCountsDevices));
     }
 
     /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>

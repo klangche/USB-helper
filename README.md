@@ -2,7 +2,7 @@
 
 A portable diagnostic tool that shows a computer's USB topology as a live tree
 and checks a BYOD/BYOM setup (bring your own device / monitor) against that
-computer's hardware limits: how many hubs, how deep the tiers and how many hops.
+computer's hardware limits: how many hubs and how deep the tiers.
 
 It recognises the computer model by itself (Windows: manufacturer and model;
 macOS: the model identifier such as `MacBookPro18,2`) and judges the setup by
@@ -16,19 +16,19 @@ that model's profile from a reviewed, cited hardware database.
   and a dock or hub plugged in later takes over until you pick something
   yourself. Refresh starts following again.
 - **Counts per USB bus.** Each controller and the computer's row show hubs,
-  with the hubs per bus in brackets (USB2, then USB3), the deepest tier and
-  the deepest hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop:
-  2". The two halves of a USB 3 hub are kept apart. Every hub and device
-  shows its own tier and the hubs in front of it on hover.
+  with the hubs per bus in brackets (USB 2, USB 3, USB 4), the connected
+  devices and the deepest tier, for example "Hubs: 4 (3+1+0), devices: 7,
+  deepest tier: 4". The two halves of a USB 3 hub are kept apart. Every hub
+  and device shows its own tier and the hubs in front of it.
 - **Checks against limits** of the computer model and its platform: hub count,
-  tier depth, hop depth and recommended hops, each line coloured green
+  tier depth and recommended tiers, each line coloured green
   (stable), orange (potentially unstable), purple (unstable), red (missing) or
   grey (unknown). One unstable device colours its path up to the computer.
 - **Displays**: each active monitor and its output type, monitors inside USB-C
   hubs placed under their hub, DisplayLink adapters, and display-count and MST
   checks.
 - **Active cables** the operating system does not show can be marked
-  ("+N hops") and count in every check.
+  ("+2 hubs", "+1 tier") and count in every check.
 - **Honest results**: detected facts, verified database facts, predicted risks
   and unknowns are kept apart. Unknown is never replaced by a guess. No
   bandwidth or speed analysis.
@@ -80,7 +80,7 @@ event, and use File > Export full setup to send a setup to someone.
 - [Install and update](docs/install.md): every download, what it contains, and
   how updates work.
 - [Hardware database, counting and diagnostic rules](docs/database.md): the
-  YAML profiles, how to add a computer, how hubs, tiers and hops are counted,
+  YAML profiles, how to add a computer, how hubs and tiers are counted,
   and how each status is decided.
 - [Development](docs/development.md): build, tests, releases and source layout.
 

@@ -13,7 +13,7 @@ public class TopologyCountsTests
     {
         var tree = Machine(Device("MOUSE"));
 
-        Assert.Equal(new ConnectionDepth(2), TopologyCounts.Depths(tree)["MOUSE"]);
+        Assert.Equal(2, TopologyCounts.Depths(tree)["MOUSE"].Tier);
         Assert.Equal(0, TopologyCounts.HubCount(tree));
     }
 
@@ -25,9 +25,9 @@ public class TopologyCountsTests
 
         var depths = TopologyCounts.Depths(tree);
 
-        Assert.Equal(new ConnectionDepth(4), depths["KEYBOARD"]);
-        Assert.Equal(new ConnectionDepth(3), depths["MONITOR"]);
-        Assert.Equal(new ConnectionDepth(2), depths["DOCK"]);
+        Assert.Equal(4, depths["KEYBOARD"].Tier);
+        Assert.Equal(3, depths["MONITOR"].Tier);
+        Assert.Equal(2, depths["DOCK"].Tier);
         Assert.Equal(2, TopologyCounts.HubCount(tree));
     }
 
@@ -36,7 +36,7 @@ public class TopologyCountsTests
     {
         var tree = Machine(Hub("H1", Hub("H2", Hub("H3", Hub("H4", Hub("H5", Device("DEVICE")))))));
 
-        Assert.Equal(new ConnectionDepth(7), TopologyCounts.Depths(tree)["DEVICE"]);
+        Assert.Equal(7, TopologyCounts.Depths(tree)["DEVICE"].Tier);
         Assert.Equal(5, TopologyCounts.HubCount(tree));
     }
 
@@ -48,8 +48,8 @@ public class TopologyCountsTests
 
         var depths = TopologyCounts.Depths(tree);
 
-        Assert.Equal(new ConnectionDepth(4), depths["CAMERA"]);
-        Assert.Equal(new ConnectionDepth(5), depths["HEADSET"]);
+        Assert.Equal(4, depths["CAMERA"].Tier);
+        Assert.Equal(5, depths["HEADSET"].Tier);
         Assert.Equal(3, TopologyCounts.HubCount(tree));
     }
 
@@ -60,10 +60,10 @@ public class TopologyCountsTests
 
         var depths = TopologyCounts.Depths(tree);
 
-        Assert.Equal(new ConnectionDepth(3), depths["A1"]);
-        Assert.Equal(new ConnectionDepth(4), depths["A2"]);
-        Assert.Equal(new ConnectionDepth(2), depths["B"]);
-        Assert.Equal(new ConnectionDepth(3), depths["C1"]);
+        Assert.Equal(3, depths["A1"].Tier);
+        Assert.Equal(4, depths["A2"].Tier);
+        Assert.Equal(2, depths["B"].Tier);
+        Assert.Equal(3, depths["C1"].Tier);
         Assert.Equal(3, TopologyCounts.HubCount(tree));
     }
 
@@ -77,7 +77,7 @@ public class TopologyCountsTests
         ];
 
         Assert.Equal(2, TopologyCounts.HubCount(tree));
-        Assert.Equal(new ConnectionDepth(3), TopologyCounts.Depths(tree)["D2"]);
+        Assert.Equal(3, TopologyCounts.Depths(tree)["D2"].Tier);
     }
 
     // A laptop with a built-in hub (webcam, Bluetooth) on root port 1; its own sockets are ports 2 and 3 of that hub.
@@ -91,8 +91,8 @@ public class TopologyCountsTests
 
         var depths = TopologyCounts.Depths(tree);
 
-        Assert.Equal(new ConnectionDepth(2), depths["MOUSE"]);
-        Assert.Equal(new ConnectionDepth(2), depths["WEBCAM"]);
+        Assert.Equal(2, depths["MOUSE"].Tier);
+        Assert.Equal(2, depths["WEBCAM"].Tier);
         Assert.DoesNotContain("INTERNAL", depths.Keys);
         Assert.Equal(0, TopologyCounts.HubCount(tree));
         Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
@@ -105,9 +105,9 @@ public class TopologyCountsTests
 
         var depths = TopologyCounts.Depths(tree);
 
-        Assert.Equal(new ConnectionDepth(4), depths["KEYBOARD"]);
-        Assert.Equal(new ConnectionDepth(2), depths["DOCK"]);
-        Assert.Equal(new ConnectionDepth(2), depths["STICK"]);
+        Assert.Equal(4, depths["KEYBOARD"].Tier);
+        Assert.Equal(2, depths["DOCK"].Tier);
+        Assert.Equal(2, depths["STICK"].Tier);
         Assert.Equal(2, TopologyCounts.HubCount(tree));
     }
 
@@ -117,7 +117,7 @@ public class TopologyCountsTests
         // Only hubs before the first user-connectable port are built into the computer; a dock's own hubs count.
         IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Hub("DOCK-USB3", Hub("DOCK-USB2", Device("CAMERA"))).Connectable(false)).Connectable(true))];
 
-        Assert.Equal(new ConnectionDepth(4), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(4, TopologyCounts.Depths(tree)["CAMERA"].Tier);
         Assert.Equal(2, TopologyCounts.HubCount(tree));
     }
 
@@ -129,7 +129,7 @@ public class TopologyCountsTests
         IReadOnlyList<UsbNode> unmarked = [Controller("C1", rootHub)];
         IReadOnlyList<UsbNode> tree = [Controller("C1", rootHub.Connectable(null, true))];
 
-        Assert.Equal(new ConnectionDepth(3), TopologyCounts.Depths(tree)["CAMERA"]);
+        Assert.Equal(3, TopologyCounts.Depths(tree)["CAMERA"].Tier);
         Assert.Equal(3, TopologyCounts.HubCount(tree));
         Assert.Equal(["UNSURE"], TopologyCounts.PossiblyBuiltIn(tree).Select(hub => hub.Id));
         Assert.Equal(["UNSURE", "DOCK"], TopologyCounts.PossiblyBuiltIn(unmarked).Select(hub => hub.Id));
@@ -140,29 +140,29 @@ public class TopologyCountsTests
     {
         // Root port 1: an invisible active cable (+2), then a dock with a keyboard; root port 2: a mouse.
         var tree = Machine(Hub("DOCK", Device("KEYBOARD")), Device("MOUSE"));
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 2 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) };
 
         var depths = TopologyCounts.Depths(tree, marks);
 
-        Assert.Equal(new ConnectionDepth(4), depths["DOCK"]);
-        Assert.Equal(new ConnectionDepth(5), depths["KEYBOARD"]);
-        Assert.Equal(new ConnectionDepth(2), depths["MOUSE"]);
+        Assert.Equal(4, depths["DOCK"].Tier);
+        Assert.Equal(5, depths["KEYBOARD"].Tier);
+        Assert.Equal(2, depths["MOUSE"].Tier);
         Assert.Equal(1, TopologyCounts.HubCount(tree));
-        Assert.Equal(3, TopologyCounts.HubCount(tree, marks)); // The dock and the 2 hubs the mark adds (#297).
+        Assert.Equal(3, TopologyCounts.HubCount(tree, marks)); // The dock and the 2 hubs the mark adds (#307).
     }
 
     [Fact]
     public void MarksAlongThePathAddUp()
     {
         var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD")), Device("CAMERA")));
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1, ["DOCK|port1"] = 2 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(1), ["DOCK|port1"] = CableMark.OfHubs(2) };
 
         var depths = TopologyCounts.Depths(tree, marks);
 
-        Assert.Equal(new ConnectionDepth(3), depths["DOCK"]);
-        Assert.Equal(new ConnectionDepth(6), depths["MONITOR"]);
-        Assert.Equal(new ConnectionDepth(7), depths["KEYBOARD"]);
-        Assert.Equal(new ConnectionDepth(4), depths["CAMERA"]);
+        Assert.Equal(3, depths["DOCK"].Tier);
+        Assert.Equal(6, depths["MONITOR"].Tier);
+        Assert.Equal(7, depths["KEYBOARD"].Tier);
+        Assert.Equal(4, depths["CAMERA"].Tier);
         Assert.Equal(5, TopologyCounts.HubCount(tree, marks)); // 2 hubs, 1 and 2 from the marks.
     }
 
@@ -170,25 +170,25 @@ public class TopologyCountsTests
     public void MarkOnLaptopSocketBehindBuiltInHubCounts()
     {
         var tree = Laptop(Device("MOUSE"), Device("STICK"));
-        var marks = new Dictionary<string, int> { ["INTERNAL|port2"] = 1 };
+        var marks = new Dictionary<string, CableMark> { ["INTERNAL|port2"] = CableMark.OfHubs(1) };
 
         var depths = TopologyCounts.Depths(tree, marks);
 
-        Assert.Equal(new ConnectionDepth(3), depths["MOUSE"]);
-        Assert.Equal(new ConnectionDepth(2), depths["STICK"]);
-        Assert.Equal(new ConnectionDepth(2), depths["WEBCAM"]);
+        Assert.Equal(3, depths["MOUSE"].Tier);
+        Assert.Equal(2, depths["STICK"].Tier);
+        Assert.Equal(2, depths["WEBCAM"].Tier);
     }
 
     [Fact]
     public void MarkBeforeBuiltInHubCountsForEverythingBehindIt()
     {
         var tree = Laptop(Device("MOUSE"));
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = 1 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(1) };
 
         var depths = TopologyCounts.Depths(tree, marks);
 
-        Assert.Equal(new ConnectionDepth(3), depths["MOUSE"]);
-        Assert.Equal(new ConnectionDepth(3), depths["WEBCAM"]);
+        Assert.Equal(3, depths["MOUSE"].Tier);
+        Assert.Equal(3, depths["WEBCAM"].Tier);
         Assert.DoesNotContain("INTERNAL", depths.Keys);
     }
 
@@ -200,7 +200,7 @@ public class TopologyCountsTests
 
         Assert.Equal(1, TopologyCounts.HubCount(tree));
         Assert.Equal(["HUB"], TopologyCounts.Depths(tree).Keys);
-        Assert.Equal(new ConnectionDepth(2), TopologyCounts.Depths(tree)["HUB"]);
+        Assert.Equal(2, TopologyCounts.Depths(tree)["HUB"].Tier);
         Assert.Equal(["HUB"], TopologyCounts.Unreadable(tree).Select(node => node.Id));
     }
 
@@ -259,7 +259,7 @@ public class TopologyCountsTests
         Assert.Equal(["SECOND", "STICK"], newDepths.Keys.Except(oldDepths.Keys).Order());
         Assert.All(oldDepths, entry => Assert.Equal(entry.Value, newDepths[entry.Key]));
         Assert.Same(UsbTree.Find(before, "MOUSE"), UsbTree.Find(after, "MOUSE"));
-        Assert.Equal(new ConnectionDepth(4), newDepths["STICK"]);
+        Assert.Equal(4, newDepths["STICK"].Tier);
         Assert.Equal(2, TopologyCounts.HubCount(after));
     }
 
@@ -331,7 +331,7 @@ public class TopologyCountsTests
     {
         var tree = TesterMac();
         var usb3RootPort = tree[0].Children[0].Children[1].Id;
-        var marks = new Dictionary<string, int> { [usb3RootPort] = 2 };
+        var marks = new Dictionary<string, CableMark> { [usb3RootPort] = CableMark.OfHubs(2) };
 
         var counts = TopologyCounts.PerBus(tree, marks);
 
@@ -340,24 +340,62 @@ public class TopologyCountsTests
         Assert.Equal(10, TopologyCounts.HubCount(tree, marks));
     }
 
-    // #297: a mark of N adds N tiers and min(N, 2) hubs on its port's bus.
+    // #307: "+N hubs" adds N hubs on its port's bus and N tiers; "+N tiers" adds only N tiers. Each of the menu's six
+    // choices, in its order, on the USB 2 port.
     [Theory]
-    [InlineData(1, 1, 1)]
-    [InlineData(2, 2, 2)]
-    [InlineData(3, 3, 2)]
-    [InlineData(5, 5, 2)]
-    public void MarkAddsItsTiersAndAtMostTwoHubsOnItsBus(int mark, int tiers, int hubs)
+    [InlineData(0, 1, 1)]
+    [InlineData(1, 2, 2)]
+    [InlineData(2, 3, 3)]
+    [InlineData(3, 0, 1)]
+    [InlineData(4, 0, 2)]
+    [InlineData(5, 0, 3)]
+    public void EachMarkChoiceAddsItsHubsOnItsBusAndItsTiers(int choice, int hubs, int tiers)
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
-        var marks = new Dictionary<string, int> { ["ROOT|port1"] = mark };
+        var mark = CableMark.Choices[choice];
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = mark };
 
         var counts = TopologyCounts.PerBus(tree, marks);
 
+        Assert.Equal((hubs, tiers), (mark.Hubs, mark.Tiers));
         Assert.Equal(new BusCounts(1 + hubs, 3 + tiers), counts.Usb2);
         Assert.Equal(new BusCounts(1, 3), counts.Usb3);
-        Assert.Equal(new ConnectionDepth(3 + tiers), TopologyCounts.Depths(tree, marks)["KEYBOARD"]);
+        Assert.Equal(new ConnectionDepth(3 + tiers, 1 + hubs), TopologyCounts.Depths(tree, marks)["KEYBOARD"]);
         Assert.Equal(2 + hubs, TopologyCounts.HubCount(tree, marks));
-        Assert.Equal(hubs, TopologyCounts.MarkHubs(mark));
+    }
+
+    [Fact]
+    public void TheMarkChoicesAreHubsThenTiers()
+    {
+        Assert.Equal(["+1 hub", "+2 hubs", "+3 hubs", "+1 tier", "+2 tiers", "+3 tiers"], CableMark.Choices.Select(mark => mark.ToString()));
+        Assert.Equal([false, true, false, false, false, false], CableMark.Choices.Select(mark => mark.IsActiveExtension));
+        Assert.Equal("+1 hub, +3 tiers", new CableMark(1, 3).ToString()); // Only from a hand-edited setup.json.
+    }
+
+    // #307: the hubs in front of a node are information only: the external hubs above it and the hubs marked on its path.
+    [Fact]
+    public void HubsInFrontCountTheHubsAboveAndTheMarkedHubs()
+    {
+        var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))), Device("MOUSE"));
+        var marks = new Dictionary<string, CableMark> { ["DOCK|port1"] = CableMark.OfHubs(1), ["ROOT|port2"] = CableMark.OfTiers(2) };
+
+        var plain = TopologyCounts.Depths(tree);
+        var marked = TopologyCounts.Depths(tree, marks);
+
+        Assert.Equal([0, 1, 2, 0], new[] { "DOCK", "MONITOR", "KEYBOARD", "MOUSE" }.Select(id => plain[id].HubsInFront));
+        Assert.Equal([0, 2, 3, 0], new[] { "DOCK", "MONITOR", "KEYBOARD", "MOUSE" }.Select(id => marked[id].HubsInFront));
+        Assert.Equal(4, marked["MOUSE"].Tier); // A tier mark deepens, but adds no hub in front.
+    }
+
+    // #307: every connected device once, on whichever bus; hubs, both halves of a USB 3 hub included, are no devices.
+    [Fact]
+    public void DeviceCountLeavesOutHubsAndBothHalvesOfAUsbThreeHub()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD"), Device("MOUSE")), Hub("HUB-USB3", Device("DISK"))))];
+
+        Assert.Equal(3, TopologyCounts.DeviceCount(tree));
+        Assert.Equal(0, TopologyCounts.DeviceCount(Machine(Hub("DOCK", Hub("MONITOR")))));
+        Assert.Equal(2, TopologyCounts.DeviceCount(Laptop(Device("MOUSE")))); // The built-in webcam is a device too.
     }
 
     [Fact]
@@ -366,22 +404,22 @@ public class TopologyCountsTests
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
         root = root with { Children = [.. root.Children, Port("ROOT", 3, Device("MOUSE"))] };
         IReadOnlyList<UsbNode> tree = [Controller("C1", root)];
-        var marks = new Dictionary<string, int> { ["ROOT|port3"] = 3 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port3"] = CableMark.OfHubs(3) };
 
         var counts = TopologyCounts.PerBus(tree, marks);
 
         Assert.Equal(1, counts.Usb2.Hubs);
         Assert.Equal(1, counts.Usb3.Hubs);
         Assert.True(counts.BusUnknown);
-        Assert.Equal(4, TopologyCounts.HubCount(tree, marks));
-        Assert.Equal(new ConnectionDepth(5), TopologyCounts.Depths(tree, marks)["MOUSE"]);
+        Assert.Equal(5, TopologyCounts.HubCount(tree, marks));
+        Assert.Equal(5, TopologyCounts.Depths(tree, marks)["MOUSE"].Tier);
     }
 
     [Fact]
     public void MarkOnPortWithNothingOnItAddsNothing()
     {
         var tree = Machine(Hub("HUB", Device("KEYBOARD"), null));
-        var marks = new Dictionary<string, int> { ["HUB|port2"] = 2 };
+        var marks = new Dictionary<string, CableMark> { ["HUB|port2"] = CableMark.OfHubs(2) };
 
         Assert.Equal(1, TopologyCounts.HubCount(tree, marks));
         Assert.Equal(new BusCounts(0, 0), TopologyCounts.PerBus(tree, marks).Usb2);
@@ -432,14 +470,14 @@ public class TopologyCountsTests
     }
 
     [Fact]
-    public void CableMarkOfThreeOnUsbThreePortAddsTwoHubsOnUsbThree()
+    public void CableMarkOfThreeHubsOnUsbThreePortAddsThreeHubsOnUsbThree()
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
-        var marks = new Dictionary<string, int> { ["ROOT|port2"] = 3 };
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port2"] = CableMark.OfHubs(3) };
 
         var counts = TopologyCounts.PerBus(tree, marks);
 
-        Assert.Equal(new BusCounts(3, 6), counts.Usb3);
-        Assert.Equal("4 (1+3+0)", counts.HubsText);
+        Assert.Equal(new BusCounts(4, 6), counts.Usb3);
+        Assert.Equal("5 (1+4+0)", counts.HubsText);
     }
 }

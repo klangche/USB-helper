@@ -46,9 +46,10 @@ public sealed record ReportModel(
 /// <summary>The setup's counts over all controllers.</summary>
 /// <param name="Hubs">The sum of the hubs on each bus, those on an unknown bus included (#298).</param>
 /// <param name="Usb2Hubs">Hubs on the USB2 bus; null when no bus is known. The same for USB3 and USB4.</param>
+/// <param name="Devices">The connected USB devices, hubs not counted (#307).</param>
 /// <param name="AtLeast">A hub could not be read, so the real counts may be higher.</param>
 /// <param name="ExternalDisplays">Null when unknown.</param>
-public sealed record ReportCounts(int Hubs, int? Usb2Hubs, int? Usb3Hubs, int? Usb4Hubs, int DeepestTier, bool AtLeast, int? ExternalDisplays);
+public sealed record ReportCounts(int Hubs, int? Usb2Hubs, int? Usb3Hubs, int? Usb4Hubs, int Devices, int DeepestTier, bool AtLeast, int? ExternalDisplays);
 
 /// <summary>One checked profile: its result and its hub, tier and display checks; no checks without a profile.</summary>
 public sealed record ReportProfile(string Label, ConnectionStatus Overall, IReadOnlyList<ReportCheck> Checks);
@@ -69,7 +70,7 @@ public sealed record ReportFinding(FactKind Kind, string? Profile, string Subjec
 /// <param name="Guides">One entry per ancestor column left of the elbow: true where that ancestor's trunk continues past this row.</param>
 /// <param name="IsLast">The last child of its parent: its elbow ends the parent's trunk.</param>
 /// <param name="Status">The line's status; null for controllers, root hubs, ports and groups.</param>
-/// <param name="Badges">The cable mark ("+N tiers, +N hubs") and "Display", in that order, when they apply.</param>
+/// <param name="Badges">The cable mark ("+2 hubs", "+1 tier") and "Display", in that order, when they apply.</param>
 /// <param name="Notes">The display note and the counts, when there are.</param>
 public sealed record ReportRow(
     int Level,

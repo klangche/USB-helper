@@ -18,7 +18,10 @@ public sealed record SetupResult(string? Profile, string Label, ConnectionStatus
 /// as test input. Ids are positions in the tree (see <see cref="Anonymize"/>), so no serial number is exported.
 /// </summary>
 /// <param name="CheckedProfiles">The ids of the checked platform and computer profiles.</param>
-/// <param name="Marks">The user's active-cable marks per port id (see <see cref="Topology.TopologyCounts"/>).</param>
+/// <param name="Marks">
+/// The user's active-cable marks per port id (see <see cref="Topology.TopologyCounts"/>), each as
+/// <c>{"hubs": 2, "tiers": 2}</c> (#307). An older file's plain number N is read as +N hubs (N hubs and N tiers).
+/// </param>
 /// <param name="Displays">The active monitors; null when they could not be read.</param>
 public sealed record SetupFile(
     string AppVersion,
@@ -26,7 +29,7 @@ public sealed record SetupFile(
     ComputerIdentity Computer,
     IReadOnlyList<string> CheckedProfiles,
     IReadOnlyList<UsbNode> Controllers,
-    IReadOnlyDictionary<string, int> Marks,
+    IReadOnlyDictionary<string, Topology.CableMark> Marks,
     IReadOnlyList<DisplayMonitor>? Displays,
     IReadOnlyList<SetupResult> Results)
 {
@@ -58,8 +61,32 @@ public sealed record SetupFile(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         // Plain characters such as "&" and "'": the file is read by people, never embedded in a web page.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower), new HexIdConverter() },
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower), new HexIdConverter(), new CableMarkConverter() },
     };
+
+    // A mark as {"hubs": 2, "tiers": 2} (#307). Before #307 a mark was one number N; it is read as +N hubs (N hubs and
+    // N tiers). The format stays 1, as this app reads both forms.
+    private sealed class CableMarkConverter : JsonConverter<Topology.CableMark>
+    {
+        public override Topology.CableMark Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                return Topology.CableMark.OfHubs(reader.GetInt32());
+            }
+            using var mark = JsonDocument.ParseValue(ref reader);
+            int Field(string name) => mark.RootElement.TryGetProperty(name, out var value) ? value.GetInt32() : 0;
+            return new Topology.CableMark(Field("hubs"), Field("tiers"));
+        }
+
+        public override void Write(Utf8JsonWriter writer, Topology.CableMark value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("hubs", value.Hubs);
+            writer.WriteNumber("tiers", value.Tiers);
+            writer.WriteEndObject();
+        }
+    }
 
     // Vendor and product ids as four hex digits ("046D"), as Windows and usb.ids show them.
     private sealed class HexIdConverter : JsonConverter<ushort>
@@ -93,8 +120,8 @@ public sealed record SetupFile(
     /// child), and the marks and companion port ids moved to the new port ids. Windows ids are device paths, which can hold serial numbers. A
     /// placeholder for a hub or device Windows could not identify keeps its form: its port's id, then "|device".
     /// </summary>
-    public static (IReadOnlyList<UsbNode> Tree, IReadOnlyDictionary<string, int> Marks) Anonymize(
-        IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> marks)
+    public static (IReadOnlyList<UsbNode> Tree, IReadOnlyDictionary<string, Topology.CableMark> Marks) Anonymize(
+        IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, Topology.CableMark> marks)
     {
         var ids = new Dictionary<string, string>();
         var renamed = tree.Select((controller, i) => Renamed(controller, null, null, (i + 1).ToString(CultureInfo.InvariantCulture), ids)).ToList();

@@ -9,6 +9,7 @@ using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Topology;
 using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests;
@@ -208,7 +209,7 @@ public class MainViewModelTests
         var viewModel = TwoProfiles();
         viewModel.Computers.Single().IsChecked = true;
 
-        Item(viewModel, "HUB").MarkLevel = 5; // KEYBOARD: tier 8, purple; HUB itself: tier 7, green.
+        Item(viewModel, "HUB").Mark = CableMark.OfTiers(5); // KEYBOARD: tier 8, purple; HUB itself: tier 7, green.
 
         Assert.Equal(
             [
@@ -265,7 +266,7 @@ public class MainViewModelTests
         Assert.Equal(NodeViewModel.HostId, host.Id);
         Assert.False(host.HasLine);
         Assert.Null(host.Status);
-        Assert.Equal("Hubs: 1, deepest tier: 3", host.Counts); // #210.
+        Assert.Equal("Hubs: 1, devices: 3, deepest tier: 3", host.Counts); // #210.
         Assert.Equal(["C1", "C2"], host.Children.Select(item => item.Id));
         Assert.All(host.Children, controller => Assert.True(controller.HasLine));
         // The lines start at the host: its trunk runs down to the last controller.
@@ -492,11 +493,11 @@ public class MainViewModelTests
         Assert.Null(Item(viewModel, "C1").RowStatusWord);
         Assert.Equal(StatusColors.None, Item(viewModel, "C1").RowTint);
 
-        Item(viewModel, "HUB").MarkLevel = 5; // KEYBOARD: tier 8.
+        Item(viewModel, "HUB").Mark = CableMark.OfTiers(5); // KEYBOARD: tier 8.
 
         Assert.Equal(Strings.WordUnstable, keyboard.RowStatusWord);
         Assert.Equal(StatusColors.Tint(ConnectionStatus.Purple), keyboard.RowTint);
-        Assert.Null(Item(viewModel, "HUB").RowStatusWord); // Tier 7, 3 hubs: still stable.
+        Assert.Null(Item(viewModel, "HUB").RowStatusWord); // Tier 7, 1 hub: still stable.
     }
 
     [Fact]
@@ -519,15 +520,15 @@ public class MainViewModelTests
         Assert.Equal("ROOT|port1", hub.PortId);
         Assert.True(hub.CanMark);
 
-        hub.MarkLevel = 5;
+        hub.Mark = CableMark.OfTiers(5);
 
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // Tier 8.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
         Assert.Same(hub, Shown(viewModel.Roots).Single(item => item.Id == "HUB"));
         Assert.True(hub.IsUserMarked);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.CableMark, 5, 2), hub.MarkBadge);
+        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.MarkTiers, 5), hub.MarkBadge);
 
-        hub.MarkLevel = 0;
+        hub.Mark = null;
 
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(hub.IsUserMarked);
@@ -594,8 +595,8 @@ public class MainViewModelTests
         viewModel.Load(tree);
 
         // C1: HUB is tier 2; KEYBOARD behind it is tier 3.
-        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").Counts);
-        Assert.Equal("Hubs: 0, deepest tier: 2", Item(viewModel, "C2").Counts);
+        Assert.Equal("Hubs: 1, devices: 2, deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, devices: 1, deepest tier: 2", Item(viewModel, "C2").Counts);
         Assert.Null(Item(viewModel, "ROOT").Counts);
     }
 
@@ -609,11 +610,11 @@ public class MainViewModelTests
 
         viewModel.Load([.. Desk, dock]);
 
-        Assert.Equal("Hubs: 3, deepest tier: 4", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: 3, devices: 3, deepest tier: 4", Item(viewModel, NodeViewModel.HostId).Counts);
 
-        Item(viewModel, "KEYBOARD").MarkLevel = 2; // KEYBOARD: tier 5, and the mark adds 2 hubs (#297).
+        Item(viewModel, "KEYBOARD").Mark = CableMark.OfHubs(2); // KEYBOARD: tier 5, and the mark adds 2 hubs (#307).
 
-        Assert.Equal("Hubs: 5, deepest tier: 5", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: 5, devices: 3, deepest tier: 5", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -624,7 +625,7 @@ public class MainViewModelTests
 
         viewModel.Load([.. Desk, broken]);
 
-        Assert.Equal("Hubs: at least 2, deepest tier: at least 3", Item(viewModel, NodeViewModel.HostId).Counts);
+        Assert.Equal("Hubs: at least 2, devices: at least 2, deepest tier: at least 3", Item(viewModel, NodeViewModel.HostId).Counts);
     }
 
     [Fact]
@@ -655,7 +656,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: 0, deepest tier: 2", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 0, devices: 1, deepest tier: 2", Item(viewModel, "C1").Counts);
     }
 
     // #195: a USB 3 hub is one hub on each bus; the line shows both buses instead of adding the halves up.
@@ -681,12 +682,12 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        var expected = "Hubs: 3 (2+1+0), deepest tier: 4";
+        var expected = "Hubs: 3 (2+1+0), devices: 2, deepest tier: 4";
         Assert.Equal(expected, Item(viewModel, "C1").Counts);
         Assert.Equal(expected, Item(viewModel, NodeViewModel.HostId).Counts);
-        // The window shows "Hubs: 3 (2+1+0), deepest tier: 4": USB 2, USB 3, USB 4 (#217, #298).
+        // The window shows "Hubs: 3 (2+1+0), devices: 2, deepest tier: 4": USB 2, USB 3, USB 4 (#217, #298).
         var controller = Item(viewModel, "C1");
-        Assert.Equal(("Hubs: 3 (", "2", "1", "0", "), deepest tier: 4"),
+        Assert.Equal(("Hubs: 3 (", "2", "1", "0", "), devices: 2, deepest tier: 4"),
             (controller.CountsHead, controller.CountsUsb2, controller.CountsUsb3, controller.CountsUsb4, controller.CountsTail));
         Assert.Equal(expected + Environment.NewLine + Strings.CountsPerBusTip, controller.CountsTip);
         Assert.Equal("Hubs: 3 (2+1+0)", viewModel.BusCountsHubs);
@@ -703,7 +704,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: at least 3 (1+1+0), deepest tier: at least 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 3 (1+1+0), devices: at least 3, deepest tier: at least 3", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -716,7 +717,7 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root]), new UsbNode("C2", UsbNodeKind.Controller, "Empty", [Hub("ROOT2", (UsbNode?)null)])]);
 
-        Assert.Equal("Hubs: 1 (1+0+0), deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1 (1+0+0), devices: 1, deepest tier: 3", Item(viewModel, "C1").Counts);
         Assert.Null(Item(viewModel, "C2").Counts);
     }
 
@@ -740,7 +741,7 @@ public class MainViewModelTests
         Assert.True(viewModel.HasBusCounts);
         Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
         // The row counter stays as it was.
-        Assert.Equal("Hubs: 3 (2+1+0), deepest tier: 4", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 3 (2+1+0), devices: 2, deepest tier: 4", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -815,11 +816,11 @@ public class MainViewModelTests
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Hub("INNER", Device("KEYBOARD"))), Hub("HUB-USB3", Device("DISK")));
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Item(viewModel, "DISK").MarkLevel = 2; // DISK: tier 5, and 2 more hubs on USB 3 (#297).
+        Item(viewModel, "DISK").Mark = CableMark.OfHubs(2); // DISK: tier 5, and 2 more hubs on USB 3 (#307).
 
         Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "3", "5"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
 
-        Item(viewModel, "DISK").MarkLevel = 0;
+        Item(viewModel, "DISK").Mark = null;
 
         Assert.Equal([Line(Strings.CountsBusUsb2, "2", "4"), Line(Strings.CountsBusUsb3, "1", "3"), Line(Strings.CountsBusUsb4, "0", "0")], BusTable(viewModel));
     }
@@ -847,15 +848,86 @@ public class MainViewModelTests
     public void EachHubAndDeviceSaysItsTierAndTheHubsInFront()
     {
         var viewModel = NewViewModel();
-        viewModel.Load(Desk);
+        // #307: 0, 1 and 2 hubs in front, as information only.
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))))])]);
 
-        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").RowTip);
-        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").RowTip);
-        // The window's row shows the same text at its right (#264).
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 3, 1), Item(viewModel, "KEYBOARD").DepthText);
-        Assert.Equal(string.Format(CultureInfo.CurrentCulture, Strings.NodeDepthTip, 2, 0), Item(viewModel, "HUB").DepthText);
+        Assert.Equal("Tier 2", Item(viewModel, "DOCK").DepthText);
+        Assert.Equal("Tier 3, 1 hub in front", Item(viewModel, "MONITOR").DepthText);
+        Assert.Equal("Tier 4, 2 hubs in front", Item(viewModel, "KEYBOARD").DepthText);
+        // The row's tooltip says the same (#264).
+        Assert.Contains("Tier 4, 2 hubs in front", Item(viewModel, "KEYBOARD").RowTip);
         Assert.Null(Item(viewModel, "C1").DepthText);
         Assert.Null(Item(viewModel, "ROOT|port1").DepthText);
+
+        // A marked hub is in front too; marked tiers are not hubs.
+        Item(viewModel, "MONITOR").Mark = CableMark.OfHubs(2);
+        Assert.Equal("Tier 5, 3 hubs in front", Item(viewModel, "MONITOR").DepthText);
+        Assert.Equal("Tier 6, 4 hubs in front", Item(viewModel, "KEYBOARD").DepthText);
+        Item(viewModel, "MONITOR").Mark = CableMark.OfTiers(2);
+        Assert.Equal("Tier 5, 1 hub in front", Item(viewModel, "MONITOR").DepthText);
+        Assert.DoesNotContain(All(viewModel.Roots), item => item.DepthText?.Contains("hop", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    // #307: a short list, hubs first, then tiers.
+    [Fact]
+    public void TheMarkMenuListsNoneThenHubsThenTiers()
+    {
+        Assert.Equal(["None", "+1 hub", "+2 hubs (active extension)", "+3 hubs", "+1 tier", "+2 tiers", "+3 tiers"], NodeViewModel.MarkChoices);
+    }
+
+    // #307: each menu choice sets its mark and badge, and the menu shows it as chosen.
+    [Theory]
+    [InlineData(1, 1, 1, "+1 hub")]
+    [InlineData(2, 2, 2, "+2 hubs")]
+    [InlineData(3, 3, 3, "+3 hubs")]
+    [InlineData(4, 0, 1, "+1 tier")]
+    [InlineData(5, 0, 2, "+2 tiers")]
+    [InlineData(6, 0, 3, "+3 tiers")]
+    public void EachMenuChoiceMarksTheLineWithItsBadge(int index, int hubs, int tiers, string badge)
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+        var hub = Item(viewModel, "HUB");
+
+        hub.MarkIndex = index;
+
+        Assert.Equal(new CableMark(hubs, tiers), hub.Mark);
+        Assert.Equal(index, hub.MarkIndex);
+        Assert.Equal(badge, hub.MarkBadge);
+        Assert.Equal($"Hubs: {1 + hubs}, devices: 2, deepest tier: {3 + tiers}", Item(viewModel, "C1").Counts);
+
+        hub.MarkIndex = 0;
+
+        Assert.Null(hub.Mark);
+        Assert.Null(hub.MarkBadge);
+    }
+
+    // #307: a mark that is none of the choices, from a hand-edited setup.json, selects no entry and stays.
+    [Fact]
+    public void AMarkThatIsNoChoiceSelectsNoEntry()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+        var hub = Item(viewModel, "HUB");
+
+        hub.Mark = CableMark.OfTiers(5);
+        hub.MarkIndex = -1;
+
+        Assert.Equal(-1, hub.MarkIndex);
+        Assert.Equal(CableMark.OfTiers(5), hub.Mark);
+    }
+
+    // #307: every connected device once; hubs, both halves of a USB 3 hub included, are no devices.
+    [Fact]
+    public void TheDeviceCountLeavesOutHubs()
+    {
+        var viewModel = NewViewModel();
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD"), Device("MOUSE")), Hub("HUB-USB3", Device("DISK")));
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        Assert.Equal("Hubs: 2 (1+1+0), devices: 3, deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Devices: 3", viewModel.BusCountsDevices);
     }
 
     [Fact]
@@ -866,7 +938,7 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, new UsbNode("HUB", UsbNodeKind.Hub, "HUB", []) { Problem = "Could not read the hub." }))]);
 
-        Assert.Equal("Hubs: at least 1, deepest tier: at least 2", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: at least 1, devices: at least 1, deepest tier: at least 2", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -885,8 +957,9 @@ public class MainViewModelTests
 
         viewModel.Apply([new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, Device("STICK")))]);
 
-        // The new port, and the lines of the sibling branch it now continues past.
-        Assert.Equal(["HUB", "HUB|port1", "KEYBOARD"], notified.Order());
+        // The new port, the lines of the sibling branch it now continues past, and the device counts of the controller
+        // and the host (#307).
+        Assert.Equal(["C1", "host", "HUB", "HUB|port1", "KEYBOARD"], notified.Order());
         Assert.All(before, entry => Assert.Same(entry.Value, Item(viewModel, entry.Key)));
         Assert.Same(before["MOUSE"], viewModel.SelectedNode);
         Assert.Equal("STICK", Item(viewModel, "STICK").Text);
@@ -978,26 +1051,26 @@ public class MainViewModelTests
         Assert.False(hub.IsUserMarked);
         Assert.Null(hub.MarkBadge);
 
-        hub.MarkLevel = 5;
+        hub.Mark = CableMark.OfTiers(5);
 
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status); // Tier 8.
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status);
-        Assert.Equal(5, Item(viewModel, "HUB").MarkLevel);
+        Assert.Equal(CableMark.OfTiers(5), Item(viewModel, "HUB").Mark);
         Assert.True(Item(viewModel, "HUB").IsUserMarked);
-        Assert.Equal("+5 tiers, +2 hubs", Item(viewModel, "HUB").MarkBadge);
+        Assert.Equal("+5 tiers", Item(viewModel, "HUB").MarkBadge);
         Assert.False(Item(viewModel, "MOUSE").IsUserMarked);
         Assert.Equal("Port 1", Item(viewModel, "ROOT|port1").Text); // The mark is on the line, not on the port.
-        Assert.Equal("Hubs: 3, deepest tier: 8", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1, devices: 2, deepest tier: 8", Item(viewModel, "C1").Counts);
 
         viewModel.Apply([]); // The mark lasts while the app runs.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
         Assert.True(Item(viewModel, "HUB").IsUserMarked);
 
-        Item(viewModel, "HUB").MarkLevel = 0;
+        Item(viewModel, "HUB").Mark = null;
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.False(Item(viewModel, "HUB").IsUserMarked);
         Assert.Null(Item(viewModel, "HUB").MarkBadge);
-        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 1, devices: 2, deepest tier: 3", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -1009,8 +1082,8 @@ public class MainViewModelTests
 
         Assert.Equal(["HUB", "KEYBOARD"], All(viewModel.Roots).Where(item => item.CanMark).Select(item => item.Id));
         var mouse = Item(viewModel, "MOUSE");
-        mouse.MarkLevel = 2; // Ignored: nothing is behind a disconnected device's port now.
-        Assert.Equal(0, mouse.MarkLevel);
+        mouse.Mark = CableMark.OfHubs(2); // Ignored: nothing is behind a disconnected device's port now.
+        Assert.Null(mouse.Mark);
         Assert.False(mouse.IsUserMarked);
     }
 
@@ -1710,20 +1783,20 @@ public class MainViewModelTests
 
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Assert.Equal("Hubs: 2 (1+1+0), deepest tier: 3", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 2 (1+1+0), devices: 2, deepest tier: 3", Item(viewModel, "C1").Counts);
         Assert.Equal("Hubs: 2 (1+1+0)", viewModel.BusCountsHubs);
     }
 
     [Fact]
-    public void ACableMarkOfThreeOnAUsbThreePortAddsTwoHubsOnUsbThree()
+    public void ACableMarkOfThreeHubsOnAUsbThreePortAddsThreeHubsOnUsbThree()
     {
         var viewModel = NewViewModel();
         var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
 
-        Item(viewModel, "HUB-USB3").MarkLevel = 3;
+        Item(viewModel, "HUB-USB3").Mark = CableMark.OfHubs(3);
 
-        Assert.Equal("Hubs: 4 (1+3+0), deepest tier: 6", Item(viewModel, "C1").Counts);
+        Assert.Equal("Hubs: 5 (1+4+0), devices: 2, deepest tier: 6", Item(viewModel, "C1").Counts);
     }
 
     [Fact]
@@ -1734,7 +1807,7 @@ public class MainViewModelTests
         viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("DOCK", Device("KEYBOARD")))])]);
 
         Assert.Equal("Hubs: 1", viewModel.BusCountsHubs);
-        Assert.Equal("Hubs: 1, deepest tier: 3", Item(viewModel, "C1").CountsTip);
+        Assert.Equal("Hubs: 1, devices: 1, deepest tier: 3", Item(viewModel, "C1").CountsTip);
     }
 
     // #298: judged per bus; the status line shows the hubs as everywhere and names the bus over its limit.
@@ -2217,10 +2290,16 @@ public class LogViewModelTests
         viewModel.Load(Desk);
         var hub = viewModel.Roots[0].Children[0].Children[0].Children[0].Children[0]; // host > C1 > ROOT > ROOT|port1 > HUB.
 
-        hub.MarkLevel = 2;
+        hub.MarkIndex = 2; // The menu's "+2 hubs (active extension)".
 
         Assert.Equal("HUB", hub.Id);
-        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark: +2 tiers, +2 hubs on the line to HUB");
+        Assert.Equal(CableMark.OfHubs(2), hub.Mark);
+        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark: +2 hubs (active extension) on the line to HUB");
+
+        hub.MarkIndex = 0;
+
+        Assert.Null(hub.Mark);
+        Assert.Contains(log.Entries, entry => entry.Text == "Cable mark removed from the line to HUB");
     }
 
     [Fact]
