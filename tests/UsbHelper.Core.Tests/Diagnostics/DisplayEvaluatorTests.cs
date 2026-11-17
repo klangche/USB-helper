@@ -40,7 +40,7 @@ public class DisplayEvaluatorTests
 
     private static readonly DisplayMonitor Left = new("L", "LS27A600U", MonitorOutput.DisplayPort);
     private static readonly DisplayMonitor Right = new("R", "LS27A600U", MonitorOutput.UsbTunnel);
-    private const string NoMst = "No MST on Test laptop: this display is duplicated; use a second USB-C port or DisplayLink.";
+    private const string NoMst = "MST is not supported on Test laptop, so this display is duplicated. Use a second USB-C port or DisplayLink to extend it.";
 
     private static DiagnosticReport Evaluate(ResolvedProfile profile, params DisplayMonitor[] monitors) =>
         DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors, guide: Guides.GetValueOrDefault(profile));

@@ -1547,10 +1547,13 @@ public class MainViewModelTests
 
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "display|A").Status);
         Assert.Equal(ConnectionStatus.Orange, Item(viewModel, "display|B").Status);
-        Assert.Equal("potentially unstable", Item(viewModel, "display|B").StatusWord);
+        // #296: a display is duplicated, not unstable.
+        Assert.Equal("duplicated (no MST)", Item(viewModel, "display|B").StatusWord);
+        Assert.Equal("duplicated (no MST)", Item(viewModel, "display|B").RowStatusWord);
+        Assert.DoesNotContain("unstable", Item(viewModel, "display|B").StatusText!, StringComparison.Ordinal);
         Assert.Null(Item(viewModel, "display|PANEL").Status);
         Assert.Contains(viewModel.Findings, finding =>
-            finding.Message == "No MST on MacBook Neo: this display is duplicated; use a second USB-C port or DisplayLink.");
+            finding.Message == "MST is not supported on MacBook Neo, so this display is duplicated. Use a second USB-C port or DisplayLink to extend it.");
     }
 
     [Fact]

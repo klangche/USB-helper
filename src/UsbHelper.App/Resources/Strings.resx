@@ -19,6 +19,12 @@
   <data name="OperatingSystems" xml:space="preserve">
     <value>Operating systems</value>
   </data>
+  <data name="MonitorDuplicated" xml:space="preserve">
+    <value>duplicated (no MST)</value>
+  </data>
+  <data name="MonitorDuplicatedText" xml:space="preserve">
+    <value>MST is not supported on the selected system, so this display is duplicated</value>
+  </data>
   <data name="ProfileMenu" xml:space="preserve">
     <value>Judge by</value>
   </data>
