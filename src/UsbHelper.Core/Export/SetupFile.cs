@@ -18,7 +18,7 @@ public sealed record SetupResult(string? Profile, string Label, ConnectionStatus
 /// as test input. Ids are positions in the tree (see <see cref="Anonymize"/>), so no serial number is exported.
 /// </summary>
 /// <param name="CheckedProfiles">The ids of the checked platform and computer profiles.</param>
-/// <param name="Marks">The user's active-cable marks: extra hops per port id.</param>
+/// <param name="Marks">The user's active-cable marks per port id (see <see cref="Topology.TopologyCounts"/>).</param>
 /// <param name="Displays">The active monitors; null when they could not be read.</param>
 public sealed record SetupFile(
     string AppVersion,
@@ -94,7 +94,7 @@ public sealed record SetupFile(
     /// placeholder for a hub or device Windows could not identify keeps its form: its port's id, then "|device".
     /// </summary>
     public static (IReadOnlyList<UsbNode> Tree, IReadOnlyDictionary<string, int> Marks) Anonymize(
-        IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
+        IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> marks)
     {
         var ids = new Dictionary<string, string>();
         var renamed = tree.Select((controller, i) => Renamed(controller, null, null, (i + 1).ToString(CultureInfo.InvariantCulture), ids)).ToList();
@@ -106,8 +106,7 @@ public sealed record SetupFile(
             Children = [.. node.Children.Select(Companions)],
         };
         var anonymous = renamed.Select(Companions).ToList();
-        var marks = extraHops.Where(mark => ids.ContainsKey(mark.Key)).ToDictionary(mark => ids[mark.Key], mark => mark.Value);
-        return (anonymous, marks);
+        return (anonymous, marks.Where(mark => ids.ContainsKey(mark.Key)).ToDictionary(mark => ids[mark.Key], mark => mark.Value));
     }
 
     /// <summary>

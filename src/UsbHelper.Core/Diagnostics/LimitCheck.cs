@@ -10,8 +10,8 @@ public enum LimitState
 }
 
 /// <summary>One topology limit compared with the detected tree.</summary>
-/// <param name="Field">The check's name, for example <c>limits.max_hops</c>.</param>
-/// <param name="Actual">Hub count, or the highest tier or hop depth found.</param>
+/// <param name="Field">The check's name, for example <c>limits.max_tiers</c>.</param>
+/// <param name="Actual">Hub count, or the highest tier found.</param>
 /// <param name="Limit">The limit from the selected guide (<see cref="GuideLimits"/>); null when unknown or not stated.</param>
 /// <param name="Verified">Every file the limit comes from is verified or partially verified.</param>
 /// <param name="Source">The guide, value and file the limit comes from (<see cref="GuideLimit.Source"/>), or null.</param>

@@ -30,8 +30,9 @@ public class GuideRulesTests
     private static ConnectionStatus Today(int hubs, int max, int recommended) =>
         hubs > max ? ConnectionStatus.Purple : hubs > recommended ? ConnectionStatus.Orange : ConnectionStatus.Green;
 
-    // USB-Helper's guide (the owner's file of 2026-11-17): the most hubs in front of a device is the lower of hops and
-    // tiers − 2 − the chip's built-in hub levels, for the maximum and the recommendation each. iPhone and iPad (tiers
+    // USB-Helper's guide (the owner's file of 2026-11-17; only tiers since #297): a device behind N hubs is on tier
+    // N + 2 + the chip's built-in hub levels, so the most hubs in front of it is tiers − 2 − those levels, for the
+    // maximum and the recommendation each. iPhone and iPad (tiers
     // at most 3, two built-in levels) exceed even in the own port; Android supports direct products only, so any hub
     // is potentially unstable (owner decisions 2026-11-17).
     [Theory]
@@ -75,7 +76,8 @@ public class GuideRulesTests
         var report = Evaluate(Db.Platforms["windows-intel"], 6, Device("KEYBOARD"), null);
 
         Assert.Equal(ConnectionStatus.Grey, report.Connections["KEYBOARD"]);
-        Assert.Null(report.Hops.Limit);
+        Assert.Null(report.Tiers.Limit);
+        Assert.Null(report.Hubs.Limit);
     }
 
     // A picked guide's tiers count the chip's built-in hub levels: on an A-series chip (two levels) a device behind any
@@ -87,7 +89,7 @@ public class GuideRulesTests
 
         Assert.Equal(ConnectionStatus.Green, Evaluate(aSeries, 0, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
         Assert.Equal(ConnectionStatus.Orange, Evaluate(aSeries, 1, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
-        Assert.Equal(ConnectionStatus.Purple, Evaluate(aSeries, 4, Device("KEYBOARD"), guide).Connections["KEYBOARD"]); // USB-Helper's hops.max 3.
+        Assert.Equal(ConnectionStatus.Purple, Evaluate(aSeries, 4, Device("KEYBOARD"), guide).Connections["KEYBOARD"]); // Tier 8.
     }
 
     // Findings and the log name the guide and the file each number comes from.
@@ -101,16 +103,16 @@ public class GuideRulesTests
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.SubjectId == "KEYBOARD"
             && finding.Message == "Tier depth 5 exceeds the recommended limits.recommended_tiers 4; limits.max_tiers is 7.");
         Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: limits.tiers.recommended 4 in guides/guide.yaml).");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: limits.hops.max 3 in guides/usb-helper.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hubs = 3 (USB-Helper: limits.buses.usb2.hubs.max 3 in guides/usb-helper.yaml).");
     }
 
-    // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hops 3 / 2, and a picked
+    // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hubs 3 / 2, and a picked
     // guide with the values given.
     private static (ResolvedProfile Profile, Guide Guide) Picked(int levels, Dictionary<string, string> values)
     {
         using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform.Replace("built_in_hub_levels: 0", $"built_in_hub_levels: {levels}"));
-        db.UsbHelper["hops.max"] = "3";
-        db.UsbHelper["hops.recommended"] = "2";
+        db.UsbHelper["hubs.max"] = "3";
+        db.UsbHelper["hubs.recommended"] = "2";
         db.WriteGuide(values);
         var loaded = db.Load();
         return (loaded.Platforms["test-platform"], loaded.Guides["guide"]);
@@ -125,7 +127,7 @@ public class GuideRulesTests
     {
         var device = Device("CAMERA") with { DeviceKind = kind };
 
-        // Cameras and audio: tiers 3 / 5 and hops 2 / 4, so on Windows Intel 1 hub is fine, 2 or 3 are orange, 4 purple.
+        // Cameras and audio: tiers 3 / 5, so on Windows Intel 1 hub (tier 3) is fine, 2 or 3 are orange, 4 purple.
         Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, device, UsbHelper));
         Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, device, UsbHelper));
         Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 3, device, UsbHelper));
@@ -155,14 +157,14 @@ public class GuideRulesTests
     public void ExceededLimitShowsTheChipsNote()
     {
         using var db = new TestDatabase();
-        db.UsbHelper["hops.max"] = "0";
+        db.UsbHelper["tiers.max"] = "2";
         db.UsbHelper["exceeded_note"] = "\"All note.\"";
         db.UsbHelper["platforms.test.chips.platform.limits.exceeded_note"] = "\"Chip note.\"";
         var loaded = db.Load();
 
         var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.DefaultGuide);
 
-        Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Chip note.");
+        Assert.Contains(report.Findings, finding => finding.Brief == "Tier depth 3 exceeds limits.max_tiers 2. Chip note.");
     }
 
     // An empty note falls back to USB-Helper's, like the numbers.
@@ -171,13 +173,13 @@ public class GuideRulesTests
     {
         using var db = new TestDatabase();
         db.UsbHelper["exceeded_note"] = "\"Use a powered hub.\"";
-        db.WriteGuide(new() { ["usb2.hops.max"] = "0", ["usb3.hops.max"] = "0" });
+        db.WriteGuide(new() { ["usb2.tiers.max"] = "2", ["usb3.tiers.max"] = "2" });
         var loaded = db.Load();
 
         var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.Guides["guide"]);
 
-        Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Use a powered hub.");
-        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: limits.hops.max 0 in guides/guide.yaml)", StringComparison.Ordinal));
+        Assert.Contains(report.Findings, finding => finding.Brief == "Tier depth 3 exceeds limits.max_tiers 2. Use a powered hub.");
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_tiers = 2 (Guide: limits.tiers.max 2 in guides/guide.yaml)", StringComparison.Ordinal));
     }
 
     // USB 2.0: a 7-bit device address, so at most 127 devices on one controller (base.yaml).
@@ -198,9 +200,10 @@ public class GuideRulesTests
     [Fact]
     public void StrictestProfileUsesTheGuide()
     {
-        IReadOnlyList<ResolvedProfile> profiles = [Db.Platforms["windows-intel"], Db.Platforms["macos-a-series"], Db.Platforms["macos-apple-silicon"]];
+        // USB-Helper's tiers.max: 7, 4 and 3.
+        IReadOnlyList<ResolvedProfile> profiles = [Db.Platforms["windows-intel"], Db.Platforms["android-tablet-exynos"], Db.Platforms["apple-mobile-a-series"]];
 
-        Assert.Equal(1, StrictestProfile.Of(profiles, UsbHelper));
+        Assert.Equal(2, StrictestProfile.Of(profiles, UsbHelper));
         Assert.Equal(0, StrictestProfile.Of(profiles));
     }
 }

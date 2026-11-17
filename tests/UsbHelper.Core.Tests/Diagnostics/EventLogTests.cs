@@ -264,19 +264,20 @@ public class EventLogTests
     }
 
     [Theory]
-    [InlineData(2, "Cable mark: +2 hops on the line to HUB")]
+    [InlineData(1, "Cable mark: +1 tiers, +1 hubs on the line to HUB")]
+    [InlineData(3, "Cable mark: +3 tiers, +2 hubs on the line to HUB")]
     [InlineData(0, "Cable mark removed from the line to HUB")]
-    public void ACableMarkIsOneEntry(int hops, string text)
+    public void ACableMarkIsOneEntry(int mark, string text)
     {
         var log = NewLog();
 
-        log.CableMark("HUB", hops);
+        log.CableMark("HUB", mark);
 
         Assert.Equal([text], Texts(log));
     }
 
     private static readonly Finding UnknownLimit = new(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Latitude 7450", "limits.max_hubs is unknown.");
-    private static readonly Finding Risk = new(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD", "Hop 1 is above the maximum of 0.");
+    private static readonly Finding Risk = new(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD", "Tier 3 is above the maximum of 2.");
 
     [Fact]
     public void EveryFindingIsLoggedUnknownLimitsIncluded()
@@ -287,7 +288,7 @@ public class EventLogTests
 
         Assert.Equal(
             ["Finding (windows-amd, unknown): Latitude 7450: limits.max_hubs is unknown.",
-             "Finding (windows-amd, risk): KEYBOARD: Hop 1 is above the maximum of 0.",
+             "Finding (windows-amd, risk): KEYBOARD: Tier 3 is above the maximum of 2.",
              "Finding (no profile, unknown): Latitude 7450: limits.max_hubs is unknown."],
             Texts(log));
     }
@@ -303,9 +304,9 @@ public class EventLogTests
         log.Findings([("p", Risk), ("p", UnknownLimit)]); // The risk came back.
 
         Assert.Equal(
-            ["Finding (p, risk): KEYBOARD: Hop 1 is above the maximum of 0.",
+            ["Finding (p, risk): KEYBOARD: Tier 3 is above the maximum of 2.",
              "Finding (p, unknown): Latitude 7450: limits.max_hubs is unknown.",
-             "Finding (p, risk): KEYBOARD: Hop 1 is above the maximum of 0."],
+             "Finding (p, risk): KEYBOARD: Tier 3 is above the maximum of 2."],
             Texts(log));
     }
 

@@ -13,7 +13,7 @@ public class DisplayEvaluatorTests
     private static ResolvedProfile Profile(string maxExternal = "2", string status = "verified", string extra = "", string displays = "")
     {
         using var db = new TestDatabase();
-        db.UsbHelper["hops.max"] = "5";
+        db.UsbHelper["tiers.max"] = "7";
         db.Write("computers/c.yaml", $"""
             platform: test
             chip_family: platform
@@ -32,7 +32,7 @@ public class DisplayEvaluatorTests
         return profile;
     }
 
-    // The guide each profile was loaded with: USB-Helper's, with a hop limit so the lines are judged.
+    // The guide each profile was loaded with: USB-Helper's, with a tier limit so the lines are judged.
     private static readonly Dictionary<ResolvedProfile, Guide> Guides = [];
 
     private static DiagnosticReport Evaluate(IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, int? displays) =>

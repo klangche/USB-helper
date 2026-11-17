@@ -25,9 +25,6 @@ limits:
   tiers:
     recommended: 4                    # PureLink recommended practice
     max: 7                            # USB-IF absolute maximum
-  hops:
-    recommended: 2
-    max: 4
   buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
@@ -45,9 +42,6 @@ limits:
     tiers:
       recommended: 3
       max: 4
-    hops:
-      recommended: 1
-      max: 2
   exceeded_note: "Too many hubs/tiers – video or audio may drop frames."
 
 
@@ -78,9 +72,6 @@ platforms:
           tiers:
             recommended: 3
             max: 5
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -132,9 +123,6 @@ platforms:
           tiers:
             recommended: 3
             max: 5
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -159,9 +147,6 @@ platforms:
           tiers:
             recommended: 3
             max: 5
-          hops:
-            recommended: 2
-            max: 3
 
 
 # =============================================================================
@@ -176,9 +161,6 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 1
-        max: 2
 
     chips:
       a-series:
@@ -202,9 +184,6 @@ platforms:
       tiers:
         recommended: 2
         max: 3
-      hops:
-        recommended: 1
-        max: 2
 
     chips:
       phone-qualcomm:
@@ -213,10 +192,7 @@ platforms:
 
       tablet-exynos:
         mst: 0
-        limits:
-          hops:
-            recommended: 1
-            max: 2
+        limits: {}
 
 
 # -----------------------------------------------------------------------------

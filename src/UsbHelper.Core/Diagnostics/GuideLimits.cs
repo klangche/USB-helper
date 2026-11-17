@@ -12,11 +12,11 @@ public sealed record GuideLimit(long? Value, bool Verified, string? Source, stri
 
 /// <summary>
 /// Reads the limits of the selected guide (#285): the guide's chip, platform and all-platforms values, then
-/// USB-Helper's the same way. Hubs, tiers and hops are each checked on their own; nothing is worked out between them.
+/// USB-Helper's the same way. Hubs and tiers are each checked on their own; nothing is worked out between them.
 /// </summary>
 public static class GuideLimits
 {
-    /// <param name="path">For example <c>usb2.hops.max</c> or <c>camera_audio.tiers.recommended</c>.</param>
+    /// <param name="path">For example <c>usb2.tiers.max</c> or <c>camera_audio.tiers.recommended</c>.</param>
     public static GuideLimit Of(ResolvedProfile? profile, Guide? guide, string path)
     {
         if (profile == null || guide?.Limit(profile.Platform, profile.Chip, path) is not { } found)
@@ -29,7 +29,7 @@ public static class GuideLimits
     }
 
     /// <summary>
-    /// The name a limit has in findings and the log, whatever the bus: <c>hops.max</c> is <c>limits.max_hops</c>,
+    /// The name a limit has in findings and the log, whatever the bus: <c>tiers.max</c> is <c>limits.max_tiers</c>,
     /// <c>camera_audio.tiers.recommended</c> is <c>limits.camera_audio_recommended_tiers</c>.
     /// </summary>
     public static string Field(string path)
@@ -39,7 +39,7 @@ public static class GuideLimits
     }
 
     /// <summary>
-    /// A limit such as <c>hops.max</c> on one bus (<c>usb2</c> or <c>usb3</c>). For a bus the operating system does not
+    /// A limit such as <c>tiers.max</c> on one bus (<c>usb2</c> or <c>usb3</c>). For a bus the operating system does not
     /// report (null), the lowest of the values stated for USB 2 and USB 3 applies (owner decision 2026-11-17, #285).
     /// </summary>
     public static GuideLimit OnBus(ResolvedProfile? profile, Guide? guide, string? bus, string path) =>

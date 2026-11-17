@@ -126,11 +126,6 @@
           "message": "limits.max_tiers is unknown (USB-Helper: platforms.os.chips.p.limits.tiers.max none in guides/usb-helper.yaml)."
         },
         {
-          "kind": "unknown",
-          "subject": "This computer",
-          "message": "limits.max_hops is unknown (USB-Helper: platforms.os.chips.p.limits.hops.max none in guides/usb-helper.yaml)."
-        },
-        {
           "kind": "detected_fact",
           "subject": "This computer",
           "message": "1 external displays are active (DisplayLink and wireless displays not counted)."
@@ -166,11 +161,6 @@
           "kind": "verified_database_fact",
           "subject": "Latitude 7450",
           "message": "limits.max_tiers = 7 (USB-Helper: limits.tiers.max 7 in guides/usb-helper.yaml)."
-        },
-        {
-          "kind": "verified_database_fact",
-          "subject": "Latitude 7450",
-          "message": "limits.max_hops = 5 (USB-Helper: limits.hops.max 5 in guides/usb-helper.yaml)."
         },
         {
           "kind": "detected_fact",

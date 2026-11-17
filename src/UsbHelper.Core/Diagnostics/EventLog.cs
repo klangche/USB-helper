@@ -222,9 +222,10 @@ public sealed class EventLog(TimeProvider? clock = null)
     public void GuidePicked(string? name) => Add($"Guide picked: {name ?? "none"}");
 
     /// <param name="name">The hub or device the marked line leads to.</param>
-    /// <param name="hops">The extra hops; 0 when the mark was removed.</param>
-    public void CableMark(string name, int hops) =>
-        Add(hops == 0 ? $"Cable mark removed from the line to {name}" : $"Cable mark: +{hops} hops on the line to {name}");
+    /// <param name="mark">The mark: it adds that many tiers and at most 2 hubs; 0 when the mark was removed.</param>
+    public void CableMark(string name, int mark) =>
+        Add(mark == 0 ? $"Cable mark removed from the line to {name}"
+            : $"Cable mark: +{mark} tiers, +{Topology.TopologyCounts.MarkHubs(mark)} hubs on the line to {name}");
 
     /// <summary>
     /// The current findings with the profile each belongs to (null: none checked). Each is logged when it appears; one

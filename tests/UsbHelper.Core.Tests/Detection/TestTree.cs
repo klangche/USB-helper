@@ -41,7 +41,7 @@ internal static class TestTree
 
     /// <summary>
     /// Shaped like the Mac16,13 tester log of 2026-11-05 (#191): 8 hubs in all, of which the USB 2 bus has 6 with the
-    /// deepest at tier 5, hop 3, and the USB 3 bus 2, the deepest at tier 3, hop 1. The capture itself is not in the
+    /// deepest at tier 5, and the USB 3 bus 2, the deepest at tier 3. The capture itself is not in the
     /// repository; the shape is built from the numbers in #195.
     /// </summary>
     public static IReadOnlyList<UsbNode> TesterMac() =>

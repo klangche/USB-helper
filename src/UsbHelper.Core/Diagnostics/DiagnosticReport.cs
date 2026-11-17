@@ -16,16 +16,12 @@ public sealed record DiagnosticReport(
     IReadOnlyDictionary<string, ConnectionStatus> Connections,
     LimitCheck Hubs,
     LimitCheck Tiers,
-    LimitCheck Hops,
     DisplayCheck Displays,
     IReadOnlyList<MissingDevice> Missing,
     IReadOnlyList<Finding> Findings)
 {
-    /// <summary>Tier and hop of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
+    /// <summary>Tier of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
     public IReadOnlyDictionary<string, Topology.ConnectionDepth> Depths { get; init; } = new Dictionary<string, Topology.ConnectionDepth>();
-
-    /// <summary>The deepest hop against <c>limits.recommended_hops</c>; above it but within the maximum is potentially unstable.</summary>
-    public LimitCheck? RecommendedHops { get; init; }
 
     /// <summary>
     /// More than one DisplayPort display is active and the profile does not support MST (#296): a warning, not a status;

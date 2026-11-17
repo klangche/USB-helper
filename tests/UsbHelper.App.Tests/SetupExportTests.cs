@@ -50,7 +50,7 @@ public class SetupExportTests
         viewModel.RoomName = "Room 4.12";
         viewModel.Load(Desk());
         viewModel.Computers.Single().IsChecked = true;
-        All(viewModel.Roots).Single(item => item.Id == "DOCK").ExtraHops = 1;
+        All(viewModel.Roots).Single(item => item.Id == "DOCK").MarkLevel = 1;
         return viewModel;
     }
 
@@ -65,9 +65,9 @@ public class SetupExportTests
         {
             option.IsChecked = setup.CheckedProfiles.Contains(option.Profile.Id);
         }
-        foreach (var (port, hops) in setup.Marks)
+        foreach (var (port, mark) in setup.Marks)
         {
-            All(viewModel.Roots).Single(item => item.PortId == port).ExtraHops = hops;
+            All(viewModel.Roots).Single(item => item.PortId == port).MarkLevel = mark;
         }
         return viewModel;
     }

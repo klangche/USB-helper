@@ -58,8 +58,8 @@ public class ReportPdfTests
         Assert.Contains("\nmacOS on Apple silicon Stable\n", results);
         Assert.Contains("\nLimitations\n", results);
         // One row for the limitation both computers share, before the less severe one.
-        Assert.Contains("\nMost hops 3 2 Unstable Dell Latitude 7450\nHP EliteBook 840 G10\nRecommended hops 3 2 Potentially unstable Windows on Intel\n", results);
-        Assert.Single(results.Split('\n'), line => line.StartsWith("Most hops", StringComparison.Ordinal));
+        Assert.Contains("\nDeepest tier 4 3 Unstable Dell Latitude 7450\nHP EliteBook 840 G10\n", results);
+        Assert.Single(results.Split('\n'), line => line.StartsWith("Deepest tier", StringComparison.Ordinal));
         Assert.DoesNotContain("Stable for all checked profiles", results);
     }
 
@@ -100,7 +100,7 @@ public class ReportPdfTests
     {
         var model = ReportSamples.Full(null);
         var profiles = model.Profiles.ToList();
-        profiles[0] = profiles[0] with { Checks = [.. profiles[0].Checks.Take(3), new ReportCheck("External displays", 2, null, ConnectionStatus.Grey)] };
+        profiles[0] = profiles[0] with { Checks = [.. profiles[0].Checks.Take(2), new ReportCheck("External displays", 2, null, ConnectionStatus.Grey)] };
 
         var results = Results(model with { Profiles = profiles });
 
@@ -334,7 +334,7 @@ public class ReportPdfTests
     {
         var profiles = Enumerable.Range(1, 5).Select(i => $"Very long computer profile name number {i} (Generation 12, Intel vPro)").ToList();
         var word = string.Concat(Enumerable.Repeat("Unbreakable", 19))[..200];
-        var findings = profiles.Select(profile => new ReportFinding(FactKind.PredictedRisk, profile, "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."))
+        var findings = profiles.Select(profile => new ReportFinding(FactKind.PredictedRisk, profile, "Crestron TSW-1070 touch panel", "Tier depth 4 exceeds limits.max_tiers 3."))
             .Append(new ReportFinding(FactKind.DetectedFact, null, "Device", $"Problem code {word} reported."))
             .Append(new ReportFinding(FactKind.Unknown, profiles[0], word, "Unknown."))
             .ToList();
@@ -512,25 +512,22 @@ public class ReportPdfTests
         Assert.Equal("Latitude 7450", model.Computer.Model);
         Assert.Equal(1, model.Counts.Hubs);
         Assert.Equal(2, model.Profiles.Count); // The detected platform's profile is checked at start.
-        Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "Most hops", "External displays"],
-            profile.Checks.Take(4).Select(check => check.Name)));
+        Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "External displays"],
+            profile.Checks.Take(3).Select(check => check.Name)));
         Assert.Equal(new ReportDisplay("DELL U2723QE", "HDMI", null), Assert.Single(model.Displays!));
         Assert.Contains(model.Tree, row => row.Text == "KEYBOARD" && row.Level == 6 && row.Status != null);
         Assert.Contains(model.Tree, row => row.Text == "Port 1" && row.PortType == "USB-C");
         Assert.Equal(TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine).Length, model.Tree.Count);
     }
 
-    private static DiagnosticReport Evaluated(int hops, long maxHops, long recommendedHops, int missing = 0)
+    private static DiagnosticReport Evaluated(int tiers, long maxTiers, int missing = 0)
     {
         static LimitCheck Limit(string field, int actual, long limit) =>
             new(field, actual, limit, true, null, actual > limit ? LimitState.Exceeded : LimitState.Within);
         var device = new MissingDevice(Device("SPEAKER"), "ROOT|port1", "Port 1", []);
         return new DiagnosticReport(ConnectionStatus.Green, new Dictionary<string, ConnectionStatus>(), Limit("limits.max_hubs", 1, 5),
-            Limit("limits.max_tiers", 3, 7), Limit("limits.max_hops", hops, maxHops),
-            new DisplayCheck(1, 2, true, null, LimitState.Within, []), [.. Enumerable.Repeat(device, missing)], [])
-        {
-            RecommendedHops = Limit("limits.recommended_hops", hops, recommendedHops),
-        };
+            Limit("limits.max_tiers", tiers, maxTiers),
+            new DisplayCheck(1, 2, true, null, LimitState.Within, []), [.. Enumerable.Repeat(device, missing)], []);
     }
 
     [Fact]
@@ -540,17 +537,12 @@ public class ReportPdfTests
         [
             new ReportCheck("External hubs", 5, 1, ConnectionStatus.Green),
             new ReportCheck("Deepest tier", 7, 3, ConnectionStatus.Green),
-            new ReportCheck("Most hops", 5, 3, ConnectionStatus.Green),
             new ReportCheck("External displays", 2, 1, ConnectionStatus.Green),
-            new ReportCheck("Recommended hops", 2, 3, ConnectionStatus.Orange),
-        ], MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 5, recommendedHops: 2)));
+        ], MainViewModel.ReportChecks(Evaluated(tiers: 3, maxTiers: 7)));
 
-        // Above the maximum the recommendation is not repeated.
-        var exceeded = MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 2, recommendedHops: 1));
-        Assert.Contains(new ReportCheck("Most hops", 2, 3, ConnectionStatus.Purple), exceeded);
-        Assert.DoesNotContain(exceeded, check => check.Name == "Recommended hops");
+        Assert.Contains(new ReportCheck("Deepest tier", 2, 3, ConnectionStatus.Purple), MainViewModel.ReportChecks(Evaluated(tiers: 3, maxTiers: 2)));
 
         Assert.Equal(new ReportCheck("Disconnected devices", null, 1, ConnectionStatus.Red),
-            MainViewModel.ReportChecks(Evaluated(hops: 3, maxHops: 5, recommendedHops: 5, missing: 1))[^1]);
+            MainViewModel.ReportChecks(Evaluated(tiers: 3, maxTiers: 7, missing: 1))[^1]);
     }
 }
