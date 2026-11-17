@@ -6,10 +6,12 @@ using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Diagnostics;
 
-/// <summary>The rules of #284 on the repository's database: platform facts, the USB maximum and the PureLink guide.</summary>
+/// <summary>The guide rules of #285 on the repository's database: USB-Helper's guide by default, PureLink when picked.</summary>
 public class GuideRulesTests
 {
     private static readonly HardwareDatabase Db = HardwareDatabase.Load(RealDatabaseTests.DatabaseFolder());
+
+    private static Guide UsbHelper => Db.DefaultGuide;
 
     private static Guide PureLink => Db.Guides["purelink"];
 
@@ -18,15 +20,20 @@ public class GuideRulesTests
 
     private static UsbNode Behind(int hubs, UsbNode device) => hubs == 0 ? device : Hub($"HUB{hubs}", Behind(hubs - 1, device));
 
+    private static DiagnosticReport Evaluate(ResolvedProfile profile, int hubs, UsbNode device, Guide? guide) =>
+        DiagnosticEvaluator.Evaluate(Chain(hubs, device), profile, [], externalDisplays: 0, guide: guide);
+
     private static ConnectionStatus StatusOf(string profile, int hubs, UsbNode device, Guide? guide) =>
-        DiagnosticEvaluator.Evaluate(Chain(hubs, device), Db.Platforms[profile], [], externalDisplays: 0, guide: guide).Connections[device.Id];
+        Evaluate(Db.Platforms[profile], hubs, device, guide).Connections[device.Id];
+
+    private static UsbNode Camera => Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera };
 
     // Today's merged values before #284: purple above the maximum, orange above the recommendation.
     private static ConnectionStatus Today(int hubs, int max, int recommended) =>
         hubs > max ? ConnectionStatus.Purple : hubs > recommended ? ConnectionStatus.Orange : ConnectionStatus.Green;
 
-    // #285: with PureLink, every device gets the same colour as with today's merged values (Windows 5 / 2, Apple silicon
-    // 4 / 1, A-series 3 / 1 after the floor of 1 hub).
+    // USB-Helper's guide (the default) keeps today's colours: Windows 5 / 2, M-series 4 / 1, A-series 3 / 1 (the
+    // recommendation never below 1 hub).
     [Theory]
     [InlineData("windows-intel", 5, 2)]
     [InlineData("windows-amd", 5, 2)]
@@ -39,15 +46,14 @@ public class GuideRulesTests
     [InlineData("linux-arm", 5, 2)]
     [InlineData("android-phone-qualcomm", 5, 2)]
     [InlineData("android-tablet-exynos", 4, 1)]
-    public void PureLinkGivesTodaysColours(string profile, int max, int recommended)
+    public void UsbHelperGivesTodaysColours(string profile, int max, int recommended)
     {
         for (var hubs = 0; hubs <= 7; hubs++)
         {
-            Assert.Equal(Today(hubs, max, recommended), StatusOf(profile, hubs, Device("KEYBOARD"), PureLink));
+            Assert.Equal(Today(hubs, max, recommended), StatusOf(profile, hubs, Device("KEYBOARD"), UsbHelper));
         }
     }
 
-    // The MacBook Neo is an A-series Mac: the same colours as macos-a-series.
     [Fact]
     public void MacBookNeoGetsTheASeriesColours()
     {
@@ -55,125 +61,124 @@ public class GuideRulesTests
 
         for (var hubs = 0; hubs <= 5; hubs++)
         {
-            var report = DiagnosticEvaluator.Evaluate(Chain(hubs, Device("KEYBOARD")), neo, [], externalDisplays: 0, guide: PureLink);
-            Assert.Equal(Today(hubs, 3, 1), report.Connections["KEYBOARD"]);
+            Assert.Equal(Today(hubs, 3, 1), Evaluate(neo, hubs, Device("KEYBOARD"), UsbHelper).Connections["KEYBOARD"]);
         }
     }
 
-    // #284: with no guide, only the USB maximum applies, so nothing is potentially unstable by depth.
-    [Theory]
-    [InlineData("windows-intel", 5)]
-    [InlineData("macos-apple-silicon", 4)]
-    [InlineData("macos-a-series", 3)]
-    public void WithoutAGuideOnlyTheMaximumApplies(string profile, int max)
+    // Every limit is in the guides: without one, nothing is known.
+    [Fact]
+    public void WithoutAGuideNothingIsJudged()
     {
-        for (var hubs = 0; hubs <= 7; hubs++)
-        {
-            Assert.Equal(hubs > max ? ConnectionStatus.Purple : ConnectionStatus.Green, StatusOf(profile, hubs, Device("KEYBOARD"), null));
-        }
+        var report = Evaluate(Db.Platforms["windows-intel"], 6, Device("KEYBOARD"), null);
+
+        Assert.Equal(ConnectionStatus.Grey, report.Connections["KEYBOARD"]);
+        Assert.Null(report.Hops.Limit);
     }
 
+    // PureLink, strict: four tiers recommended, built-in hub levels counted, so on an A-series chip a device behind any
+    // hub is potentially unstable (owner decision 2026-11-17). Its empty values are USB-Helper's.
     [Fact]
-    public void WithoutAGuideNoRecommendationIsNamed()
+    public void PureLinkCountsTiersWithTheBuiltInHubLevels()
     {
-        var report = DiagnosticEvaluator.Evaluate(Chain(3, Device("KEYBOARD")), Db.Platforms["windows-intel"], [], externalDisplays: 0);
-
-        Assert.Null(report.RecommendedHops!.Limit);
-        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("recommended", StringComparison.Ordinal));
-        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.VerifiedDatabaseFact
-            && finding.Message == "limits.max_hops = 5 (usb.max_tiers 7 in base.yaml; built_in_hub_levels 0 in platforms/windows.yaml).");
+        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 0, Device("KEYBOARD"), PureLink));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("macos-a-series", 1, Device("KEYBOARD"), PureLink));
+        Assert.Equal(ConnectionStatus.Purple, StatusOf("macos-a-series", 4, Device("KEYBOARD"), PureLink)); // USB-Helper's hops.max 3.
+        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("KEYBOARD"), PureLink));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 3, Device("KEYBOARD"), PureLink));
     }
 
-    // The findings name the guide and every file a number comes from.
+    // Findings and the log name the guide and the file each number comes from.
     [Fact]
-    public void FindingsNameTheGuideAndTheFiles()
+    public void FindingsNameTheGuideAndTheFile()
     {
-        var report = DiagnosticEvaluator.Evaluate(Chain(2, Device("KEYBOARD")), Db.Platforms["macos-a-series"], [], externalDisplays: 0, guide: PureLink);
+        var report = Evaluate(Db.Platforms["macos-a-series"], 1, Device("KEYBOARD"), PureLink);
 
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_hops = 1 (PureLink: recommended_tiers 4 in guides/purelink.yaml; "
-            + "built_in_hub_levels 2 in platforms/macos.yaml; min_recommended_hubs 1 in guides/purelink.yaml).");
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.SubjectId == "KEYBOARD"
-            && finding.Message == "Hop depth 2 exceeds the recommended limits.recommended_hops 1; limits.max_hops is 3.");
+            && finding.Message == "Tier depth 5 exceeds the recommended limits.recommended_tiers 4; limits.max_tiers is 7.");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (PureLink: tiers.recommended 4 in guides/purelink.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: hops.max 3 in guides/usb-helper.yaml).");
     }
 
-    // #275 and #284: a camera or audio device gets PureLink's stricter recommendation (3 tiers, never below 1 hub); the
-    // maximum stays the USB maximum. Other devices at the same depth keep the general recommendation.
+    // #275 and #285: cameras and audio devices get their own limits on top of the general ones.
     [Theory]
     [InlineData(UsbDeviceKind.Camera)]
     [InlineData(UsbDeviceKind.Audio)]
     [InlineData(UsbDeviceKind.CameraAndAudio)]
-    public void CamerasAndAudioDevicesGetTheStricterRecommendation(UsbDeviceKind kind)
+    public void CamerasAndAudioDevicesGetUsbHelpersStricterRecommendation(UsbDeviceKind kind)
     {
-        var camera = Device("CAMERA") with { DeviceKind = kind };
+        var device = Device("CAMERA") with { DeviceKind = kind };
 
-        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, camera, PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, camera, PureLink));
-        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("KEYBOARD") with { DeviceKind = UsbDeviceKind.Neither }, PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 5, camera, PureLink));
-        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 6, camera, PureLink));
-        // Apple silicon and A-series: 3 tiers would leave no hub, so the floor of 1 hub applies.
-        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-apple-silicon", 1, camera, PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("macos-apple-silicon", 2, camera, PureLink));
-        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 1, camera, PureLink));
+        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 5, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 6, device, UsbHelper));
+        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("KEYBOARD") with { DeviceKind = UsbDeviceKind.Neither }, UsbHelper));
+        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("THING") with { DeviceKind = UsbDeviceKind.Unknown }, UsbHelper));
+        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 1, device, UsbHelper));
     }
 
+    // PureLink: webcams and audio interfaces 3 tiers recommended, 4 at most.
     [Fact]
-    public void CameraFindingSaysWhyItIsJudgedMoreStrictly()
+    public void PureLinkLimitsCamerasToThreeOrFourTiers()
     {
-        var camera = Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera };
-
-        var report = DiagnosticEvaluator.Evaluate(Chain(2, camera), Db.Platforms["windows-intel"], [], externalDisplays: 0, guide: PureLink);
-
-        Assert.Contains(new Finding(FactKind.PredictedRisk, "CAMERA", "CAMERA",
-            "Hop depth 2 exceeds the recommended limits.camera_audio_recommended_hops 1 for cameras and audio devices; limits.max_hops is 5."), report.Findings);
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.camera_audio_recommended_hops = 1 (PureLink: camera_audio_recommended_tiers 3 "
-            + "in guides/purelink.yaml; built_in_hub_levels 0 in platforms/windows.yaml; min_recommended_hubs 1 in guides/purelink.yaml).");
+        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, Camera, PureLink));
+        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, Camera, PureLink));
+        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 3, Camera, PureLink));
+        Assert.Contains(Evaluate(Db.Platforms["windows-intel"], 3, Camera, PureLink).Findings, finding => finding.SubjectId == "CAMERA"
+            && finding.Message == "Tier depth 5 exceeds limits.camera_audio_max_tiers 4 for cameras and audio devices.");
     }
 
-    // A device whose kind is unknown is never judged as a camera.
+    // An exceeded limit shows the most specific exceeded_note of the guide that set it: the chip's over the platform's.
     [Fact]
-    public void UnknownKindIsJudgedByTheGeneralRecommendation()
+    public void ExceededLimitShowsTheChipsNote()
     {
-        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("THING") with { DeviceKind = UsbDeviceKind.Unknown }, PureLink));
-    }
-
-    // A guide without a camera and audio recommendation: cameras get the general one, and the log says so.
-    [Fact]
-    public void GuideWithoutACameraRecommendationFallsBackToTheGeneralOne()
-    {
-        using var db = new TestDatabase().WriteGuide("  recommended_tiers: 3");
-        var loaded = db.Load();
-        var camera = Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera };
-
-        var report = DiagnosticEvaluator.Evaluate(Chain(2, camera), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.Guides["guide"]);
-
-        Assert.Equal(ConnectionStatus.Orange, report.Connections["CAMERA"]);
-        Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk
-            && finding.Message.StartsWith("Hop depth 2 exceeds the recommended limits.recommended_hops 1", StringComparison.Ordinal));
-        Assert.Contains(report.Findings, finding => finding.Message
-            == "Guide sets no camera_audio_recommended_tiers (guides/guide.yaml), so cameras and audio devices are judged by limits.recommended_hops.");
-    }
-
-    // A guide may set a stricter maximum than the USB specification.
-    [Fact]
-    public void GuideMaximumIsStricterThanTheUsbMaximum()
-    {
-        using var db = new TestDatabase().WriteGuide("  max_tiers: 5");
+        using var db = new TestDatabase();
+        db.UsbHelper["hops.max"] = "0";
+        db.UsbHelper["platforms.test.limits.exceeded_note"] = "\"Platform note.\"";
+        db.UsbHelper["platforms.test.chips.platform.limits.exceeded_note"] = "\"Chip note.\"";
         var loaded = db.Load();
 
-        var limit = DepthLimits.MaxHops(loaded.Platforms["test-platform"], loaded.Guides["guide"]);
+        var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.DefaultGuide);
 
-        Assert.Equal(3L, limit.Value);
-        Assert.Equal("Guide: max_tiers 5 in guides/guide.yaml; built_in_hub_levels 0 in platforms/test.yaml", limit.Source);
+        Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Chip note.");
     }
 
-    // With several profiles checked, the strictest is worked out with the selected guide.
+    // An empty note falls back to USB-Helper's, like the numbers.
+    [Fact]
+    public void EmptyNoteFallsBackToUsbHelpers()
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper["exceeded_note"] = "\"Use a powered hub.\"";
+        db.WriteGuide(new() { ["hops.max"] = "0" });
+        var loaded = db.Load();
+
+        var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.Guides["guide"]);
+
+        Assert.Contains(report.Findings, finding => finding.Brief == "Hop depth 1 exceeds limits.max_hops 0. Use a powered hub.");
+        Assert.Contains(report.Findings, finding => finding.Message.StartsWith("limits.max_hops = 0 (Guide: hops.max 0 in guides/guide.yaml)", StringComparison.Ordinal));
+    }
+
+    // USB 2.0: a 7-bit device address, so at most 127 devices on one controller (base.yaml).
+    [Fact]
+    public void MoreDevicesThanAddressesOnOneControllerIsUnstable()
+    {
+        using var db = new TestDatabase();
+        var loaded = db.Load();
+        IReadOnlyList<UsbNode> full = [Controller("C1", Hub("ROOT", [.. Enumerable.Range(0, 128).Select(i => Device($"D{i}"))]))];
+
+        var report = DiagnosticEvaluator.Evaluate(full, loaded.Platforms["test-platform"], [], externalDisplays: 0, guide: loaded.DefaultGuide);
+
+        Assert.Equal(ConnectionStatus.Purple, report.Overall);
+        Assert.Contains(report.Findings, finding => finding.SubjectId == "C1"
+            && finding.Message == "128 devices are connected to this controller; usb.max_devices_per_controller is 127 (base.yaml).");
+    }
+
     [Fact]
     public void StrictestProfileUsesTheGuide()
     {
         IReadOnlyList<ResolvedProfile> profiles = [Db.Platforms["windows-intel"], Db.Platforms["macos-a-series"], Db.Platforms["macos-apple-silicon"]];
 
-        Assert.Equal(1, StrictestProfile.Of(profiles, PureLink));
-        Assert.Equal(1, StrictestProfile.Of(profiles));
+        Assert.Equal(1, StrictestProfile.Of(profiles, UsbHelper));
+        Assert.Equal(0, StrictestProfile.Of(profiles));
     }
 }

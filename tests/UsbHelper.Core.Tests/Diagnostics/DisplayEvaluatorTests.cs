@@ -14,13 +14,10 @@ public class DisplayEvaluatorTests
     {
         using var db = new TestDatabase();
         db.Write("computers/c.yaml", $"""
-            inherits: test-platform
+            platform: test
+            chip_family: platform
             manufacturer: Test
             model: Test laptop
-            limits:
-              max_hubs: 5
-              max_tiers: 7
-              max_hops: 5
             displays:
               max_external: {maxExternal}
             {displays}
@@ -40,6 +37,23 @@ public class DisplayEvaluatorTests
 
     private static DiagnosticReport Evaluate(ResolvedProfile profile, params DisplayMonitor[] monitors) =>
         DiagnosticEvaluator.Evaluate(Desk, profile, [], DisplayMonitor.ExternalCount(monitors), monitors: monitors);
+
+    // Owner decision 2026-11-17 (#285): MST comes from the guide (1 or 0) unless the computer file states it.
+    [Theory]
+    [InlineData("0", ConnectionStatus.Orange)]
+    [InlineData("1", ConnectionStatus.Green)]
+    public void MstComesFromTheGuide(string mst, ConnectionStatus second)
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper["platforms.test.chips.platform.mst"] = mst;
+        db.WriteComputer("computers/c.yaml", "Test laptop");
+        var loaded = db.Load();
+
+        var report = DiagnosticEvaluator.Evaluate(Desk, loaded.Computers.Values.Single(), [], 2, monitors: [Left, Right], guide: loaded.DefaultGuide);
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections.GetValueOrDefault("L", ConnectionStatus.Green));
+        Assert.Equal(second, report.Connections.GetValueOrDefault("R", ConnectionStatus.Green));
+    }
 
     // Owner decision in #144: without MST, the first DisplayPort display is judged as usual, every further one is orange.
     [Fact]

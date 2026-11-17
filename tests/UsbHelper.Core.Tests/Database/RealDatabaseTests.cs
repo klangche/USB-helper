@@ -30,7 +30,7 @@ public class RealDatabaseTests
                 "macos-a-series", "macos-apple-silicon", "macos-intel", "windows-amd", "windows-arm", "windows-intel",
             ],
             db.Platforms.Keys.Order());
-        Assert.Equal(["ochno", "purelink", "unisynk"], db.Guides.Keys.Order());
+        Assert.Equal(["ochno", "purelink", "unisynk", "usb-helper"], db.Guides.Keys.Order());
         Assert.Equal("arm64", db.Platforms["macos-apple-silicon"].Find("architecture")!.Scalar);
     }
 
@@ -72,52 +72,56 @@ public class RealDatabaseTests
         Assert.NotEmpty(profile.Find("sources")!.Items);
     }
 
-    // #284: with PureLink, today's merged values (Windows 5 / 2; Apple silicon 4 / 1; A-series 3 / 1 after the floor of
-    // 1 hub); cameras and audio devices one tier stricter, never below 1 hub.
+    // USB-Helper's guide, the default (to be confirmed by the owner): today's merged values as hops, the recommendation
+    // never below 1 hub; cameras and audio devices 1 hub recommended, the general maximum; tiers at most 7.
     [Theory]
-    [InlineData("windows-intel", 5, 2, 1)]
-    [InlineData("windows-amd", 5, 2, 1)]
-    [InlineData("windows-arm", 5, 2, 1)]
-    [InlineData("macos-intel", 5, 2, 1)]
-    [InlineData("macos-apple-silicon", 4, 1, 1)]
-    [InlineData("macos-a-series", 3, 1, 1)]
-    [InlineData("apple-mobile-a-series", 3, 1, 1)]
-    [InlineData("linux-x64", 5, 2, 1)]
-    [InlineData("linux-arm", 5, 2, 1)]
-    [InlineData("android-phone-qualcomm", 5, 2, 1)]
-    [InlineData("android-tablet-exynos", 4, 1, 1)]
-    public void PureLinkGivesTodaysHopLimits(string id, long maxHops, long recommendedHops, long cameraAudioHops)
+    [InlineData("windows-intel", 5, 2)]
+    [InlineData("windows-amd", 5, 2)]
+    [InlineData("windows-arm", 5, 2)]
+    [InlineData("macos-intel", 5, 2)]
+    [InlineData("macos-apple-silicon", 4, 1)]
+    [InlineData("macos-a-series", 3, 1)]
+    [InlineData("apple-mobile-a-series", 3, 1)]
+    [InlineData("linux-x64", 5, 2)]
+    [InlineData("linux-arm", 5, 2)]
+    [InlineData("android-phone-qualcomm", 5, 2)]
+    [InlineData("android-tablet-exynos", 4, 1)]
+    public void UsbHelperGivesTodaysHopLimits(string id, long maxHops, long recommendedHops)
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
         var profile = db.Platforms[id];
-        var purelink = db.Guides["purelink"];
 
-        Assert.Equal(maxHops, DepthLimits.MaxHops(profile, purelink).Value);
-        Assert.Equal(recommendedHops, DepthLimits.RecommendedHops(profile, purelink).Value);
-        Assert.Equal(cameraAudioHops, DepthLimits.CameraAudioRecommendedHops(profile, purelink).Value);
-        Assert.True(DepthLimits.MaxHops(profile, purelink).Verified);
-        Assert.True(DepthLimits.RecommendedHops(profile, purelink).Verified);
-        // Without a guide, only the USB maximum.
-        Assert.Equal(maxHops, DepthLimits.MaxHops(profile, null).Value);
-        Assert.Null(DepthLimits.RecommendedHops(profile, null).Value);
+        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Value);
+        Assert.Equal(recommendedHops, GuideLimits.Of(profile, db.DefaultGuide, "hops.recommended").Value);
+        Assert.Equal(1L, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.recommended").Value);
+        Assert.Equal(maxHops, GuideLimits.Of(profile, db.DefaultGuide, "camera_audio.hops.max").Value);
+        Assert.Equal(7L, GuideLimits.Of(profile, db.DefaultGuide, "tiers.max").Value);
+        Assert.Null(GuideLimits.Of(profile, db.DefaultGuide, "hubs.max").Value);
+        Assert.True(GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Verified);
     }
 
+    // PureLink, strict to its guide: tiers only; every empty value is USB-Helper's.
     [Fact]
     public void PureLinkGuideHasItsLimits()
     {
-        var purelink = HardwareDatabase.Load(DatabaseFolder()).Guides["purelink"];
+        var db = HardwareDatabase.Load(DatabaseFolder());
+        var purelink = db.Guides["purelink"];
+        var windows = db.Platforms["windows-intel"];
 
         Assert.Equal("PureLink", purelink.Name);
         Assert.True(purelink.Selectable);
-        Assert.Equal(4L, purelink.Find("limits.recommended_tiers")!.Scalar);
-        Assert.Equal(3L, purelink.Find("limits.camera_audio_recommended_tiers")!.Scalar);
-        Assert.Equal(1L, purelink.Find("limits.min_recommended_hubs")!.Scalar);
-        Assert.Null(purelink.Find("limits.max_tiers"));
+        Assert.Same(db.DefaultGuide, purelink.Fallback);
+        Assert.Equal(4L, GuideLimits.Of(windows, purelink, "tiers.recommended").Value);
+        Assert.Equal(7L, GuideLimits.Of(windows, purelink, "tiers.max").Value);
+        Assert.Equal(3L, GuideLimits.Of(windows, purelink, "camera_audio.tiers.recommended").Value);
+        Assert.Equal(4L, GuideLimits.Of(windows, purelink, "camera_audio.tiers.max").Value);
+        Assert.Equal("PureLink: tiers.recommended 4 in guides/purelink.yaml", GuideLimits.Of(windows, purelink, "tiers.recommended").Source);
+        Assert.Equal("USB-Helper: hops.max 5 in guides/usb-helper.yaml", GuideLimits.Of(windows, purelink, "hops.max").Source);
         Assert.Equal("partial", purelink.Status);
         Assert.Contains(purelink.Find("sources")!.Items, source => ((string)source.Scalar!).StartsWith("PureLink, USB-C whitepaper", StringComparison.Ordinal));
     }
 
-    // Listed, not selectable until filled in (#284).
+    // Listed, not selectable until filled in (#284): every value empty.
     [Theory]
     [InlineData("ochno", "Ochno")]
     [InlineData("unisynk", "Unisynk")]
@@ -127,28 +131,52 @@ public class RealDatabaseTests
 
         Assert.Equal(name, guide.Name);
         Assert.False(guide.Selectable);
-        Assert.Null(guide.Find("limits"));
+        Assert.Equal(ValueKind.Null, guide.Find("limits.tiers.max")!.Kind);
+        Assert.Equal(ValueKind.Null, guide.Find("platforms.macos.chips.a-series.limits.hops.max")!.Kind);
     }
 
-    // Owner decision 2026-11-16: MST is a property of the operating system, so every platform file has the field:
-    // false on macOS, true on Windows, null (unknown) elsewhere.
-    [Theory]
-    [InlineData("macos-apple-silicon", false)]
-    [InlineData("macos-a-series", false)]
-    [InlineData("macos-intel", false)]
-    [InlineData("windows-intel", true)]
-    [InlineData("windows-amd", true)]
-    [InlineData("windows-arm", true)]
-    [InlineData("linux-x64", null)]
-    [InlineData("linux-arm", null)]
-    [InlineData("android-phone-qualcomm", null)]
-    [InlineData("android-tablet-exynos", null)]
-    [InlineData("apple-mobile-a-series", null)]
-    public void EveryPlatformSaysWhetherItSupportsMst(string id, bool? mst)
+    // Every guide file has the same shape: the same lines, only the values differ.
+    [Fact]
+    public void EveryGuideFileHasTheSameShape()
     {
-        var platform = HardwareDatabase.Load(DatabaseFolder()).Platforms[id];
+        static IEnumerable<string> Shape(string file) => File.ReadAllLines(Path.Combine(DatabaseFolder(), "guides", file))
+            .TakeWhile(line => !line.StartsWith("notes:", StringComparison.Ordinal))
+            .Where(line => line.StartsWith(' ') || line.StartsWith("limits:", StringComparison.Ordinal) || line.StartsWith("platforms:", StringComparison.Ordinal))
+            .Select(line => line.Split(':')[0]);
 
-        Assert.Equal(mst, platform.Find("displays.mst")!.Scalar);
+        foreach (var file in new[] { "purelink.yaml", "ochno.yaml", "unisynk.yaml" })
+        {
+            Assert.Equal(Shape("usb-helper.yaml"), Shape(file));
+        }
+    }
+
+    // Owner decision 2026-11-17: MST is in the guides, 1 on Windows and 0 (no) elsewhere in USB-Helper's.
+    [Theory]
+    [InlineData("macos-apple-silicon", 0)]
+    [InlineData("macos-a-series", 0)]
+    [InlineData("macos-intel", 0)]
+    [InlineData("windows-intel", 1)]
+    [InlineData("windows-amd", 1)]
+    [InlineData("windows-arm", 1)]
+    [InlineData("linux-x64", 0)]
+    [InlineData("android-tablet-exynos", 0)]
+    [InlineData("apple-mobile-a-series", 0)]
+    public void UsbHelperSaysWhetherEachPlatformSupportsMst(string id, long mst)
+    {
+        var db = HardwareDatabase.Load(DatabaseFolder());
+        var profile = db.Platforms[id];
+
+        Assert.Equal(mst, db.DefaultGuide.Mst(profile.Platform, profile.Chip)!.Number);
+        Assert.Null(profile.Find("displays.mst"));
+    }
+
+    [Fact]
+    public void BaseHoldsTheUsbFacts()
+    {
+        var windows = HardwareDatabase.Load(DatabaseFolder()).Platforms["windows-intel"];
+
+        Assert.Equal(127L, windows.Find("usb.max_devices_per_controller")!.Scalar);
+        Assert.Equal(5L, windows.Find("usb4.max_router_depth")!.Scalar);
     }
 
     // Lightware: the MacBook Neo, an A-series Mac, uses three of the seven tiers itself, leaving three hubs (#260).
@@ -162,13 +190,12 @@ public class RealDatabaseTests
         Assert.Equal("macos", neo.Platform);
         Assert.Equal("a-series", neo.Chip);
         Assert.Equal(2L, neo.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(3L, DepthLimits.MaxHops(neo, null).Value);
-        Assert.Equal(1L, DepthLimits.RecommendedHops(neo, db.Guides["purelink"]).Value);
+        Assert.Equal(3L, GuideLimits.Of(neo, db.DefaultGuide, "hops.max").Value);
+        Assert.Equal(1L, GuideLimits.Of(neo, db.DefaultGuide, "hops.recommended").Value);
         Assert.Equal(false, neo.Find("ports.usb2.displayport_alt_mode")!.Scalar);
-        // Apple: one external display. No MST is the operating system's limit, inherited from the platform file.
+        // Apple: one external display. No MST comes from the guide (macOS: 0).
         Assert.Equal(1L, neo.Find("displays.max_external")!.Scalar);
-        Assert.Equal(false, neo.Find("displays.mst")!.Scalar);
-        Assert.Equal("platforms/macos.yaml", neo.Find("displays.mst")!.File);
+        Assert.Equal(0L, db.DefaultGuide.Mst(neo.Platform, neo.Chip)!.Number);
         Assert.Equal("partial", neo.Find("verification.status")!.Scalar);
         Assert.NotEmpty(neo.Find("sources")!.Items);
     }
@@ -183,7 +210,7 @@ public class RealDatabaseTests
         Assert.Equal(4L, mac.Find("displays.max_external")!.Scalar);
         Assert.Equal(4L, mac.Find("ports.thunderbolt4.thunderbolt")!.Scalar);
         Assert.Equal(1L, mac.Find("built_in_hub_levels")!.Scalar);
-        Assert.Equal(4L, DepthLimits.MaxHops(mac, null).Value);
+        Assert.Equal(4L, GuideLimits.Of(mac, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
         Assert.NotEmpty(mac.Find("sources")!.Items);
     }
 
@@ -199,7 +226,7 @@ public class RealDatabaseTests
         Assert.Equal("windows-amd", $"{asus.Platform}-{asus.Chip}");
         Assert.Equal(0L, asus.Find("built_in_hub_levels")!.Scalar);
         Assert.Equal("platforms/windows.yaml", asus.Find("built_in_hub_levels")!.File);
-        Assert.Equal(5L, DepthLimits.MaxHops(asus, null).Value);
+        Assert.Equal(5L, GuideLimits.Of(asus, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide, "hops.max").Value);
         Assert.Equal(true, asus.Find("ports.usbc_display.displayport_alt_mode")!.Scalar);
         Assert.Null(asus.Find("ports.usbc_data.displayport_alt_mode"));
         Assert.Equal(true, asus.Find("ports.hdmi.hdmi")!.Scalar);

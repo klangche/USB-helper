@@ -47,9 +47,8 @@ public class ComputerProfileExportTests
         Assert.DoesNotContain("built_in_hub_levels", Export(Computer));
         Assert.Equal(1L, computer.Find("built_in_hub_levels")!.Scalar);
         Assert.Equal(TestDatabase.PlatformFile, computer.Find("built_in_hub_levels")!.File);
-        var hops = DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Hops;
-        Assert.Equal(4L, hops.Limit);
-        Assert.True(hops.Verified);
+        // Tiers count the built-in hub levels: the keyboard behind one hub is on tier 4.
+        Assert.Equal(4, DiagnosticEvaluator.Evaluate(Tree, computer, [], externalDisplays: 0).Tiers.Actual);
     }
 
     [Fact]
