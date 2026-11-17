@@ -67,7 +67,7 @@ limits:              # all platforms
     recommended:
     max:
   tiers:             # USB tiers as the specification counts them, built-in hub levels included
-    recommended: 4
+    recommended: 4   # an example; the shipped purelink.yaml is a blank form
     max: 7
   hops:              # external hubs in front of a device
     recommended:
@@ -75,7 +75,7 @@ limits:              # all platforms
   camera_audio:      # the same for cameras and audio devices, on top of the general limits
     tiers:
       recommended: 3
-      max: 4
+      max: none      # none: no limit stated, USB-Helper's is not used
     hops:
       recommended:
       max:
@@ -104,14 +104,13 @@ How to read a value:
 - A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
   the computer's own port is on tier 4.
 - Findings and the log name the guide, the value and the file, for example
-  `limits.recommended_tiers = 4 (PureLink: tiers.recommended 4 in guides/purelink.yaml)`, so a value that fell back reads
+  `limits.max_hops = 5 (USB-Helper: hops.max 5 in guides/usb-helper.yaml)`, so a value that fell back reads
   as USB-Helper's.
 
 | Guide | Values |
 |---|---|
 | `usb-helper` | To be confirmed by the owner: today's merged values as hops per chip (5 / 2 without built-in levels, 4 / 1 on M-series and Android tablets, 3 / 1 on A-series), `tiers.max` 7, cameras and audio 1 hop recommended, `mst` 1 on Windows and 0 elsewhere; the rest `none`. |
-| `purelink` | `tiers` 4 / 7, `camera_audio.tiers` 3 / 4; everything else empty. |
-| `ochno`, `unisynk` | Not filled in, not selectable. |
+| `purelink`, `ochno`, `unisynk` | Blank forms to send to each company (owner decision 2026-11-17): every value empty, so USB-Helper's apply. PureLink is selectable, Ochno and Unisynk are not. |
 
 ### Computer files
 

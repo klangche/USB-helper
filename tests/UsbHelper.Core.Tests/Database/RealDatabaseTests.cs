@@ -100,25 +100,30 @@ public class RealDatabaseTests
         Assert.True(GuideLimits.Of(profile, db.DefaultGuide, "hops.max").Verified);
     }
 
-    // PureLink, strict to its guide: tiers only; every empty value is USB-Helper's.
-    [Fact]
-    public void PureLinkGuideHasItsLimits()
+    // Owner decision 2026-11-17: PureLink, Ochno and Unisynk are blank forms to send out; until they come back filled
+    // in, every value resolves to USB-Helper's.
+    [Theory]
+    [InlineData("purelink", "PureLink", true)]
+    [InlineData("ochno", "Ochno", false)]
+    [InlineData("unisynk", "Unisynk", false)]
+    public void BlankGuidesFallBackToUsbHelper(string id, string name, bool selectable)
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
-        var purelink = db.Guides["purelink"];
-        var windows = db.Platforms["windows-intel"];
+        var guide = db.Guides[id];
+        string[] paths = ["hubs", "tiers", "hops", "camera_audio.tiers", "camera_audio.hops"];
 
-        Assert.Equal("PureLink", purelink.Name);
-        Assert.True(purelink.Selectable);
-        Assert.Same(db.DefaultGuide, purelink.Fallback);
-        Assert.Equal(4L, GuideLimits.Of(windows, purelink, "tiers.recommended").Value);
-        Assert.Equal(7L, GuideLimits.Of(windows, purelink, "tiers.max").Value);
-        Assert.Equal(3L, GuideLimits.Of(windows, purelink, "camera_audio.tiers.recommended").Value);
-        Assert.Equal(4L, GuideLimits.Of(windows, purelink, "camera_audio.tiers.max").Value);
-        Assert.Equal("PureLink: tiers.recommended 4 in guides/purelink.yaml", GuideLimits.Of(windows, purelink, "tiers.recommended").Source);
-        Assert.Equal("USB-Helper: hops.max 5 in guides/usb-helper.yaml", GuideLimits.Of(windows, purelink, "hops.max").Source);
-        Assert.Equal("partial", purelink.Status);
-        Assert.Contains(purelink.Find("sources")!.Items, source => ((string)source.Scalar!).StartsWith("PureLink, USB-C whitepaper", StringComparison.Ordinal));
+        Assert.Equal(name, guide.Name);
+        Assert.Equal(selectable, guide.Selectable);
+        Assert.Same(db.DefaultGuide, guide.Fallback);
+        foreach (var profile in db.Platforms.Values)
+        {
+            foreach (var path in paths.SelectMany(kind => new[] { $"{kind}.recommended", $"{kind}.max" }))
+            {
+                Assert.Same(db.DefaultGuide, guide.Limit(profile.Platform, profile.Chip, path)!.Guide);
+            }
+            Assert.Same(db.DefaultGuide, guide.Mst(profile.Platform, profile.Chip)!.Guide);
+            Assert.Null(guide.ExceededNote(profile.Platform, profile.Chip));
+        }
     }
 
     // Listed, not selectable until filled in (#284): every value empty.

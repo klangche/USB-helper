@@ -6,14 +6,12 @@ using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Diagnostics;
 
-/// <summary>The guide rules of #285 on the repository's database: USB-Helper's guide by default, PureLink when picked.</summary>
+/// <summary>The guide rules of #285 on the repository's database: USB-Helper's guide by default, another guide when picked.</summary>
 public class GuideRulesTests
 {
     private static readonly HardwareDatabase Db = HardwareDatabase.Load(RealDatabaseTests.DatabaseFolder());
 
     private static Guide UsbHelper => Db.DefaultGuide;
-
-    private static Guide PureLink => Db.Guides["purelink"];
 
     // A device with the given number of hubs in front of it, on the computer's own port.
     private static IReadOnlyList<UsbNode> Chain(int hubs, UsbNode device) => [Controller("C1", Hub("ROOT", Behind(hubs, device)))];
@@ -75,28 +73,42 @@ public class GuideRulesTests
         Assert.Null(report.Hops.Limit);
     }
 
-    // PureLink, strict: four tiers recommended, built-in hub levels counted, so on an A-series chip a device behind any
-    // hub is potentially unstable (owner decision 2026-11-17). Its empty values are USB-Helper's.
+    // A picked guide's tiers count the chip's built-in hub levels: on an A-series chip (two levels) a device behind any
+    // hub is above four tiers. Its empty values are USB-Helper's.
     [Fact]
-    public void PureLinkCountsTiersWithTheBuiltInHubLevels()
+    public void GuideTiersCountTheBuiltInHubLevels()
     {
-        Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 0, Device("KEYBOARD"), PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("macos-a-series", 1, Device("KEYBOARD"), PureLink));
-        Assert.Equal(ConnectionStatus.Purple, StatusOf("macos-a-series", 4, Device("KEYBOARD"), PureLink)); // USB-Helper's hops.max 3.
-        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 2, Device("KEYBOARD"), PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 3, Device("KEYBOARD"), PureLink));
+        var (aSeries, guide) = Picked(2, new() { ["tiers.recommended"] = "4", ["tiers.max"] = "7" });
+
+        Assert.Equal(ConnectionStatus.Green, Evaluate(aSeries, 0, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Orange, Evaluate(aSeries, 1, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Purple, Evaluate(aSeries, 4, Device("KEYBOARD"), guide).Connections["KEYBOARD"]); // USB-Helper's hops.max 3.
     }
 
     // Findings and the log name the guide and the file each number comes from.
     [Fact]
     public void FindingsNameTheGuideAndTheFile()
     {
-        var report = Evaluate(Db.Platforms["macos-a-series"], 1, Device("KEYBOARD"), PureLink);
+        var (aSeries, guide) = Picked(2, new() { ["tiers.recommended"] = "4", ["tiers.max"] = "7" });
+
+        var report = Evaluate(aSeries, 1, Device("KEYBOARD"), guide);
 
         Assert.Contains(report.Findings, finding => finding.Kind == FactKind.PredictedRisk && finding.SubjectId == "KEYBOARD"
             && finding.Message == "Tier depth 5 exceeds the recommended limits.recommended_tiers 4; limits.max_tiers is 7.");
-        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (PureLink: tiers.recommended 4 in guides/purelink.yaml).");
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.recommended_tiers = 4 (Guide: tiers.recommended 4 in guides/guide.yaml).");
         Assert.Contains(report.Findings, finding => finding.Message == "limits.max_hops = 3 (USB-Helper: hops.max 3 in guides/usb-helper.yaml).");
+    }
+
+    // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hops 3 / 2, and a picked
+    // guide with the values given.
+    private static (ResolvedProfile Profile, Guide Guide) Picked(int levels, Dictionary<string, string> values)
+    {
+        using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform.Replace("built_in_hub_levels: 0", $"built_in_hub_levels: {levels}"));
+        db.UsbHelper["hops.max"] = "3";
+        db.UsbHelper["hops.recommended"] = "2";
+        db.WriteGuide(values);
+        var loaded = db.Load();
+        return (loaded.Platforms["test-platform"], loaded.Guides["guide"]);
     }
 
     // #275 and #285: cameras and audio devices get their own limits on top of the general ones.
@@ -117,14 +129,17 @@ public class GuideRulesTests
         Assert.Equal(ConnectionStatus.Green, StatusOf("macos-a-series", 1, device, UsbHelper));
     }
 
-    // PureLink: webcams and audio interfaces 3 tiers recommended, 4 at most.
+    // A guide's camera and audio limits: here 3 tiers recommended, 4 at most.
     [Fact]
-    public void PureLinkLimitsCamerasToThreeOrFourTiers()
+    public void GuideLimitsCamerasByTiers()
     {
-        Assert.Equal(ConnectionStatus.Green, StatusOf("windows-intel", 1, Camera, PureLink));
-        Assert.Equal(ConnectionStatus.Orange, StatusOf("windows-intel", 2, Camera, PureLink));
-        Assert.Equal(ConnectionStatus.Purple, StatusOf("windows-intel", 3, Camera, PureLink));
-        Assert.Contains(Evaluate(Db.Platforms["windows-intel"], 3, Camera, PureLink).Findings, finding => finding.SubjectId == "CAMERA"
+        var (windows, guide) = Picked(0, new() { ["camera_audio.tiers.recommended"] = "3", ["camera_audio.tiers.max"] = "4" });
+
+        Assert.Equal(ConnectionStatus.Green, Evaluate(windows, 1, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Orange, Evaluate(windows, 2, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Purple, Evaluate(windows, 3, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Green, Evaluate(windows, 2, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        Assert.Contains(Evaluate(windows, 3, Camera, guide).Findings, finding => finding.SubjectId == "CAMERA"
             && finding.Message == "Tier depth 5 exceeds limits.camera_audio_max_tiers 4 for cameras and audio devices.");
     }
 

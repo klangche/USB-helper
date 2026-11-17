@@ -1,16 +1,23 @@
-# A guide file. Every guide file has exactly this shape, with a section for every platform and chip in
-# database/platforms/; only the header (name, selectable, notes, sources) and the numbers differ.
-#   - An empty value means: use USB-Helper's value (guides/usb-helper.yaml).
-#   - none means: this guide states no limit here.
-#   - A chip's value wins over its platform's, which wins over the one under limits (all platforms).
-#   - hubs: external hubs; the limit applies to each bus on its own (USB 2, USB 3), or to all hubs together
-#     when the operating system does not report the bus.
-#   - tiers: USB tiers on a path as the USB specification counts them: the host with its root hub is tier 1,
-#     the device's own tier counts, and the chip's built-in hub levels count.
+# USB-Helper guide file: the USB limits and recommendations of one guide, read by the USB-Helper app.
+#
+# How to fill it in
+#   - Write a whole number, or none, after a key; do not add, remove or rename keys. Every guide file has
+#     exactly this structure, with a section for every platform and chip; a file that differs is rejected.
+#   - A number is your limit. An empty value means: use USB-Helper's value (guides/usb-helper.yaml).
+#     none means: you state no limit here (USB-Helper's value is not used either).
+#   - limits applies to all platforms; a platform's section overrides it, and a chip's section overrides
+#     its platform's.
+#   - recommended: above it the setup may be unreliable. max: above it the setup is unstable.
+#
+# Units
+#   - hubs: external hubs, counted on each USB bus on its own (USB 2, USB 3), or all together when the
+#     computer does not report the bus.
+#   - tiers: USB tiers on a path, as the USB specification counts them: the computer with its root hub is
+#     tier 1, each hub adds one, the device's own tier counts, and so do hubs built into the computer.
 #   - hops: external hubs in front of a device.
 #   - camera_audio: the same for cameras and audio devices, on top of the general limits.
-#   - exceeded_note: shown with the finding when a limit in this block is exceeded; at most 160 characters.
-#   - mst: 1 when the platform or chip extends the desktop over DisplayPort MST, 0 when not.
+#   - exceeded_note: a short text shown when a limit in that block is exceeded; at most 160 characters.
+#   - mst: 1 when the platform or chip extends the desktop over DisplayPort Multi-Stream Transport, 0 when not.
 
 name: USB-Helper
 selectable: true
