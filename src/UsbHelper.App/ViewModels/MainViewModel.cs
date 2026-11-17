@@ -35,7 +35,7 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
 }
 
 /// <summary>One operating system in the profile menu (#286), with a tick per chip.</summary>
-public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chips)
+public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chips, Action<Action>? batch = null)
 {
     public string Name { get; } = name;
 
@@ -45,10 +45,14 @@ public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chip
     public RelayCommand ToggleAll => field ??= new RelayCommand(() =>
     {
         var tick = !Chips.All(chip => chip.IsChecked);
-        foreach (var chip in Chips)
+        // One check of the setup for all chips, not one per chip (owner: "faster to click all three separately").
+        (batch ?? (change => change()))(() =>
         {
-            chip.IsChecked = tick;
-        }
+            foreach (var chip in Chips)
+            {
+                chip.IsChecked = tick;
+            }
+        });
     });
 }
 
@@ -271,7 +275,7 @@ public sealed class MainViewModel : ObservableObject
         {
             // Chips in the order of the platform file.
             PlatformGroups.Add(new PlatformGroup(group.First().Profile.PlatformName is { Length: > 0 } name ? name : group.Key,
-                [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))]));
+                [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))], Batch));
         }
         var picked = Settings.RememberCheckedProfiles && Settings.CheckedGuide is { } id
             && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
@@ -408,6 +412,24 @@ public sealed class MainViewModel : ObservableObject
     private static int PlatformOrder(string platform) =>
         Array.IndexOf<string>(["windows", "macos", "ubuntu", "debian", "apple-mobile", "android"], platform) is var index and >= 0 ? index : int.MaxValue;
 
+    private bool batching;
+
+    // Several ticks at once (an operating system's name, #295): the setup is kept and judged once, after all of them.
+    private void Batch(Action change)
+    {
+        batching = true;
+        try
+        {
+            change();
+        }
+        finally
+        {
+            batching = false;
+        }
+        KeepCheckedProfiles();
+        Refresh();
+    }
+
     private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
     {
         foreach (var option in options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase))
@@ -415,6 +437,10 @@ public sealed class MainViewModel : ObservableObject
             option.PropertyChanged += (_, _) =>
             {
                 log.ProfileChecked(option.Label, option.IsChecked);
+                if (batching)
+                {
+                    return; // Batch keeps and refreshes once at the end.
+                }
                 KeepCheckedProfiles();
                 Refresh();
             };

@@ -117,4 +117,20 @@ public class ProfileMenuTests
         Assert.Equal("Extron", window.GuideName);
         Assert.Equal("https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf", window.GuideLink!.ToString());
     }
+
+    // Clicking an operating system's name judges the setup once for all of its chips, not once per chip.
+    [Fact]
+    public void ClickingAnOperatingSystemRefreshesOnce()
+    {
+        var log = new UsbHelper.Core.Diagnostics.EventLog();
+        var window = new MainViewModel(DatabaseFolder.Load("LENOVO", "21K5", "verified"), [], Identity, log: log);
+        var group = Assert.Single(window.PlatformGroups);
+        var updates = 0;
+        window.StatusRows.CollectionChanged += (_, e) => updates += e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset ? 1 : 0;
+
+        group.ToggleAll.Execute(null);
+
+        Assert.All(group.Chips, chip => Assert.True(chip.IsChecked));
+        Assert.Equal(1, updates);
+    }
 }
