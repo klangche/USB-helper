@@ -386,4 +386,60 @@ public class TopologyCountsTests
         Assert.Equal(1, TopologyCounts.HubCount(tree, marks));
         Assert.Equal(new BusCounts(0, 0), TopologyCounts.PerBus(tree, marks).Usb2);
     }
+
+    // #298: the hubs shown are the sum over the buses, "Hubs 2 (1+1+0)" for one USB 3 hub: USB 2, USB 3, USB 4.
+    [Fact]
+    public void UsbThreeHubShowsOneHubOnEachOfItsBuses()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
+
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(2, counts.Hubs);
+        Assert.Equal("2 (1+1+0)", counts.HubsText);
+        Assert.Equal(new BusCounts(0, 0), counts.Usb4); // Not detected yet (#267).
+        Assert.Equal(counts.Hubs, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void UsbTwoOnlyHubShowsOnUsbTwoOnly()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Device("DISK")))];
+
+        Assert.Equal("1 (1+0+0)", TopologyCounts.PerBus(tree).HubsText);
+    }
+
+    [Fact]
+    public void HubOnUnknownBusIsInTheTotalOnly()
+    {
+        var root = RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [.. root.Children, Port("ROOT", 3, Hub("UNKNOWN-BUS", Device("MOUSE")))] };
+        IReadOnlyList<UsbNode> tree = [Controller("C1", root)];
+
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(1, counts.UnknownBusHubs);
+        Assert.Equal("3 (1+1+0)", counts.HubsText);
+        Assert.Equal(3, TopologyCounts.HubCount(tree));
+    }
+
+    [Fact]
+    public void WithoutAnyKnownBusOnlyTheTotalIsShown()
+    {
+        var tree = Machine(Hub("DOCK", Hub("MONITOR", Device("KEYBOARD"))));
+
+        Assert.Equal("2", TopologyCounts.PerBus(tree).HubsText);
+    }
+
+    [Fact]
+    public void CableMarkOfThreeOnUsbThreePortAddsTwoHubsOnUsbThree()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
+        var marks = new Dictionary<string, int> { ["ROOT|port2"] = 3 };
+
+        var counts = TopologyCounts.PerBus(tree, marks);
+
+        Assert.Equal(new BusCounts(3, 6), counts.Usb3);
+        Assert.Equal("4 (1+3+0)", counts.HubsText);
+    }
 }

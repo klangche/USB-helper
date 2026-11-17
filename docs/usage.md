@@ -62,24 +62,30 @@ device on a port that Windows reports as a USB-C connector (from its port connec
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count and deepest tier, for
-example "Hubs: 4 (3+1), deepest tier: 4". The
-numbers in brackets are the hubs per bus, always in the same order: USB2 first
-(the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), and
-hovering the counts shows them in full, as in the tree as text. A USB 3 hub has a half on each bus, and
-each bus has its own chain. The deepest tier is that of any bus. The
-computer's row shows the same over all controllers, and a controller with
-nothing connected shows no counts. Copy tree as text, the log and the export
-name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4". When the operating system reports no bus at all, there are no
-brackets. The counts say "at least" when a hub, port or bus could not be read;
-a hub on a port whose bus is not reported is in the total but on neither bus.
+example "Hubs: 3 (2+1+0), deepest tier: 4". The
+numbers in brackets are the hubs per bus, always in the same order: USB 2
+(the USB 2.0 tree), USB 3 (the SuperSpeed tree, USB 3.0 to 3.2), then USB 4.
+USB 4 is not detected yet, so its number is always 0 for now. The first number is
+the sum of the hubs on each bus. A USB 3 hub has a half on each bus and the
+operating system reports each half as a hub, so one USB 3 hub counts once on USB 2
+and once on USB 3: "Hubs: 2 (1+1+0)". A USB 2 hub counts on USB 2 only. Each bus
+has its own chain and its own limits: the hub limits are judged per bus, not on
+the sum. The deepest tier is that of any bus. Hovering the counts shows which bus
+is which. The computer's row shows the same over all controllers, and a controller
+with nothing connected shows no counts. Copy tree as text and the PDF report show
+the counts the same way. When the operating system reports no bus at all, there
+are no brackets, just the total. The counts say "at least" when a hub, port or bus
+could not be read; a hub on a port whose bus is not reported is in the total but
+on no bus.
 The side panel has a small table, "Hubs and tiers", for what the status
 field covers (the selected controller, or all controllers when the computer's
-row is selected): one line for USB 2 and one for USB 3, each with that bus's
+row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1+0)", then
+one line each for USB 2, USB 3 and USB 4, each with that bus's
 own hub count and deepest tier, the marked active cables counted.
 A bus with nothing on it shows zeros; when nothing is connected there is no
 table. The numbers say "at least" in the same cases as the row counts, and
-when the operating system reports no bus at all the table has one line, "USB 2
-and USB 3 together".
+when the operating system reports no bus at all the table has one line, "All
+buses together".
 Each hub and device row
 shows its own depth at the right, for example "Tier 4, hubs in front: 2";
 hovering the row shows it too. Controllers, hubs built into the computer and
@@ -113,7 +119,8 @@ checked profiles, judged by the picked philosophy; the status field says
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour). Below it are only
 the checks that are exceeded: hubs, tiers and external displays, each with its count and
-limit. A check that is within its limit, or whose limit or count is unknown,
+limit. The hubs line shows the hubs as in the row counts and the bus that is over
+its limit, for example "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)". A check that is within its limit, or whose limit or count is unknown,
 is not shown there; it is in the log. A stable profile shows only "stable".
 With several profiles checked, the findings come from
 the strictest one only and name it (see the [diagnostic rules](database.md#diagnostic-rules)). Plug and unplug
@@ -133,7 +140,9 @@ Click the "+" again to change the mark, or pick "None" to remove it. Marks last 
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
-database load result, per hub which ports Windows reports as USB-C or not
+database load result, per controller its hubs per bus ("Hubs of ...: 3 (2+1+0)
+(USB 2+USB 3+USB 4)", with how many are on ports whose bus is not reported), per
+hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
 reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
@@ -188,7 +197,8 @@ read USB tree; until then the menu item is greyed out and its tooltip says why
 order:
 
 - **Summary**: the computer, the checked profiles, the overall result and the
-  hub, tier and display counts.
+  hub, tier and display counts; below the hub count, the hubs per bus, for
+  example "(2+1+0): USB 2, USB 3, USB 4".
 - **USB tree**: the tree as in the window, with its status colours.
 - **Results**: each checked profile with its result, then each check that is
   not stable with its measured value, limit, result and the profiles it

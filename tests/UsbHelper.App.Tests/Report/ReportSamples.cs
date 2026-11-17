@@ -77,8 +77,8 @@ internal static class ReportSamples
     // touch panel on an active cable, and the Displays group. Ports are rows of their own, as in the window.
     private static IReadOnlyList<ReportRow> DeskTree() =>
     [
-        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4"]),
-        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4"]),
+        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 4 (3+1+0), deepest tier: 4"]),
+        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 4 (3+1+0), deepest tier: 4"]),
         Row(2, [true], true, "USB Root Hub (USB 3.0)", notes: ["has a display"]),
         Row(3, [true, false], false, "Port 1", portType: "USB-C"),
         Row(4, [true, false, true], true, "Dell WD22TB4 dock", ConnectionStatus.Green, notes: ["has a display"]),
@@ -151,7 +151,7 @@ internal static class ReportSamples
     public static ReportModel Full(string? logoPath) => new(
         Company, logoPath, Room, "0.9.0-beta.3", new DateTime(2026, 11, 13, 14, 5, 0),
         new ComputerIdentity("Dell Inc.", "Latitude 7450"), ConnectionStatus.Purple,
-        new ReportCounts(4, 3, 1, 4, false, 1), Profiles(),
+        new ReportCounts(4, 3, 1, 0, 4, false, 1), Profiles(),
         [new("Monitor", "built-in", null), new("DELL U2723QE", "HDMI", null), new("Monitor", "indirect, for example DisplayLink", "DisplayLink USB Graphics")],
         DeskTree(), Findings())
     {
@@ -196,7 +196,7 @@ internal static class ReportSamples
                 }
             }
         }
-        return Full(logoPath) with { Tree = rows, Counts = new ReportCounts(20, 20, 0, 3, false, 1) };
+        return Full(logoPath) with { Tree = rows, Counts = new ReportCounts(20, 20, 0, 0, 3, false, 1) };
     }
 
     /// <summary>The full report with a tree of <paramref name="devices"/> devices straight on the root hub: one row each.</summary>

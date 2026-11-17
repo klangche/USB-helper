@@ -57,6 +57,26 @@ public class TreeTextTests
         Assert.Equal(Golden, TreeText.Render(viewModel.Roots[0]));
     }
 
+    // #298: with the buses known, the counts show the hubs on USB 2, USB 3 and USB 4 in brackets.
+    [Fact]
+    public void TheCountsShowTheHubsPerBus()
+    {
+        static UsbNode OnBus(UsbNode node, UsbBus bus) => node with
+        {
+            Bus = node.Kind == UsbNodeKind.Port ? bus : null,
+            Children = [.. node.Children.Select(child => OnBus(child, bus))],
+        };
+        var root = Hub("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")));
+        root = root with { Children = [OnBus(root.Children[0], UsbBus.Usb2), OnBus(root.Children[1], UsbBus.Usb3)] };
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), Monitors, new EventLog());
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [root])]);
+
+        var lines = TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine);
+
+        Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1+0), deepest tier: 3)", lines[0]);
+        Assert.Equal("|-- Controller (Hubs: 2 (1+1+0), deepest tier: 3)", lines[1]);
+    }
+
     // #230: a header names the company, the room and the licensed email when any is set.
     [Fact]
     public void AHeaderNamesTheCompanyRoomAndLicensedEmail()

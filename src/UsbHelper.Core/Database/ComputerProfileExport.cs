@@ -20,7 +20,7 @@ public static class ComputerProfileExport
         var notes = new List<string>
         {
             $"Exported by USB-helper {appVersion} on {day}.",
-            $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.HubCount(tree)}, active external displays: {displays}.",
+            $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.PerBus(tree).HubsText}, active external displays: {displays}.",
         };
         // Numbered, not named: Windows names controllers in the user's language, the notes are in English.
         notes.AddRange(tree.Select((controller, index) =>

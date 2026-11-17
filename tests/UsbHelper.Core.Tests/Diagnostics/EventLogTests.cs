@@ -90,7 +90,8 @@ public class EventLogTests
 
         // Ports Windows says nothing about are left out; a hub with none it says anything about has no line.
         Assert.Equal(
-            ["USB devices read: 2 controllers", "USB-C ports of ROOT: Port 1 no, Port 2 yes", "USB-C ports of DOCK: Port 1 yes"],
+            ["USB devices read: 2 controllers", "Hubs of C1: 1; 1 on ports whose bus is not reported",
+                "USB-C ports of ROOT: Port 1 no, Port 2 yes", "USB-C ports of DOCK: Port 1 yes"],
             Texts(log));
     }
 
@@ -375,5 +376,16 @@ public class EventLogTests
         Assert.Equal(1, cleared);
         log.Findings([finding]);
         Assert.Single(log.Entries);
+    }
+
+    // #298: the hubs per bus of each controller, so a log shows how the operating system splits a USB 3 hub.
+    [Fact]
+    public void ReadingTheTreeLogsTheHubsPerBusOfEachController()
+    {
+        var log = NewLog();
+
+        log.TreeRead([Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))]);
+
+        Assert.Equal(["USB devices read: 1 controllers", "Hubs of C1: 2 (1+1+0) (USB 2+USB 3+USB 4)"], Texts(log));
     }
 }

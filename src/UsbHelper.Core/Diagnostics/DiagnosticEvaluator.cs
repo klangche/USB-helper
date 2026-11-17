@@ -172,13 +172,15 @@ public static class DiagnosticEvaluator
             findings.Add(LimitFinding(limit, computer));
         }
         string Note(LimitCheck limit) => notes.GetValueOrDefault(limit.Field) is { } note ? $" {note}" : "";
+        // #298: the hubs of all buses as the app shows them, "Hubs: 3 (2+1+0)", after a bus's own count.
+        var allHubs = $"Hubs: {(computerOpen ? "at least " : "")}{perBus.HubsText}: USB 2, USB 3, USB 4.";
         void HubFindings(List<(UsbBus? Bus, LimitCheck Check)> checks, string recommended)
         {
             foreach (var (bus, check) in checks.Where(each => each.Check.State == LimitState.Exceeded))
             {
                 findings.Add(Risk(ComputerId, computer, unverified => bus == null
                     ? $"{check.Actual} external hubs are connected; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"
-                    : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"));
+                    : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)} {allHubs}"));
             }
         }
         var hubsExceeded = hubsMax.Any(each => each.Check.State == LimitState.Exceeded);
@@ -335,7 +337,7 @@ public static class DiagnosticEvaluator
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
             .Max();
-        return new DiagnosticReport(overall, connections, hubs, tiers, displays, disconnected, findings) { Depths = depths, NoMst = noMst };
+        return new DiagnosticReport(overall, connections, hubs, tiers, displays, disconnected, findings) { Depths = depths, NoMst = noMst, HubsBus = hubsMax.First(each => ReferenceEquals(each.Check, hubs)).Bus };
     }
 
     private static LimitCheck Check(string field, GuideLimit limit, int actual, bool incomplete)

@@ -1,3 +1,4 @@
+using System.Globalization;
 using UsbHelper.Core.Detection;
 
 namespace UsbHelper.Core.Topology;
@@ -17,8 +18,25 @@ public sealed record BusCounts(int Hubs, int DeepestTier);
 /// True when a counted hub or device is on a port whose bus the operating system does not report. It is in neither
 /// bus's numbers, so they are then minimums.
 /// </param>
+/// <param name="Usb4">Always zeros for now: USB 4 is not detected yet (#267), but it is shown (#298).</param>
+/// <param name="UnknownBusHubs">The hubs on ports whose bus is not reported, the hubs their marks add included.</param>
 /// <param name="AnyBusKnown">True when at least one counted hub or device is on a port with a known bus.</param>
-public sealed record PerBusCounts(BusCounts Usb2, BusCounts Usb3, bool BusUnknown, bool AnyBusKnown);
+public sealed record PerBusCounts(BusCounts Usb2, BusCounts Usb3, BusCounts Usb4, int UnknownBusHubs, bool BusUnknown, bool AnyBusKnown)
+{
+    /// <summary>
+    /// The hubs shown to the user (#298): the sum of the hubs on each bus, plus those on an unknown bus. A USB 3 hub
+    /// counts once on USB 2 and once on USB 3, because the operating system reports each half as a hub.
+    /// </summary>
+    public int Hubs => Usb2.Hubs + Usb3.Hubs + Usb4.Hubs + UnknownBusHubs;
+
+    /// <summary>
+    /// "3 (2+1+0)": the hubs, then in brackets those on USB 2, USB 3 and USB 4 (#298); just "3" when no bus is known.
+    /// Invariant, for the English log and exports; the app formats its own.
+    /// </summary>
+    public string HubsText => AnyBusKnown
+        ? string.Create(CultureInfo.InvariantCulture, $"{Hubs} ({Usb2.Hubs}+{Usb3.Hubs}+{Usb4.Hubs})")
+        : Hubs.ToString(CultureInfo.InvariantCulture);
+}
 
 /// <summary>
 /// The counting rules for the topology limits, hubs and tiers (owner decisions in #2, #39 and #297).
@@ -37,15 +55,13 @@ public sealed record PerBusCounts(BusCounts Usb2, BusCounts Usb3, bool BusUnknow
 public static class TopologyCounts
 {
     /// <summary>
-    /// Number of external hubs connected to the computer, the hubs added by the user's marks included. Root hubs and
-    /// built-in hubs are not counted.
+    /// Number of external hubs connected to the computer, the hubs added by the user's marks included: the sum over the
+    /// buses (<see cref="PerBusCounts.Hubs"/>), so each half of a USB 3 hub counts. Root hubs and built-in hubs are not
+    /// counted.
     /// </summary>
     /// <param name="marks">The user's marks per port id, for active cables and extenders the operating system does not show.</param>
-    public static int HubCount(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? marks = null)
-    {
-        var entries = Counted(tree, marks).ToList();
-        return entries.Count(entry => entry.Node.Kind == UsbNodeKind.Hub) + MarkedHubs(entries, marks, _ => true);
-    }
+    public static int HubCount(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? marks = null) =>
+        PerBus(tree, marks).Hubs;
 
     /// <summary>
     /// Hubs and deepest tier per bus. A hub or device belongs to the bus of the port it is plugged into. One on a port
@@ -55,14 +71,14 @@ public static class TopologyCounts
     public static PerBusCounts PerBus(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int>? marks = null)
     {
         var entries = Counted(tree, marks).ToList();
-        BusCounts On(UsbBus bus)
+        BusCounts On(UsbBus? bus)
         {
             var onBus = entries.Where(entry => entry.Bus == bus).ToList();
             return new BusCounts(
                 onBus.Count(entry => entry.Node.Kind == UsbNodeKind.Hub) + MarkedHubs(entries, marks, port => port.Bus == bus),
                 onBus.Select(entry => entry.Depth.Tier).DefaultIfEmpty(0).Max());
         }
-        return new PerBusCounts(On(UsbBus.Usb2), On(UsbBus.Usb3),
+        return new PerBusCounts(On(UsbBus.Usb2), On(UsbBus.Usb3), new BusCounts(0, 0), On(null).Hubs,
             entries.Any(entry => entry.Bus == null), entries.Any(entry => entry.Bus != null));
     }
 
