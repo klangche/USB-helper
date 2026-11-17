@@ -20,13 +20,13 @@
     <value>Operating systems</value>
   </data>
   <data name="ProfileMenu" xml:space="preserve">
-    <value>Judge by</value>
+    <value>USB philosophy</value>
   </data>
   <data name="JudgedBy" xml:space="preserve">
-    <value>Judged by the {0} guide</value>
+    <value>Judged by the {0} philosophy</value>
   </data>
   <data name="Computers" xml:space="preserve">
-    <value>Computers</value>
+    <value>Known issues</value>
   </data>
   <data name="StatusField" xml:space="preserve">
     <value>Status</value>
@@ -38,7 +38,7 @@
     <value>all controllers</value>
   </data>
   <data name="NothingChecked" xml:space="preserve">
-    <value>Nothing checked: check one or more operating systems or computers to judge this setup by.</value>
+    <value>Nothing checked: tick one or more operating systems under "USB philosophy", or a machine under "Known issues", to judge this setup by.</value>
   </data>
   <data name="FindingHeaderForProfile" xml:space="preserve">
     <value>{0} · {1} · {2}</value>
