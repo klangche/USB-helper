@@ -639,6 +639,33 @@ public sealed class NodeViewModel : ObservableObject
     // is in the total but on neither bus. Null when nothing is connected.
     private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
     {
+        if (Count(tree, extraHops) is not { } counted)
+        {
+            return null;
+        }
+        var (all, perBus, atLeast) = counted;
+        var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, all.Hubs);
+        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth, all.DeepestTier, all.DeepestHops);
+        return perBus.AnyBusKnown
+            ? new CountsText(hubs, perBus.Usb2.Hubs.ToString(CultureInfo.CurrentCulture), perBus.Usb3.Hubs.ToString(CultureInfo.CurrentCulture), depth)
+            : new CountsText(hubs, null, null, depth);
+    }
+
+    /// <summary>The counts of a tree, as the row counter and the side panel's table (#265) show them.</summary>
+    /// <param name="All">All buses together: every counted hub, and the deepest tier and hop of any bus.</param>
+    /// <param name="PerBus">The same per bus; a hub or device on a port whose bus is not reported is on neither.</param>
+    /// <param name="AtLeast">
+    /// A hub, port or controller could not be read, or a counted hub or device is on a port whose bus is not reported
+    /// while another bus is: the numbers are minimums.
+    /// </param>
+    internal sealed record CountedTree(BusCounts All, PerBusCounts PerBus, bool AtLeast);
+
+    /// <summary>
+    /// Counts <paramref name="tree"/> for the row counter and the side panel's table (#265), so both follow one rule;
+    /// the user's marks in <paramref name="extraHops"/> count in the depths. Null when nothing is connected.
+    /// </summary>
+    internal static CountedTree? Count(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, int> extraHops)
+    {
         var depths = TopologyCounts.Depths(tree, extraHops).Values;
         var perBus = TopologyCounts.PerBus(tree, extraHops);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
@@ -646,13 +673,11 @@ public sealed class NodeViewModel : ObservableObject
         {
             return null;
         }
-        var hubs = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, TopologyCounts.HubCount(tree));
-        var depth = string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth,
-            depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
-            depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max());
-        return perBus.AnyBusKnown
-            ? new CountsText(hubs, perBus.Usb2.Hubs.ToString(CultureInfo.CurrentCulture), perBus.Usb3.Hubs.ToString(CultureInfo.CurrentCulture), depth)
-            : new CountsText(hubs, null, null, depth);
+        return new CountedTree(
+            new BusCounts(TopologyCounts.HubCount(tree),
+                depths.Select(depth => depth.Tier).DefaultIfEmpty(0).Max(),
+                depths.Select(depth => depth.Hops).DefaultIfEmpty(0).Max()),
+            perBus, atLeast);
     }
 
     /// <summary>
