@@ -119,8 +119,8 @@ How to read a value:
 
 | Guide | Values |
 |---|---|
-| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hops 4 / 6, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5 and hops 2 / 4, with hops per chip; iPhone, iPad and Android stricter. |
-| `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty. |
+| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hops 4 / 6, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5 and hops 2 / 4, with hops per chip; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources: the owner keeps them in a separate document. |
+| `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty; `mst` 0 on macOS. Ochno links its guide page. |
 
 ### Computer files
 

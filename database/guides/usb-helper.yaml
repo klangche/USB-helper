@@ -9,6 +9,8 @@
 #   - Write a number       → that is the limit
 #   - Write "none"         → deliberately no limit
 #
+# No sources: the owner keeps USB-Helper's own reasoning in a separate document.
+#
 # Keys
 #   hubs            external hubs counted per bus
 #   tiers           USB-IF tier count (host = tier 1)
@@ -93,19 +95,19 @@ platforms:
 # macOS
 # =============================================================================
   macos:
-    mst: 1
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
     limits: {}
 
     chips:
       intel:
-        mst: 1
+        mst: 0
         limits:
           hops:
             recommended: 5
             max: 7
 
       apple-silicon:                    # M1 / M2 / M3 / M4 / M-series
-        mst: 1
+        mst: 0
         limits:
           hops:
             recommended: 3
@@ -210,15 +212,15 @@ platforms:
 # =============================================================================
   android:
     mst: 0
-    limits:
+    limits:                             # direct products only: any hub is potentially unstable
       hubs:
-        recommended: 1
+        recommended: 0
         max: 2
       tiers:
         recommended: 2
         max: 3
       hops:
-        recommended: 2
+        recommended: 0
         max: 4
 
     chips:
@@ -226,18 +228,16 @@ platforms:
         mst: 0
         limits:
           hops:
-            recommended: 3
+            recommended: 0
             max: 5
 
-      tablet-exynos:
+      tablet-exynos:                    # one built-in hub level, so one tier more than a phone
         mst: 0
         limits:
+          tiers:
+            recommended: 3
+            max: 4
           hops:
-            recommended: 2
+            recommended: 0
             max: 4
 
-
-# -----------------------------------------------------------------------------
-sources:
-  - "USB-Helper internal defaults (derived from usb-script platformStability, 2026)"
-  - "USB-IF maximum of 7 tiers on a path"

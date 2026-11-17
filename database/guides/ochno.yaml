@@ -87,16 +87,16 @@ platforms:
 # macOS
 # =============================================================================
   macos:
-    mst: 1
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
     limits: {}
 
     chips:
       intel:
-        mst: 1
+        mst: 0
         limits: {}
 
       apple-silicon:
-        mst: 1
+        mst: 0
         limits:
           tiers:
             recommended: 3
@@ -218,6 +218,7 @@ platforms:
 
 # -----------------------------------------------------------------------------
 sources:
+  - "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"
   - "Ochno O-PC-4 documentation (internal hubs = 1 or 2 depending on port)"
   - "Ochno recommendation: do not daisy-chain more than two O-PC-4 units"
   - "USB-IF maximum of 7 tiers; Ochno stays more conservative because of built-in hubs"

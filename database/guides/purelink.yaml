@@ -87,16 +87,16 @@ platforms:
 # macOS
 # =============================================================================
   macos:
-    mst: 1
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
     limits: {}
 
     chips:
       intel:
-        mst: 1
+        mst: 0
         limits: {}
 
       apple-silicon:                    # M1 / M2 / M3 / M4 / M-series
-        mst: 1
+        mst: 0
         limits:
           tiers:
             recommended: 4

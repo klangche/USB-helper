@@ -102,8 +102,8 @@ public class RealDatabaseTests
     [InlineData("ubuntu-arm", 5, 3, 7, 6)]
     [InlineData("debian-intel", 6, 4, 7, 6)]
     [InlineData("debian-arm", 5, 3, 7, 6)]
-    [InlineData("android-phone-qualcomm", 5, 3, 3, 2)]
-    [InlineData("android-tablet-exynos", 4, 2, 3, 2)]
+    [InlineData("android-phone-qualcomm", 5, 0, 3, 2)]
+    [InlineData("android-tablet-exynos", 4, 0, 4, 2)]
     public void UsbHelperGivesItsLimits(string id, long maxHops, long recommendedHops, long maxTiers, long maxHubs)
     {
         var db = HardwareDatabase.Load(DatabaseFolder());
@@ -159,6 +159,32 @@ public class RealDatabaseTests
         }
     }
 
+    // macOS does not extend the desktop over MST, whatever the guide (owner decision 2026-11-17).
+    [Fact]
+    public void NoGuideGivesMacOsMst()
+    {
+        var db = HardwareDatabase.Load(DatabaseFolder());
+
+        foreach (var guide in db.Guides.Values)
+        {
+            foreach (var profile in db.Platforms.Values.Where(profile => profile.Platform == "macos"))
+            {
+                Assert.Equal(0L, guide.Mst(profile.Platform, profile.Chip)!.Number);
+            }
+        }
+    }
+
+    // USB-Helper has no sources (owner decision 2026-11-17); Ochno's guide links its page.
+    [Fact]
+    public void GuideSources()
+    {
+        var db = HardwareDatabase.Load(DatabaseFolder());
+
+        Assert.Null(db.DefaultGuide.Find("sources"));
+        Assert.Contains(db.Guides["ochno"].Find("sources")!.Items,
+            item => item.Scalar is "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room");
+    }
+
     // A few values read from the owner's files, through chip, platform and global.
     [Theory]
     [InlineData("purelink", "windows-intel", "tiers.max", 7)]
@@ -180,11 +206,12 @@ public class RealDatabaseTests
         Assert.Same(db.Guides[id], found.Guide);
     }
 
-    // Owner's files: MST per platform and chip; USB-Helper says 1 on Windows and macOS, 0 on ARM Windows and A-series.
+    // Owner's files: MST per platform and chip; USB-Helper says 1 on Windows except ARM, 0 elsewhere (macOS has no MST,
+    // owner decision 2026-11-17).
     [Theory]
-    [InlineData("macos-apple-silicon", 1)]
+    [InlineData("macos-apple-silicon", 0)]
     [InlineData("macos-a-series", 0)]
-    [InlineData("macos-intel", 1)]
+    [InlineData("macos-intel", 0)]
     [InlineData("windows-intel", 1)]
     [InlineData("windows-amd", 1)]
     [InlineData("windows-arm", 0)]

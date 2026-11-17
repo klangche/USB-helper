@@ -32,7 +32,8 @@ public class GuideRulesTests
 
     // USB-Helper's guide (the owner's file of 2026-11-17): the most hubs in front of a device is the lower of hops and
     // tiers − 2 − the chip's built-in hub levels, for the maximum and the recommendation each. iPhone and iPad (tiers
-    // at most 3, two built-in levels) and Android (tiers at most 3) are strict enough that even the own port exceeds.
+    // at most 3, two built-in levels) exceed even in the own port; Android supports direct products only, so any hub
+    // is potentially unstable (owner decisions 2026-11-17).
     [Theory]
     [InlineData("windows-intel", 5, 3)]
     [InlineData("windows-amd", 5, 3)]
@@ -47,7 +48,7 @@ public class GuideRulesTests
     [InlineData("debian-intel", 5, 3)]
     [InlineData("debian-arm", 5, 3)]
     [InlineData("android-phone-qualcomm", 1, 0)]
-    [InlineData("android-tablet-exynos", 0, -1)]
+    [InlineData("android-tablet-exynos", 1, 0)]
     public void UsbHelperGivesItsColours(string profile, int max, int recommended)
     {
         for (var hubs = 0; hubs <= 7; hubs++)
