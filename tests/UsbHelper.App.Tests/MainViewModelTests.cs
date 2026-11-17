@@ -88,7 +88,7 @@ public class MainViewModelTests
         viewModel.LoadDatabase(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", "verified", name: "Dell Latitude 14 7450"), []);
 
         Assert.Equal(Strings.ReadingDevices, viewModel.LoadingStage);
-        Assert.Single(viewModel.OperatingSystems);
+        Assert.Equal(2, viewModel.OperatingSystems.Count); // The platform profile and the computer's chip.
         Assert.Single(viewModel.Computers);
         Assert.Equal("Dell Latitude 14 7450", viewModel.HostName);
         Assert.Contains(nameof(MainViewModel.HostName), changed);
@@ -105,7 +105,7 @@ public class MainViewModelTests
         Assert.False(viewModel.IsLoading);
         Assert.NotEmpty(viewModel.Roots);
         Assert.Equal(0, displaysRead); // The first refresh uses the count read off the UI thread.
-        Assert.Contains("Database loaded: 1 platform profiles, 1 computer profiles", log.Entries.Select(entry => entry.Text));
+        Assert.Contains("Database loaded: 2 platform profiles, 1 computer profiles, 1 guides", log.Entries.Select(entry => entry.Text));
     }
 
     [Fact]
@@ -1012,7 +1012,7 @@ public class MainViewModelTests
         Assert.False(mouse.IsUserMarked);
     }
 
-    // Platform "p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
+    // Platform "os-p" allows no hub (max_hops: 0), so the keyboard behind HUB is above its maximum; computer "c" allows it.
     private static MainViewModel TwoProfiles()
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
@@ -1026,7 +1026,7 @@ public class MainViewModelTests
     {
         var viewModel = TwoProfiles();
 
-        Assert.Equal(["p"], viewModel.OperatingSystems.Select(option => option.Profile.Id));
+        Assert.Equal(["os-computer", "os-p"], viewModel.OperatingSystems.Select(option => option.Profile.Id).Order());
         Assert.Equal([ComputerProfileId.From("Dell Inc.", "Latitude 7450")], viewModel.Computers.Select(option => option.Profile.Id));
         Assert.All(viewModel.OperatingSystems.Concat(viewModel.Computers), option => Assert.False(option.IsChecked));
         Assert.Empty(viewModel.StatusRows);
@@ -1048,7 +1048,7 @@ public class MainViewModelTests
     {
         var viewModel = OnWindowsAmd("windows-amd");
 
-        Assert.True(viewModel.OperatingSystems.Single().IsChecked);
+        Assert.True(viewModel.OperatingSystems.Platform().IsChecked);
         Assert.False(viewModel.Computers.Single().IsChecked); // Computer profiles are never checked automatically.
         Assert.Equal(["windows-amd"], viewModel.StatusRows.Select(row => row.Label));
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
@@ -1059,7 +1059,7 @@ public class MainViewModelTests
     {
         var viewModel = OnWindowsAmd("windows-amd");
 
-        viewModel.OperatingSystems.Single().IsChecked = false;
+        viewModel.OperatingSystems.Platform().IsChecked = false;
 
         Assert.Equal(ConnectionStatus.Grey, Item(viewModel, "KEYBOARD").Status);
         Assert.True(viewModel.NothingChecked);
@@ -1082,7 +1082,7 @@ public class MainViewModelTests
     {
         var viewModel = TwoProfiles();
 
-        Assert.Equal("p", viewModel.OperatingSystems.Single().Label);
+        Assert.Equal("os-p", viewModel.OperatingSystems.Platform().Label);
         Assert.Equal(Latitude, viewModel.Computers.Single().Label);
     }
 
@@ -1108,26 +1108,26 @@ public class MainViewModelTests
         Assert.Empty(computer.Details); // Owner decision in #263: a stable profile says only "stable".
         Assert.False(viewModel.NothingChecked);
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "MOUSE").Status); // In the root hub: no hop.
         Assert.Equal(StatusColors.Hex(ConnectionStatus.Purple), viewModel.OverallColor);
         Assert.Equal(
-            [("p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
+            [("os-p", "unstable", StatusColors.Hex(ConnectionStatus.Purple)), (Latitude, "stable", StatusColors.Hex(ConnectionStatus.Green))],
             viewModel.StatusRows.Select(row => (row.Label, row.Word, row.Color)));
         Assert.Equal(["Most hops: 1, limit 0 (exceeded)"], viewModel.StatusRows[0].Details);
         Assert.Empty(viewModel.StatusRows[1].Details);
     }
 
-    // Owner decision in #263: the status field lists only what is exceeded. "p" knows only max_hops, so its unknown hub,
+    // Owner decision in #263: the status field lists only what is exceeded. "os-p" knows only max_hops, so its unknown hub,
     // tier and display limits add no line.
     [Fact]
     public void AProfileWithOneExceededLimitHasExactlyThatLineAndUnknownLimitsAddNone()
     {
         var viewModel = TwoProfiles();
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("unstable", row.Word);
@@ -1155,7 +1155,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
         viewModel.Load(Desk);
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         var row = Assert.Single(viewModel.StatusRows);
         Assert.Equal("unstable", row.Word);
@@ -1166,10 +1166,10 @@ public class MainViewModelTests
     public void UncheckingUpdatesLinesAndRows()
     {
         var viewModel = TwoProfiles();
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
         viewModel.Computers.Single().IsChecked = true;
 
-        viewModel.OperatingSystems.Single().IsChecked = false;
+        viewModel.OperatingSystems.Platform().IsChecked = false;
 
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
         Assert.Equal([Latitude], viewModel.StatusRows.Select(row => row.Label));
@@ -1186,13 +1186,13 @@ public class MainViewModelTests
     {
         var viewModel = TwoProfiles(); // "p" (max_hops 0) is stricter than the computer (max_hops 5).
         viewModel.Apply([new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 2, Device("MOUSE") with { Problem = "code 43" }))]);
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
         viewModel.Computers.Single().IsChecked = true;
 
         Assert.Single(viewModel.Findings, finding => finding.Message == "code 43" && finding.Header == "Detected · MOUSE");
-        Assert.Contains(viewModel.Findings, finding => finding.Header == "p · Risk · KEYBOARD");
+        Assert.Contains(viewModel.Findings, finding => finding.Header == "os-p · Risk · KEYBOARD");
         Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith(Latitude, StringComparison.Ordinal));
-        Assert.Equal(["p", Latitude], viewModel.StatusRows.Select(row => row.Label)); // The status field still lists both.
+        Assert.Equal(["os-p", Latitude], viewModel.StatusRows.Select(row => row.Label)); // The status field still lists both.
         Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
     }
 
@@ -1201,10 +1201,10 @@ public class MainViewModelTests
     {
         var viewModel = TwoProfiles();
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.Contains(viewModel.Findings, finding => finding.Header == "Risk · KEYBOARD");
-        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith("p ·", StringComparison.Ordinal));
+        Assert.DoesNotContain(viewModel.Findings, finding => finding.Header.StartsWith("os-p ·", StringComparison.Ordinal));
     }
 
     // Owner decision in #85 (#88): the findings list shows only real findings; the rest stay in the log.
@@ -1221,13 +1221,13 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
         viewModel.Load(Desk);
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.Empty(viewModel.Findings);
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "KEYBOARD").Status);
-        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
-        Assert.Contains(log.Entries, entry => entry.Text == "Finding (p, unknown): This computer: The number of external displays is not known.");
-        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, database): This computer: limits.max_hops = 5", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text == "Finding (os-p, unknown): This computer: The number of external displays is not known.");
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, database): This computer: limits.max_hops = 5", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1247,7 +1247,7 @@ public class MainViewModelTests
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
         var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), () => External(3), log);
         viewModel.Load(Desk);
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         viewModel.Apply([
             new UsbChange(UsbChangeKind.Changed, "ROOT", Port("ROOT", 1, Hub("HUB", Device("KEYBOARD") with { Problem = "code 43" }, null))),
@@ -1260,7 +1260,7 @@ public class MainViewModelTests
         Assert.All(viewModel.Findings, finding => Assert.True(IsReal(finding), finding.Header));
         // An active display count is a detected fact but not a problem.
         Assert.DoesNotContain(viewModel.Findings, finding => finding.Message.Contains("external displays are active", StringComparison.Ordinal));
-        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Finding (os-p, unknown): This computer: limits.max_hubs is unknown", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -1292,7 +1292,7 @@ public class MainViewModelTests
     public void UnknownDisplayCountAddsNoLine()
     {
         var viewModel = TwoProfiles();
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.DoesNotContain(viewModel.StatusRows.Single().Details, line => line.StartsWith("External displays", StringComparison.Ordinal));
     }
@@ -1589,15 +1589,15 @@ public class MainViewModelTests
         Assert.Empty(viewModel.Computers);
     }
 
-    // C1 is the desk (hub, keyboard, mouse: 3 connected); C2 has a phone in its root hub (1). Platform "p" allows no hub
-    // (max_hops 0), so C1 is unstable and C2 stable. "p" is the detected platform, so it is checked at start.
+    // C1 is the desk (hub, keyboard, mouse: 3 connected); C2 has a phone in its root hub (1). Platform "os-p" allows no hub
+    // (max_hops 0), so C1 is unstable and C2 stable. "os-p" is the detected platform, so it is checked at start.
     private static readonly UsbNode Phone =
         new("C2", UsbNodeKind.Controller, "Second controller", [Hub("ROOT2", Device("PHONE"))]);
 
     private static MainViewModel TwoControllers(params UsbNode[] controllers)
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hops: 0");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"));
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"));
         viewModel.Load(controllers.Length == 0 ? [.. Desk, Phone] : controllers);
         return viewModel;
     }
@@ -1699,9 +1699,9 @@ public class MainViewModelTests
     [Fact]
     public void TheSelectedControllersStatusUsesTheWholeComputersHubCount()
     {
-        // One hub on each controller; platform "p" allows one hub, so each hub is above the computer's maximum.
+        // One hub on each controller; platform "os-p" allows one hub, so each hub is above the computer's maximum.
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_hubs: 1");
-        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"));
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"));
         var dock = new UsbNode("C6", UsbNodeKind.Controller, "Dock controller", [Hub("ROOT6", Hub("DOCK", Device("D")))]);
         viewModel.Load([.. Desk, dock]);
 
@@ -2128,7 +2128,7 @@ public class LogViewModelTests
     private static readonly IReadOnlyList<UsbNode> Desk =
         [new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD"), null), Device("MOUSE"))])];
 
-    // Platform "p" has no limits, so every limit is unknown while it is checked.
+    // Platform "os-p" has no limits, so every limit is unknown while it is checked.
     private static MainViewModel NewViewModel(EventLog log)
     {
         var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified");
@@ -2144,15 +2144,15 @@ public class LogViewModelTests
 
         viewModel.Load(Desk);
         viewModel.Apply([new UsbChange(UsbChangeKind.Removed, "ROOT", Port("ROOT", 2, null))]);
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         Assert.Equal(log.Entries.Select(entry => entry.ToString()), viewModel.Log.Lines);
         Assert.Equal("Started", log.Entries[0].Text);
-        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Database loaded: 1 platform profiles, 1 computer profiles", StringComparison.Ordinal));
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("Database loaded: 2 platform profiles, 1 computer profiles, 1 guides", StringComparison.Ordinal));
         Assert.Contains(log.Entries, entry => entry.Text == "USB devices read: 1 controllers");
         Assert.Contains(log.Entries, entry => entry.Text == "Disconnected: MOUSE from Port 2 of ROOT");
-        Assert.Contains(log.Entries, entry => entry.Text == "Profile checked: p");
-        Assert.Equal("Profile checked: p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)).Text);
+        Assert.Contains(log.Entries, entry => entry.Text == "Profile checked: os-p");
+        Assert.Equal("Profile checked: os-p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)).Text);
     }
 
     [Fact]
@@ -2176,12 +2176,12 @@ public class LogViewModelTests
         var viewModel = NewViewModel(log);
         viewModel.Load(Desk);
 
-        viewModel.OperatingSystems.Single().IsChecked = true;
+        viewModel.OperatingSystems.Platform().IsChecked = true;
 
         var export = viewModel.Log.Export();
         Assert.Equal(log.Export(), export);
         Assert.Contains("Finding (no profile, unknown): ", export, StringComparison.Ordinal);
-        Assert.Contains("Finding (p, unknown): ", export, StringComparison.Ordinal);
+        Assert.Contains("Finding (os-p, unknown): ", export, StringComparison.Ordinal);
         Assert.Contains("USB devices read: 1 controllers", export, StringComparison.Ordinal);
         Assert.EndsWith(".txt", viewModel.Log.ExportFileName, StringComparison.Ordinal);
     }

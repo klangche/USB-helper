@@ -41,7 +41,7 @@ public class SetupExportTests
 
     private static MainViewModel NewViewModel(EventLog? log = null) =>
         new(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log);
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), Monitors, log);
 
     // The known fake setup as the user left it: the computer profile checked, the dock's cable marked and a room entered.
     private static MainViewModel KnownSetup(EventLog? log = null)
@@ -111,7 +111,7 @@ public class SetupExportTests
         var entitlements = new CodeEntitlements(TestKeys, settings, log);
         Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
         var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log, settings, entitlements);
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), Monitors, log, settings, entitlements);
         viewModel.RoomName = room;
         viewModel.Load(Desk());
         return viewModel;
@@ -191,8 +191,8 @@ public class SetupExportTests
         var setup = SetupFile.FromJson(Text(Export(known)["setup.json"]));
 
         Assert.Equal(Version, setup.AppVersion);
-        Assert.Equal(new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), setup.Computer);
-        Assert.Equal(["p", known.Computers.Single().Profile.Id], setup.CheckedProfiles);
+        Assert.Equal(new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), setup.Computer);
+        Assert.Equal(["os-p", known.Computers.Single().Profile.Id], setup.CheckedProfiles);
         Assert.Equal(Monitors().Select(monitor => (monitor.Name, monitor.Output)), setup.Displays!.Select(monitor => (monitor.Name, monitor.Output)));
         Assert.Single(setup.Marks);
         Assert.Equal(2, setup.Results.Count);
