@@ -450,6 +450,18 @@ public class ValidationTests
         Assert.Contains("Unknown key 'platforms.beos'", error.Message);
     }
 
+    // #299: every guide says whether it is a ProAV guide.
+    [Theory]
+    [InlineData("proav: 1\n", "")]
+    [InlineData("proav: 1\n", "proav: 2\n")]
+    public void GuideMustSayWhetherItIsProAv(string written, string replaced)
+    {
+        using var db = WithCopy(content => content.Replace(written, replaced));
+
+        var error = Assert.Single(db.LoadErrors());
+        Assert.Contains("Field 'proav' is required", error.Message);
+    }
+
     [Fact]
     public void GuideMustHaveNameAndSelectable()
     {

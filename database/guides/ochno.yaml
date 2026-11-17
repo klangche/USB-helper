@@ -13,6 +13,7 @@
 
 name: Ochno
 selectable: true
+proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
 
 
 # -----------------------------------------------------------------------------
