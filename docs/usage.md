@@ -102,15 +102,15 @@ profile for the detected operating system and processor (for example
 `windows-amd` on Windows with an AMD processor) is checked; uncheck it to
 judge by others. When no platform profile matches, nothing is checked and
 every line is grey (unknown). Computer profiles are never checked
-automatically. In the top bar, "Judge by" holds the guides on top (USB-Helper,
+automatically. In the top bar, "USB philosophy" holds the philosophies (guides) on top (USB-Helper,
 then PureLink, Ochno, Unisynk and any other guide file, one at a time;
 USB-Helper is picked at start, and a guide that is not offered yet is greyed
 out) and, below a line, the operating systems with a tick per chip (Windows
 Intel / AMD / ARM, macOS Intel / M-series / A-series, Ubuntu, Debian, iPhone
-and iPad, Android). "Computers" holds the computer profiles. Any mix of chips
+and iPad, Android). "Known issues" holds the computer profiles: machines with known problems or lower limits, never the default. Any mix of chips
 and computers can be checked. Each line then shows the worst result over the
-checked profiles, judged by the picked guide; the status field names the
-guide. The
+checked profiles, judged by the picked philosophy; the status field says
+"Judged by the PureLink philosophy". The
 status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour). Below it are only
 the checks that are exceeded: hubs, tiers, hops, the recommended hop depth
@@ -274,7 +274,7 @@ File > Settings opens the settings. Each change is saved at once:
   offered; "Enter a code to unlock beta updates" opens the unlock popup. The
   choice made while unlocked is kept and comes back on unlock.
 - **Remember the checked profiles between starts** (off by default): on, the
-  chips ticked and the guide picked in "Judge by" are ticked and picked again
+  chips ticked and the philosophy picked in "USB philosophy" are ticked and picked again
   at the next start, instead of only the detected platform profile and
   USB-Helper's guide. Computers are never checked at start. If no chip was
   ticked, the detected platform profile is checked, as without the setting.
