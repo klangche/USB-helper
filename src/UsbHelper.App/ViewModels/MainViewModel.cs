@@ -239,12 +239,15 @@ public sealed class MainViewModel : ObservableObject
         private set => SetField(ref loadingStage, value);
     }
 
-    // The selected guide's file and its fallback's: findings name them as sources.
+    // Every file of the selected guide and of its fallback: findings name them as sources.
     private IEnumerable<string> GuideFiles()
     {
-        for (var file = Guide; file != null; file = file.Fallback)
+        for (var each = Guide; each != null; each = each.Fallback)
         {
-            yield return file.File;
+            foreach (var file in each.Files)
+            {
+                yield return file;
+            }
         }
     }
 

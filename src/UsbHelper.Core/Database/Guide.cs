@@ -16,7 +16,7 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>The value that states no limit.</summary>
     public const string None = "none";
 
-    /// <summary>The file's name without <c>.yaml</c>, for example <c>purelink</c>.</summary>
+    /// <summary>The folder's name, for example <c>purelink</c> for <c>guides/purelink/</c>.</summary>
     public string Id { get; } = id;
 
     /// <summary>The guide's <c>name</c>, for example <c>PureLink</c>.</summary>
@@ -33,6 +33,12 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
 
     /// <summary>USB-Helper's guide, whose values apply where this one is empty; null for USB-Helper's own.</summary>
     public Guide? Fallback { get; } = fallback;
+
+    /// <summary>Every file of the guide's folder that the guide was read from, guide.yaml first.</summary>
+    public IReadOnlyList<string> Files => [.. FilesOf(Root).Prepend(File).Distinct()];
+
+    private static IEnumerable<string> FilesOf(ProfileValue value) =>
+        value.Fields.Values.Concat(value.Items).SelectMany(FilesOf).Prepend(value.File);
 
     /// <summary>The verification status the file writes; null when it writes none.</summary>
     public string? Status => Root.Find("verification.status")?.Scalar as string;

@@ -51,8 +51,8 @@ public static class DiagnosticEvaluator
     /// </param>
     /// <param name="monitors">The active monitors, for the MST rule (#144); their statuses join the connections by monitor id.</param>
     /// <param name="guide">
-    /// The guide whose limits and recommendations apply (#284); null for none: then only the USB maximum applies and
-    /// nothing is potentially unstable by depth.
+    /// The guide whose limits and recommendations apply (#285); null for none: every limit is in the guides, so then
+    /// nothing is judged by a limit.
     /// </param>
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,

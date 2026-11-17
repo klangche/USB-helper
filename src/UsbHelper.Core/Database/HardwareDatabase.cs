@@ -2,7 +2,7 @@ namespace UsbHelper.Core.Database;
 
 /// <summary>
 /// The hardware database: <c>base.yaml</c> (facts from the USB specification), <c>platforms/*.yaml</c> (one operating
-/// system each, with its chips), <c>guides/*.yaml</c> (limits and recommendations) and <c>computers/**/*.yaml</c>
+/// system each, with its chips), <c>guides/&lt;guide&gt;/*.yaml</c> (limits and recommendations, one folder per guide) and <c>computers/**/*.yaml</c>
 /// (problem machines, each on one platform and chip). Files whose name starts with a dot, such as
 /// <c>.template.yaml</c>, are not loaded. Files are only read.
 /// The files come from a folder (the repository's <c>database/</c>) or from resources built into the app (#102).
@@ -25,7 +25,7 @@ public sealed class HardwareDatabase
 
     public IReadOnlyDictionary<string, ResolvedProfile> Computers { get; }
 
-    /// <summary>Every guide, selectable or not, by id (the file name without <c>.yaml</c>).</summary>
+    /// <summary>Every guide, selectable or not, by id (the folder name).</summary>
     public IReadOnlyDictionary<string, Guide> Guides { get; }
 
     /// <summary>USB-Helper's guide (<see cref="Guide.DefaultId"/>): ticked at start, and the fallback of every other guide.</summary>

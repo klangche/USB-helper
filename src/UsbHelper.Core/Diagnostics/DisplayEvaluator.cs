@@ -149,7 +149,7 @@ internal static class DisplayEvaluator
         {
             supported = fromGuide.Number is { } number ? number == 1 : null;
             verified = fromGuide.Guide.Verified;
-            file = fromGuide.Guide.File;
+            file = fromGuide.Value.File;
         }
         if (supported == null)
         {
