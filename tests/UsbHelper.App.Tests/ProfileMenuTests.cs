@@ -117,7 +117,7 @@ public class ProfileMenuTests
 
         Assert.True(window.HasGuideLink);
         Assert.Equal("Extron", window.GuideName);
-        Assert.Equal("https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf", window.GuideLink!.ToString());
+        Assert.Equal("https://www.extron.com/article/usb-c-connectivity-for-pro-av", window.GuideLink!.ToString());
     }
 
     // Clicking an operating system's name judges the setup once for all of its chips, not once per chip.

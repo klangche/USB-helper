@@ -1,12 +1,14 @@
 # =============================================================================
 # Extron  –  Manufacturer guide
 # =============================================================================
-# Based on Extron’s USB white paper and product manuals (USB Extender series,
-# SW USB Pro, USB HUB4, etc.).
-#
-# Extron repeatedly states a practical “five cascading hub limit”. This is the
-# USB-IF rule of max 5 non-root hubs expressed in their own language. Internal
-# hubs inside the host PC and compound devices must be counted.
+# From Extron's "USB-C for Pro AV" design guide: "USB bus topology consists of
+# seven tiers, each starting with a USB hub. The first of the seven tiers is the
+# host device and its root hub. The last tier is the final peripheral in the
+# chain. That leaves a maximum of five additional hubs in your signal chain."
+# Extenders use one or two hubs in the transmitter and receivers with several
+# ports contain a hub: "Each of these hubs counts toward the five cascading hub
+# limit." So Extron counts hubs in a row (chain), max 5, with no separate
+# recommendation and no camera rule.
 #
 # How to edit
 #   - Leave a value empty  → fall back to the value above it
@@ -17,23 +19,22 @@
 name: Extron
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
-count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
-link: https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf
-
+count: [chain]                        # Extron counts cascading hubs in front of a device
+link: https://www.extron.com/article/usb-c-connectivity-for-pro-av
 
 # -----------------------------------------------------------------------------
 # Global defaults
 # -----------------------------------------------------------------------------
 limits:
-  hubs:
-    recommended: 3
-    max: 5                            # Extron “five cascading hub limit”
-  tiers:
-    recommended: 5
-    max: 7                            # USB-IF absolute maximum
-  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+  hubs:                            # not counted by Extron
     recommended:
     max:
+  tiers:                           # not counted by Extron (seven tiers = five hubs in a row)
+    recommended:
+    max:
+  chain:                           # "the five cascading hub limit"
+    recommended: none
+    max: 5
   buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
@@ -47,14 +48,14 @@ limits:
       hubs:
         recommended:
         max:
-  camera_audio:
+  camera_audio:                       # no camera or audio rule in the guide
     tiers:
-      recommended: 3
-      max: 5
+      recommended: none
+      max: none
     chain:
-      recommended:
-      max:
-  exceeded_note: "Exceeding five cascading hubs – devices may drop or fail to enumerate."
+      recommended: none
+      max: none
+  exceeded_note: "Extron: at most five cascading hubs, extender and receiver hubs included."
 
 
 # =============================================================================
@@ -73,17 +74,11 @@ platforms:
 
       amd:
         mst: 1
-        limits:
-          tiers:
-            recommended: 4
-            max: 6
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -100,17 +95,11 @@ platforms:
 
       apple-silicon:
         mst: 0
-        limits:
-          tiers:
-            recommended: 4
-            max: 6
+        limits: {}
 
       a-series:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -131,10 +120,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -155,10 +141,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -166,13 +149,7 @@ platforms:
 # =============================================================================
   apple-mobile:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       a-series:
@@ -189,13 +166,7 @@ platforms:
 # =============================================================================
   android:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       phone-qualcomm:
@@ -209,7 +180,6 @@ platforms:
 
 # -----------------------------------------------------------------------------
 sources:
-  - "Extron USB white paper – Cascading Hub Limit section (do not exceed five cascading hubs)"
-  - "https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf"
-  - "Extron USB Extender / SW USB Pro manuals: ‘Do not connect more than five daisy-chained hubs’"
-  - "USB-IF maximum of 7 tiers; Extron expresses the practical limit as 5 cascading hubs"
+  - "https://www.extron.com/article/usb-c-connectivity-for-pro-av"
+  - "Extron, USB-C for Pro AV design guide: seven tiers, so at most five additional hubs in the signal chain"
+  - "Extron: extender transmitter hubs (one or two) and receiver hubs count toward the five cascading hub limit"

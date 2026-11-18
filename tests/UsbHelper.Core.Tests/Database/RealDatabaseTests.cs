@@ -187,8 +187,8 @@ public class RealDatabaseTests
     // A few values read from the owner's files, through chip, platform and global.
     [Theory]
     [InlineData("purelink", "windows-intel", "tiers.max", 7)]
-    [InlineData("purelink", "windows-amd", "tiers.recommended", 3)]
-    [InlineData("purelink", "windows-amd", "usb3.hubs.max", 5)] // The guide's own hubs before USB-Helper's per bus.
+    [InlineData("purelink", "windows-amd", "tiers.recommended", 4)] // PureLink's whitepaper has no per-chip rule.
+    [InlineData("purelink", "windows-intel", "camera_audio.tiers.max", 4)]
     [InlineData("ochno", "windows-intel", "chain.max", 5)]
     [InlineData("ochno", "macos-apple-silicon", "usb2.chain.max", 5)] // Chain is the same on every bus.
     [InlineData("unisynk", "debian-amd", "tiers.recommended", 4)]
@@ -305,9 +305,9 @@ public class RealDatabaseTests
     [InlineData("usb-helper", "tiers,hubs")]
     [InlineData("desktop", "tiers")]
     [InlineData("ochno", "chain")]
-    [InlineData("purelink", "tiers,hubs")]
+    [InlineData("purelink", "tiers")]
     [InlineData("unisynk", "tiers,hubs")]
-    [InlineData("extron", "tiers,hubs")]
+    [InlineData("extron", "chain")]
     [InlineData("crestron", "tiers,hubs")]
     public void GuidesSayWhatTheyCount(string id, string count) =>
         Assert.Equal(count.Split(','), HardwareDatabase.Load(DatabaseFolder()).Guides[id].Count);
@@ -386,8 +386,8 @@ public class RealDatabaseTests
 
     // The owner's files of 2026-11-17: Extron and Crestron, with their sources; the guide's link (#310) is its page.
     [Theory]
-    [InlineData("extron", "Extron", "https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf")]
-    [InlineData("crestron", "Crestron", "https://community.crestron.com/s/article/3082")]
+    [InlineData("extron", "Extron", "https://www.extron.com/article/usb-c-connectivity-for-pro-av")]
+    [InlineData("crestron", "Crestron", "https://community.crestron.com/s/article/3082#What_Is_A_Tier")]
     [InlineData("ochno", "Ochno", "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room")]
     [InlineData("usb-helper", "USB-Helper", null)]
     [InlineData("desktop", "Desktop", null)]
@@ -401,7 +401,7 @@ public class RealDatabaseTests
     }
 
     [Theory]
-    [InlineData("extron", "hubs.max", 5)]
+    [InlineData("extron", "chain.max", 5)] // "the five cascading hub limit"
     [InlineData("crestron", "hubs.max", 4)]
     [InlineData("crestron", "tiers.max", 7)]
     public void ExtronAndCrestronHoldTheirLimits(string id, string path, long value)

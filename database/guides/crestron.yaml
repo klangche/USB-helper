@@ -18,7 +18,7 @@ name: Crestron
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
 count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
-link: https://community.crestron.com/s/article/3082
+link: https://community.crestron.com/s/article/3082#What_Is_A_Tier
 
 
 # -----------------------------------------------------------------------------
@@ -209,7 +209,8 @@ platforms:
 
 # -----------------------------------------------------------------------------
 sources:
-  - "https://community.crestron.com/s/article/3082  (USB Tiers knowledge article)"
+  - "https://community.crestron.com/s/article/3082#What_Is_A_Tier"
+  - "Crestron knowledge article 3082, USB tiers (behind a Crestron login; not verified yet)"
   - "Crestron USB-EXT-2 / USB-EXT-3 product documentation: up to 4 USB hubs supported in chain"
   - "DM-NUX series notes: refer to Knowledge Article 3082 for tier and bandwidth management"
   - "USB-IF maximum of 7 tiers; Crestron treats this as a hard limit"

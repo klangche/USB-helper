@@ -331,4 +331,29 @@ public class GuideRulesTests
         Assert.Null(report.Hubs.Limit);
         Assert.Equal(5L, report.Chain.Limit);
     }
+
+    // Extron's design guide: at most five cascading hubs, no recommendation (owner 2026-11-18). On Windows Intel
+    // (no built-in hub level) 5 hubs in a row are fine, 6 are unstable.
+    [Theory]
+    [InlineData(5, ConnectionStatus.Green)]
+    [InlineData(6, ConnectionStatus.Purple)]
+    public void ExtronCountsFiveCascadingHubs(int hubs, ConnectionStatus status) =>
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Device("KEYBOARD"), Db.Guides["extron"]));
+
+    // PureLink's whitepaper: tiers only, ideally within four, seven at most; cameras and audio 3–4. A device behind
+    // N hubs on Windows Intel is on tier N + 2.
+    [Theory]
+    [InlineData(2, ConnectionStatus.Green)]
+    [InlineData(3, ConnectionStatus.Orange)]
+    [InlineData(5, ConnectionStatus.Orange)]
+    [InlineData(6, ConnectionStatus.Purple)]
+    public void PureLinkCountsTiers(int hubs, ConnectionStatus status) =>
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Device("KEYBOARD"), Db.Guides["purelink"]));
+
+    [Theory]
+    [InlineData(1, ConnectionStatus.Green)]
+    [InlineData(2, ConnectionStatus.Orange)]
+    [InlineData(3, ConnectionStatus.Purple)]
+    public void PureLinkLimitsCamerasToThreeOrFourTiers(int hubs, ConnectionStatus status) =>
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Camera, Db.Guides["purelink"]));
 }
