@@ -25,7 +25,9 @@ of it (`release/beta-version.sh`).
 Each release and each beta also gets the macOS dmg as an extra asset. A separate job in
 `.github/workflows/macos.yml` waits for the release (on `main`) or beta (on `dev`) of the same commit,
 builds the dmg with that version and attaches it, so a slow macOS runner never
-delays or fails the Windows release; if that job fails, re-run it. To add the dmg
+delays or fails the Windows release; if that job fails, re-run it. A merge that
+makes no release or beta gets no dmg: the job ends once the Release workflow has
+finished without publishing one. To add the dmg
 to an existing release, run that workflow by hand with its tag (for example `v0.7.0`).
 Beta tags never count as a release (`release/last-release.sh`).
 
@@ -53,7 +55,7 @@ a code, and never put one in an issue, pull request or test.
   hub IOCTLs).
 - `src/UsbHelper.App`: the GUI. Run it from source on Windows with
   `dotnet run --project src/UsbHelper.App`. It reads the database built into
-  it from `database/` (rebuild after a database change), picks the computer
+  it from `database/`, which `release/database.sh` fetches from the `database` branch (rebuild after fetching), picks the computer
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,

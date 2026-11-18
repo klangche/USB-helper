@@ -25,6 +25,8 @@ public class MenuTests
 
         public void ShowAbout() => Calls.Add(nameof(ShowAbout));
 
+        public void ShowCustomGuide(CustomGuideViewModel editor) => Calls.Add(nameof(ShowCustomGuide));
+
         public void ShowSettings() => Calls.Add(nameof(ShowSettings));
 
         public void ShowUnlock() => Calls.Add(nameof(ShowUnlock));
@@ -109,19 +111,32 @@ public class MenuTests
         Assert.Null(box.Attribute("Watermark"));
     }
 
-    // #206: a Refresh button and File > Refresh both ask the window, which then asks the user what to clear.
+    // #206: F5 and File > Refresh both ask the window, which then asks the user what to clear. The Refresh button left
+    // the top bar (owner order 2026-11-17).
     [Fact]
-    public void TheRefreshButtonAndMenuItemAskTheWindow()
+    public void F5AndTheMenuItemAskTheWindow()
     {
         var window = MainWindowXaml();
-        var button = window.Descendants(Avalonia + "Button")
-            .Single(element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Refresh}");
-        Assert.Equal("{Binding RefreshCommand}", (string?)button.Attribute("Command"));
+        var f5 = window.Descendants(Avalonia + "KeyBinding").Single(element => (string?)element.Attribute("Gesture") == "F5");
+        Assert.Equal("{Binding RefreshCommand}", (string?)f5.Attribute("Command"));
         Assert.Equal("{Binding RefreshCommand}", (string?)MenuItem(window, "MenuRefresh").Attribute("Command"));
+        Assert.DoesNotContain(window.Descendants(Avalonia + "Button"), element => (string?)element.Attribute("Content") == "{x:Static res:Strings.Refresh}");
 
         var fake = new FakeWindow();
         Loaded(Known, fake).RefreshCommand.Execute(null);
         Assert.Equal(["ConfirmRefresh"], fake.Calls);
+    }
+
+    // Owner order 2026-11-17: on the right of the top bar, from the left, PDF, Export, Log, Unlock. They are docked to
+    // the right, so the file lists them from the right edge inwards.
+    [Fact]
+    public void TheRightHandButtonsArePdfExportLogUnlock()
+    {
+        var docked = MainWindowXaml().Descendants(Avalonia + "Button")
+            .Where(element => (string?)element.Attribute(Avalonia + "DockPanel.Dock") == "Right" || (string?)element.Attribute("DockPanel.Dock") == "Right")
+            .Select(element => (string?)element.Attribute("Content")).Take(4).ToList(); // The top bar comes first in the file.
+
+        Assert.Equal(["{x:Static res:Strings.UnlockOpen}", "{x:Static res:Strings.LogButton}", "{x:Static res:Strings.Export}", "{x:Static res:Strings.PdfButton}"], docked);
     }
 
     // #189: the toolbar button says "Export" and makes the full setup export, like File > Export full setup.
@@ -162,7 +177,7 @@ public class MenuTests
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
-        Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Refresh...", "-", "Report this machine...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "Unlock...", "About USB-helper"], Headers(1));
         // #238: Help > Unlock... opens the unlock popup.
         var unlock = top[1].Menu!.Items.OfType<NativeMenuItem>().Single(item => item.Header == "Unlock...");

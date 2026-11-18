@@ -1,6 +1,7 @@
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Export;
+using UsbHelper.Core.Topology;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Export;
@@ -22,7 +23,7 @@ public class SetupFileTests
     [Fact]
     public void IdsArePositionsInTheTreeWithoutSerialNumbers()
     {
-        var (tree, marks) = SetupFile.Anonymize(Desk(), new Dictionary<string, int> { ["ROOT|port1"] = 2 });
+        var (tree, marks) = SetupFile.Anonymize(Desk(), new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) });
 
         var all = Flatten(tree).ToList();
         Assert.Equal(["1", "1/1", "1/1/1", "1/1/1/1", "1/1/1/1/1", "1/1/1/1/1/1", "1/1/1/1/2", "1/1/2"], all.Select(node => node.Id));
@@ -30,7 +31,7 @@ public class SetupFileTests
         Assert.Equal("Cruzer", all[5].Name); // Everything else is kept.
         Assert.Equal((ushort)0x0781, all[5].VendorId);
         Assert.True(all[2].UsbC);
-        Assert.Equal(new Dictionary<string, int> { ["1/1/1"] = 2 }, marks);
+        Assert.Equal(new Dictionary<string, CableMark> { ["1/1/1"] = CableMark.OfHubs(2) }, marks);
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public class SetupFileTests
         // An id that starts with its port's id and "|" stands for a hub or device Windows could not identify.
         IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT", Device("ROOT|port1|device") with { Problem = "code 43" }))];
 
-        var (anonymous, _) = SetupFile.Anonymize(tree, new Dictionary<string, int>());
+        var (anonymous, _) = SetupFile.Anonymize(tree, new Dictionary<string, CableMark>());
 
         Assert.Equal("1/1/1|device", Flatten(anonymous).Last().Id);
     }
@@ -58,7 +59,7 @@ public class SetupFileTests
             ],
         };
 
-        var (anonymous, _) = SetupFile.Anonymize([Controller("C1", root)], new Dictionary<string, int>());
+        var (anonymous, _) = SetupFile.Anonymize([Controller("C1", root)], new Dictionary<string, CableMark>());
 
         var ports = Flatten(anonymous).Where(node => node.Kind == UsbNodeKind.Port).ToList();
         Assert.Equal("1/1/2", ports[0].CompanionPortId);
@@ -94,7 +95,7 @@ public class SetupFileTests
     [Fact]
     public void TheJsonRoundTrips()
     {
-        var (tree, marks) = SetupFile.Anonymize(Desk(), new Dictionary<string, int> { ["ROOT|port1"] = 2 });
+        var (tree, marks) = SetupFile.Anonymize(Desk(), new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) });
         var setup = new SetupFile(
             AppVersion: "0.6.0-beta.3",
             Date: new DateOnly(2026, 11, 3),
@@ -120,9 +121,43 @@ public class SetupFileTests
         Assert.Equal(setup.Marks, read.Marks);
     }
 
+    // #307: a mark is written as its hubs and tiers; an older file's plain number N is read as +N hubs.
+    [Fact]
+    public void MarksAreHubsAndTiersAndAnOldNumberIsReadAsHubs()
+    {
+        var setup = Minimal() with { Marks = new Dictionary<string, CableMark> { ["1/1/1"] = CableMark.OfTiers(2), ["1/1/2"] = CableMark.OfHubs(1) } };
+        var json = setup.ToJson();
+
+        Assert.Contains("\"1/1/1\": {\n      \"hubs\": 0,\n      \"tiers\": 2\n    }", json.ReplaceLineEndings("\n"));
+        Assert.Equal(setup.Marks, SetupFile.FromJson(json).Marks);
+
+        var old = json.ReplaceLineEndings("\n").Replace("{\n      \"hubs\": 0,\n      \"tiers\": 2\n    }", "2", StringComparison.Ordinal);
+        Assert.Equal(CableMark.OfHubs(2), SetupFile.FromJson(old).Marks["1/1/1"]);
+        Assert.Equal(new CableMark(2, 2), SetupFile.FromJson(old).Marks["1/1/1"]);
+    }
+
+    // #274: the kind of a device is optional and left out for hubs, ports and controllers; older readers ignore it, so
+    // the format stays 1.
+    [Fact]
+    public void TheDeviceKindRoundTripsAndIsLeftOutWhereThereIsNone()
+    {
+        var webcam = Device("WEBCAM") with { DeviceKind = UsbDeviceKind.CameraAndAudio };
+        var setup = Minimal() with { Controllers = [Controller("C1", Hub("ROOT", webcam, Device("STICK") with { DeviceKind = UsbDeviceKind.Unknown }))] };
+
+        var json = setup.ToJson();
+        var read = SetupFile.FromJson(json);
+
+        Assert.Contains("\"device_kind\": \"camera_and_audio\"", json);
+        Assert.Contains("\"device_kind\": \"unknown\"", json);
+        Assert.Equal(2, json.Split("device_kind").Length - 1);
+        Assert.Equal(1, read.FormatVersion);
+        Assert.Equal([UsbDeviceKind.CameraAndAudio, UsbDeviceKind.Unknown],
+            Flatten(read.Controllers).Where(node => node.Kind == UsbNodeKind.Device).Select(node => node.DeviceKind));
+    }
+
     // #230: the company, room and licensed email are optional; the format stays 1 because older readers ignore them.
     private static SetupFile Minimal() => new("0.9.0-test", new DateOnly(2026, 11, 13), new ComputerIdentity("Dell Inc.", "Latitude 7450"),
-        [], [], new Dictionary<string, int>(), null, []);
+        [], [], new Dictionary<string, CableMark>(), null, []);
 
     [Fact]
     public void CompanyRoomAndLicensedEmailRoundTrip()

@@ -12,7 +12,7 @@ public enum ConnectionStatus
     /// <summary>Unknown: no profile is selected, or the profile knows no limit to judge it by.</summary>
     Grey,
 
-    /// <summary>Potentially unstable: above a recommendation (such as <c>recommended_hops</c>) but within the maximum.</summary>
+    /// <summary>Potentially unstable: above a recommendation (such as <c>recommended_tiers</c>) but within the maximum.</summary>
     Orange,
 
     /// <summary>Unstable: a maximum is exceeded, or the operating system reports an error on a connection that is still present.</summary>

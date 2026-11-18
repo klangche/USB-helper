@@ -1,62 +1,223 @@
 # Hardware database, counting and diagnostic rules
 
-How the YAML database is built, how hubs, tiers and hops are counted, and how each connection gets its status.
+How the YAML database is built, how hubs and tiers are counted, and how each connection gets its status.
 
 ## Hardware database
 
-Human-readable YAML in `database/`, version-controlled and reviewed:
+Human-readable YAML on the [`database` branch](https://github.com/klangche/USB-helper/tree/database) (#288),
+version-controlled and reviewed. Facts and advice are kept apart: platform and computer files hold facts, guide files hold
+every limit and recommendation.
+
+The branch is the only source. Each format has its own folder, `v3/` today (`schema_version: 3` in `base.yaml`), so an
+app always gets files in the format it reads; a new format adds `v4/` next to it. Every build takes the head of the
+branch: `release/database.sh` copies `v<format>/` into `database/` (ignored by git) before the build, in CI and locally.
+Run it once after cloning, and again to get the newest files. It also writes `database/.source`, the commit's full sha
+and date, which the build puts into the app with the files.
+
+A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
+start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
+(`commits?sha=database&path=v3&per_page=1`). When that commit's date is later than the database in use, it lists the
+commit's files (`git/trees/<sha>?recursive=1`), downloads every `.yaml` file of the folder from
+`raw.githubusercontent.com/klangche/USB-helper/<sha>/v3/...`, and uses them only when they load without a problem.
+No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per start
+(GitHub allows 60 an hour without a token), and the files only when they are newer.
+
+To change a file, open a pull request to the `database` branch. Its checks (`.github/workflows/database.yml`) load the
+files with the code of `dev`, and of the last release when that reads the same format, and run every test, so a file the
+app cannot read never lands.
 
 ```
-database/
-├── base.yaml          shared structural defaults
-├── platforms/         operating system and architecture profiles
-└── computers/         one file per computer model, by manufacturer
+v3/ on the database branch, database/ after release/database.sh
+├── base.yaml          facts from the USB specification
+├── platforms/         one file per operating system, with its chips
+├── guides/            one file per guide: usb-helper.yaml (the default), desktop.yaml, purelink.yaml, ochno.yaml,
+│                      unisynk.yaml, extron.yaml, crestron.yaml
+└── computers/         one file per problem machine, by manufacturer
 ```
 
-The build puts these files into the app, so the download has no database
-folder.
+The build puts these files into the app, so the download has no database folder. The database is only read by the
+application; a newer one it downloads is kept in `database-cache/<sha>/` next to `settings.json`.
 
-A computer profile inherits from a platform profile, which inherits from
-`base.yaml`. Every profile records its sources, a verification status
-(`verified`, `partial`, `unverified`) and the date it was last checked.
+### base.yaml
 
-Inheritance rules:
+```yaml
+schema_version: 2
+usb:
+  max_tiers: 7                     # seven tiers on a path (USB 2.0 specification)
+  max_devices_per_controller: 127  # a 7-bit device address; above it is unstable
+usb4:
+  max_router_depth: 5              # loaded, not judged yet: USB4 links are not detected yet (#267)
+```
 
-- An omitted field inherits the parent's value.
-- An explicit value overrides the parent's value.
-- An explicit `null` overrides the parent's value and means unknown. Unknown
-  is never replaced by a guessed default. `verification.status` cannot be
-  `null`; use `unverified`.
-- Mappings merge field by field. Lists add the child's items after the
-  parent's. An empty list (`[]`) or mapping (`{}`) adds nothing and never
-  erases inherited data; use `null` to mark inherited data as unknown.
+### Platform files
 
-The database is only read, never written, by the application. Loading stops
-with a list of every problem found, each with file and line: invalid YAML,
-duplicate fields, unknown fields, wrong value types, invalid verification
-status or date, duplicate ids, a missing parent, or a parent of the wrong kind
-(platforms inherit from `base`, computers from a platform, so inheritance
-cannot loop).
+One file per operating system family. The file name is the platform (`windows`, `macos`, `ubuntu`, `debian`,
+`apple-mobile`, `android`), the same keys as under `platforms:` in the guide files. Each chip is one platform profile, named after the file and the chip: `windows-intel`, `macos-a-series`.
+Adding or renaming a chip is only a change to the file.
 
-### Platform profiles
+```yaml
+name: macOS
+chips:
+  apple-silicon:
+    name: M-series
+    architecture: arm64
+    built_in_hub_levels: 1   # hub levels inside the computer, in front of its own port; null when unknown
+```
 
-Each platform profile sets the hop limits from the `platformStability` values in
-the [usb-script config](https://github.com/klangche/usb-script/blob/main/usb-tree-config.json)
-(`max` as `max_hops`, `rec` as `recommended_hops`), with status `partial`:
-tested in practice, not a manufacturer specification. Hub count and tier depth
-stay unknown.
+| Platform | Chips (`built_in_hub_levels`) |
+|---|---|
+| `windows` | `intel` 0, `amd` 0, `arm` 0 |
+| `macos` | `intel` 0, `apple-silicon` (M-series) 1, `a-series` 2 |
+| `ubuntu`, `debian` | `intel` 0, `amd` 0, `arm` 0 (Ubuntu and Debian are separate systems, owner decision 2026-11-17) |
+| `apple-mobile` (iPhone and iPad) | `a-series` 2, `m-series` null (not measured yet) |
+| `android` | `phone-qualcomm` 0, `tablet-exynos` 1 (from the usb-script config) |
 
-| Platform profile | `max_hops` | `recommended_hops` |
-|---|---|---|
-| `windows-intel`, `windows-amd` | 7 | 5 |
-| `windows-arm` | 5 | 3 |
-| `macos-intel` | 7 | 5 |
-| `macos-apple-silicon` | 5 | 3 |
-| `apple-mobile-a-series` (iPhone, iPad) | 4 | 2 |
-| `linux-x64` | 6 | 4 |
-| `linux-arm` | 5 | 3 |
-| `android-phone-qualcomm` | 5 | 3 |
-| `android-tablet-exynos` | 4 | 2 |
+### Guide files
+
+Each guide is one file, `guides/<guide>.yaml`, with the same platforms and chips in every guide, so a guide can be sent
+to a manufacturer, filled in and sent back. A returned file with a missing or extra platform, chip or key is rejected,
+with file, line and key. A new file in `guides/` is a new guide; no code change is needed.
+
+Every guide file has the same keys in the same order; only the header's values and the limits differ (#310).
+
+```yaml
+name: PureLink
+selectable: true
+proav: 1                # 1: a ProAV guide, 0: general purpose
+count: [tiers, hubs]    # what this guide judges: any of chain, tiers, hubs
+link:                   # the guide's page (http or https); optional
+
+limits:                 # global: every system
+  hubs:                 # external hubs
+    recommended: 3
+    max: 5
+  tiers:                # USB tiers as the specification counts them (host = tier 1), built-in hub levels included
+    recommended: 4
+    max: 7
+  chain:                # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended:
+    max:
+  buses:                # hubs per bus; empty = the hubs above
+    usb2: { hubs: { recommended: , max: } }
+    usb3: { hubs: { recommended: , max: } }
+    usb4: { hubs: { recommended: , max: } }
+  camera_audio:         # stricter tiers and chain for cameras and audio devices
+    tiers: { recommended: 3, max: 4 }
+    chain: { recommended: , max: }
+  exceeded_note: "Too many hubs/tiers – video or audio may drop frames."   # at most 160 characters
+
+platforms:
+  windows:
+    mst: 1              # 1: extends the desktop over DisplayPort MST, 0: does not
+    limits: {}          # only what differs from the global limits
+    chips:
+      amd:
+        mst: 1
+        limits:
+          tiers: { recommended: 3, max: 6 }
+  # macos, ubuntu, debian, apple-mobile, android: the same, with every chip of platforms/<platform>.yaml
+
+sources:
+  - "..."
+```
+
+Guides state their limits in different terms (#310): some count USB tiers, some count the hubs daisy-chained in
+front of a device ("max 5 hub hops", "five cascading hubs"), some count all hubs on a bus. So every guide says what it
+counts:
+
+- `count` (required): a list of any of `chain`, `tiers` and `hubs`, at least one, each once. Only these are judged
+  for the guide; its numbers for the others are ignored and never fall back into judging. `count` is read from the
+  picked guide itself, never from USB-Helper's.
+- `chain`: the hubs daisy-chained in front of a device on its path from the computer: the external hubs in front of
+  it (marked hubs included) plus the chip's `built_in_hub_levels`. Root hubs do not count; a laptop's non-root
+  internal hub does. With unknown built-in levels the chain is "at least" what is counted, like tiers. It is judged on
+  each bus, like tiers, since a product can have more USB 2 than USB 3 hubs. Its findings name `limits.max_chain`,
+  `limits.recommended_chain`, `limits.camera_audio_max_chain` and `limits.camera_audio_recommended_chain`; the report
+  calls it "Hubs in a chain".
+- `link` (optional): the guide's page, an absolute http or https address. The app links it; without it, the first
+  web address in `sources`.
+
+Example, Ochno's guide ("having max 5 usb hubs daisy-chained", the same for USB 2.0 and USB 3.2, a laptop's internal
+hub included):
+
+```yaml
+count: [chain]
+link: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
+limits:
+  chain:
+    recommended: none   # one hard limit
+    max: 5
+```
+
+A device behind 5 external hubs is within on Windows on Intel (no built-in level) and unstable behind 6; on an
+M-series Mac (one built-in level) 4 are within and 5 unstable, which is Ochno's "4 for all laptops".
+
+How to read a value:
+
+- A number is the limit. An empty value (or a key left out of a chip's or platform's `limits`) means: use the value
+  above it: the chip's, then the platform's, then the global one, then USB-Helper's (`guides/usb-helper.yaml`) the same
+  way. This is different from platform and computer files, where `null` means unknown.
+- `none` means: deliberately no limit, and nothing above it is used either.
+- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers and chain are the same on every bus.
+- USB-Helper's guide is the default (ticked at start) and the fallback, so its global limits (`buses` included) and
+  every `mst` are filled in. The per-bus hubs are filled in only there, until a manufacturer gives numbers.
+- `selectable: false` lists a guide that is not offered yet.
+- Each limit is checked on its own; nothing is worked out between hubs, tiers and chain. Above any `max` is unstable
+  (purple), above any `recommended` potentially unstable (orange). Only what the guide's `count` lists is judged.
+- Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
+  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked but not judged yet: USB4
+  links are not detected yet (#267).
+- A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
+  the computer's own port is on tier 4.
+- Findings and the log name the guide, the key and the file, for example
+  `limits.max_tiers = 7 (USB-Helper: limits.tiers.max 7 in guides/usb-helper.yaml)`, so a
+  value that fell back reads as USB-Helper's.
+
+| Guide | Values |
+|---|---|
+| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): counts tiers and hubs; hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; chain 3 / 5 and cameras and audio 1 / 3 (its tiers minus 2), filled in as the fallback, not judged; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources or link: the owner keeps them in a separate document. |
+| `desktop` | General purpose and the freest: exactly the USB specification, tiers at most 7, no recommendation, no hub count, no camera rule. |
+| `purelink` | PureLink's USB-C whitepaper v3 (Robin Cullen, 8 Oct 2025, not published yet, so no link): `count: [tiers]`, tiers 4 recommended / 7 max, cameras and audio 3 / 4. No per-platform numbers. |
+| `extron` | Extron's "USB-C for Pro AV" design guide, linked to its article page: `count: [chain]`, at most five cascading hubs, no recommendation, no camera rule. |
+| `crestron` | Crestron's knowledge article 3082 "USB Tiers" (linked; needs a Crestron login): `count: [tiers]`, never more than 7, no recommendation, no camera rule. |
+| `unisynk` | The owner's file of 2026-11-17; counts tiers and hubs for now, as its text is not verified yet. |
+| `ochno` | Follows Ochno's own guide (#310): counts the chain only, at most 5 hubs daisy-chained, no recommendation and no separate limit for cameras and audio devices; no tier or hub numbers and no platform or chip overrides. Links its guide page. |
+
+### Custom guide
+
+An unlocked user's own guide (#300) is not part of the database: it is `custom.yaml` in the folder of the app's
+settings file (`%APPDATA%\USB-helper\custom.yaml` on Windows, next to `settings.json`), written by the app's Custom
+editor (see [usage.md](usage.md#custom-philosophy)). It has the shape of every guide file and is checked the same way,
+against the platforms and chips of the loaded database, with USB-Helper's guide as the fallback for every empty value.
+In addition, `name` must be `Custom` and `selectable` must be `true`. Errors name `custom.yaml` and the line. The blank
+the editor offers has every platform and chip with every value empty, `proav: 0`, `count: [tiers, hubs]` (as
+USB-Helper's, since `count` is required and never falls back), an empty `link` and the unlock email as a note.
+
+### Computer files
+
+```yaml
+platform: macos          # a platform file
+chip_family: a-series    # one of its chips; "chip" is the processor name the computer reports
+manufacturer: Apple Inc.
+model: Mac17,5
+name: MacBook Neo
+built_in_hub_levels: 2   # optional, when this model differs from its chip
+displays:
+  max_external: 1
+  mst: false             # optional: a hardware fact that wins over the guide's mst
+```
+
+A computer file never holds limits. Fields left out inherit the chip's facts; an explicit `null` means unknown and is
+never replaced by a guessed default. Lists add the computer's items after the platform's; an empty list or mapping adds
+nothing.
+
+Loading stops with a list of every problem found, each with file and line: invalid YAML, duplicate fields, unknown
+fields, wrong value types, invalid verification status or date, duplicate ids, a missing platform or chip, a guide file
+whose platforms, chips or keys differ, a guide without a valid `count` or with a `link` that is not an http or https
+address, an empty global value or `mst` in USB-Helper's guide, an `mst` other than 0 or 1, an `exceeded_note` over 160
+characters, a tier above `usb.max_tiers`, or a file that is not read (only `base.yaml`, `platforms/*.yaml`,
+`guides/*.yaml` and the `.yaml` files below `computers/` are; a file whose name starts with a dot, such as
+`.template.yaml`, is left out on purpose).
 
 ### Ports and displays
 
@@ -94,9 +255,10 @@ DisplayLink adapters are found in the USB tree (by DisplayLink's USB vendor id,
 port a monitor uses cannot be detected, so the port capabilities and
 restrictions are listed, not matched to monitors.
 
-`displays.mst` says whether the computer supports DisplayPort Multi-Stream
-Transport, several independent displays on one DisplayPort output. When a
-checked profile says `mst: false` and more than one external DisplayPort
+MST (DisplayPort Multi-Stream Transport, several independent displays on one
+DisplayPort output) comes from the selected guide's `mst` for the platform and
+chip (1 or 0), or from a computer file's `displays.mst`, which wins. When a
+checked profile has no MST and more than one external DisplayPort
 display is active (DisplayPort, DisplayPort Alt Mode, or DisplayPort over
 USB4/Thunderbolt; DisplayLink, HDMI and built-in displays never count), the
 first one is judged as usual and every further one is potentially unstable
@@ -112,81 +274,98 @@ assumed to carry video, and no bandwidth is calculated.
 
 ### Adding or updating a computer profile
 
-1. Start from a file exported by the app ("Export computer profile"), or copy
-   `database/computers/.template.yaml`. Save it as
-   `database/computers/<manufacturer>/<model>.yaml`.
-2. Set `inherits` (a platform id from `database/platforms/`), `manufacturer`
+A computer gets a profile only when it is a problem machine: one that differs
+from its platform profile through built-in hubs, unusual ports, display limits
+or other quirks. Every other computer uses its platform profile, so the list
+stays short.
+
+1. Start from a file exported by the app ("Report this machine"), or copy
+   `v3/computers/.template.yaml` on the `database` branch. Save it there as
+   `v3/computers/<manufacturer>/<model>.yaml`.
+2. Set `platform` (a file in `v3/platforms/`), `chip_family` (one of its
+   chips), `manufacturer`
    and `model` exactly as the computer reports them. Do not add an `id`: it is
    computed (see below). If the model is a technical string (for example
    `Mac17,5`), add `name` (for example `MacBook Neo`): the app shows it, but
    only `manufacturer` and `model` are matched.
-3. Limits (`limits.max_hubs`, `max_tiers`, `max_hops`, `recommended_hops`)
-   left out inherit the platform profile's values. Set a value only where this
-   model differs (for example built-in hubs), or `null` when the platform's
-   value does not apply and the right one is unknown.
+3. A computer file holds no limits: they are in the guides. Set
+   `built_in_hub_levels` or `displays` only where this model differs from its
+   chip, or `null` when the chip's value does not apply and the right one is
+   unknown.
 4. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
-5. Run `dotnet test`: it loads the whole database and reports any problem.
-6. Open a pull request. Changes to verified values need review; the git history
+5. To check it locally, copy it into `database/computers/` of a `dev` checkout and run `dotnet test`: it loads the
+   whole database and reports any problem. The pull request runs the same check.
+6. Open a pull request to the `database` branch. Changes to verified values need review; the git history
    keeps every correction.
-7. The database is built into the app, so users get the change with the next
-   release or beta build; an existing download keeps its own database.
+7. Once merged, running apps of the same format download the change at their next start (unless "Download database
+   updates" is off), and every build after it has it built in.
 
 A computer profile's id is never written in the file. The app computes it from
 `manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters
 and digits, for example `y98inr` for `Dell Inc.` / `Latitude 7450`. The same
 names always give the same id, so nobody can set or change it, and a second
-file for the same model is rejected. Platform profiles keep their written `id`,
-which computer profiles name in `inherits`.
+file for the same model is rejected. A platform profile's id is its file and
+chip, for example `macos-a-series`.
 
 ## Topology counting
 
-The three limits in a computer profile are checked independently:
+The three kinds of limits in a guide are checked independently (owner decisions
+2026-11-17, #297, and 2026-11-18, #310), each only when the guide's `count` lists it:
 
-- **Tier depth** (`max_tiers`): the computer's own port is on tier 1, each hub
-  below it adds one, and the device's own tier counts.
-- **Hop depth** (`max_hops`): the number of hubs between the computer's own
-  port and the device.
-- **Hub count** (`max_hubs`): all external hubs connected to the computer, root
+- **Tier depth** (`tiers`): as the USB specification counts it: the host with
+  its root hub is tier 1, each hub adds one, the device's own tier counts, and
+  so do the chip's `built_in_hub_levels`.
+- **Hub count** (`hubs`): all external hubs connected to the computer, root
   hubs and built-in hubs excluded, counted per bus (see below).
+- **Hub chain** (`chain`): the hubs daisy-chained in front of a device: the
+  external hubs between the computer's own port and the device, marked hubs
+  included, plus the chip's `built_in_hub_levels`. Example: laptop port, dock
+  hub, monitor hub, keyboard on an M-series Mac: a chain of 3.
 
 A USB 3 hub is two hubs in one box: a USB 2 hub on the USB 2 bus and a
 SuperSpeed hub on the USB 3 bus, and each bus has its own tree. So all three
 limits apply per bus, unless a profile says otherwise: a hub or device belongs
-to the bus of the port it is plugged into, and `max_hubs` is checked against
+to the bus of the port it is plugged into, and `hubs` is checked against
 the bus with the most hubs, not the sum of both halves. The bus comes from the
 operating system only (macOS: the port's class, Windows: the protocols the port
 reports), never from a name or a speed. A hub or device on a port whose bus is
 not reported is in neither bus's count, so the counts are then "at least". All
 hubs together are an upper bound for each bus: while they are within
-`max_hubs`, the limit is within; above it, the limit is unknown and the log
+the limit, the limit is within; above it, the limit is unknown and the log
 says why. When no bus is reported at all, both buses are counted together, as
 before.
 
-A profile may also set `recommended_hops`: hop depths above it still work up to
-`max_hops`, but less reliably.
+Each kind has a `recommended` and a `max` value: above the recommendation still
+works up to the maximum, but less reliably. Cameras and audio devices are also
+judged by the guide's `camera_audio` limits. More devices on one controller
+than `usb.max_devices_per_controller` (127) is unstable.
 
 Counting starts at the computer's own port, the one the user plugs into. Many
 laptops have a hub built in between the root hub and that port (for the webcam,
 Bluetooth or a card reader). On Windows the app asks for each port whether it is
 user-connectable; a hub reached only through ports that are not is built into
-the computer and does not count. A device in the laptop's own port has 0 hops.
+the computer and does not count.
 If Windows does not say for a port (older versions, some drivers), a hub on it
 is counted as before, as an external hub, and the log says so.
 
-Hop and tier limits in the database (platform and computer profiles) are
-counted the same way, from the computer's own port. A computer with built-in
-hubs or other quirks sets its own `max_hops` in its computer profile.
+Tiers add the built-in hub levels of the chip, or of the computer file when it
+sets its own.
 
 Hubs inside docks and monitors count like any other hub, because the operating
 system reports them as hubs. Example: laptop port, dock hub, monitor hub,
-keyboard. The keyboard is at tier 4 with 2 hops, and there are 2 hubs.
+keyboard. The keyboard is at tier 4 (on a chip without built-in hub levels),
+and there are 2 hubs.
 
 Active cables and extenders that Windows shows as a hub count automatically.
 Ones it does not show are marked by the user on the port they are plugged into:
-a mark of +N hops adds N hops and N tiers to everything behind that port, in
-every checked profile. It does not change the hub count.
+"+N hubs" (+1 to +3) adds N hubs to the hub count of that port's bus and N
+tiers to everything behind that port, since every hub is a tier; "+N tiers"
+(+1 to +3) adds only N tiers, for an extender that is not a hub. Both count in
+every checked profile (#307). On a port
+whose bus is not reported, the added hubs count toward the total only, like
+any other hub on that port. A mark on a port with nothing on it adds nothing.
 
 ## Diagnostic rules
 
@@ -198,16 +377,17 @@ status per checked profile; when several apply, the first in this list wins:
 2. Purple (unstable): the operating system reports an error on the port or the
    device; or the hub or device disconnected and came back since the app
    started, however long or short the drop, until it leaves again or is
-   cleared; or its tier or hop depth is above the profile's `max_tiers` or
-   `max_hops`; or it is a hub on a bus whose hub count is above `max_hubs`
-   (a hub whose bus is not reported counts as on every bus over the limit).
-3. Orange (potentially unstable): its hop depth is above `recommended_hops`,
-   within `max_hops`.
-4. Grey (unknown): no profile is checked, or the profile has none of these
-   limits.
+   cleared; or its tier depth or hub chain is above a `max` of the selected
+   guide (`camera_audio` too for a camera or audio device); or it is a hub on a bus
+   whose hub count is above `hubs.max` (a hub whose bus is not reported counts
+   as on every bus over the limit).
+3. Orange (potentially unstable): above a `recommended` value, within every
+   maximum. The finding adds the guide's `exceeded_note`, if any.
+4. Grey (unknown): no profile or no guide is selected, or the guide states none
+   of these limits.
 5. Green (stable): none of the above.
 
-Stability is judged on the limits the profile knows: an unknown limit (`null`)
+Stability is judged on the limits the guide states: a limit it does not state (`none`)
 does not turn anything grey and is reported in the log, not in the findings
 list. A limit from an `unverified` file counts too; the log says it is
 unverified, the window does not. With several
@@ -217,9 +397,9 @@ its display check (purple above `displays.max_external`, orange for a
 DisplayLink adapter on a computer without DisplayLink support or a further
 DisplayPort display on a computer without MST). The findings
 list then shows only the findings of the strictest checked profile: the one
-with the lowest `max_hops`; on a tie the lowest `recommended_hops`, then
-`max_tiers`, then `max_hubs`. An unknown limit counts as higher than any known
-one; when still tied, the first in the menus wins. Detected facts (operating
+with the lowest `tiers.max`; on a tie the lowest `tiers.recommended`, then
+`hubs.max`, then `chain.max` and `chain.recommended`. An unknown limit, or one
+the guide does not count, counts as higher than any known one; when still tied, the first in the menus wins. Detected facts (operating
 system errors, disconnected and reconnected devices) are always listed. Every
 finding names its device, port or computer and the reason, and is marked as a
 detected fact, a verified database fact, a predicted risk or unknown.
@@ -236,8 +416,7 @@ active display count, a connected DisplayLink adapter, hubs that cannot be
 read and hubs that may be built in. So a profile with unknown limits shows no
 findings while everything is within the limits it knows. A limit
 or model exception is a verified database fact only when the file that sets it
-is itself `verified` or `partial`. A limit a computer profile inherits keeps
-its platform file's status.
+is itself `verified` or `partial`: for a limit, the guide file it comes from.
 
 If a hub, port or controller cannot be read (a hub without ports, a port with an
 error and nothing on it, a controller without a root hub), what is behind it

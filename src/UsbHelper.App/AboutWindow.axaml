@@ -17,6 +17,7 @@
       <StackPanel VerticalAlignment="Center" Spacing="2">
         <TextBlock Text="{Binding Name}" FontSize="20" FontWeight="SemiBold" />
         <SelectableTextBlock Text="{Binding VersionText}" />
+        <SelectableTextBlock Text="{Binding DatabaseText}" />
       </StackPanel>
     </StackPanel>
     <TextBlock Text="{Binding License}" TextWrapping="Wrap" />

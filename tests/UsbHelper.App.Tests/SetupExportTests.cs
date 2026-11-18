@@ -7,6 +7,7 @@ using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Export;
+using UsbHelper.Core.Topology;
 using static UsbHelper.App.Tests.Licensing.UnlockCodeTests;
 
 namespace UsbHelper.App.Tests;
@@ -29,8 +30,9 @@ public class SetupExportTests
     // A known fake setup: a dock on a USB-C port with a keyboard and a DisplayLink adapter, and a mouse.
     private static IReadOnlyList<UsbNode> Desk()
     {
-        var root = Hub("ROOT", Hub("DOCK", Device("KEYBOARD") with { VendorId = 0x046D, ProductId = 0xC31C },
-            Device("DL") with { VendorId = UsbNode.DisplayLinkVendorId, ProductId = 0x6006 }), Device(@"USB\VID_046D&PID_C077\SERIAL123") with { Name = "USB Mouse" });
+        var root = Hub("ROOT", Hub("DOCK", Device("KEYBOARD") with { VendorId = 0x046D, ProductId = 0xC31C, DeviceKind = UsbDeviceKind.Neither },
+            Device("DL") with { VendorId = UsbNode.DisplayLinkVendorId, ProductId = 0x6006, DeviceKind = UsbDeviceKind.Unknown }),
+            Device(@"USB\VID_046D&PID_C077\SERIAL123") with { Name = "USB Mouse", DeviceKind = UsbDeviceKind.Neither });
         root = root with { Children = [root.Children[0] with { UsbC = true, UserConnectable = true }, root.Children[1] with { UserConnectable = true }] };
         return [new UsbNode("C1", UsbNodeKind.Controller, "Intel USB 3.2 controller", [root])];
     }
@@ -40,7 +42,7 @@ public class SetupExportTests
 
     private static MainViewModel NewViewModel(EventLog? log = null) =>
         new(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log);
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), Monitors, log);
 
     // The known fake setup as the user left it: the computer profile checked, the dock's cable marked and a room entered.
     private static MainViewModel KnownSetup(EventLog? log = null)
@@ -49,7 +51,7 @@ public class SetupExportTests
         viewModel.RoomName = "Room 4.12";
         viewModel.Load(Desk());
         viewModel.Computers.Single().IsChecked = true;
-        All(viewModel.Roots).Single(item => item.Id == "DOCK").ExtraHops = 1;
+        All(viewModel.Roots).Single(item => item.Id == "DOCK").Mark = CableMark.OfHubs(1);
         return viewModel;
     }
 
@@ -64,9 +66,9 @@ public class SetupExportTests
         {
             option.IsChecked = setup.CheckedProfiles.Contains(option.Profile.Id);
         }
-        foreach (var (port, hops) in setup.Marks)
+        foreach (var (port, mark) in setup.Marks)
         {
-            All(viewModel.Roots).Single(item => item.PortId == port).ExtraHops = hops;
+            All(viewModel.Roots).Single(item => item.PortId == port).Mark = mark;
         }
         return viewModel;
     }
@@ -110,7 +112,7 @@ public class SetupExportTests
         var entitlements = new CodeEntitlements(TestKeys, settings, log);
         Assert.Equal(UnlockResult.Unlocked, entitlements.Unlock(TestEmail, TestCode));
         var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [],
-            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), Monitors, log, settings, entitlements);
+            new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), Monitors, log, settings, entitlements);
         viewModel.RoomName = room;
         viewModel.Load(Desk());
         return viewModel;
@@ -190,8 +192,8 @@ public class SetupExportTests
         var setup = SetupFile.FromJson(Text(Export(known)["setup.json"]));
 
         Assert.Equal(Version, setup.AppVersion);
-        Assert.Equal(new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "p"), setup.Computer);
-        Assert.Equal(["p", known.Computers.Single().Profile.Id], setup.CheckedProfiles);
+        Assert.Equal(new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "os-p"), setup.Computer);
+        Assert.Equal(["os-p", known.Computers.Single().Profile.Id], setup.CheckedProfiles);
         Assert.Equal(Monitors().Select(monitor => (monitor.Name, monitor.Output)), setup.Displays!.Select(monitor => (monitor.Name, monitor.Output)));
         Assert.Single(setup.Marks);
         Assert.Equal(2, setup.Results.Count);

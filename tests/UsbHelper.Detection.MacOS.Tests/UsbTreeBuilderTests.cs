@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 using UsbHelper.Detection.MacOS;
 
 namespace UsbHelper.Detection.MacOS.Tests;
@@ -173,6 +174,8 @@ public class UsbTreeBuilderTests
         Assert.Equal(4, hub2.Children[0].Children[0].Children.Count);
         Assert.All(hub3.Children, port => Assert.Equal(UsbBus.Usb3, port.Bus));
         Assert.Equal("USB 10/100/1000 LAN", hub3.Children[3].Children[0].Name);
+        // #298: the two halves of the USB 3 hub count once on each bus, the USB 2 hub on its USB 2 half on USB 2.
+        Assert.Equal("3 (2+1+0)", TopologyCounts.PerBus(tree).HubsText);
     }
 
     [Fact]
@@ -206,6 +209,7 @@ public class UsbTreeBuilderTests
         Assert.Null(device.VendorId);
         Assert.Null(device.ProductId);
         Assert.Equal("Unknown USB device", device.Name);
+        Assert.Equal(UsbDeviceKind.Unknown, device.DeviceKind);
     }
 
     [Fact]
@@ -218,6 +222,54 @@ public class UsbTreeBuilderTests
         Assert.Contains("boom", tree[0].Problem);
         Assert.Contains("1 USB device(s)", tree[1].Problem);
         Assert.Contains("no properties", tree[1].Children[0].Children[0].Children[0].Problem);
+    }
+
+    // #274: an IOUSBHostInterface entry below the device, as ioreg -l shows it: its bInterfaceClass and the driver on it.
+    private static RegistryEntry UsbInterface(long location, long interfaceClass, params RegistryEntry[] children) =>
+        new("IOUSBHostInterface", "IOUSBHostInterface", false,
+            new Dictionary<string, object> { ["locationID"] = location, ["bInterfaceClass"] = interfaceClass }, children);
+
+    private static RegistryEntry Driver(string className) => new(className, className, false, new Dictionary<string, object>(), []);
+
+    [Fact]
+    public void Device_kind_comes_from_its_interface_entries()
+    {
+        var webcam = Device(0x01100000, 0x046D, 0x085C, "C922 Pro Stream Webcam", deviceClass: 0xEF) with
+        {
+            Children =
+            [
+                UsbInterface(0x01100000, 0x0E), UsbInterface(0x01100000, 0x0E),
+                UsbInterface(0x01100000, 0x01, Driver("AppleUSBAudioDevice")), UsbInterface(0x01100000, 0x01),
+            ],
+        };
+        var headset = Device(0x01200000, 0x046D, 0x0A87, "Logitech USB Headset") with
+        {
+            Children = [UsbInterface(0x01200000, 0x01), UsbInterface(0x01200000, 0x01), UsbInterface(0x01200000, 0x03, Driver("IOUSBHostHIDDevice"))],
+        };
+        var keyboard = Device(0x01300000, 0x05AC, 0x024F, "Keyboard") with { Children = [UsbInterface(0x01300000, 0x03)] };
+        var unread = Device(0x01400000, 0x1234, 0x5678, "Device");
+
+        var tree = UsbTreeBuilder.Build([Controller(0x01000000, Port("hs", 1, webcam), Port("hs", 2, headset), Port("hs", 3, keyboard), Port("hs", 4, unread))]);
+
+        Assert.Equal([UsbDeviceKind.CameraAndAudio, UsbDeviceKind.Audio, UsbDeviceKind.Neither, UsbDeviceKind.Unknown],
+            tree[0].Children[0].Children.Select(port => Assert.Single(port.Children).DeviceKind));
+    }
+
+    [Fact]
+    public void Hubs_ports_and_controllers_have_no_kind_and_a_device_below_a_hub_has_its_own()
+    {
+        var camera = Device(0x01110000, 0x046D, 0x0825, "Webcam") with { Children = [UsbInterface(0x01110000, 0x0E), UsbInterface(0x01110000, 0x0E)] };
+        var hubDriver = new RegistryEntry("AppleUSB20Hub", "driver", false, new Dictionary<string, object>(), [camera]);
+        var hub = Device(0x01100000, 0x2109, 0x2812, "USB 2.0 Hub", deviceClass: 9) with { Children = [UsbInterface(0x01100000, 0x09, hubDriver)] };
+
+        var tree = UsbTreeBuilder.Build([Controller(0x01000000, Port("hs", 1, hub))]);
+
+        var hubNode = tree[0].Children[0].Children[0].Children[0];
+        Assert.Null(tree[0].DeviceKind);
+        Assert.Null(tree[0].Children[0].DeviceKind);
+        Assert.Null(tree[0].Children[0].Children[0].DeviceKind);
+        Assert.Null(hubNode.DeviceKind);
+        Assert.Equal(UsbDeviceKind.Camera, hubNode.Children[0].Children[0].DeviceKind);
     }
 
     [Fact]

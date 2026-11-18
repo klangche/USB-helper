@@ -17,8 +17,9 @@ public static partial class ReportFindings
     {
         ["limits.max_hubs"] = Strings.LimitHubs,
         ["limits.max_tiers"] = Strings.LimitTiers,
-        ["limits.max_hops"] = Strings.LimitHops,
-        ["limits.recommended_hops"] = Strings.LimitRecommendedHops,
+        ["limits.recommended_tiers"] = Strings.LimitRecommendedTiers,
+        ["limits.max_chain"] = Strings.LimitChain,
+        ["limits.recommended_chain"] = Strings.LimitRecommendedChain,
         ["displays.max_external"] = Strings.LimitDisplays,
     };
 
@@ -73,9 +74,9 @@ public static partial class ReportFindings
         ? $"({Strings.ReportSourceUnverified})"
         : $"({Strings.ReportSourceDatabase})";
 
-    private const string Field = @"(?<field>limits\.max_hubs|limits\.max_tiers|limits\.max_hops|limits\.recommended_hops|displays\.max_external)";
+    private const string Field = @"(?<field>limits\.max_hubs|limits\.max_tiers|limits\.recommended_tiers|limits\.max_chain|limits\.recommended_chain|displays\.max_external)";
 
-    // "limits.max_hops = 5 comes from an unverified profile (platforms/p.yaml); it is not confirmed."
+    // "limits.max_tiers = 5 comes from an unverified profile (platforms/p.yaml); it is not confirmed."
     [GeneratedRegex("^" + Field + @" = (?<value>\d+) comes from an unverified profile(?: \(\x01\))?; it is not confirmed\.")]
     private static partial Regex UnverifiedValue();
 
@@ -85,11 +86,11 @@ public static partial class ReportFindings
     [GeneratedRegex("^" + Field + " is unknown")]
     private static partial Regex LeadingUnknown();
 
-    // "exceeds limits.max_hops 2", "exceeds the recommended limits.recommended_hops 2".
+    // "exceeds limits.max_tiers 2", "exceeds the recommended limits.recommended_tiers 2".
     [GeneratedRegex("(?:the recommended )?" + Field + @" (?<value>\d+)")]
     private static partial Regex LimitOf();
 
-    // "; limits.max_hops is 5".
+    // "; limits.max_tiers is 5".
     [GeneratedRegex(Field + @" is (?<value>\d+|unknown)")]
     private static partial Regex LimitIs();
 
@@ -101,7 +102,7 @@ public static partial class ReportFindings
     [GeneratedRegex(@"\((?<inner>[^()]*?)\x01\)")]
     private static partial Regex Source();
 
-    // "exceeds limits.max_hops 2 (unverified limit)".
+    // "exceeds limits.max_tiers 2 (unverified limit)".
     [GeneratedRegex(@"\(unverified limit\)")]
     private static partial Regex UnverifiedLimit();
 

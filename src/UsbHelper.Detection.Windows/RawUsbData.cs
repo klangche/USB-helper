@@ -8,6 +8,9 @@ internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCo
 {
     /// <summary>DEVPKEY_Device_ContainerId, or null when Windows gives none (#143).</summary>
     public Guid? ContainerId { get; init; }
+
+    /// <summary>SPDRP_COMPATIBLEIDS, empty when Windows gives none (#274).</summary>
+    public IReadOnlyList<string> CompatibleIds { get; init; } = [];
 }
 
 /// <param name="Error">Why the root hub could not be read, or null.</param>
@@ -47,4 +50,10 @@ internal sealed record RawPort(
 
     /// <summary>The companion port's hub, as a symbolic link name, or null when there is none.</summary>
     public string? CompanionHubName { get; init; }
+
+    /// <summary>
+    /// The bInterfaceClass of every interface in the connected device's configuration descriptor, or null when Windows
+    /// did not return it (#274).
+    /// </summary>
+    public IReadOnlyList<int>? InterfaceClasses { get; init; }
 }

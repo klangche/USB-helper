@@ -4,6 +4,7 @@ using UsbHelper.App.Licensing;
 using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
+using UsbHelper.App.Update;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -29,12 +30,85 @@ public sealed class ProfileOption(string label, ResolvedProfile profile) : Obser
         get => isChecked;
         set => SetField(ref isChecked, value);
     }
+
+    /// <summary>The chip's name in the profile menu, for example <c>M-series</c>; the computer's label for a computer.</summary>
+    public string ChipLabel => Profile.ChipName is { Length: > 0 } chip ? chip : Label;
+}
+
+/// <summary>One operating system in the profile menu (#286), with a tick per chip.</summary>
+public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chips, Action<Action>? batch = null)
+{
+    public string Name { get; } = name;
+
+    public IReadOnlyList<ProfileOption> Chips { get; } = chips;
+
+    /// <summary>Clicking the name (#295): ticks every chip, or unticks them all when every one is ticked already.</summary>
+    public RelayCommand ToggleAll => field ??= new RelayCommand(() =>
+    {
+        var tick = !Chips.All(chip => chip.IsChecked);
+        // One check of the setup for all chips, not one per chip (owner: "faster to click all three separately").
+        (batch ?? (change => change()))(() =>
+        {
+            foreach (var chip in Chips)
+            {
+                chip.IsChecked = tick;
+            }
+        });
+    });
+}
+
+/// <summary>
+/// A guide in the profile menu (#286): one at a time. A guide with <c>selectable: false</c> is shown greyed out.
+/// Custom (#300) is the last one: its guide is null until a valid custom.yaml is saved, and it has an Edit... link.
+/// </summary>
+public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : ObservableObject
+{
+    private bool isSelected;
+    private Guide? guide = guide;
+
+    /// <summary>The guide; null for Custom without a valid custom.yaml.</summary>
+    public Guide? Guide
+    {
+        get => guide;
+        set
+        {
+            if (SetField(ref guide, value))
+            {
+                OnPropertyChanged(nameof(IsProAv));
+            }
+        }
+    }
+
+    /// <summary>Custom (#300): the user's own guide, edited in its own window.</summary>
+    public bool IsCustom => EditCommand != null;
+
+    /// <summary>Opens the Custom editor; null for every other guide.</summary>
+    public RelayCommand? EditCommand { get; } = edit;
+
+    public string Label => IsCustom ? Strings.CustomGuide : Guide!.Name;
+
+    public bool IsEnabled => IsCustom || Guide!.Selectable;
+
+    /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
+    public bool IsProAv => Guide?.ProAv == true;
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set => SetField(ref isSelected, value);
+    }
 }
 
 /// <summary>One checked profile in the status field.</summary>
 /// <param name="Word">Its result: stable, potentially unstable, unstable or unknown.</param>
-/// <param name="Details">Its hub, tier, hop and display checks.</param>
+/// <param name="Details">Its exceeded hub, tier and display checks; none when nothing is exceeded.</param>
 public sealed record StatusRow(string Label, string Word, string Color, IReadOnlyList<string> Details);
+
+/// <summary>One line of the side panel's counts table (#265): a bus, or all buses together when none is reported.</summary>
+/// <param name="Bus">"USB 2", "USB 3", or the name of the combined line.</param>
+/// <param name="Hubs">The hubs on the bus, the user's cable marks counted; "at least N" when the number is a minimum, as is the next.</param>
+/// <param name="DeepestTier">The deepest tier on the bus, the user's cable marks counted.</param>
+public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 
 /// <param name="Header">
 /// Profile (the strictest, when several are checked; never for a detected fact), kind (detected, database, risk, unknown)
@@ -57,9 +131,14 @@ public sealed class MainViewModel : ObservableObject
     private readonly EventLog log;
     private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
-    // The user's marks for active cables and extenders: extra hops per port id. They last while the app runs.
-    private readonly Dictionary<string, int> extraHops = [];
+    // The user's marks for active cables and extenders per port id: each adds its hubs and tiers (#307). They last
+    // while the app runs.
+    private readonly Dictionary<string, CableMark> marks = [];
     private IReadOnlyList<UsbNode> tree = [];
+    private Guide? guide;
+    private HardwareDatabase? database;
+    // Custom (#300), the last guide in the menu; null while locked.
+    private GuideOption? customOption;
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
@@ -127,6 +206,7 @@ public sealed class MainViewModel : ObservableObject
         {
             LogCompanyAndLicence();
             ExportPdfChanged();
+            CustomAccessChanged();
         };
         LogCompanyAndLicence();
         Unlock = new UnlockViewModel(entitlements);
@@ -192,7 +272,8 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
-    public void LoadDatabase(HardwareDatabase? loaded, IReadOnlyList<DatabaseError> errors)
+    /// <param name="version">The database branch commit it comes from (#290), for the log and the About window; null when unknown.</param>
+    public void LoadDatabase(HardwareDatabase? loaded, IReadOnlyList<DatabaseError> errors, DatabaseVersion? version = null)
     {
         if (loaded != null)
         {
@@ -202,22 +283,199 @@ public sealed class MainViewModel : ObservableObject
         {
             log.DatabaseFailed(errors);
         }
+        UseVersion(version);
         DatabaseErrors = errors.Select(error => error.ToString()).ToList();
         OnPropertyChanged(nameof(DatabaseErrors));
         OnPropertyChanged(nameof(HasDatabaseErrors));
-        // Only the detected operating system's platform profile is checked at start; computer profiles, even an exact
-        // match, are checked by the user. With "remember" on (#126), the profiles checked last time instead.
-        var remembered = Settings.RememberCheckedProfiles && (Settings.CheckedOperatingSystems.Count > 0 || Settings.CheckedComputers.Count > 0);
+        // Only the detected operating system's platform profile is checked at start, with USB-Helper's guide. With
+        // "remember" on (#126), the operating systems and the guide picked last time instead. Computer profiles, even an
+        // exact match, are never checked at start (#286).
+        var remembered = Settings.RememberCheckedProfiles && Settings.CheckedOperatingSystems.Count > 0;
+        Fill(loaded, id => remembered ? Settings.CheckedOperatingSystems.Contains(id) : id == identity.Platform, _ => false);
+        LoadingStage = Strings.ReadingDevices;
+    }
+
+    /// <summary>
+    /// A newer database downloaded while the app runs (#290): the menus fill in again from it with the same ticks and the
+    /// same guide, as far as they are still in it, and the results are judged again. Custom is read again against the new
+    /// database; when it no longer fits, USB-Helper's guide applies, as at start.
+    /// </summary>
+    public void ReplaceDatabase(HardwareDatabase loaded, DatabaseVersion version)
+    {
+        var ticked = Checked.Select(option => option.Profile.Id).ToHashSet();
+        OperatingSystems.Clear();
+        Computers.Clear();
+        PlatformGroups.Clear();
+        Guides.Clear();
+        customOption = null;
+        log.DatabaseLoaded(loaded);
+        UseVersion(version);
+        DatabaseErrors = [];
+        OnPropertyChanged(nameof(DatabaseErrors));
+        OnPropertyChanged(nameof(HasDatabaseErrors));
+        Fill(loaded, ticked.Contains, ticked.Contains);
+        KeepCheckedProfiles();
+        if (!IsLoading)
+        {
+            Refresh(); // While loading, the tree's load judges it.
+        }
+    }
+
+    /// <summary>Which database is in use (#290); null when the build did not record it.</summary>
+    public DatabaseVersion? DatabaseVersion { get; private set; }
+
+    private void UseVersion(DatabaseVersion? version)
+    {
+        DatabaseVersion = version;
+        if (version != null)
+        {
+            log.Add($"Database in use: {version.LogText}");
+        }
+    }
+
+    // The menus from the database, with the ticks by profile id and the guide picked in the settings.
+    private void Fill(HardwareDatabase? loaded, Func<string, bool> platformTicked, Func<string, bool> computerTicked)
+    {
         AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)
         {
-            IsChecked = remembered ? Settings.CheckedOperatingSystems.Contains(profile.Id) : profile.Id == identity.Platform,
+            IsChecked = platformTicked(profile.Id),
         }));
         AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)
         {
-            IsChecked = remembered && Settings.CheckedComputers.Contains(profile.Id),
+            IsChecked = computerTicked(profile.Id),
         }));
+        foreach (var group in OperatingSystems.GroupBy(option => option.Profile.Platform)
+            .OrderBy(group => PlatformOrder(group.Key)).ThenBy(group => group.First().Profile.PlatformName, StringComparer.CurrentCultureIgnoreCase))
+        {
+            // Chips in the order of the platform file.
+            PlatformGroups.Add(new PlatformGroup(group.First().Profile.PlatformName is { Length: > 0 } name ? name : group.Key,
+                [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))], Batch));
+        }
+        database = loaded;
+        // Custom (#300) only while unlocked and its file is valid; else USB-Helper's, with the choice still kept.
+        var custom = loaded != null && CustomUnlocked ? ReadCustomGuide() : null;
+        // The picked guide is always kept, through restarts and updates; USB-Helper's until the user picks another.
+        var picked = Settings.CheckedGuide is CustomGuide.Id ? custom ?? loaded?.DefaultGuide
+            : Settings.CheckedGuide is { } id && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
+        // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17); Custom always last.
+        foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.ProAv ? 1 : 0)
+            .ThenBy(each => each.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            AddGuideOption(new GuideOption(each) { IsSelected = each == picked });
+        }
+        if (loaded != null && CustomUnlocked)
+        {
+            AddCustomOption(custom, custom != null && custom == picked);
+        }
         HostName = HostNameFor(loaded, identity);
-        LoadingStage = Strings.ReadingDevices;
+        guide = picked;
+        OnPropertyChanged(nameof(Guide));
+        OnGuideChanged();
+    }
+
+    private void AddGuideOption(GuideOption option)
+    {
+        option.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GuideOption.IsSelected) && option.IsSelected)
+            {
+                // Custom without a valid custom.yaml opens the editor; the pick is undone when it closes unsaved.
+                if (option.Guide == null)
+                {
+                    EditCustomGuide();
+                }
+                else
+                {
+                    Guide = option.Guide;
+                }
+            }
+        };
+        Guides.Add(option);
+    }
+
+    private void AddCustomOption(Guide? custom, bool selected)
+    {
+        customOption = new GuideOption(custom, EditCustomGuideCommand) { IsSelected = selected };
+        AddGuideOption(customOption);
+    }
+
+    // Custom is for unlocked users only (#300).
+    private bool CustomUnlocked => Entitlements.IsUnlocked(Feature.Pro);
+
+    // custom.yaml as a guide; null when there is none or it cannot be used, with the reason in the log.
+    private Guide? ReadCustomGuide()
+    {
+        try
+        {
+            return Settings.CustomGuide.Read() is { } yaml ? CustomGuide.Load(database!, yaml) : null;
+        }
+        catch (DatabaseException e)
+        {
+            log.Add($"Custom guide not used: {CustomGuide.FileName} has {e.Errors.Count} problem(s)");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            log.Add($"Custom guide not used: {CustomGuide.FileName} could not be read ({e.Message})");
+        }
+        return null;
+    }
+
+    // Unlocked: Custom is listed last. Locked: it is hidden and, when it was the guide, USB-Helper's applies; the choice
+    // is still kept, so Custom is used again at the next start once unlocked.
+    private void CustomAccessChanged()
+    {
+        if (database == null)
+        {
+            return;
+        }
+        if (CustomUnlocked && customOption == null)
+        {
+            AddCustomOption(ReadCustomGuide(), selected: false);
+        }
+        else if (!CustomUnlocked && customOption != null)
+        {
+            Guides.Remove(customOption);
+            customOption = null;
+            if (guide?.Id == CustomGuide.Id)
+            {
+                Pick(database.DefaultGuide, keep: false);
+            }
+        }
+    }
+
+    /// <summary>The Custom entry's Edit... link (#300); also picking Custom before a valid custom.yaml exists.</summary>
+    public RelayCommand EditCustomGuideCommand => field ??= new RelayCommand(EditCustomGuide);
+
+    private void EditCustomGuide()
+    {
+        if (database == null || !CustomUnlocked)
+        {
+            return;
+        }
+        Window?.ShowCustomGuide(new CustomGuideViewModel(database, Settings.CustomGuide, Entitlements.LicensedTo, UseCustomGuide));
+    }
+
+    // A valid custom.yaml was saved: Custom is the guide from now on.
+    private void UseCustomGuide(Guide custom)
+    {
+        log.Add($"Custom guide saved to {Settings.CustomGuide.Path ?? CustomGuide.FileName}");
+        if (customOption != null)
+        {
+            customOption.Guide = custom;
+        }
+        Guide = custom;
+    }
+
+    /// <summary>
+    /// The Custom editor closed (#300): the menu shows the guide that applies again, so Custom picked and closed unsaved
+    /// is not left ticked.
+    /// </summary>
+    public void CustomGuideClosed()
+    {
+        foreach (var option in Guides)
+        {
+            option.IsSelected = option.Guide != null && option.Guide == guide;
+        }
     }
 
     /// <summary>The USB tree is read; the display count is read next, off the UI thread.</summary>
@@ -228,6 +486,18 @@ public sealed class MainViewModel : ObservableObject
     {
         get => loadingStage;
         private set => SetField(ref loadingStage, value);
+    }
+
+    // Every file of the selected guide and of its fallback: findings name them as sources.
+    private IEnumerable<string> GuideFiles()
+    {
+        for (var each = Guide; each != null; each = each.Fallback)
+        {
+            foreach (var file in each.Files)
+            {
+                yield return file;
+            }
+        }
     }
 
     private static string ComputerLabel(ResolvedProfile profile)
@@ -261,6 +531,92 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<ProfileOption> Computers { get; } = [];
 
+    /// <summary>The operating systems of the profile menu (#286), each with a tick per chip.</summary>
+    public ObservableCollection<PlatformGroup> PlatformGroups { get; } = [];
+
+    /// <summary>The guides of the profile menu (#286), USB-Helper's first; one is picked at a time.</summary>
+    public ObservableCollection<GuideOption> Guides { get; } = [];
+
+    /// <summary>The guide whose limits apply (#285): USB-Helper's from the start; picked in the profile menu (#286).</summary>
+    public Guide? Guide
+    {
+        get => guide;
+        set => Pick(value, keep: true);
+    }
+
+    // keep: the choice is saved for the next start; not when locking falls back from Custom (#300).
+    private void Pick(Guide? value, bool keep)
+    {
+        if (value is { Selectable: false } || !SetField(ref guide, value, nameof(Guide)))
+        {
+            return;
+        }
+        foreach (var option in Guides)
+        {
+            option.IsSelected = option.Guide != null && option.Guide == value;
+        }
+        OnGuideChanged();
+        log.GuidePicked(value?.Name);
+        if (keep)
+        {
+            Settings.PickedGuide(value is { Id: not Guide.DefaultId } kept ? kept.Id : null);
+        }
+        KeepCheckedProfiles();
+        Refresh();
+    }
+
+    /// <summary>Which guide the results are judged by, for the status field.</summary>
+    public string GuideText => guide == null ? "" : string.Format(CultureInfo.CurrentCulture, Strings.JudgedBy, guide.Name);
+
+    /// <summary>The words before the guide's name in <see cref="GuideText"/>, so the name can be a link.</summary>
+    public string GuideTextBefore => guide == null ? "" : Strings.JudgedBy.Split("{0}")[0];
+
+    /// <summary>The words after the guide's name in <see cref="GuideText"/>.</summary>
+    public string GuideTextAfter => guide == null ? "" : Strings.JudgedBy.Split("{0}")[1];
+
+    /// <summary>The guide's name in the status field; a link when <see cref="GuideLink"/> is set.</summary>
+    public string GuideName => guide?.Name ?? "";
+
+    /// <summary>The guide's own page, the first web link among its sources; null when it has none.</summary>
+    public Uri? GuideLink => guide?.Link;
+
+    public bool HasGuideLink => GuideLink != null;
+
+    public bool HasGuideNoLink => guide != null && GuideLink == null;
+
+    private void OnGuideChanged()
+    {
+        OnPropertyChanged(nameof(GuideText));
+        OnPropertyChanged(nameof(GuideTextBefore));
+        OnPropertyChanged(nameof(GuideTextAfter));
+        OnPropertyChanged(nameof(GuideName));
+        OnPropertyChanged(nameof(GuideLink));
+        OnPropertyChanged(nameof(HasGuideLink));
+        OnPropertyChanged(nameof(HasGuideNoLink));
+    }
+
+    // The profile menu's order of operating systems (#286); others after them by name.
+    private static int PlatformOrder(string platform) =>
+        Array.IndexOf<string>(["windows", "macos", "ubuntu", "debian", "apple-mobile", "android"], platform) is var index and >= 0 ? index : int.MaxValue;
+
+    private bool batching;
+
+    // Several ticks at once (an operating system's name, #295): the setup is kept and judged once, after all of them.
+    private void Batch(Action change)
+    {
+        batching = true;
+        try
+        {
+            change();
+        }
+        finally
+        {
+            batching = false;
+        }
+        KeepCheckedProfiles();
+        Refresh();
+    }
+
     private void AddOptions(ObservableCollection<ProfileOption> list, IEnumerable<ProfileOption> options)
     {
         foreach (var option in options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase))
@@ -268,6 +624,10 @@ public sealed class MainViewModel : ObservableObject
             option.PropertyChanged += (_, _) =>
             {
                 log.ProfileChecked(option.Label, option.IsChecked);
+                if (batching)
+                {
+                    return; // Batch keeps and refreshes once at the end.
+                }
                 KeepCheckedProfiles();
                 Refresh();
             };
@@ -277,8 +637,7 @@ public sealed class MainViewModel : ObservableObject
 
     // Kept only while "remember" is on; see SettingsViewModel.CheckedProfiles.
     private void KeepCheckedProfiles() => Settings.CheckedProfiles(
-        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)],
-        [.. Computers.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
+        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
 
@@ -298,7 +657,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The view that carries out the commands below; set by the main window.</summary>
     public IMainWindowActions? Window { get; set; }
 
-    /// <summary>File > Export computer profile and the top bar button; enabled when <see cref="CanExport"/>.</summary>
+    /// <summary>File > Report this machine and the button in "Known issues"; enabled when <see cref="CanExport"/>.</summary>
     public RelayCommand ExportProfileCommand { get; }
 
     /// <summary>File > Export log: the same export as the log window's button.</summary>
@@ -415,14 +774,14 @@ public sealed class MainViewModel : ObservableObject
     private SetupFile Setup(DateOnly date, string appVersion)
     {
         var (containerFree, displays) = SetupFile.AnonymizeContainers(tree, monitors);
-        var (controllers, marks) = SetupFile.Anonymize(containerFree, extraHops);
+        var (controllers, anonymousMarks) = SetupFile.Anonymize(containerFree, marks);
         var options = Checked;
         IReadOnlyList<SetupResult> results = options.Count == 0
             ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
-        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, marks, displays, results)
+        return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, anonymousMarks, displays, results)
         {
             CompanyName = CompanyName,
             RoomName = Room,
@@ -457,7 +816,7 @@ public sealed class MainViewModel : ObservableObject
             .Distinct()
             .ToList();
         var counts = lastReport.Counts;
-        var perBus = TopologyCounts.PerBus(tree, extraHops);
+        var perBus = TopologyCounts.PerBus(tree, marks);
         var atLeast = TopologyCounts.Unreadable(tree).Any() || (perBus.AnyBusKnown && perBus.BusUnknown);
         IReadOnlyList<DiagnosticReport> reports = lastReport.Profiles.Count == 0 ? [counts] : [.. lastReport.Profiles.Select(result => result.Report)];
         var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
@@ -469,38 +828,39 @@ public sealed class MainViewModel : ObservableObject
             placement.Linked.FirstOrDefault(link => link.Value.Contains(monitor)).Key is { } node ? items.GetValueOrDefault(node) : null)).ToList();
         return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
             setup.Computer, lastReport.Overall,
-            new ReportCounts(counts.Hubs.Actual, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
-                counts.Tiers.Actual, counts.Hops.Actual, atLeast, counts.Displays.ExternalDisplays),
+            new ReportCounts(perBus.Hubs, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
+                perBus.AnyBusKnown ? perBus.Usb4.Hubs : null, TopologyCounts.DeviceCount(tree), counts.Tiers.Actual, atLeast,
+                counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
-            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Distinct()],
+            DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
     }
 
     /// <summary>
-    /// A profile's checks for the report, as the app judges them. The recommended depth only when it is known and the
-    /// maximum is kept, the same as the tree's lines; disconnected devices only when there are.
+    /// A profile's checks for the report, as the app judges them: hubs, tiers and the hub chain as far as the guide counts
+    /// them (#310), the displays, and disconnected devices only when there are.
     /// </summary>
     public static List<ReportCheck> ReportChecks(DiagnosticReport result)
     {
-        static ConnectionStatus Status(LimitState state, ConnectionStatus exceeded = ConnectionStatus.Purple) => state switch
+        static ConnectionStatus Status(LimitState state) => state switch
         {
             LimitState.Within => ConnectionStatus.Green,
-            LimitState.Exceeded => exceeded,
+            LimitState.Exceeded => ConnectionStatus.Purple,
             _ => ConnectionStatus.Grey,
         };
-        var checks = new List<ReportCheck>
+        var checks = new List<ReportCheck>();
+        foreach (var (measure, label, check) in new[]
         {
-            new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
-            new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
-            new(Strings.LimitHops, result.Hops.Limit, result.Hops.Actual, Status(result.Hops.State)),
-            new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
-        };
-        if (result.RecommendedHops is { Limit: not null } recommended && result.Hops.State != LimitState.Exceeded)
+            (Measure: Guide.Hubs, Label: Strings.LimitHubs, Check: result.Hubs),
+            (Measure: Guide.Tiers, Label: Strings.LimitTiers, Check: result.Tiers),
+            (Measure: Guide.Chain, Label: Strings.LimitChain, Check: result.Chain),
+        }.Where(each => result.Counted.Contains(each.Measure)))
         {
-            checks.Add(new(Strings.LimitRecommendedHops, recommended.Limit, recommended.Actual, Status(recommended.State, ConnectionStatus.Orange)));
+            checks.Add(new(label, check.Limit, check.Actual, Status(check.State)));
         }
+        checks.Add(new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)));
         if (result.Missing.Count > 0)
         {
             checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
@@ -598,18 +958,18 @@ public sealed class MainViewModel : ObservableObject
     public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
         tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
-    // A mark for an active cable or extender the operating system does not show, on the line from a port: the extra
-    // hops count in every tier and hop check of everything behind the port. 0 removes the mark.
-    private void Mark(string portId, int hops)
+    // A mark for an active cable or extender the operating system does not show, on the line from a port: it adds its
+    // tiers to everything behind the port and its hubs on the port's bus (#307). Null removes the mark.
+    private void Mark(string portId, CableMark? mark)
     {
-        log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, hops);
-        if (hops == 0)
+        log.CableMark(UsbTree.Find(tree, portId)?.Children.FirstOrDefault()?.Name ?? portId, mark);
+        if (mark == null)
         {
-            extraHops.Remove(portId);
+            marks.Remove(portId);
         }
         else
         {
-            extraHops[portId] = hops;
+            marks[portId] = mark;
         }
         Refresh();
     }
@@ -620,6 +980,51 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>One row per checked profile: operating systems first, then computers.</summary>
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
+
+    /// <summary>
+    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2, USB 3, then USB 4
+    /// (#298), each with its own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when
+    /// the operating system reports no bus at all. Empty when nothing is connected.
+    /// </summary>
+    public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
+
+    public bool HasBusCounts => BusCountsRows.Count > 0;
+
+    /// <summary>Above the table: "Hubs: 3 (2+1+0)", the same as the row counter (#298); null when nothing is connected.</summary>
+    public string? BusCountsHubs { get; private set; }
+
+    /// <summary>Below <see cref="BusCountsHubs"/>: "Devices: 7" (#307), with "at least" as the row counter; null when nothing is connected.</summary>
+    public string? BusCountsDevices { get; private set; }
+
+    // The same numbers and the same "at least" as the row counter of the controller, or of the computer (NodeViewModel.Count).
+    private void UpdateBusCounts(IReadOnlyList<UsbNode> scope)
+    {
+        BusCountsRows.Clear();
+        BusCountsHubs = null;
+        BusCountsDevices = null;
+        if (NodeViewModel.Count(scope, marks) is { } counted)
+        {
+            BusCountsHubs = NodeViewModel.HubsText(counted);
+            string Cell(int number) => counted.AtLeast
+                ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, number)
+                : number.ToString(CultureInfo.CurrentCulture);
+            BusCountsDevices = string.Format(CultureInfo.CurrentCulture, Strings.CountsDevicesLine, Cell(counted.Devices));
+            BusCountsRow Row(string bus, BusCounts counts) => new(bus, Cell(counts.Hubs), Cell(counts.DeepestTier));
+            if (counted.PerBus.AnyBusKnown)
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
+                BusCountsRows.Add(Row(Strings.CountsBusUsb3, counted.PerBus.Usb3));
+                BusCountsRows.Add(Row(Strings.CountsBusUsb4, counted.PerBus.Usb4));
+            }
+            else
+            {
+                BusCountsRows.Add(Row(Strings.CountsBusAll, counted.All));
+            }
+        }
+        OnPropertyChanged(nameof(HasBusCounts));
+        OnPropertyChanged(nameof(BusCountsHubs));
+        OnPropertyChanged(nameof(BusCountsDevices));
+    }
 
     /// <summary>Devices that are gone, then devices that disconnected and came back; each can be cleared.</summary>
     public ObservableCollection<DisconnectedItem> Disconnected { get; } = [];
@@ -688,14 +1093,19 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(tree);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, extraHops, monitors: monitors);
+        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
         lastReport = all;
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
             : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
-        var lines = all.Counts with { Connections = all.Connections };
+        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the tree.
+        var lines = all.Counts with
+        {
+            Connections = all.Connections,
+            NoMstMonitors = all.Profiles.SelectMany(each => each.Report.NoMstMonitors).ToHashSet(),
+        };
 
         // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
         // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a
@@ -724,19 +1134,20 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, extraHops, tree, monitors);
+                reconnectedIds, marks, tree, monitors, Guide);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
+        UpdateBusCounts(selected == null ? tree : [selected]);
 
         var placement = MonitorPlacement.Place(tree, monitors ?? []);
         log.DisplayLinks(placement, tree);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, extraHops, Mark, placement));
+            Roots.Add(NodeViewModel.Host(HostName, tree, lines, marks, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, extraHops, placement);
+            Roots[0].UpdateHost(HostName, tree, lines, marks, placement);
         }
         // Owner decisions in #142 and #208: while following, only the selected controller is open, and only when it has
         // devices, connected or disconnected. Once the user opens or closes a controller, their choices are kept.
@@ -764,16 +1175,16 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(OverallColor));
 
         StatusRows.Clear();
+        // The profiles judge the hubs of the whole computer.
+        var hubs = NodeViewModel.Count(tree, marks) is { } counted
+            ? counted.AtLeast
+                ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, NodeViewModel.HubsNumbers(counted))
+                : NodeViewModel.HubsNumbers(counted)
+            : null;
         for (var i = 0; i < options.Count; i++)
         {
             var result = report.Profiles[i].Report;
-            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall),
-                [
-                    LimitText(Strings.LimitHubs, result.Hubs),
-                    LimitText(Strings.LimitTiers, result.Tiers),
-                    LimitText(Strings.LimitHops, result.Hops),
-                    DisplaysText(result.Displays),
-                ]));
+            StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result, hubs)));
         }
         OnPropertyChanged(nameof(NothingChecked));
 
@@ -798,7 +1209,7 @@ public sealed class MainViewModel : ObservableObject
         // Owner decision in #68 (rule in #72): only the strictest checked profile's findings are listed, named after it
         // when several are checked. Detected facts (errors, disconnections) are listed once, unnamed, whichever profile reports them.
         // Owner decision in #85: only real findings are listed; unknowns and database facts are in the log only.
-        var strictest = StrictestProfile.Of(profiles);
+        var strictest = StrictestProfile.Of(profiles, Guide);
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
             .Where(finding => finding.IsReal)
@@ -827,23 +1238,28 @@ public sealed class MainViewModel : ObservableObject
     private static string FindingHeader(Finding finding) =>
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
-    private static string DisplaysText(DisplayCheck displays) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, Strings.LimitDisplays,
-            displays.ExternalDisplays?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            displays.MaxExternal?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(displays.State));
-
-    private static string LimitText(string label, LimitCheck limit) =>
-        string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, label, limit.Actual,
-            limit.Limit?.ToString(CultureInfo.CurrentCulture) ?? Strings.UnknownValue,
-            StateText(limit.State));
-
-    private static string StateText(LimitState state) => state switch
+    // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
+    // #298: the hubs as everywhere, "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
+    private static IReadOnlyList<string> ExceededLines(DiagnosticReport result, string? hubs)
     {
-        LimitState.Within => Strings.LimitWithin,
-        LimitState.Exceeded => Strings.LimitExceeded,
-        _ => Strings.LimitUnknown,
-    };
+        var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]
+        {
+            (Strings.LimitHubs, result.Hubs.State, result.Hubs.Actual, result.Hubs.Limit),
+            (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
+            (Strings.LimitChain, result.Chain.State, result.Chain.Actual, result.Chain.Limit),
+            (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
+        };
+        string Line((string Label, LimitState? State, long? Actual, long? Limit) check) =>
+            check.Label != Strings.LimitHubs || hubs == null
+                ? string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, check.Actual, check.Limit, Strings.LimitExceeded)
+                : result.HubsBus is { } bus
+                ? string.Format(CultureInfo.CurrentCulture, Strings.LimitLineOnBus, check.Label, hubs, check.Limit,
+                    bus == UsbBus.Usb2 ? Strings.CountsBusUsb2 : Strings.CountsBusUsb3, Strings.LimitExceeded)
+                : string.Format(CultureInfo.CurrentCulture, Strings.LimitLine, check.Label, hubs, check.Limit, Strings.LimitExceeded);
+        IEnumerable<string> lines = [.. checks.Where(check => check.State == LimitState.Exceeded).Select(Line)];
+        // #296: a warning on the profile, whatever its result word.
+        return result.NoMst ? [.. lines, Strings.NoMstWarning] : [.. lines];
+    }
 
     private static string KindText(FactKind kind) => kind switch
     {

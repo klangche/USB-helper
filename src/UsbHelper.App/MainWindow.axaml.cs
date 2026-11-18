@@ -138,7 +138,14 @@ public partial class MainWindow : Window, IMainWindowActions
         }
     }
 
-    void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
+    async void IMainWindowActions.ShowCustomGuide(CustomGuideViewModel editor)
+    {
+        await new CustomGuideWindow { DataContext = editor }.ShowDialog(this);
+        (DataContext as MainViewModel)?.CustomGuideClosed();
+    }
+
+    void IMainWindowActions.ShowAbout() =>
+        _ = new AboutWindow { DataContext = new AboutViewModel { Database = (DataContext as MainViewModel)?.DatabaseVersion } }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
 

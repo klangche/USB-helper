@@ -31,6 +31,8 @@ public sealed class SettingsViewModel : ObservableObject
         this.log = log;
         this.current = current;
         this.logo = logo;
+        CustomGuide = new CustomGuideFile(file == null ? null
+            : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, Core.Database.CustomGuide.FileName));
     }
 
     /// <summary>
@@ -76,6 +78,13 @@ public sealed class SettingsViewModel : ObservableObject
         set => Change(current with { CheckForUpdatesAtStart = value });
     }
 
+    /// <summary>Newer database files are downloaded at start (#290).</summary>
+    public bool DownloadDatabaseUpdates
+    {
+        get => current.DownloadDatabaseUpdates;
+        set => Change(current with { DownloadDatabaseUpdates = value });
+    }
+
     /// <summary>The stored choice; it is kept while locked and used again on unlock (#246).</summary>
     public bool OfferBetas
     {
@@ -112,7 +121,11 @@ public sealed class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<string> CheckedOperatingSystems => current.CheckedOperatingSystems;
 
-    public IReadOnlyList<string> CheckedComputers => current.CheckedComputers;
+    /// <summary>The user's own guide, custom.yaml next to settings.json (#300); in memory only when the settings are.</summary>
+    public CustomGuideFile CustomGuide { get; }
+
+    /// <summary>The guide picked when the app closed, by id; null for USB-Helper's. Always kept (owner 2026-11-17).</summary>
+    public string? CheckedGuide => current.CheckedGuide;
 
     /// <summary>Trimmed when it is set; empty means none.</summary>
     public string CompanyName
@@ -190,14 +203,20 @@ public sealed class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(LogoPreview));
     }
 
-    /// <summary>The profiles checked now, by id; kept only while <see cref="RememberCheckedProfiles"/> is on.</summary>
-    public void CheckedProfiles(IReadOnlyList<string> operatingSystems, IReadOnlyList<string> computers)
+    /// <summary>
+    /// The operating systems checked now, by id; kept only while <see cref="RememberCheckedProfiles"/> is on. Computers
+    /// are never kept: none is checked at start (#286). The guide is kept by <see cref="PickedGuide"/>.
+    /// </summary>
+    public void CheckedProfiles(IReadOnlyList<string> operatingSystems)
     {
         if (current.RememberCheckedProfiles)
         {
-            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = computers });
+            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = [] });
         }
     }
+
+    /// <summary>Keeps the picked guide's id, null for USB-Helper's, whatever <see cref="RememberCheckedProfiles"/> says.</summary>
+    public void PickedGuide(string? guide) => Change(current with { CheckedGuide = guide });
 
     public string? LicenceEmail => current.LicenceEmail;
 
@@ -226,6 +245,10 @@ public sealed class SettingsViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(CheckForUpdatesAtStart));
         }
+        if (before.DownloadDatabaseUpdates != current.DownloadDatabaseUpdates)
+        {
+            OnPropertyChanged(nameof(DownloadDatabaseUpdates));
+        }
         if (before.OfferBetas != current.OfferBetas)
         {
             OnPropertyChanged(nameof(OfferBetas));
@@ -243,8 +266,9 @@ public sealed class SettingsViewModel : ObservableObject
 
     // The lists are compared by content, so an unchanged choice writes nothing.
     private static bool Same(AppSettings a, AppSettings b) =>
-        a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.OfferBetas == b.OfferBetas
+        a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.DownloadDatabaseUpdates == b.DownloadDatabaseUpdates && a.OfferBetas == b.OfferBetas
         && a.RememberCheckedProfiles == b.RememberCheckedProfiles && a.CompanyName == b.CompanyName
         && a.LicenceEmail == b.LicenceEmail && a.LicenceCode == b.LicenceCode
-        && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers);
+        && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers)
+        && a.CheckedGuide == b.CheckedGuide;
 }

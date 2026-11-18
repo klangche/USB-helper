@@ -8,6 +8,10 @@
         Width="1100" Height="700"
         Title="{x:Static res:Strings.WindowTitle}">
 
+  <!-- F5 refreshes from anywhere in the window; the Refresh button left the top bar (owner order 2026-11-17). -->
+  <Window.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
+  </Window.KeyBindings>
   <DockPanel>
 
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
@@ -39,25 +43,77 @@
 
     <!-- The top bar: the buttons from the left, the company branding (#229) in what is left at the right end. -->
     <DockPanel DockPanel.Dock="Top" HorizontalSpacing="8" Margin="12">
-      <!-- Drop-down checkbox lists: any mix of operating systems and computers can be checked. -->
-      <DropDownButton Content="{x:Static res:Strings.OperatingSystems}">
+      <!-- The profile menu (#286): the guides on top, one at a time; below the line a tick per chip, any mix. -->
+      <DropDownButton Content="{x:Static res:Strings.ProfileMenu}">
         <DropDownButton.Flyout>
-          <Flyout Placement="BottomEdgeAlignedLeft">
+          <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295). -->
+          <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
             <ScrollViewer MaxHeight="480">
-              <ItemsControl ItemsSource="{Binding OperatingSystems}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ProfileOption">
-                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
+              <StackPanel Spacing="4">
+                <ItemsControl ItemsSource="{Binding Guides}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:GuideOption">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
+                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as USB Standard has none. -->
+                        <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                          <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
+                        </Border>
+                        <!-- Custom (#300), last and only while unlocked: opens its editor. -->
+                        <Button Content="{x:Static res:Strings.CustomGuideEdit}" Command="{Binding EditCommand}"
+                                IsVisible="{Binding IsCustom}" Padding="6,0" FontSize="12" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Separator />
+                <ItemsControl ItemsSource="{Binding PlatformGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlatformGroup">
+                      <StackPanel Orientation="Horizontal" Spacing="12">
+                        <!-- The name ticks or unticks all of its chips (#295); a plain word, not a button look. -->
+                        <Button Classes="word" Content="{Binding Name}" Command="{Binding ToggleAll}" Width="120" FontWeight="SemiBold"
+                                VerticalAlignment="Center" Cursor="Hand">
+                          <Button.Styles>
+                            <!-- Plain text in every state: no box, no hover or pressed background. -->
+                            <Style Selector="Button.word">
+                              <Setter Property="Background" Value="Transparent" />
+                              <Setter Property="BorderThickness" Value="0" />
+                              <Setter Property="Padding" Value="0" />
+                            </Style>
+                            <Style Selector="Button.word:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                              <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                            <Style Selector="Button.word:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                              <Setter Property="Background" Value="Transparent" />
+                            </Style>
+                          </Button.Styles>
+                        </Button>
+                        <ItemsControl ItemsSource="{Binding Chips}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <StackPanel Orientation="Horizontal" Spacing="12" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileOption">
+                              <CheckBox Content="{Binding ChipLabel}" IsChecked="{Binding IsChecked}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </ScrollViewer>
           </Flyout>
         </DropDownButton.Flyout>
       </DropDownButton>
       <DropDownButton Content="{x:Static res:Strings.Computers}">
         <DropDownButton.Flyout>
-          <Flyout Placement="BottomEdgeAlignedLeft">
+          <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295). -->
+          <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
             <!-- The profile export of this computer sits on top of the list (#189). -->
             <StackPanel Spacing="4">
               <Button Content="{x:Static res:Strings.ExportProfile}" Command="{Binding ExportProfileCommand}" HorizontalAlignment="Stretch" />
@@ -76,12 +132,15 @@
         </DropDownButton.Flyout>
       </DropDownButton>
       <TextBlock Text="{Binding DetectedComputer}" VerticalAlignment="Center" Opacity="0.7" />
-      <TextBox Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
-      <Button Content="{x:Static res:Strings.Refresh}" Command="{Binding RefreshCommand}" HotKey="F5" />
-      <Button Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
-      <Button Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <!-- Right-hand group, docked from the right edge inwards, so it follows the window's right side when it grows. -->
       <!-- The unlock popup (#238), only while locked; once unlocked the status line at the bottom says who it is unlocked to. -->
+      <!-- From the left: PDF, Export, Log, Unlock (owner order 2026-11-17); Refresh is in the File menu and on F5. -->
       <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.UnlockOpen}" Command="{Binding UnlockCommand}" IsVisible="{Binding !Unlock.FeaturesUnlocked}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.LogButton}" Click="OpenLog" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Export}" Command="{Binding ExportSetupCommand}" />
+      <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.PdfButton}" Command="{Binding ExportPdfCommand}"
+              ToolTip.Tip="{Binding ExportPdfTip}" ToolTip.ShowOnDisabled="True" />
+      <TextBox DockPanel.Dock="Right" Text="{Binding RoomName}" PlaceholderText="{x:Static res:Strings.RoomName}" Width="220" />
       <!-- Company branding (#229), only while unlocked: the logo if there is one, otherwise the name, never both. The logo
            box is fixed at 96x32 and never shrinks (too narrow a window cuts off its right edge, no overlap); the logo is drawn in
            it with its aspect ratio kept. The name is
@@ -115,7 +174,10 @@
         <!-- Tree style B (#43): drawn lines instead of indentation. Only the controllers can be collapsed (#142): a
              controller's chevron (#91), a double-click or the arrow keys hide or show its tree. Everything else stays open. -->
         <!-- Active cables and extenders the operating system does not show (#76, #90): click the "+" on the line to a hub
-             or device, or press Enter or the context menu key on the selected item, to mark its extra hops. -->
+             or device, or press Enter or the context menu key on the selected item, to mark it: "+N hubs" adds N hubs and N
+             tiers, "+N tiers" only N tiers (#307). -->
+        <!-- A port with something on it is no row of its own (#264): its hub or device shows the port number in a small
+             box and the USB-C badge. A row shows its result word and a light background only when it is not stable. -->
         <TreeView ItemsSource="{Binding Roots}" SelectedItem="{Binding SelectedNode}" x:Name="Tree" ContextRequested="OpenCableMark">
           <TreeView.Styles>
             <!-- The "+" on a connection line: a small ring and cross in the line's own colour, so the colour stays visible. -->
@@ -191,9 +253,10 @@
             </Style>
           </TreeView.Styles>
           <TreeView.ItemTemplate>
-            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Children}">
-              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}">
-                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLast}"
+            <TreeDataTemplate x:DataType="vm:NodeViewModel" ItemsSource="{Binding Rows}">
+              <DockPanel Height="24" ToolTip.Tip="{Binding RowTip}"
+                         Background="{Binding RowTint, Converter={x:Static app:HexBrushConverter.Instance}}">
+                <app:TreeLines DockPanel.Dock="Left" Guides="{Binding Guides}" HasLine="{Binding HasLine}" IsLast="{Binding IsLastRow}"
                                HasChildren="{Binding ShowsChildren}" HasStatus="{Binding HasStatus}" IsDashed="{Binding IsUserMarked}"
                                TrunkAbove="{Binding TrunkAboveColor}" TrunkBelow="{Binding TrunkBelowColor}" Trunk="{Binding TrunkColor}"
                                ElbowBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
@@ -203,20 +266,31 @@
                     <Path Data="M0,2.5 H5 M2.5,0 V5" StrokeThickness="1.2"
                           Stroke="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                     <Button.Flyout>
-                      <Flyout Placement="BottomEdgeAlignedLeft">
-                        <StackPanel Spacing="6">
-                          <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" />
-                          <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding ExtraHops}"
-                                   SelectionMode="AlwaysSelected" />
-                        </StackPanel>
-                      </Flyout>
+                      <!-- A plain menu (owner 2026-11-17): None, +1 / +2 (active extender) / +3 Hub, +1 / +2 Tier. A hub
+                           mark adds as many tiers itself. A click outside also reaches what is under it (#295). -->
+                      <MenuFlyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[0]}" Command="{Binding SetMark}" CommandParameter="0" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[1]}" Command="{Binding SetMark}" CommandParameter="1" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[2]}" Command="{Binding SetMark}" CommandParameter="2" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[3]}" Command="{Binding SetMark}" CommandParameter="3" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[4]}" Command="{Binding SetMark}" CommandParameter="4" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[5]}" Command="{Binding SetMark}" CommandParameter="5" />
+                      </MenuFlyout>
                     </Button.Flyout>
                   </Button>
                 </app:TreeLines>
+                <!-- A hub's or device's depth at the right (#264): "Tier 4, 2 hubs in front" (#307). -->
+                <TextBlock DockPanel.Dock="Right" Text="{Binding DepthText}" Opacity="0.7" Margin="8,0" VerticalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="4,0,8,0" VerticalAlignment="Center">
                   <ToggleButton Classes="expander" IsVisible="{Binding CanExpand}" IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                 ToolTip.Tip="{x:Static res:Strings.ExpandTip}" AutomationProperties.Name="{x:Static res:Strings.ExpandTip}" />
-                  <!-- A marked line's "+N hops" badge, in the line's colour, so it is clear the user added it. -->
+                  <!-- The number of the port this hub or device is on. -->
+                  <Border Background="#339E9E9E" CornerRadius="3" Padding="4,0" MinWidth="16" VerticalAlignment="Center"
+                          IsVisible="{Binding PortNumber, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          ToolTip.Tip="{Binding PortName}">
+                    <TextBlock Text="{Binding PortNumber}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                  </Border>
+                  <!-- A marked line's "+2 hubs" or "+1 tier" badge, in the line's colour, so it is clear the user added it. -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" IsVisible="{Binding IsUserMarked}"
                           BorderBrush="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}">
                     <TextBlock Text="{Binding MarkBadge}" FontWeight="SemiBold"
@@ -229,27 +303,41 @@
                     <TextBlock Text="{x:Static res:Strings.DisplayBadge}" FontWeight="SemiBold" />
                   </Border>
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding IsDisplay}" />
+                  <!-- The status dot, in the same colour as the elbow. -->
+                  <Ellipse Width="8" Height="8" VerticalAlignment="Center" IsVisible="{Binding HasStatus}"
+                           Fill="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <!-- A collapsed item's name is bold (#100). -->
                   <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
                   <!-- A port Windows reports as USB-C (#114). -->
                   <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center"
-                          IsVisible="{Binding PortType, Converter={x:Static ObjectConverters.IsNotNull}}"
+                          IsVisible="{Binding PortBadge, Converter={x:Static ObjectConverters.IsNotNull}}"
                           BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
-                    <TextBlock Text="{Binding PortType}" />
+                    <TextBlock Text="{Binding PortBadge}" />
                   </Border>
-                  <!-- The result word on the right, in the same colour as the elbow. -->
-                  <TextBlock Text="{Binding StatusWord}" FontWeight="SemiBold" IsVisible="{Binding HasStatus}"
+                  <!-- A warning that is not a status (#296): "⚠ no MST" on a display duplicated for lack of MST. -->
+                  <!-- The triangle at the text's size, "no MST" smaller, in the warning's orange; hovering the row explains it. -->
+                  <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
+                              IsVisible="{Binding WarningBadge, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="⚠" Foreground="#EF6C00" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Static res:Strings.NoMstShort}" FontSize="10" FontWeight="SemiBold" Foreground="#EF6C00"
+                               VerticalAlignment="Center" />
+                  </StackPanel>
+                  <!-- The result word, in the same colour as the elbow, only when the row is not stable. -->
+                  <TextBlock Text="{Binding RowStatusWord}" FontWeight="SemiBold"
+                             IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB2 first (#217); hovering shows the full text,
-                       as in the tree as text: "Hubs: 4 (USB2: 3, USB3: 1), ...". -->
-                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding Counts}"
+                  <!-- "Hubs: 4 (3+1+0), ...": the hubs per bus in brackets, USB 2, USB 3, USB 4 (#217, #298); hovering
+                       shows the text and which bus is which. -->
+                  <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding CountsTip}"
                               IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <TextBlock Text="{Binding CountsHead}" />
                     <StackPanel Orientation="Horizontal" IsVisible="{Binding HasCountsPerBus}">
                       <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
                       <TextBlock Text="+" />
                       <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" />
+                      <TextBlock Text="+" />
+                      <TextBlock Text="{Binding CountsUsb4}" FontWeight="SemiBold" />
                     </StackPanel>
                     <TextBlock Text="{Binding CountsTail}" />
                   </StackPanel>
@@ -283,6 +371,15 @@
           <!-- Status field: every checked profile with its result word in its colour, for the selected controller. -->
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
           <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+          <!-- Which guide every result is judged by (#286). -->
+          <!-- The guide's name links to its page when its file lists one. -->
+          <WrapPanel Opacity="0.7" IsVisible="{Binding Guide, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="{Binding GuideTextBefore}" VerticalAlignment="Center" />
+            <HyperlinkButton Content="{Binding GuideName}" NavigateUri="{Binding GuideLink}" IsVisible="{Binding HasGuideLink}"
+                             Padding="0" VerticalAlignment="Center" ToolTip.Tip="{Binding GuideLink}" />
+            <TextBlock Text="{Binding GuideName}" IsVisible="{Binding HasGuideNoLink}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding GuideTextAfter}" VerticalAlignment="Center" />
+          </WrapPanel>
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">
             <ItemsControl.ItemTemplate>
@@ -305,6 +402,30 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+
+          <!-- Counts table (#265), for what the status field covers: "Hubs: 3 (2+1+0)" (#298) and "Devices: 7" (#307), then one line per bus with
+               its own hubs and deepest tier; one combined line when no bus is reported. Not shown when nothing is connected. -->
+          <StackPanel IsVisible="{Binding HasBusCounts}" Spacing="2" Margin="0,8,0,0">
+            <TextBlock Text="{x:Static res:Strings.CountsTable}" FontWeight="Bold" />
+            <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding BusCountsHubs}" ToolTip.Tip="{x:Static res:Strings.CountsPerBusTip}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding BusCountsDevices}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="3*,2*,3*" Opacity="0.7">
+              <TextBlock Grid.Column="1" Text="{x:Static res:Strings.CountsColumnHubs}" TextWrapping="Wrap" />
+              <TextBlock Grid.Column="2" Text="{x:Static res:Strings.LimitTiers}" TextWrapping="Wrap" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding BusCountsRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:BusCountsRow">
+                  <Grid ColumnDefinitions="3*,2*,3*">
+                    <TextBlock Grid.Column="0" Text="{Binding Bus}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" Text="{Binding Hubs}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="2" Text="{Binding DeepestTier}" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
 
           <TextBlock Text="{x:Static res:Strings.Disconnected}" FontWeight="Bold" Margin="0,8,0,0" />
           <ItemsControl ItemsSource="{Binding Disconnected}">

@@ -16,6 +16,7 @@ internal static class NativeMethods
     public const uint DIGCF_DEVICEINTERFACE = 0x10;
 
     public const uint SPDRP_DEVICEDESC = 0x0;
+    public const uint SPDRP_COMPATIBLEIDS = 0x2;
     public const uint SPDRP_DRIVER = 0x9;
     public const uint SPDRP_FRIENDLYNAME = 0xC;
 
@@ -48,6 +49,7 @@ internal static class NativeMethods
     // CTL_CODE(FILE_DEVICE_USB, function, METHOD_BUFFERED, FILE_ANY_ACCESS) from usbioctl.h.
     public const uint IOCTL_USB_GET_ROOT_HUB_NAME = 0x220408;
     public const uint IOCTL_USB_GET_NODE_INFORMATION = 0x220408;
+    public const uint IOCTL_USB_GET_DESCRIPTOR_FROM_NODE_CONNECTION = 0x220410;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_NAME = 0x220414;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_DRIVERKEY_NAME = 0x220420;
     public const uint IOCTL_USB_GET_NODE_CONNECTION_INFORMATION_EX = 0x220448;

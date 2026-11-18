@@ -6,50 +6,65 @@ namespace UsbHelper.Core.Tests.Diagnostics;
 
 public class StrictestProfileTests
 {
-    // One computer profile per entry, each with its limits (YAML values, "null" for unknown), in the order given.
-    private static IReadOnlyList<ResolvedProfile> Profiles(params (string Hops, string Recommended, string Tiers, string Hubs)[] limits)
+    // One platform profile per entry, each with its limits in USB-Helper's guide ("none" for none), in the order given.
+    private static (IReadOnlyList<ResolvedProfile> Profiles, Guide Guide) Profiles(params (string Tiers, string Recommended, string Hubs)[] limits)
     {
-        using var db = new TestDatabase();
+        using var db = new TestDatabase().Write("platforms/p.yaml", "name: P\nchips:\n"
+            + string.Concat(limits.Select((_, i) => $"  c{i}: {{ name: C{i}, built_in_hub_levels: 0 }}\n")));
         for (var i = 0; i < limits.Length; i++)
         {
-            db.Write($"computers/c{i}.yaml", $"""
-                inherits: test-platform
-                manufacturer: Test
-                model: Laptop {i}
-                limits:
-                  max_hops: {limits[i].Hops}
-                  recommended_hops: {limits[i].Recommended}
-                  max_tiers: {limits[i].Tiers}
-                  max_hubs: {limits[i].Hubs}
-                """);
+            var chip = $"platforms.p.chips.c{i}.limits";
+            db.UsbHelper[$"{chip}.tiers.max"] = limits[i].Tiers;
+            db.UsbHelper[$"{chip}.tiers.recommended"] = limits[i].Recommended;
+            db.UsbHelper[$"{chip}.hubs.max"] = limits[i].Hubs;
         }
-        var computers = db.Load().Computers;
-        return [.. Enumerable.Range(0, limits.Length).Select(i => computers[TestDatabase.IdOf($"Laptop {i}")])];
+        var loaded = db.Load();
+        return ([.. limits.Select((_, i) => loaded.Platforms[$"p-c{i}"])], loaded.DefaultGuide);
+    }
+
+    private static int Strictest(params (string Tiers, string Recommended, string Hubs)[] limits)
+    {
+        var (profiles, guide) = Profiles(limits);
+        return StrictestProfile.Of(profiles, guide);
     }
 
     [Fact]
-    public void OneProfileIsTheStrictest() => Assert.Equal(0, StrictestProfile.Of(Profiles(("5", "3", "7", "5"))));
+    public void OneProfileIsTheStrictest() => Assert.Equal(0, Strictest(("7", "5", "5")));
 
     [Fact]
-    public void TheLowestMaxHopsIsTheStrictest() =>
-        Assert.Equal(1, StrictestProfile.Of(Profiles(("7", "1", "1", "1"), ("5", "5", "7", "5"))));
+    public void TheLowestMaxTiersIsTheStrictest() =>
+        Assert.Equal(1, Strictest(("7", "1", "1"), ("6", "5", "5")));
 
     [Fact]
     public void ATieGoesToTheNextLimit()
     {
-        Assert.Equal(1, StrictestProfile.Of(Profiles(("5", "4", "1", "1"), ("5", "3", "7", "5"))));
-        Assert.Equal(1, StrictestProfile.Of(Profiles(("5", "3", "7", "1"), ("5", "3", "6", "5"))));
-        Assert.Equal(1, StrictestProfile.Of(Profiles(("5", "3", "7", "5"), ("5", "3", "7", "4"))));
+        Assert.Equal(1, Strictest(("7", "5", "1"), ("7", "4", "5")));
+        Assert.Equal(1, Strictest(("7", "5", "5"), ("7", "5", "4")));
     }
 
     [Fact]
     public void AnUnknownLimitCountsAsHigherThanAnyKnownOne()
     {
-        Assert.Equal(1, StrictestProfile.Of(Profiles(("null", "1", "1", "1"), ("100", "100", "100", "100"))));
-        Assert.Equal(0, StrictestProfile.Of(Profiles(("5", "3", "7", "5"), ("5", "null", "1", "1"))));
+        Assert.Equal(1, Strictest(("none", "1", "1"), ("7", "6", "100")));
+        Assert.Equal(0, Strictest(("7", "5", "5"), ("7", "none", "1")));
     }
 
     [Fact]
     public void StillTiedTheFirstWins() =>
-        Assert.Equal(0, StrictestProfile.Of(Profiles(("5", "3", "null", "null"), ("5", "3", "null", "null"))));
+        Assert.Equal(0, Strictest(("7", "5", "none"), ("7", "5", "none")));
+
+    // #310: a guide that counts the chain is judged by it too; one that does not count it ignores its numbers.
+    [Theory]
+    [InlineData("[chain]", 1)]
+    [InlineData("[tiers, hubs]", 0)]
+    public void TheChainCountsOnlyWhenTheGuideCountsIt(string count, int strictest)
+    {
+        using var db = new TestDatabase().Write("platforms/p.yaml", "name: P\nchips:\n  c0: { name: C0, built_in_hub_levels: 0 }\n  c1: { name: C1, built_in_hub_levels: 0 }\n");
+        db.UsbHelper["count"] = count;
+        db.UsbHelper["chain.max"] = "5";
+        db.UsbHelper["platforms.p.chips.c1.limits.chain.max"] = "3";
+        var loaded = db.Load();
+
+        Assert.Equal(strictest, StrictestProfile.Of([loaded.Platforms["p-c0"], loaded.Platforms["p-c1"]], loaded.DefaultGuide));
+    }
 }

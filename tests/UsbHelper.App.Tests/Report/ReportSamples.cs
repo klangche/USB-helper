@@ -77,8 +77,8 @@ internal static class ReportSamples
     // touch panel on an active cable, and the Displays group. Ports are rows of their own, as in the window.
     private static IReadOnlyList<ReportRow> DeskTree() =>
     [
-        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 2 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 3"]),
-        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 2 (USB2: 2, USB3: 1), deepest tier: 4, deepest hop: 3"]),
+        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 4 (3+1+0), devices: 7, deepest tier: 4"]),
+        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 4 (3+1+0), devices: 7, deepest tier: 4"]),
         Row(2, [true], true, "USB Root Hub (USB 3.0)", notes: ["has a display"]),
         Row(3, [true, false], false, "Port 1", portType: "USB-C"),
         Row(4, [true, false, true], true, "Dell WD22TB4 dock", ConnectionStatus.Green, notes: ["has a display"]),
@@ -90,43 +90,37 @@ internal static class ReportSamples
         Row(6, [true, false, true, false, false], true, "DisplayLink USB Graphics (17E9:6006)", ConnectionStatus.Orange, ["Display"],
             notes: ["Extended display: DisplayLink driver required"]),
         Row(3, [true, false], true, "Port 3"),
-        Row(4, [true, false, false], true, "Crestron TSW-1070 touch panel", ConnectionStatus.Orange, ["+1 hops"]),
+        Row(4, [true, false, false], true, "Crestron TSW-1070 touch panel", ConnectionStatus.Orange, ["+1 tier, +1 hub"]),
         Row(1, [], true, "Displays"),
         Row(2, [false], false, "Monitor (built-in)"),
         Row(2, [false], true, "DELL U2723QE (HDMI)"),
     ];
 
-    // Two computers and two platforms: one shared limitation, one each of their own, a limit not in the database, and a
-    // stable profile.
+    // Two computers and two platforms: one shared limitation, a limit not in the database, and two stable profiles.
     public static IReadOnlyList<ReportProfile> Profiles() =>
     [
         new("Dell Latitude 7450", ConnectionStatus.Purple,
         [
             new("External hubs", 4, 2, ConnectionStatus.Green),
-            new("Deepest tier", 5, 4, ConnectionStatus.Green),
-            new("Most hops", 2, 3, ConnectionStatus.Purple),
+            new("Deepest tier", 3, 4, ConnectionStatus.Purple),
             new("External displays", 2, 1, ConnectionStatus.Green),
         ]),
         new("HP EliteBook 840 G10", ConnectionStatus.Purple,
         [
             new("External hubs", 4, 2, ConnectionStatus.Green),
-            new("Deepest tier", 5, 4, ConnectionStatus.Green),
-            new("Most hops", 2, 3, ConnectionStatus.Purple),
+            new("Deepest tier", 3, 4, ConnectionStatus.Purple),
             new("External displays", 3, 1, ConnectionStatus.Green),
         ]),
-        new("Windows on Intel", ConnectionStatus.Orange,
+        new("Windows on Intel", ConnectionStatus.Green,
         [
             new("External hubs", null, 2, ConnectionStatus.Grey),
             new("Deepest tier", 7, 4, ConnectionStatus.Green),
-            new("Most hops", 5, 3, ConnectionStatus.Green),
             new("External displays", 4, 1, ConnectionStatus.Green),
-            new("Recommended hops", 2, 3, ConnectionStatus.Orange),
         ]),
         new("macOS on Apple silicon", ConnectionStatus.Green,
         [
             new("External hubs", null, 2, ConnectionStatus.Grey),
             new("Deepest tier", 7, 4, ConnectionStatus.Green),
-            new("Most hops", 5, 3, ConnectionStatus.Green),
             new("External displays", 2, 1, ConnectionStatus.Green),
         ]),
     ];
@@ -140,15 +134,13 @@ internal static class ReportSamples
         new(FactKind.DetectedFact, null, "DisplayLink USB Graphics (17E9:6006)",
             "DisplayLink adapter: its displays use the DisplayLink driver, not the computer's own video outputs."),
         new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "limits.max_hubs = 4 (computers/dell/latitude-7450.yaml)."),
-        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "limits.max_hops = 2 (computers/dell/latitude-7450.yaml)."),
+        new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "limits.max_tiers = 3 (computers/dell/latitude-7450.yaml)."),
         new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Dell Latitude 7450", "displays.max_external = 2 (computers/dell/latitude-7450.yaml)."),
         new(FactKind.VerifiedDatabaseFact, "Dell Latitude 7450", "Port 1 (left)",
             "USB: 3.2 Gen 2; Thunderbolt 4; DisplayPort Alt Mode: yes; DisplayLink: yes."),
-        new(FactKind.VerifiedDatabaseFact, "HP EliteBook 840 G10", "HP EliteBook 840 G10", "limits.max_hops = 2 (computers/hp/elitebook-840-g10.yaml)."),
-        new(FactKind.PredictedRisk, "Dell Latitude 7450", "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."),
-        new(FactKind.PredictedRisk, "HP EliteBook 840 G10", "Crestron TSW-1070 touch panel", "Hop depth 3 exceeds limits.max_hops 2."),
-        new(FactKind.PredictedRisk, "Windows on Intel", "Crestron TSW-1070 touch panel",
-            "Hop depth 3 exceeds the recommended limits.recommended_hops 2; limits.max_hops is 5."),
+        new(FactKind.VerifiedDatabaseFact, "HP EliteBook 840 G10", "HP EliteBook 840 G10", "limits.max_tiers = 3 (computers/hp/elitebook-840-g10.yaml)."),
+        new(FactKind.PredictedRisk, "Dell Latitude 7450", "Crestron TSW-1070 touch panel", "Tier depth 4 exceeds limits.max_tiers 3."),
+        new(FactKind.PredictedRisk, "HP EliteBook 840 G10", "Crestron TSW-1070 touch panel", "Tier depth 4 exceeds limits.max_tiers 3."),
         new(FactKind.Unknown, "Windows on Intel", "Windows on Intel", "limits.max_hubs is unknown (platforms/windows-intel.yaml)."),
         new(FactKind.Unknown, "macOS on Apple silicon", "macOS on Apple silicon", "limits.max_hubs is unknown (platforms/macos-apple-silicon.yaml)."),
         new(FactKind.Unknown, "HP EliteBook 840 G10", "Port 2 (right)", "Unknown: DisplayPort Alt Mode, DisplayLink."),
@@ -159,7 +151,7 @@ internal static class ReportSamples
     public static ReportModel Full(string? logoPath) => new(
         Company, logoPath, Room, "0.9.0-beta.3", new DateTime(2026, 11, 13, 14, 5, 0),
         new ComputerIdentity("Dell Inc.", "Latitude 7450"), ConnectionStatus.Purple,
-        new ReportCounts(2, 2, 1, 4, 3, false, 1), Profiles(),
+        new ReportCounts(4, 3, 1, 0, 7, 4, false, 1), Profiles(),
         [new("Monitor", "built-in", null), new("DELL U2723QE", "HDMI", null), new("Monitor", "indirect, for example DisplayLink", "DisplayLink USB Graphics")],
         DeskTree(), Findings())
     {
@@ -185,7 +177,7 @@ internal static class ReportSamples
     /// <summary>A tree of 200 devices: four controllers with five hubs of ten devices each, every device on its own port.</summary>
     public static ReportModel LongTree(string? logoPath)
     {
-        var rows = new List<ReportRow> { Row(0, [], true, "Dell Inc. Precision 7680", notes: ["Hubs: 20, deepest tier: 3, deepest hop: 1"]) };
+        var rows = new List<ReportRow> { Row(0, [], true, "Dell Inc. Precision 7680", notes: ["Hubs: 20, devices: 20, deepest tier: 3"]) };
         for (var c = 1; c <= 4; c++)
         {
             var lastController = c == 4;
@@ -204,7 +196,7 @@ internal static class ReportSamples
                 }
             }
         }
-        return Full(logoPath) with { Tree = rows, Counts = new ReportCounts(20, 20, 0, 3, 1, false, 1) };
+        return Full(logoPath) with { Tree = rows, Counts = new ReportCounts(20, 20, 0, 0, 20, 3, false, 1) };
     }
 
     /// <summary>The full report with a tree of <paramref name="devices"/> devices straight on the root hub: one row each.</summary>

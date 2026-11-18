@@ -19,8 +19,26 @@
   <data name="OperatingSystems" xml:space="preserve">
     <value>Operating systems</value>
   </data>
+  <data name="NoMstWarning" xml:space="preserve">
+    <value>⚠ no MST: a second DisplayPort display is duplicated</value>
+  </data>
+  <data name="NoMstShort" xml:space="preserve">
+    <value>no MST</value>
+  </data>
+  <data name="NoMstTip" xml:space="preserve">
+    <value>Warning: a selected operating system or chip does not natively support MST, so this display is duplicated. Use a second USB-C port or DisplayLink to extend it.</value>
+  </data>
+  <data name="NoMstBadge" xml:space="preserve">
+    <value>⚠ no MST</value>
+  </data>
+  <data name="ProfileMenu" xml:space="preserve">
+    <value>USB philosophy</value>
+  </data>
+  <data name="JudgedBy" xml:space="preserve">
+    <value>Judged by the {0} philosophy</value>
+  </data>
   <data name="Computers" xml:space="preserve">
-    <value>Computers</value>
+    <value>Known issues</value>
   </data>
   <data name="StatusField" xml:space="preserve">
     <value>Status</value>
@@ -32,7 +50,7 @@
     <value>all controllers</value>
   </data>
   <data name="NothingChecked" xml:space="preserve">
-    <value>Nothing checked: check one or more operating systems or computers to judge this setup by.</value>
+    <value>Nothing checked: tick one or more operating systems under "USB philosophy", or a machine under "Known issues", to judge this setup by.</value>
   </data>
   <data name="FindingHeaderForProfile" xml:space="preserve">
     <value>{0} · {1} · {2}</value>
@@ -77,7 +95,7 @@
     <value>Export</value>
   </data>
   <data name="ExportProfile" xml:space="preserve">
-    <value>Export computer profile</value>
+    <value>Report this machine</value>
   </data>
   <data name="ExportTitle" xml:space="preserve">
     <value>Save this computer as a computer profile</value>
@@ -185,32 +203,35 @@
   <data name="LimitLine" xml:space="preserve">
     <value>{0}: {1}, limit {2} ({3})</value>
   </data>
+  <data name="LimitLineOnBus" xml:space="preserve">
+    <value>{0}: {1}, limit {2} on {3} ({4})</value>
+  </data>
   <data name="LimitHubs" xml:space="preserve">
     <value>External hubs</value>
   </data>
   <data name="LimitTiers" xml:space="preserve">
     <value>Deepest tier</value>
   </data>
-  <data name="LimitHops" xml:space="preserve">
-    <value>Most hops</value>
+  <data name="LimitRecommendedTiers" xml:space="preserve">
+    <value>Recommended tiers</value>
+  </data>
+  <data name="LimitChain" xml:space="preserve">
+    <value>Hubs in a chain</value>
+  </data>
+  <data name="LimitRecommendedChain" xml:space="preserve">
+    <value>Recommended hubs in a chain</value>
+  </data>
+  <data name="ReportDevices" xml:space="preserve">
+    <value>USB devices</value>
   </data>
   <data name="LimitDisplays" xml:space="preserve">
     <value>External displays</value>
   </data>
-  <data name="LimitRecommendedHops" xml:space="preserve">
-    <value>Recommended hops</value>
-  </data>
   <data name="LimitDisconnected" xml:space="preserve">
     <value>Disconnected devices</value>
   </data>
-  <data name="LimitWithin" xml:space="preserve">
-    <value>within limit</value>
-  </data>
   <data name="LimitExceeded" xml:space="preserve">
     <value>exceeded</value>
-  </data>
-  <data name="LimitUnknown" xml:space="preserve">
-    <value>unknown</value>
   </data>
   <data name="Disconnected" xml:space="preserve">
     <value>Disconnected and reconnected devices</value>
@@ -242,17 +263,53 @@
   <data name="CountsHubsAtLeast" xml:space="preserve">
     <value>Hubs: at least {0}</value>
   </data>
+  <data name="CountsDevices" xml:space="preserve">
+    <value>, devices: {0}</value>
+  </data>
+  <data name="CountsDevicesAtLeast" xml:space="preserve">
+    <value>, devices: at least {0}</value>
+  </data>
+  <data name="CountsDevicesLine" xml:space="preserve">
+    <value>Devices: {0}</value>
+  </data>
   <data name="CountsDepth" xml:space="preserve">
-    <value>, deepest tier: {0}, deepest hop: {1}</value>
+    <value>, deepest tier: {0}</value>
   </data>
   <data name="CountsDepthAtLeast" xml:space="preserve">
-    <value>, deepest tier: at least {0}, deepest hop: at least {1}</value>
+    <value>, deepest tier: at least {0}</value>
   </data>
-  <data name="CountsPerBusText" xml:space="preserve">
-    <value> (USB2: {0}, USB3: {1})</value>
+  <data name="CountsHubsPerBus" xml:space="preserve">
+    <value>{0} ({1}+{2}+{3})</value>
+  </data>
+  <data name="CountsPerBusTip" xml:space="preserve">
+    <value>In brackets: the hubs on USB 2, USB 3 and USB 4.</value>
+  </data>
+  <data name="CountsTable" xml:space="preserve">
+    <value>Hubs, devices and tiers</value>
+  </data>
+  <data name="CountsBusUsb2" xml:space="preserve">
+    <value>USB 2</value>
+  </data>
+  <data name="CountsBusUsb3" xml:space="preserve">
+    <value>USB 3</value>
+  </data>
+  <data name="CountsBusUsb4" xml:space="preserve">
+    <value>USB 4</value>
+  </data>
+  <data name="CountsBusAll" xml:space="preserve">
+    <value>All buses together</value>
+  </data>
+  <data name="CountsColumnHubs" xml:space="preserve">
+    <value>Hubs</value>
   </data>
   <data name="NodeDepthTip" xml:space="preserve">
-    <value>Tier {0}, hubs in front: {1}</value>
+    <value>Tier {0}</value>
+  </data>
+  <data name="NodeDepthTipOneHub" xml:space="preserve">
+    <value>Tier {0}, 1 hub in front</value>
+  </data>
+  <data name="NodeDepthTipHubs" xml:space="preserve">
+    <value>Tier {0}, {1} hubs in front</value>
   </data>
   <data name="StatusGreen" xml:space="preserve">
     <value>Stable: within every known limit</value>
@@ -281,11 +338,8 @@
   <data name="KindUnknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
-  <data name="CableMark" xml:space="preserve">
-    <value>+{0} hops</value>
-  </data>
   <data name="CableMarkTitle" xml:space="preserve">
-    <value>Active cable / extender on this connection, extra hops:</value>
+    <value>Active cable or extender on this connection:</value>
   </data>
   <data name="CableMarkTip" xml:space="preserve">
     <value>Add an active cable or extender on this connection that the operating system does not show.</value>
@@ -293,8 +347,23 @@
   <data name="MarkNone" xml:space="preserve">
     <value>None</value>
   </data>
-  <data name="MarkHops" xml:space="preserve">
-    <value>+{0}</value>
+  <data name="MarkHubOne" xml:space="preserve">
+    <value>+1 Hub</value>
+  </data>
+  <data name="MarkHubs" xml:space="preserve">
+    <value>+{0} Hub</value>
+  </data>
+  <data name="MarkTierOne" xml:space="preserve">
+    <value>+1 Tier</value>
+  </data>
+  <data name="MarkTiers" xml:space="preserve">
+    <value>+{0} Tier</value>
+  </data>
+  <data name="MarkHubsAndTiers" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="MarkActiveExtension" xml:space="preserve">
+    <value>{0} (active extender)</value>
   </data>
   <data name="LogButton" xml:space="preserve">
     <value>Log</value>
@@ -355,7 +424,7 @@ This version keeps running.</value>
     <value>_File</value>
   </data>
   <data name="MenuExportProfile" xml:space="preserve">
-    <value>_Export computer profile...</value>
+    <value>Report this _machine...</value>
   </data>
   <data name="MenuExportLog" xml:space="preserve">
     <value>Export _log...</value>
@@ -368,6 +437,12 @@ This version keeps running.</value>
   </data>
   <data name="MenuExportSetup" xml:space="preserve">
     <value>Export full set_up...</value>
+  </data>
+  <data name="ProAvMark" xml:space="preserve">
+    <value>ProAV</value>
+  </data>
+  <data name="PdfButton" xml:space="preserve">
+    <value>PDF</value>
   </data>
   <data name="MenuExportPdf" xml:space="preserve">
     <value>Export _PDF...</value>
@@ -426,6 +501,15 @@ This version keeps running.</value>
   <data name="AboutVersion" xml:space="preserve">
     <value>Version {0}</value>
   </data>
+  <data name="AboutDatabaseBuiltIn" xml:space="preserve">
+    <value>Database: built in, {0} ({1})</value>
+  </data>
+  <data name="AboutDatabaseUpdated" xml:space="preserve">
+    <value>Database: updated {0} ({1})</value>
+  </data>
+  <data name="AboutDatabaseUnknown" xml:space="preserve">
+    <value>Database: built in</value>
+  </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>MIT License. Copyright (c) 2026 Linus Klang.</value>
   </data>
@@ -443,6 +527,9 @@ This version keeps running.</value>
   </data>
   <data name="SettingsCheckForUpdates" xml:space="preserve">
     <value>Check for updates at start</value>
+  </data>
+  <data name="SettingsDownloadDatabase" xml:space="preserve">
+    <value>Download database updates</value>
   </data>
   <data name="SettingsOfferBetas" xml:space="preserve">
     <value>Offer beta versions</value>
@@ -589,7 +676,7 @@ This version keeps running.</value>
     <value>No profile checked</value>
   </data>
   <data name="ReportPerBus" xml:space="preserve">
-    <value>USB2 {0} · USB3 {1}</value>
+    <value>({0}+{1}+{2}): USB 2, USB 3, USB 4</value>
   </data>
   <data name="ReportAtLeast" xml:space="preserve">
     <value>at least {0}</value>
@@ -698,5 +785,53 @@ This version keeps running.</value>
   </data>
   <data name="ReportPage" xml:space="preserve">
     <value>Page {0} of {1}</value>
+  </data>
+  <data name="CustomGuide" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="CustomGuideEdit" xml:space="preserve">
+    <value>Edit…</value>
+  </data>
+  <data name="CustomGuideTitle" xml:space="preserve">
+    <value>Custom guide</value>
+  </data>
+  <data name="CustomGuideIntro" xml:space="preserve">
+    <value>Your own guide, in the same YAML shape as the other guides. Leave a value empty to fall back to the value above it, then to USB-Helper's guide; write none for no limit. Save checks it and keeps it as custom.yaml next to settings.json.</value>
+  </data>
+  <data name="CustomGuideDownload" xml:space="preserve">
+    <value>Download blank YAML…</value>
+  </data>
+  <data name="CustomGuideOpen" xml:space="preserve">
+    <value>Open file…</value>
+  </data>
+  <data name="CustomGuideSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="CustomGuideClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="CustomGuideSaved" xml:space="preserve">
+    <value>Saved. The Custom guide is in use.</value>
+  </data>
+  <data name="CustomGuideHasErrors" xml:space="preserve">
+    <value>Not saved: fix these problems first.</value>
+  </data>
+  <data name="CustomGuideNotSaved" xml:space="preserve">
+    <value>custom.yaml could not be saved: {0}</value>
+  </data>
+  <data name="CustomGuideNotRead" xml:space="preserve">
+    <value>custom.yaml could not be read: {0}</value>
+  </data>
+  <data name="CustomGuideDownloadTitle" xml:space="preserve">
+    <value>Save the blank Custom guide</value>
+  </data>
+  <data name="CustomGuideOpenTitle" xml:space="preserve">
+    <value>Open a guide file</value>
+  </data>
+  <data name="CustomGuideDownloaded" xml:space="preserve">
+    <value>Blank saved to {0}</value>
+  </data>
+  <data name="CustomGuideFileFailed" xml:space="preserve">
+    <value>The file could not be used: {0}</value>
   </data>
 </root>

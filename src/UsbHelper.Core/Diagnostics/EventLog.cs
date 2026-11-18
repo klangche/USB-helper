@@ -62,7 +62,7 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     public void DatabaseLoaded(HardwareDatabase database) =>
-        Add($"Database loaded: {database.Platforms.Count} platform profiles, {database.Computers.Count} computer profiles");
+        Add($"Database loaded: {database.Platforms.Count} platform profiles, {database.Computers.Count} computer profiles, {database.Guides.Count} guides");
 
     public void DatabaseFailed(IReadOnlyList<DatabaseError> errors)
     {
@@ -73,12 +73,21 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
     }
 
-    /// <summary>The first full read of the USB tree: per hub, which ports the operating system calls USB-C or not, and every error it reports.</summary>
+    /// <summary>
+    /// The first full read of the USB tree: per controller, its hubs per bus; per hub, which ports the operating system
+    /// calls USB-C or not, the kind of every device, and every error it reports.
+    /// </summary>
     public void TreeRead(IReadOnlyList<UsbNode> tree)
     {
         Add($"USB devices read: {tree.Count} controllers");
         foreach (var controller in tree)
         {
+            // #298: so a log shows how the operating system splits the hubs over the buses, without the user's marks.
+            if (Topology.TopologyCounts.PerBus([controller]) is { Hubs: > 0 } perBus)
+            {
+                var unknown = perBus.UnknownBusHubs > 0 ? $"; {perBus.UnknownBusHubs} on ports whose bus is not reported" : "";
+                Add($"Hubs of {controller.Name}: {perBus.HubsText}{(perBus.AnyBusKnown ? " (USB 2+USB 3+USB 4)" : "")}{unknown}");
+            }
             // So the owner can check that the firmware reports its USB-C ports (#114).
             foreach (var hub in Below(controller, location: null).Select(item => item.Node).Where(node => node.Kind == UsbNodeKind.Hub))
             {
@@ -87,6 +96,10 @@ public sealed class EventLog(TimeProvider? clock = null)
                 {
                     Add($"USB-C ports of {hub.Name}: {string.Join(", ", ports)}");
                 }
+            }
+            foreach (var (node, _) in Below(controller, location: null))
+            {
+                LogDeviceKind(node);
             }
             foreach (var (text, problem) in Problems(controller, location: null))
             {
@@ -131,9 +144,14 @@ public sealed class EventLog(TimeProvider? clock = null)
             {
                 Add($"Disconnected: {node.Name} from {port}");
             }
-            foreach (var (node, port) in now.Where(item => old.All(other => other.Node.Id != item.Node.Id)))
+            var connected = now.Where(item => old.All(other => other.Node.Id != item.Node.Id)).ToList();
+            foreach (var (node, port) in connected)
             {
                 Add($"Connected: {node.Name} on {port}");
+            }
+            foreach (var (node, _) in connected)
+            {
+                LogDeviceKind(node);
             }
             if (after != null)
             {
@@ -206,10 +224,14 @@ public sealed class EventLog(TimeProvider? clock = null)
 
     public void ProfileChecked(string label, bool isChecked) => Add($"Profile {(isChecked ? "checked" : "unchecked")}: {label}");
 
+    /// <summary>A guide was picked in the profile menu (#286); null for none.</summary>
+    public void GuidePicked(string? name) => Add($"Guide picked: {name ?? "none"}");
+
     /// <param name="name">The hub or device the marked line leads to.</param>
-    /// <param name="hops">The extra hops; 0 when the mark was removed.</param>
-    public void CableMark(string name, int hops) =>
-        Add(hops == 0 ? $"Cable mark removed from the line to {name}" : $"Cable mark: +{hops} hops on the line to {name}");
+    /// <param name="mark">The mark, as the menu offers it (#307); null when the mark was removed.</param>
+    public void CableMark(string name, Topology.CableMark? mark) =>
+        Add(mark == null ? $"Cable mark removed from the line to {name}"
+            : $"Cable mark: {mark}{(mark.IsActiveExtension ? " (active extension)" : "")} on the line to {name}");
 
     /// <summary>
     /// The current findings with the profile each belongs to (null: none checked). Each is logged when it appears; one
@@ -268,6 +290,24 @@ public sealed class EventLog(TimeProvider? clock = null)
         }
         return text.ToString();
     }
+
+    // #274: the kind of a device as the operating system reports it; hubs, ports and controllers have none.
+    private void LogDeviceKind(UsbNode node)
+    {
+        if (node.DeviceKind is { } kind)
+        {
+            Add($"Device kind of {node.Name}: {DeviceKindText(kind)}");
+        }
+    }
+
+    private static string DeviceKindText(UsbDeviceKind kind) => kind switch
+    {
+        UsbDeviceKind.Camera => "camera",
+        UsbDeviceKind.Audio => "audio",
+        UsbDeviceKind.CameraAndAudio => "camera and audio",
+        UsbDeviceKind.Neither => "neither camera nor audio",
+        _ => "unknown",
+    };
 
     private static string KindText(FactKind kind) => kind switch
     {

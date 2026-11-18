@@ -14,9 +14,16 @@ computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
 stay green. The short line into each hub and device keeps that item's own
-status colour, with the result word after its name. Hubs and devices show
-the product name they report, falling back to the Windows name. Empty ports are left
-out. Only the USB controller rows can be collapsed: click a controller's
+status colour, and a dot in that colour is in front of its name. The result
+word ("unknown", "potentially unstable", "unstable", "disconnected") follows
+the name only when the item is not stable, and such a row has a light
+background in its status colour; a stable row shows no word. Hubs and devices show
+the product name they report, falling back to the Windows name. A port is not
+a row of its own: the hub or device on it shows the port number in a small box
+in front of its name (hover the box for the port's name), and a disconnected
+device keeps the number of its last port. Empty ports are left
+out. A port with a problem keeps its own row, "Port 2: ...", with what is on
+it below. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
 its tree; while it is hidden the controller's name is bold. Only the
 selected controller (see below) is open, and only when it has devices,
@@ -50,24 +57,46 @@ Selecting the group or a monitor in it does not change what the status field
 covers; a monitor shown under a USB node selects that node's controller, like
 anything else under it.
 The group follows monitors as they are connected and removed, and the log
-lists the monitors at start and each one connected or removed. A port in the
-tree that Windows reports as a USB-C connector (from its port connector
+lists the monitors at start and each one connected or removed. A hub or
+device on a port that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
-reports it for. Each controller shows its hub count, deepest tier and deepest
-hop, for example "Hubs: 4 (3+1), deepest tier: 4, deepest hop: 2". The
-numbers in brackets are the hubs per bus, always in the same order: USB2 first
-(the USB 2.0 tree), then USB3 (the SuperSpeed tree, USB 3.0 to 3.2), and
-hovering the counts shows them in full, as in the tree as text. A USB 3 hub has a half on each bus, and
-each bus has its own chain. The deepest tier and hop are those of any bus. The
-computer's row shows the same over all controllers, and a controller with
-nothing connected shows no counts. Copy tree as text, the log and the export
-name the buses instead: "Hubs: 4 (USB2: 3, USB3: 1), deepest tier: 4, deepest
-hop: 2". When the operating system reports no bus at all, there are no
-brackets. The counts say "at least" when a hub, port or bus could not be read;
-a hub on a port whose bus is not reported is in the total but on neither bus.
-Hovering a hub or device
-shows its own depth, for example "Tier 4, hubs in front: 2".
+reports it for. Each controller shows its hub count, device count and deepest
+tier, for example "Hubs: 3 (2+1+0), devices: 7, deepest tier: 4". The devices are
+the connected USB devices, each counted once whatever its bus; hubs (both halves
+of a USB 3 hub), root hubs, controllers and ports are not devices. The
+numbers in brackets are the hubs per bus, always in the same order: USB 2
+(the USB 2.0 tree), USB 3 (the SuperSpeed tree, USB 3.0 to 3.2), then USB 4.
+USB 4 is not detected yet, so its number is always 0 for now. The first number is
+the sum of the hubs on each bus. A USB 3 hub has a half on each bus and the
+operating system reports each half as a hub, so one USB 3 hub counts once on USB 2
+and once on USB 3: "Hubs: 2 (1+1+0)". A USB 2 hub counts on USB 2 only. Each bus
+has its own chain and its own limits: the hub limits are judged per bus, not on
+the sum. The deepest tier is that of any bus. Hovering the counts shows which bus
+is which. The computer's row shows the same over all controllers, and a controller
+with nothing connected shows no counts. Copy tree as text and the PDF report show
+the counts the same way. When the operating system reports no bus at all, there
+are no brackets, just the total. The counts say "at least" when a hub, port or bus
+could not be read; a hub on a port whose bus is not reported is in the total but
+on no bus.
+The side panel has a small table, "Hubs, devices and tiers", for what the status
+field covers (the selected controller, or all controllers when the computer's
+row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1+0)", and the
+devices, "Devices: 7", then one line each for USB 2, USB 3 and USB 4, each with that bus's
+own hub count and deepest tier, the marked active cables counted.
+A bus with nothing on it shows zeros; when nothing is connected there is no
+table. The numbers say "at least" in the same cases as the row counts, and
+when the operating system reports no bus at all the table has one line, "All
+buses together".
+Each hub and device row
+shows its own depth at the right, for example "Tier 4, 2 hubs in front" ("1 hub
+in front"; just "Tier 2" with none); hovering the row shows it too. The hubs in
+front are the external hubs between the computer's own port and the row, and
+the hubs marked on that path. They are information only: no limit is judged by
+them. Controllers, hubs built into the computer and
+monitors show none. Copy tree as text, the log, the export and the PDF report
+keep one line per port ("Port 1 [USB-C]") and the result word on every hub and
+device.
 Next to the tree is a
 summary with the overall result, the status field, disconnected and
 reconnected devices and the findings. The overall result, the status field
@@ -83,31 +112,45 @@ profile for the detected operating system and processor (for example
 `windows-amd` on Windows with an AMD processor) is checked; uncheck it to
 judge by others. When no platform profile matches, nothing is checked and
 every line is grey (unknown). Computer profiles are never checked
-automatically. In the top bar, check the systems to judge the setup by in
-the two drop-down lists,
-"Operating systems" (generic platform profiles such as `windows-intel`) and
-"Computers" (computer profiles); any mix can be checked. Each line then shows
-the worst result over the checked profiles. The
+automatically. In the top bar, "USB philosophy" holds the philosophies (guides) on top (USB-Helper,
+then PureLink, Ochno, Unisynk and any other guide file, one at a time;
+USB-Helper is picked at start and the picked one is kept through restarts and updates, and a guide that is not offered yet is greyed
+out) and, below a line, the operating systems with a tick per chip (Windows
+Intel / AMD / ARM, macOS Intel / M-series / A-series, Ubuntu, Debian, iPhone
+and iPad, Android). "Known issues" holds the computer profiles: machines with known problems or lower limits, never the default. Any mix of chips
+and computers can be checked. Each line then shows the worst result over the
+checked profiles, judged by the picked philosophy; the status field says
+"Judged by the PureLink philosophy". The
 status field has one row per checked profile with its result (stable,
-potentially unstable, unstable or unknown, in its colour) and its hub, tier,
-hop and display checks. With several profiles checked, the findings come from
+potentially unstable, unstable or unknown, in its colour). Below it are only
+the checks that are exceeded: hubs, tiers and external displays, each with its count and
+limit. The hubs line shows the hubs as in the row counts and the bus that is over
+its limit, for example "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)". A check that is within its limit, or whose limit or count is unknown,
+is not shown there; it is in the log. A stable profile shows only "stable".
+With several profiles checked, the findings come from
 the strictest one only and name it (see the [diagnostic rules](database.md#diagnostic-rules)). Plug and unplug
 devices: only the affected part of the tree changes. A device that is
 unplugged stays red at its last port; one that comes back is purple
 (unstable). Click "Clear" next to it to reset it.
 
 Is an active cable or extender plugged in that the tree does not show? Click
-the small "+" in the middle of the line from the port to the hub or device
+the small "+" in the middle of the line into the hub or device
 behind the cable (or select that item and press Enter or the context menu
-key) and pick its extra hops (+1 to +5). The marked line is
-drawn dashed with a "+N hops" badge, so it is clear that you added it and
-Windows did not detect it. Every tier and hop check counts the extra hops for
-everything behind that line. Click the "+" again to change the mark, or pick
-"None" to remove it. Marks last until the app closes.
+key) and pick what it adds from a short menu: None, +1 Hub, +2 Hub (active
+extender), +3 Hub, +1 Tier or +2 Tier. "+N Hub" adds N hubs to the hub count of
+that port's bus and, by itself, N tiers to everything behind that line, because
+every hub is a tier. "+N Tier" adds only N tiers, for an extender or repeater
+that is not a hub. The marked line is drawn dashed with a badge saying what it
+adds, for example "+2 Hub" or "+1 Tier", so it is clear that you added it and
+Windows did not detect it.
+Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
-database load result, per hub which ports Windows reports as USB-C or not
+database load result and which database is in use ("Database in use: built in,
+2026-11-18 (9c92cfe)"), the database update check, per controller its hubs per bus ("Hubs of ...: 3 (2+1+0)
+(USB 2+USB 3+USB 4)", with how many are on ports whose bus is not reported), per
+hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
 reconnect and error the operating system reports, every profile you check or
 uncheck, every cable mark, and every finding when it appears, including the
@@ -129,7 +172,9 @@ runs. The export saves one zip, `usb-helper_<room>_<date>_<time>.zip`
   the app version, the computer (manufacturer, model, processor, platform
   profile), the checked profiles, every controller, hub, port
   and device (name, vendor and product id, USB-C and user-connectable flags),
-  your active-cable marks, the monitors and their output type, and each
+  your active-cable marks (each as its hubs and tiers, `{"hubs": 2, "tiers": 2}`;
+  a file from an older version has one number N per mark, which is read as
+  +N hubs), the monitors and their output type, and each
   checked profile's result with every finding, the unknown ones included.
 - `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
 - `screenshot.png`: the main window as shown.
@@ -162,7 +207,8 @@ read USB tree; until then the menu item is greyed out and its tooltip says why
 order:
 
 - **Summary**: the computer, the checked profiles, the overall result and the
-  hub, tier, hop and display counts.
+  hub, USB device, tier and display counts; below the hub count, the hubs per bus, for
+  example "(2+1+0): USB 2, USB 3, USB 4".
 - **USB tree**: the tree as in the window, with its status colours.
 - **Results**: each checked profile with its result, then each check that is
   not stable with its measured value, limit, result and the profiles it
@@ -179,8 +225,8 @@ when none, for example in a setup zip), the date and app version, and
 (only when there is no logo) and the room, "Generated by USB-helper
 <version>", "Licensed to <email>" when set, and "Page X of Y".
 
-No profile for your computer yet? Click "Export computer profile" (or File >
-Export computer profile) and save the file (`<manufacturer>-<model>.yaml`). It
+No profile for your computer yet? Click "Report this machine" (or File >
+Report this machine) and save the file (`<manufacturer>-<model>.yaml`). It
 holds what the app detected: the manufacturer and model exactly as Windows
 reports them, the processor, the matching platform profile, the USB
 controllers with their root hub ports, and the number of active external
@@ -188,36 +234,66 @@ displays. It sets no limits, so it uses the platform profile's, and the status
 is `unverified`. It never holds the company name, room or licensed email. Send
 the file to the developers; they add model-specific limits from cited sources.
 
-The menu bar at the top has File (Refresh, Export computer profile, Export
+The menu bar at the top has File (Refresh, Report this machine, Export
 log, Export full setup, Export PDF, Settings, Exit), Edit (Copy tree as text)
 and Help (Check for updates, Unlock, About USB-helper). Copy tree as text puts
 the tree on the clipboard as plain text, the same text the log gets, for
 pasting into an email:
 
 ```
-Dell Inc. Latitude 7450 (Hubs: 1, deepest tier: 5, deepest hop: 3)
-|-- Controller (Hubs: 1, deepest tier: 5, deepest hop: 3)
+Dell Inc. Latitude 7450 (Hubs: 3, devices: 1, deepest tier: 5)
+|-- Controller (Hubs: 3, devices: 1, deepest tier: 5)
 |   `-- ROOT
 |       `-- Port 1 [USB-C]
-|           `-- [+2 hops] Dock - stable
+|           `-- [+2 hubs] Dock - stable
 |               `-- Port 1
 |                   `-- Keyboard (046D:C31C) - stable
 `-- Displays
     `-- DELL U2723QE (HDMI)
 ```
 
-Each row has its badges in brackets ("+N hops" for a marked cable, "USB-C",
+Each row has its badges in brackets (what a marked cable adds, such as "+2 hubs" or "+1 tier", "USB-C",
 "Display"), the result word after " - " and its notes in parentheses.
 
 Press Alt, or Alt with the underlined letter (for example Alt+F for File), to
 use the menu from the keyboard. Check for updates runs the update check again
 (see [Updates](install.md#updates)) and also says when the running version is up to date or the
 check failed; it is greyed out where the app has no update check (outside
-Windows). About shows the running version, the license, the icon's attribution,
+Windows). About shows the running version, the database in use ("Database: built
+in, <date> (<commit>)" or "Database: updated <date> (<commit>)", see
+[Database updates](#database-updates)), the license, the icon's attribution,
 a note on known quirks and a link to this repository. One quirk: the tree
 shows the names devices give themselves, and many USB 3 hubs call their USB 2
 half "USB2.1 Hub". There is no USB 2.1; it is a USB 2.0 hub with extra power
 saving.
+
+## Custom philosophy
+
+While unlocked, "USB philosophy" lists **Custom** last, after the ProAV
+guides: your own guide. Picking it before you have saved one, or clicking its
+"Edit..." button, opens the Custom editor: the guide as YAML text, in the same
+shape as the other guides (see [database.md](database.md#custom-guide)), with
+every operating system and chip. It starts with your saved guide, else with a
+blank one: every value empty, so everything falls back to USB-Helper's guide
+until you fill it in. Leave a value empty to use the value above it, write a
+number for a limit, or `none` for no limit. The blank records the unlock email
+as a note ("Made by <email>").
+
+- **Download blank YAML...** saves the blank to a file you pick, for example to
+  fill in elsewhere or send to someone.
+- **Open file...** loads a `.yaml` file into the editor (nothing is saved yet).
+- **Save** checks the text as every guide is checked. With problems, they are
+  listed with their line (`custom.yaml:12: ...`) and nothing is saved; the
+  previous Custom guide stays. Without problems it is saved as `custom.yaml`
+  next to the settings file and used at once: the status field says "Judged by
+  the Custom philosophy".
+- **Close** closes the editor. Custom picked and closed without saving leaves
+  the previous philosophy picked.
+
+Custom is kept as the picked philosophy through restarts. Locking the app
+hides Custom and USB-Helper's guide applies; so it does at start when the app
+is locked or `custom.yaml` is missing or invalid (the log says why). The file
+is kept, and Custom is back once unlocked.
 
 ## Unlock
 
@@ -241,16 +317,20 @@ File > Settings opens the settings. Each change is saved at once:
 
 - **Check for updates at start** (on by default): off, the app does not ask
   GitHub after it starts; Help > Check for updates still works.
+- **Download database updates** (on by default): off, the app does not ask
+  GitHub for newer database files and keeps the database it has; see
+  [Database updates](#database-updates).
 - **Offer beta versions** (on by default, only when unlocked): off, only
   stable releases are offered, and a newer beta alone counts as up to date.
   While locked the box is greyed out and unticked and only stable releases are
   offered; "Enter a code to unlock beta updates" opens the unlock popup. The
   choice made while unlocked is kept and comes back on unlock.
 - **Remember the checked profiles between starts** (off by default): on, the
-  operating systems and computers checked in the two lists are checked again
-  at the next start, instead of only the detected platform profile. If
-  nothing was checked, the detected platform profile is checked, as without
-  the setting. Turning it off forgets them.
+  chips ticked and the philosophy picked in "USB philosophy" are ticked and picked again
+  at the next start, instead of only the detected platform profile and
+  USB-Helper's guide. Computers are never checked at start. If no chip was
+  ticked, the detected platform profile is checked, as without the setting.
+  Turning it off forgets them.
 - **Company name** and **Company logo** (only when unlocked): shown in the top
   bar and on the PDF report; the name is also in the exports. While locked
   they are greyed out ("Enter a code to unlock" opens the unlock popup), and
@@ -264,6 +344,25 @@ File > Settings opens the settings. Each change is saved at once:
   opens the crop tool again for the same image, and "Remove" removes the logo.
   Where an image fits (the top bar, the PDF) the logo is shown, and the company
   name only when there is no logo; never both.
+
+## Database updates
+
+The hardware database is built into the app, and newer files reach a running
+copy without a new app version (#290). Each start, in the background and next
+to the update check, the app asks GitHub for the newest change to the files of
+its database format on the `database` branch. When that change is newer than
+the database in use, the app downloads the files, loads and checks them as at
+every start, stores them in the `database-cache` folder next to
+`settings.json`, and uses them at once: the menus fill in again with the same
+ticks and the same philosophy. Custom is checked again against the new files and
+falls back to USB-Helper's guide when it no longer fits, as at start.
+
+At the next start the app uses the newer of its built-in database and the
+stored one. A stored database that no longer loads (for example after an app
+update that reads another format) is ignored, and the log says why. When there
+is no network, GitHub does not answer in time or limits the requests, or a file
+does not load, the database in use stays, the log gets one line, and nothing
+pops up. The setting **Download database updates** turns this off.
 
 The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
 roaming app data folder), the same for every copy of the app, so they survive

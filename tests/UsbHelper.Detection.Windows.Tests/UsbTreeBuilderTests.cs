@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Topology;
 
 namespace UsbHelper.Detection.Windows.Tests;
 
@@ -80,6 +81,49 @@ public class UsbTreeBuilderTests
 
         Assert.False(Assert.Single(ports[0].Children).IsDisplayLink);
         Assert.True(Assert.Single(ports[1].Children).IsDisplayLink);
+    }
+
+    // #274: the kind comes from the interface classes in the device's configuration descriptor.
+    [Fact]
+    public void DeviceKindComesFromItsInterfaceClasses()
+    {
+        var webcam = new RawDevNode(@"USB\VID_046D&PID_085C\5&2B0E5E8&0&1", "C922 Pro Stream Webcam", null);
+        var headset = new RawDevNode(@"USB\VID_046D&PID_0A87\5&2B0E5E8&0&2", "Logitech USB Headset", null);
+        var keyboard = new RawDevNode(@"USB\VID_046D&PID_C31C\5&2B0E5E8&0&3", "USB Input Device", null);
+        var unreadable = new RawDevNode(@"USB\VID_1234&PID_5678\5&2B0E5E8&0&4", "USB Device", null);
+
+        var ports = BuildSingle(
+            DevicePort(1, webcam) with { InterfaceClasses = [0x0E, 0x0E, 0x01, 0x01] },
+            DevicePort(2, headset) with { InterfaceClasses = [0x01, 0x01, 0x03] },
+            DevicePort(3, keyboard) with { InterfaceClasses = [0x03] },
+            DevicePort(4, unreadable)).Children[0].Children;
+
+        Assert.Equal([UsbDeviceKind.CameraAndAudio, UsbDeviceKind.Audio, UsbDeviceKind.Neither, UsbDeviceKind.Unknown],
+            ports.Select(port => Assert.Single(port.Children).DeviceKind));
+    }
+
+    [Fact]
+    public void ADeviceThatFailedEnumerationHasAnUnknownKind()
+    {
+        var device = Assert.Single(BuildSingle(new RawPort(1, 2, false, 0, 0, null, null)).Children[0].Children[0].Children);
+
+        Assert.Equal(UsbDeviceKind.Unknown, device.DeviceKind);
+    }
+
+    [Fact]
+    public void HubsPortsAndControllersHaveNoKind()
+    {
+        var hubNode = new RawDevNode(@"USB\VID_05E3&PID_0610\6&1&0&2", "Generic USB Hub", null);
+        var hubPort = new RawPort(2, 1, true, 0x05E3, 0x0610, hubNode, new RawHub(hubNode, [EmptyPort(1)], null)) { InterfaceClasses = [0x09] };
+        var unreadHub = new RawPort(3, 1, true, 0x05E3, 0x0610, null, null);
+
+        var controller = BuildSingle(EmptyPort(1), hubPort, unreadHub);
+
+        Assert.Null(controller.DeviceKind);
+        Assert.Null(controller.Children[0].DeviceKind);
+        Assert.All(controller.Children[0].Children, port => Assert.Null(port.DeviceKind));
+        Assert.Null(controller.Children[0].Children[1].Children[0].DeviceKind);
+        Assert.Null(controller.Children[0].Children[2].Children[0].DeviceKind);
     }
 
     [Fact]
@@ -225,5 +269,22 @@ public class UsbTreeBuilderTests
         var properties = typeof(UsbNode).GetProperties().Select(property => property.Name);
 
         Assert.DoesNotContain(properties, name => name.Contains("Speed") || name.Contains("Bandwidth"));
+    }
+
+    // #298: Windows reports a USB 3 hub as two hubs, the USB 2 half on a USB 2 port and the SuperSpeed half on a USB 3
+    // port, each with its port's bus, so it counts once on each bus: "2 (1+1+0)", as on macOS.
+    [Fact]
+    public void AUsbThreeHubIsOneHubOnEachBus()
+    {
+        var usb2Node = new RawDevNode(@"USB\VID_0BDA&PID_5411\1", "Generic USB Hub", null);
+        var usb3Node = new RawDevNode(@"USB\VID_0BDA&PID_0411\2", "Generic SuperSpeed USB Hub", null);
+        var usb2Half = new RawPort(1, 1, true, 0x0BDA, 0x5411, usb2Node, new RawHub(usb2Node, [EmptyPort(1) with { Bus = UsbBus.Usb2 }], null)) { Bus = UsbBus.Usb2 };
+        var usb3Half = new RawPort(13, 1, true, 0x0BDA, 0x0411, usb3Node, new RawHub(usb3Node, [EmptyPort(1) with { Bus = UsbBus.Usb3 }], null)) { Bus = UsbBus.Usb3 };
+
+        var controller = BuildSingle(usb2Half, usb3Half);
+
+        Assert.Equal([UsbBus.Usb2, UsbBus.Usb3], controller.Children[0].Children.Select(port => port.Bus));
+        Assert.All(controller.Children[0].Children, port => Assert.Equal(UsbNodeKind.Hub, Assert.Single(port.Children).Kind));
+        Assert.Equal("2 (1+1+0)", TopologyCounts.PerBus([controller]).HubsText);
     }
 }

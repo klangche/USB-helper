@@ -16,14 +16,34 @@ public sealed record DiagnosticReport(
     IReadOnlyDictionary<string, ConnectionStatus> Connections,
     LimitCheck Hubs,
     LimitCheck Tiers,
-    LimitCheck Hops,
     DisplayCheck Displays,
     IReadOnlyList<MissingDevice> Missing,
     IReadOnlyList<Finding> Findings)
 {
-    /// <summary>Tier and hop of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
+    /// <summary>Tier of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
     public IReadOnlyDictionary<string, Topology.ConnectionDepth> Depths { get; init; } = new Dictionary<string, Topology.ConnectionDepth>();
 
-    /// <summary>The deepest hop against <c>limits.recommended_hops</c>; above it but within the maximum is potentially unstable.</summary>
-    public LimitCheck? RecommendedHops { get; init; }
+    /// <summary>
+    /// More than one DisplayPort display is active and the profile does not support MST (#296): a warning, not a status;
+    /// the displays stay green.
+    /// </summary>
+    public bool NoMst => NoMstMonitors.Count > 0;
+
+    /// <summary>The displays that are duplicated for lack of MST, by monitor id: each gets a "⚠ no MST" warning.</summary>
+    public IReadOnlySet<string> NoMstMonitors { get; init; } = new HashSet<string>();
+
+    /// <summary>
+    /// The bus whose hub check <see cref="Hubs"/> is, as hubs are judged per bus (#195); null when no bus is known and
+    /// all hubs are judged together.
+    /// </summary>
+    public Detection.UsbBus? HubsBus { get; init; }
+
+    /// <summary>
+    /// The longest hub chain against <c>limits.max_chain</c> (#310), the bus over it first, else the one with the lowest
+    /// limit; its limit is null when the guide does not count the chain.
+    /// </summary>
+    public LimitCheck Chain { get; init; } = new("limits.max_chain", 0, null, false, null, LimitState.Unknown);
+
+    /// <summary>What the guide counts (<see cref="Database.Guide.Count"/>): only these are judged. Hubs and tiers without a guide.</summary>
+    public IReadOnlyList<string> Counted { get; init; } = [Database.Guide.Tiers, Database.Guide.Hubs];
 }

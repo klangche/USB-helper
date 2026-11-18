@@ -6,8 +6,8 @@ using UsbHelper.Core.Topology;
 namespace UsbHelper.Core.Database;
 
 /// <summary>
-/// Writes this computer as a computer profile for the developers: what was detected, no limits (it inherits the
-/// platform profile's) and the status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
+/// Writes this computer as a computer profile for the developers: what was detected, its platform and chip family
+/// (it inherits their facts; limits are in the guide files) and the status unverified. It loads as a valid profile; its id is computed from manufacturer and model.
 /// </summary>
 public static class ComputerProfileExport
 {
@@ -20,7 +20,7 @@ public static class ComputerProfileExport
         var notes = new List<string>
         {
             $"Exported by USB-helper {appVersion} on {day}.",
-            $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.HubCount(tree)}, active external displays: {displays}.",
+            $"Detected: USB controllers: {tree.Count}, external hubs: {TopologyCounts.PerBus(tree).HubsText}, active external displays: {displays}.",
         };
         // Numbered, not named: Windows names controllers in the user's language, the notes are in English.
         notes.AddRange(tree.Select((controller, index) =>
@@ -28,11 +28,15 @@ public static class ComputerProfileExport
 
         var yaml = new StringBuilder();
         yaml.AppendLine("# Computer profile exported by USB-helper. Send this file to the USB-helper developers.");
-        if (computer.Platform == null)
+        // The detected platform profile id is the platform file and the chip, for example "macos-apple-silicon"; the
+        // detected ids (windows-*, macos-*) have no dash in the platform part.
+        var dash = computer.Platform?.IndexOf('-') ?? -1;
+        if (dash <= 0)
         {
-            yaml.AppendLine("# Choose 'inherits' from database/platforms/.");
+            yaml.AppendLine("# Choose 'platform' (a file in v3/platforms/ on the database branch) and 'chip_family' (one of its chips).");
         }
-        yaml.AppendLine($"inherits: {Text(computer.Platform)}");
+        yaml.AppendLine($"platform: {Text(dash > 0 ? computer.Platform![..dash] : null)}");
+        yaml.AppendLine($"chip_family: {Text(dash > 0 ? computer.Platform![(dash + 1)..] : null)}");
         yaml.AppendLine($"manufacturer: {Text(computer.Manufacturer)}");
         yaml.AppendLine($"model: {Text(computer.Model)}");
         yaml.AppendLine($"chip: {Text(computer.Chip)}");

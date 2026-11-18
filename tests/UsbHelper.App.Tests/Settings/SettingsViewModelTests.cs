@@ -39,7 +39,7 @@ public sealed class SettingsViewModelTests : IDisposable
         File.WriteAllText(FilePath, "{ broken");
 
         var settings = SettingsViewModel.Load(new SettingsFile(FilePath), log);
-        settings.CheckedProfiles([], []); // Remember is off (the default): nothing to keep, nothing written.
+        settings.CheckedProfiles([]); // Remember is off (the default): nothing to keep, nothing written.
 
         Assert.Equal("{ broken", File.ReadAllText(FilePath));
 

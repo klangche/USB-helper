@@ -90,7 +90,8 @@ public class EventLogTests
 
         // Ports Windows says nothing about are left out; a hub with none it says anything about has no line.
         Assert.Equal(
-            ["USB devices read: 2 controllers", "USB-C ports of ROOT: Port 1 no, Port 2 yes", "USB-C ports of DOCK: Port 1 yes"],
+            ["USB devices read: 2 controllers", "Hubs of C1: 1; 1 on ports whose bus is not reported",
+                "USB-C ports of ROOT: Port 1 no, Port 2 yes", "USB-C ports of DOCK: Port 1 yes"],
             Texts(log));
     }
 
@@ -152,6 +153,47 @@ public class EventLogTests
         var entry = Assert.Single(log.Entries);
         Assert.Equal("Connected: STICK on Port 2 of HUB", entry.Text);
         Assert.Equal(clock.Now, entry.Time);
+    }
+
+    // #274: the kind of a device as the operating system reports it, after its connect.
+    [Fact]
+    public void AConnectedDeviceHasItsKindLogged()
+    {
+        var log = NewLog();
+        var webcam = Device("WEBCAM") with { DeviceKind = UsbDeviceKind.CameraAndAudio };
+
+        log.Changes(Desk, [new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, webcam))]);
+
+        Assert.Equal(["Connected: WEBCAM on Port 2 of HUB", "Device kind of WEBCAM: camera and audio"], Texts(log));
+    }
+
+    [Fact]
+    public void AConnectedHubWithDevicesLogsTheKindOfEachDeviceButNotOfTheHub()
+    {
+        var log = NewLog();
+        var hub = Hub("HUB2", Device("HEADSET") with { DeviceKind = UsbDeviceKind.Audio },
+            Device("STICK") with { DeviceKind = UsbDeviceKind.Unknown });
+
+        log.Changes(Desk, [new UsbChange(UsbChangeKind.Added, "HUB", Port("HUB", 2, hub))]);
+
+        Assert.Equal(
+        [
+            "Connected: HUB2 on Port 2 of HUB", "Connected: HEADSET on Port 1 of HUB2", "Connected: STICK on Port 2 of HUB2",
+            "Device kind of HEADSET: audio", "Device kind of STICK: unknown",
+        ], Texts(log));
+    }
+
+    [Fact]
+    public void ReadingTheTreeLogsTheKindOfEveryDevice()
+    {
+        var log = NewLog();
+
+        log.TreeRead([Controller("C1", Hub("ROOT", Device("CAMERA") with { DeviceKind = UsbDeviceKind.Camera },
+            Device("KEYBOARD") with { DeviceKind = UsbDeviceKind.Neither }))]);
+
+        Assert.Equal(
+            ["USB devices read: 1 controllers", "Device kind of CAMERA: camera", "Device kind of KEYBOARD: neither camera nor audio"],
+            Texts(log));
     }
 
     [Fact]
@@ -222,20 +264,24 @@ public class EventLogTests
         Assert.Equal([text], Texts(log));
     }
 
+    // #307: each choice as the menu names it.
     [Theory]
-    [InlineData(2, "Cable mark: +2 hops on the line to HUB")]
-    [InlineData(0, "Cable mark removed from the line to HUB")]
-    public void ACableMarkIsOneEntry(int hops, string text)
+    [InlineData(0, "Cable mark: +1 hub on the line to HUB")]
+    [InlineData(1, "Cable mark: +2 hubs (active extension) on the line to HUB")]
+    [InlineData(2, "Cable mark: +3 hubs on the line to HUB")]
+    [InlineData(3, "Cable mark: +1 tier on the line to HUB")]
+    [InlineData(-1, "Cable mark removed from the line to HUB")]
+    public void ACableMarkIsOneEntry(int choice, string text)
     {
         var log = NewLog();
 
-        log.CableMark("HUB", hops);
+        log.CableMark("HUB", choice < 0 ? null : Core.Topology.CableMark.Choices[choice]);
 
         Assert.Equal([text], Texts(log));
     }
 
     private static readonly Finding UnknownLimit = new(FactKind.Unknown, DiagnosticEvaluator.ComputerId, "Latitude 7450", "limits.max_hubs is unknown.");
-    private static readonly Finding Risk = new(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD", "Hop 1 is above the maximum of 0.");
+    private static readonly Finding Risk = new(FactKind.PredictedRisk, "KEYBOARD", "KEYBOARD", "Tier 3 is above the maximum of 2.");
 
     [Fact]
     public void EveryFindingIsLoggedUnknownLimitsIncluded()
@@ -246,7 +292,7 @@ public class EventLogTests
 
         Assert.Equal(
             ["Finding (windows-amd, unknown): Latitude 7450: limits.max_hubs is unknown.",
-             "Finding (windows-amd, risk): KEYBOARD: Hop 1 is above the maximum of 0.",
+             "Finding (windows-amd, risk): KEYBOARD: Tier 3 is above the maximum of 2.",
              "Finding (no profile, unknown): Latitude 7450: limits.max_hubs is unknown."],
             Texts(log));
     }
@@ -262,9 +308,9 @@ public class EventLogTests
         log.Findings([("p", Risk), ("p", UnknownLimit)]); // The risk came back.
 
         Assert.Equal(
-            ["Finding (p, risk): KEYBOARD: Hop 1 is above the maximum of 0.",
+            ["Finding (p, risk): KEYBOARD: Tier 3 is above the maximum of 2.",
              "Finding (p, unknown): Latitude 7450: limits.max_hubs is unknown.",
-             "Finding (p, risk): KEYBOARD: Hop 1 is above the maximum of 0."],
+             "Finding (p, risk): KEYBOARD: Tier 3 is above the maximum of 2."],
             Texts(log));
     }
 
@@ -333,5 +379,16 @@ public class EventLogTests
         Assert.Equal(1, cleared);
         log.Findings([finding]);
         Assert.Single(log.Entries);
+    }
+
+    // #298: the hubs per bus of each controller, so a log shows how the operating system splits a USB 3 hub.
+    [Fact]
+    public void ReadingTheTreeLogsTheHubsPerBusOfEachController()
+    {
+        var log = NewLog();
+
+        log.TreeRead([Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))]);
+
+        Assert.Equal(["USB devices read: 1 controllers", "Hubs of C1: 2 (1+1+0) (USB 2+USB 3+USB 4)"], Texts(log));
     }
 }

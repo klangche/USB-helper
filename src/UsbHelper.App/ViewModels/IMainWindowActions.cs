@@ -16,6 +16,12 @@ public interface IMainWindowActions
 
     void ShowAbout();
 
+    /// <summary>
+    /// Opens the Custom editor (#300) with <paramref name="editor"/>; calls <see cref="MainViewModel.CustomGuideClosed"/>
+    /// when it closes.
+    /// </summary>
+    void ShowCustomGuide(CustomGuideViewModel editor);
+
     void Exit();
 
     /// <summary>Takes a screenshot of the window, asks where to save the full setup export, then writes it.</summary>
