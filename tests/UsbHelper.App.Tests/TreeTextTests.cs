@@ -200,6 +200,8 @@ public class TreeTextTests
 
         public void ShowAbout() { }
 
+        public void ShowCustomGuide(CustomGuideViewModel editor) { }
+
         public void Exit() { }
     }
 }

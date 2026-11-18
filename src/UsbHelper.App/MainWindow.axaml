@@ -59,6 +59,9 @@
                         <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
                           <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
                         </Border>
+                        <!-- Custom (#300), last and only while unlocked: opens its editor. -->
+                        <Button Content="{x:Static res:Strings.CustomGuideEdit}" Command="{Binding EditCommand}"
+                                IsVisible="{Binding IsCustom}" Padding="6,0" FontSize="12" VerticalAlignment="Center" />
                       </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>

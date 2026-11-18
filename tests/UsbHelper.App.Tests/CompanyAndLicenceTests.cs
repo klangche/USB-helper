@@ -150,6 +150,8 @@ public class CompanyAndLicenceTests
 
         public void ShowAbout() { }
 
+        public void ShowCustomGuide(CustomGuideViewModel editor) { }
+
         public void Exit() { }
     }
 }

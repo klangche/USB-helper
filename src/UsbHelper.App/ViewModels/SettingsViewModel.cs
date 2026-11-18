@@ -31,6 +31,8 @@ public sealed class SettingsViewModel : ObservableObject
         this.log = log;
         this.current = current;
         this.logo = logo;
+        CustomGuide = new CustomGuideFile(file == null ? null
+            : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, Core.Database.CustomGuide.FileName));
     }
 
     /// <summary>
@@ -111,6 +113,9 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     public IReadOnlyList<string> CheckedOperatingSystems => current.CheckedOperatingSystems;
+
+    /// <summary>The user's own guide, custom.yaml next to settings.json (#300); in memory only when the settings are.</summary>
+    public CustomGuideFile CustomGuide { get; }
 
     /// <summary>The guide picked when the app closed, by id; null for USB-Helper's. Always kept (owner 2026-11-17).</summary>
     public string? CheckedGuide => current.CheckedGuide;

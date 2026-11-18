@@ -58,19 +58,38 @@ public sealed class PlatformGroup(string name, IReadOnlyList<ProfileOption> chip
 
 /// <summary>
 /// A guide in the profile menu (#286): one at a time. A guide with <c>selectable: false</c> is shown greyed out.
+/// Custom (#300) is the last one: its guide is null until a valid custom.yaml is saved, and it has an Edit... link.
 /// </summary>
-public sealed class GuideOption(Guide guide) : ObservableObject
+public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : ObservableObject
 {
     private bool isSelected;
+    private Guide? guide = guide;
 
-    public Guide Guide { get; } = guide;
+    /// <summary>The guide; null for Custom without a valid custom.yaml.</summary>
+    public Guide? Guide
+    {
+        get => guide;
+        set
+        {
+            if (SetField(ref guide, value))
+            {
+                OnPropertyChanged(nameof(IsProAv));
+            }
+        }
+    }
 
-    public string Label => Guide.Name;
+    /// <summary>Custom (#300): the user's own guide, edited in its own window.</summary>
+    public bool IsCustom => EditCommand != null;
 
-    public bool IsEnabled => Guide.Selectable;
+    /// <summary>Opens the Custom editor; null for every other guide.</summary>
+    public RelayCommand? EditCommand { get; } = edit;
+
+    public string Label => IsCustom ? Strings.CustomGuide : Guide!.Name;
+
+    public bool IsEnabled => IsCustom || Guide!.Selectable;
 
     /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
-    public bool IsProAv => Guide.ProAv;
+    public bool IsProAv => Guide?.ProAv == true;
 
     public bool IsSelected
     {
@@ -116,6 +135,9 @@ public sealed class MainViewModel : ObservableObject
     private readonly Dictionary<string, CableMark> marks = [];
     private IReadOnlyList<UsbNode> tree = [];
     private Guide? guide;
+    private HardwareDatabase? database;
+    // Custom (#300), the last guide in the menu; null while locked.
+    private GuideOption? customOption;
     private NodeViewModel? selectedNode;
     private string? notice;
     private bool isLoading = true;
@@ -183,6 +205,7 @@ public sealed class MainViewModel : ObservableObject
         {
             LogCompanyAndLicence();
             ExportPdfChanged();
+            CustomAccessChanged();
         };
         LogCompanyAndLicence();
         Unlock = new UnlockViewModel(entitlements);
@@ -277,27 +300,131 @@ public sealed class MainViewModel : ObservableObject
             PlatformGroups.Add(new PlatformGroup(group.First().Profile.PlatformName is { Length: > 0 } name ? name : group.Key,
                 [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))], Batch));
         }
+        database = loaded;
+        // Custom (#300) only while unlocked and its file is valid; else USB-Helper's, with the choice still kept.
+        var custom = loaded != null && CustomUnlocked ? ReadCustomGuide() : null;
         // The picked guide is always kept, through restarts and updates; USB-Helper's until the user picks another.
-        var picked = Settings.CheckedGuide is { } id
-            && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
-        // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17).
+        var picked = Settings.CheckedGuide is CustomGuide.Id ? custom ?? loaded?.DefaultGuide
+            : Settings.CheckedGuide is { } id && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
+        // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17); Custom always last.
         foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.ProAv ? 1 : 0)
             .ThenBy(each => each.Name, StringComparer.CurrentCultureIgnoreCase))
         {
-            var option = new GuideOption(each) { IsSelected = each == picked };
-            option.PropertyChanged += (_, e) =>
-            {
-                if (e.PropertyName == nameof(GuideOption.IsSelected) && option.IsSelected)
-                {
-                    Guide = option.Guide;
-                }
-            };
-            Guides.Add(option);
+            AddGuideOption(new GuideOption(each) { IsSelected = each == picked });
+        }
+        if (loaded != null && CustomUnlocked)
+        {
+            AddCustomOption(custom, custom != null && custom == picked);
         }
         HostName = HostNameFor(loaded, identity);
         guide = picked;
         OnGuideChanged();
         LoadingStage = Strings.ReadingDevices;
+    }
+
+    private void AddGuideOption(GuideOption option)
+    {
+        option.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GuideOption.IsSelected) && option.IsSelected)
+            {
+                // Custom without a valid custom.yaml opens the editor; the pick is undone when it closes unsaved.
+                if (option.Guide == null)
+                {
+                    EditCustomGuide();
+                }
+                else
+                {
+                    Guide = option.Guide;
+                }
+            }
+        };
+        Guides.Add(option);
+    }
+
+    private void AddCustomOption(Guide? custom, bool selected)
+    {
+        customOption = new GuideOption(custom, EditCustomGuideCommand) { IsSelected = selected };
+        AddGuideOption(customOption);
+    }
+
+    // Custom is for unlocked users only (#300).
+    private bool CustomUnlocked => Entitlements.IsUnlocked(Feature.Pro);
+
+    // custom.yaml as a guide; null when there is none or it cannot be used, with the reason in the log.
+    private Guide? ReadCustomGuide()
+    {
+        try
+        {
+            return Settings.CustomGuide.Read() is { } yaml ? CustomGuide.Load(database!, yaml) : null;
+        }
+        catch (DatabaseException e)
+        {
+            log.Add($"Custom guide not used: {CustomGuide.FileName} has {e.Errors.Count} problem(s)");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            log.Add($"Custom guide not used: {CustomGuide.FileName} could not be read ({e.Message})");
+        }
+        return null;
+    }
+
+    // Unlocked: Custom is listed last. Locked: it is hidden and, when it was the guide, USB-Helper's applies; the choice
+    // is still kept, so Custom is used again at the next start once unlocked.
+    private void CustomAccessChanged()
+    {
+        if (database == null)
+        {
+            return;
+        }
+        if (CustomUnlocked && customOption == null)
+        {
+            AddCustomOption(ReadCustomGuide(), selected: false);
+        }
+        else if (!CustomUnlocked && customOption != null)
+        {
+            Guides.Remove(customOption);
+            customOption = null;
+            if (guide?.Id == CustomGuide.Id)
+            {
+                Pick(database.DefaultGuide, keep: false);
+            }
+        }
+    }
+
+    /// <summary>The Custom entry's Edit... link (#300); also picking Custom before a valid custom.yaml exists.</summary>
+    public RelayCommand EditCustomGuideCommand => field ??= new RelayCommand(EditCustomGuide);
+
+    private void EditCustomGuide()
+    {
+        if (database == null || !CustomUnlocked)
+        {
+            return;
+        }
+        Window?.ShowCustomGuide(new CustomGuideViewModel(database, Settings.CustomGuide, Entitlements.LicensedTo, UseCustomGuide));
+    }
+
+    // A valid custom.yaml was saved: Custom is the guide from now on.
+    private void UseCustomGuide(Guide custom)
+    {
+        log.Add($"Custom guide saved to {Settings.CustomGuide.Path ?? CustomGuide.FileName}");
+        if (customOption != null)
+        {
+            customOption.Guide = custom;
+        }
+        Guide = custom;
+    }
+
+    /// <summary>
+    /// The Custom editor closed (#300): the menu shows the guide that applies again, so Custom picked and closed unsaved
+    /// is not left ticked.
+    /// </summary>
+    public void CustomGuideClosed()
+    {
+        foreach (var option in Guides)
+        {
+            option.IsSelected = option.Guide != null && option.Guide == guide;
+        }
     }
 
     /// <summary>The USB tree is read; the display count is read next, off the UI thread.</summary>
@@ -363,22 +490,28 @@ public sealed class MainViewModel : ObservableObject
     public Guide? Guide
     {
         get => guide;
-        set
+        set => Pick(value, keep: true);
+    }
+
+    // keep: the choice is saved for the next start; not when locking falls back from Custom (#300).
+    private void Pick(Guide? value, bool keep)
+    {
+        if (value is { Selectable: false } || !SetField(ref guide, value, nameof(Guide)))
         {
-            if (value is { Selectable: false } || !SetField(ref guide, value))
-            {
-                return;
-            }
-            foreach (var option in Guides)
-            {
-                option.IsSelected = option.Guide == value;
-            }
-            OnGuideChanged();
-            log.GuidePicked(value?.Name);
-            Settings.PickedGuide(value is { Id: not Guide.DefaultId } kept ? kept.Id : null);
-            KeepCheckedProfiles();
-            Refresh();
+            return;
         }
+        foreach (var option in Guides)
+        {
+            option.IsSelected = option.Guide != null && option.Guide == value;
+        }
+        OnGuideChanged();
+        log.GuidePicked(value?.Name);
+        if (keep)
+        {
+            Settings.PickedGuide(value is { Id: not Guide.DefaultId } kept ? kept.Id : null);
+        }
+        KeepCheckedProfiles();
+        Refresh();
     }
 
     /// <summary>Which guide the results are judged by, for the status field.</summary>

@@ -25,6 +25,8 @@ public class MenuTests
 
         public void ShowAbout() => Calls.Add(nameof(ShowAbout));
 
+        public void ShowCustomGuide(CustomGuideViewModel editor) => Calls.Add(nameof(ShowCustomGuide));
+
         public void ShowSettings() => Calls.Add(nameof(ShowSettings));
 
         public void ShowUnlock() => Calls.Add(nameof(ShowUnlock));
