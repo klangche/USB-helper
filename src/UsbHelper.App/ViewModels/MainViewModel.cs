@@ -1049,7 +1049,12 @@ public sealed class MainViewModel : ObservableObject
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
             : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
-        var lines = all.Counts with { Connections = all.Connections };
+        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the tree.
+        var lines = all.Counts with
+        {
+            Connections = all.Connections,
+            NoMstMonitors = all.Profiles.SelectMany(each => each.Report.NoMstMonitors).ToHashSet(),
+        };
 
         // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
         // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a

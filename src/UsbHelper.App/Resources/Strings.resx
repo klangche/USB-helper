@@ -20,7 +20,10 @@
     <value>Operating systems</value>
   </data>
   <data name="NoMstWarning" xml:space="preserve">
-    <value>Warning: no MST, so a second DisplayPort display is duplicated</value>
+    <value>⚠ no MST: a second DisplayPort display is duplicated</value>
+  </data>
+  <data name="NoMstBadge" xml:space="preserve">
+    <value>⚠ no MST</value>
   </data>
   <data name="ProfileMenu" xml:space="preserve">
     <value>USB philosophy</value>

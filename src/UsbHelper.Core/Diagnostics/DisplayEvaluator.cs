@@ -167,7 +167,7 @@ internal static class DisplayEvaluator
         yield return (displayPort[0].Id, ConnectionStatus.Green);
         foreach (var monitor in displayPort.Skip(1))
         {
-            var message = $"No MST on {computer}: this display is duplicated. Use a second USB-C port or DisplayLink to extend it.";
+            var message = $"⚠ No MST on {computer}: this display is duplicated. Use a second USB-C port or DisplayLink to extend it.";
             findings.Add(new Finding(FactKind.PredictedRisk, monitor.Id, monitor.Name ?? "Monitor",
                 verified ? message : $"{message} (displays.mst comes from an unverified profile, {file})")
             {

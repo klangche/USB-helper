@@ -314,6 +314,11 @@
                           BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
                     <TextBlock Text="{Binding PortBadge}" />
                   </Border>
+                  <!-- A warning that is not a status (#296): "⚠ no MST" on a display duplicated for lack of MST. -->
+                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" BorderBrush="#C77700"
+                          IsVisible="{Binding WarningBadge, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="{Binding WarningBadge}" FontWeight="SemiBold" Foreground="#C77700" />
+                  </Border>
                   <!-- The result word, in the same colour as the elbow, only when the row is not stable. -->
                   <TextBlock Text="{Binding RowStatusWord}" FontWeight="SemiBold"
                              IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
