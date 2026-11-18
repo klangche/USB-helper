@@ -495,6 +495,15 @@ This version keeps running.</value>
   <data name="AboutVersion" xml:space="preserve">
     <value>Version {0}</value>
   </data>
+  <data name="AboutDatabaseBuiltIn" xml:space="preserve">
+    <value>Database: built in, {0} ({1})</value>
+  </data>
+  <data name="AboutDatabaseUpdated" xml:space="preserve">
+    <value>Database: updated {0} ({1})</value>
+  </data>
+  <data name="AboutDatabaseUnknown" xml:space="preserve">
+    <value>Database: built in</value>
+  </data>
   <data name="AboutLicense" xml:space="preserve">
     <value>MIT License. Copyright (c) 2026 Linus Klang.</value>
   </data>
@@ -512,6 +521,9 @@ This version keeps running.</value>
   </data>
   <data name="SettingsCheckForUpdates" xml:space="preserve">
     <value>Check for updates at start</value>
+  </data>
+  <data name="SettingsDownloadDatabase" xml:space="preserve">
+    <value>Download database updates</value>
   </data>
   <data name="SettingsOfferBetas" xml:space="preserve">
     <value>Offer beta versions</value>

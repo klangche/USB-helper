@@ -94,10 +94,12 @@
        puts it in database/ before a build. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The database branch's commit these files come from (#290), written by release/database.sh. -->
+    <EmbeddedResource Include="..\..\database\.source" LogicalName="database.source" Condition="Exists('$(MSBuildThisFileDirectory)..\..\database\.source')" />
   </ItemGroup>
   <Target Name="RequireDatabase" BeforeTargets="BeforeBuild">
-    <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\..\database\base.yaml')"
-           Text="database/ is missing: run release/database.sh to fetch the hardware database from the database branch (#288)." />
+    <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\..\database\base.yaml') or !Exists('$(MSBuildThisFileDirectory)..\..\database\.source')"
+           Text="database/ or database/.source is missing: run release/database.sh to fetch the hardware database from the database branch (#288)." />
   </Target>
 
 </Project>

@@ -147,7 +147,8 @@ Click the "+" again to change the mark, or pick "None" to remove it. Marks last 
 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
-database load result, per controller its hubs per bus ("Hubs of ...: 3 (2+1+0)
+database load result and which database is in use ("Database in use: built in,
+2026-11-18 (9c92cfe)"), the database update check, per controller its hubs per bus ("Hubs of ...: 3 (2+1+0)
 (USB 2+USB 3+USB 4)", with how many are on ports whose bus is not reported), per
 hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
@@ -258,7 +259,9 @@ Press Alt, or Alt with the underlined letter (for example Alt+F for File), to
 use the menu from the keyboard. Check for updates runs the update check again
 (see [Updates](install.md#updates)) and also says when the running version is up to date or the
 check failed; it is greyed out where the app has no update check (outside
-Windows). About shows the running version, the license, the icon's attribution,
+Windows). About shows the running version, the database in use ("Database: built
+in, <date> (<commit>)" or "Database: updated <date> (<commit>)", see
+[Database updates](#database-updates)), the license, the icon's attribution,
 a note on known quirks and a link to this repository. One quirk: the tree
 shows the names devices give themselves, and many USB 3 hubs call their USB 2
 half "USB2.1 Hub". There is no USB 2.1; it is a USB 2.0 hub with extra power
@@ -314,6 +317,9 @@ File > Settings opens the settings. Each change is saved at once:
 
 - **Check for updates at start** (on by default): off, the app does not ask
   GitHub after it starts; Help > Check for updates still works.
+- **Download database updates** (on by default): off, the app does not ask
+  GitHub for newer database files and keeps the database it has; see
+  [Database updates](#database-updates).
 - **Offer beta versions** (on by default, only when unlocked): off, only
   stable releases are offered, and a newer beta alone counts as up to date.
   While locked the box is greyed out and unticked and only stable releases are
@@ -338,6 +344,25 @@ File > Settings opens the settings. Each change is saved at once:
   opens the crop tool again for the same image, and "Remove" removes the logo.
   Where an image fits (the top bar, the PDF) the logo is shown, and the company
   name only when there is no logo; never both.
+
+## Database updates
+
+The hardware database is built into the app, and newer files reach a running
+copy without a new app version (#290). Each start, in the background and next
+to the update check, the app asks GitHub for the newest change to the files of
+its database format on the `database` branch. When that change is newer than
+the database in use, the app downloads the files, loads and checks them as at
+every start, stores them in the `database-cache` folder next to
+`settings.json`, and uses them at once: the menus fill in again with the same
+ticks and the same philosophy. Custom is checked again against the new files and
+falls back to USB-Helper's guide when it no longer fits, as at start.
+
+At the next start the app uses the newer of its built-in database and the
+stored one. A stored database that no longer loads (for example after an app
+update that reads another format) is ignored, and the log says why. When there
+is no network, GitHub does not answer in time or limits the requests, or a file
+does not load, the database in use stays, the log gets one line, and nothing
+pops up. The setting **Download database updates** turns this off.
 
 The settings are stored in `%APPDATA%\USB-helper\settings.json` (the user's
 roaming app data folder), the same for every copy of the app, so they survive

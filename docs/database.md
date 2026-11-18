@@ -11,7 +11,16 @@ every limit and recommendation.
 The branch is the only source. Each format has its own folder, `v3/` today (`schema_version: 3` in `base.yaml`), so an
 app always gets files in the format it reads; a new format adds `v4/` next to it. Every build takes the head of the
 branch: `release/database.sh` copies `v<format>/` into `database/` (ignored by git) before the build, in CI and locally.
-Run it once after cloning, and again to get the newest files.
+Run it once after cloning, and again to get the newest files. It also writes `database/.source`, the commit's full sha
+and date, which the build puts into the app with the files.
+
+A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
+start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
+(`commits?sha=database&path=v3&per_page=1`). When that commit's date is later than the database in use, it lists the
+commit's files (`git/trees/<sha>?recursive=1`), downloads every `.yaml` file of the folder from
+`raw.githubusercontent.com/klangche/USB-helper/<sha>/v3/...`, and uses them only when they load without a problem.
+No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per start
+(GitHub allows 60 an hour without a token), and the files only when they are newer.
 
 To change a file, open a pull request to the `database` branch. Its checks (`.github/workflows/database.yml`) load the
 files with the code of `dev`, and of the last release when that reads the same format, and run every test, so a file the
@@ -26,8 +35,8 @@ v3/ on the database branch, database/ after release/database.sh
 └── computers/         one file per problem machine, by manufacturer
 ```
 
-The build puts these files into the app, so the download has no database folder. The database is only read, never
-written, by the application.
+The build puts these files into the app, so the download has no database folder. The database is only read by the
+application; a newer one it downloads is kept in `database-cache/<sha>/` next to `settings.json`.
 
 ### base.yaml
 
@@ -290,8 +299,8 @@ stays short.
    whole database and reports any problem. The pull request runs the same check.
 6. Open a pull request to the `database` branch. Changes to verified values need review; the git history
    keeps every correction.
-7. The database is built into the app, so users get the change with the next
-   release or beta build; an existing download keeps its own database.
+7. Once merged, running apps of the same format download the change at their next start (unless "Download database
+   updates" is off), and every build after it has it built in.
 
 A computer profile's id is never written in the file. The app computes it from
 `manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters

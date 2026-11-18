@@ -10,7 +10,6 @@ using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
 using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
-using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 
@@ -51,11 +50,12 @@ public partial class App : Application
         var log = new EventLog();
         log.Add("USB-helper started");
         var settings = SettingsViewModel.Load(SettingsFile.Default, log);
+        var cache = new DatabaseCache(DatabaseCache.NextTo(SettingsFile.Default.Path));
         var platform = PlatformServices.Current();
         if (!platform.IsSupported)
         {
             var unavailable = new MainViewModel(platform.ReadIdentity(), log: log, settings: settings);
-            _ = LoadUnavailable(unavailable, log, platform);
+            _ = LoadUnavailable(unavailable, log, platform, cache);
             return unavailable;
         }
 
@@ -63,12 +63,14 @@ public partial class App : Application
         // The app runs from the app folder below USB-helper.exe (#130).
         var kind = OperatingSystem.IsMacOS() ? UpdateKind.MacOs : UpdateKinds.For(UpdateKinds.TopFolder(AppContext.BaseDirectory), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         log.Add(kind == UpdateKind.Msi ? "Installed by the .msi; updates use the .msi" : "Portable or macOS; updates open the release page");
+        var http = new HttpClient();
         var viewModel = new MainViewModel(platform.ReadIdentity(), platform.ReadMonitors, log, settings)
         {
-            Update = new UpdateViewModel(new HttpClient(), AppVersion.Current, kind, UpdateFolder,
+            Update = new UpdateViewModel(http, AppVersion.Current, kind, UpdateFolder,
                 msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
-        _ = LoadInBackground(viewModel, log, desktop, platform);
+        var databaseUpdate = new DatabaseUpdate(http, AppVersion.Current, cache, viewModel, log, DatabaseUpdateTimeout, settings);
+        _ = LoadInBackground(viewModel, log, desktop, platform, cache, databaseUpdate);
         return viewModel;
     }
 
@@ -79,6 +81,9 @@ public partial class App : Application
 
     // GitHub's answer within this time, or the check is skipped (#111).
     private static readonly TimeSpan UpdateCheckTimeout = TimeSpan.FromSeconds(2);
+
+    // The database check and download of about 30 small files (#290), in the background.
+    private static readonly TimeSpan DatabaseUpdateTimeout = TimeSpan.FromSeconds(30);
 
     // The portable app's update (#131): the release page in the default browser. A browser that does not open is logged.
     private static async void OpenPage(Uri page, IClassicDesktopStyleApplicationLifetime desktop, EventLog log)
@@ -97,37 +102,38 @@ public partial class App : Application
         desktop.Shutdown();
     }
 
-    private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log, PlatformServices platform)
+    private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log, PlatformServices platform, DatabaseCache cache)
     {
-        await LoadDatabase(viewModel, log);
+        await LoadDatabase(viewModel, log, cache);
         viewModel.IsLoading = false;
         viewModel.Notice = Strings.DetectionUnavailable;
         log.Add($"USB detection is not available on {platform.Name} yet"); // After the database result, as on Windows.
     }
 
-    // The database is built into the app (#102); every problem ends up in the window's database error list.
-    private static async Task LoadDatabase(MainViewModel viewModel, EventLog log)
+    // The database is built into the app (#102), or a newer one was downloaded (#290); every problem of the built-in one
+    // ends up in the window's database error list.
+    private static async Task LoadDatabase(MainViewModel viewModel, EventLog log, DatabaseCache cache)
     {
         log.Add("Loading database");
-        var (database, errors) = await Task.Run(() =>
+        // The log is only written on the UI thread: why a downloaded database is not used is copied over after.
+        var notes = new EventLog();
+        var (database, errors, version) = await Task.Run(() => DatabaseUpdate.LoadAtStart(cache, EmbeddedDatabase.Load, EmbeddedDatabase.Version(), notes));
+        foreach (var note in notes.Entries)
         {
-            try
-            {
-                return (EmbeddedDatabase.Load(), (IReadOnlyList<DatabaseError>)[]);
-            }
-            catch (DatabaseException e)
-            {
-                return ((HardwareDatabase?)null, e.Errors);
-            }
-        });
-        viewModel.LoadDatabase(database, errors);
+            log.Add(note.Text);
+        }
+        viewModel.LoadDatabase(database, errors, version);
     }
 
     // Each stage runs off the UI thread, so the window stays responsive and shows what it is reading. Refresh (#206)
     // reads the tree again the same way and replaces the change watcher with one that follows the new tree.
-    private static async Task LoadInBackground(MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop, PlatformServices platform)
+    // The database update (#290) starts once the database in use is loaded, next to the update check and the tree's read.
+    private static async Task LoadInBackground(
+        MainViewModel viewModel, EventLog log, IClassicDesktopStyleApplicationLifetime desktop, PlatformServices platform, DatabaseCache cache,
+        DatabaseUpdate databaseUpdate)
     {
-        await LoadDatabase(viewModel, log);
+        await LoadDatabase(viewModel, log, cache);
+        _ = databaseUpdate.CheckAtStartAsync();
         IDisposable? watch = null;
         var generation = 0;
         desktop.Exit += (_, _) => watch?.Dispose();

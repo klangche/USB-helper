@@ -78,6 +78,13 @@ public sealed class SettingsViewModel : ObservableObject
         set => Change(current with { CheckForUpdatesAtStart = value });
     }
 
+    /// <summary>Newer database files are downloaded at start (#290).</summary>
+    public bool DownloadDatabaseUpdates
+    {
+        get => current.DownloadDatabaseUpdates;
+        set => Change(current with { DownloadDatabaseUpdates = value });
+    }
+
     /// <summary>The stored choice; it is kept while locked and used again on unlock (#246).</summary>
     public bool OfferBetas
     {
@@ -238,6 +245,10 @@ public sealed class SettingsViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(CheckForUpdatesAtStart));
         }
+        if (before.DownloadDatabaseUpdates != current.DownloadDatabaseUpdates)
+        {
+            OnPropertyChanged(nameof(DownloadDatabaseUpdates));
+        }
         if (before.OfferBetas != current.OfferBetas)
         {
             OnPropertyChanged(nameof(OfferBetas));
@@ -255,7 +266,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     // The lists are compared by content, so an unchanged choice writes nothing.
     private static bool Same(AppSettings a, AppSettings b) =>
-        a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.OfferBetas == b.OfferBetas
+        a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.DownloadDatabaseUpdates == b.DownloadDatabaseUpdates && a.OfferBetas == b.OfferBetas
         && a.RememberCheckedProfiles == b.RememberCheckedProfiles && a.CompanyName == b.CompanyName
         && a.LicenceEmail == b.LicenceEmail && a.LicenceCode == b.LicenceCode
         && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers)

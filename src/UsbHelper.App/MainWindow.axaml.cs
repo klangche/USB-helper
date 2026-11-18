@@ -144,7 +144,8 @@ public partial class MainWindow : Window, IMainWindowActions
         (DataContext as MainViewModel)?.CustomGuideClosed();
     }
 
-    void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
+    void IMainWindowActions.ShowAbout() =>
+        _ = new AboutWindow { DataContext = new AboutViewModel { Database = (DataContext as MainViewModel)?.DatabaseVersion } }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
 
