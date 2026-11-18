@@ -28,6 +28,23 @@ public class CustomGuideTests
         Assert.Contains("Leave a value empty  → fall back to the value above it", blank, StringComparison.Ordinal);
     }
 
+    // #310: the blank has the shape of every guide: count (USB-Helper's, as it is required), link, and chain pairs.
+    [Fact]
+    public void TheBlankSaysWhatItCountsAndHasAChain()
+    {
+        var blank = CustomGuide.Blank(Db);
+
+        var guide = CustomGuide.Load(Db, blank);
+
+        Assert.Equal([Guide.Tiers, Guide.Hubs], guide.Count);
+        Assert.Equal(ValueKind.Null, guide.Find("link")!.Kind);
+        Assert.Null(guide.Link);
+        Assert.Equal(ValueKind.Null, guide.Find("limits.chain.max")!.Kind);
+        Assert.Equal(ValueKind.Null, guide.Find("limits.camera_audio.chain.recommended")!.Kind);
+        Assert.Equal(ValueKind.Null, guide.Find("platforms.macos.chips.apple-silicon.limits.chain.max")!.Kind);
+        Assert.Same(Db.DefaultGuide, guide.Limit("windows", "intel", "chain.max")!.Guide);
+    }
+
     [Fact]
     public void TheBlankWithoutAnEmailHasNoNote()
     {

@@ -328,6 +328,105 @@ public class ValidationTests
         Assert.Contains(errors, error => error.File == "guides/usb-helper.yaml" && error.Message.Contains(message, StringComparison.Ordinal) && error.Line > 0);
     }
 
+    // #310: USB-Helper's chain is a fallback like its other values, for cameras and audio devices too.
+    [Theory]
+    [InlineData("chain.max", "Key 'limits.chain.max' must be filled in")]
+    [InlineData("camera_audio.chain.recommended", "Key 'limits.camera_audio.chain.recommended' must be filled in")]
+    public void UsbHelpersGuideMustFillItsChain(string key, string message)
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper[key] = "";
+
+        Assert.Contains(db.LoadErrors(), error => error.File == "guides/usb-helper.yaml" && error.Message.Contains(message, StringComparison.Ordinal) && error.Line > 0);
+    }
+
+    // #310: every limits block has a chain pair next to hubs and tiers, and camera_audio one next to its tiers.
+    [Theory]
+    [InlineData("  chain:\n    recommended: none\n    max: none\n", "Missing key 'limits.chain'")]
+    [InlineData("    chain:\n      recommended: none\n      max: none\n", "Missing key 'limits.camera_audio.chain'")]
+    public void UsbHelpersGuideHasEveryChainKey(string removed, string message)
+    {
+        using var db = new TestDatabase();
+        var file = db.UsbHelperFile();
+        Assert.Contains(removed, file, StringComparison.Ordinal);
+        db.Write("guides/usb-helper.yaml", file.Replace(removed, "", StringComparison.Ordinal));
+
+        Assert.Contains(db.LoadErrors(), error => error.Message.Contains(message, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ChainOnAChipIsAccepted()
+    {
+        using var db = new TestDatabase().WriteGuide(new() { ["platforms.test.chips.platform.limits.chain.max"] = "3", ["camera_audio.chain.max"] = "2" });
+
+        var guide = db.Load().Guides["guide"];
+
+        Assert.Equal(3L, guide.Limit("test", "platform", "chain.max")!.Number);
+        Assert.Equal(2L, guide.Limit("test", "platform", "camera_audio.chain.max")!.Number);
+    }
+
+    // #310: every guide says what it counts, from its own file: any non-empty mix of chain, tiers and hubs, each once.
+    [Theory]
+    [InlineData("[chain]")]
+    [InlineData("[tiers]")]
+    [InlineData("[hubs, chain, tiers]")]
+    public void GuideCountIsAccepted(string count)
+    {
+        using var db = new TestDatabase().WriteGuide(new() { ["count"] = count });
+
+        Assert.Single(db.Load().Guides, guide => guide.Key == "guide");
+    }
+
+    [Theory]
+    [InlineData("[]", "Field 'count': expected a list of what the guide counts")]
+    [InlineData("", "Field 'count': expected a list of what the guide counts")]
+    [InlineData("tiers", "Field 'count': expected a list")]
+    [InlineData("[tiers, hops]", "Field 'count': 'hops' is not one of chain, tiers and hubs")]
+    [InlineData("[tiers, tiers]", "Field 'count': 'tiers' is listed twice")]
+    public void WrongGuideCountIsRejected(string count, string message)
+    {
+        using var db = new TestDatabase().WriteGuide(new() { ["count"] = count });
+
+        var errors = db.LoadErrors();
+
+        Assert.Contains(errors, error => error.File == "guides/guide.yaml" && error.Message.Contains(message, StringComparison.Ordinal) && error.Line > 0);
+    }
+
+    [Fact]
+    public void GuideWithoutCountIsRejected()
+    {
+        using var db = WithCopy(content => content.Replace("count: [tiers, hubs]\n", "", StringComparison.Ordinal));
+
+        var error = Assert.Single(db.LoadErrors());
+        Assert.Equal("guides/copy.yaml", error.File);
+        Assert.Contains("Field 'count' is required", error.Message);
+    }
+
+    // #310: link, when there, is the guide's page: an absolute http or https address.
+    [Theory]
+    [InlineData("ftp://example.com/guide.pdf")]
+    [InlineData("example.com/guide")]
+    [InlineData("\"see the PDF\"")]
+    [InlineData("5")]
+    public void WrongGuideLinkIsRejected(string link)
+    {
+        using var db = new TestDatabase().WriteGuide(new() { ["link"] = link });
+
+        Assert.Contains(db.LoadErrors(), error => error.File == "guides/guide.yaml" && error.Message.StartsWith("Field 'link'", StringComparison.Ordinal) && error.Line > 0);
+    }
+
+    // #310: Guide.Link is the guide's link when it has one, else the first web address in its sources.
+    [Theory]
+    [InlineData("link: https://example.com/guide\n", "https://example.com/guide")]
+    [InlineData("link:\n", "https://example.com/source")]
+    public void LinkComesBeforeTheFirstWebSource(string link, string expected)
+    {
+        using var db = WithCopy(content => content.Replace("link:\n", link, StringComparison.Ordinal)
+            + "sources:\n  - \"A book\"\n  - \"https://example.com/source (the whitepaper)\"\n");
+
+        Assert.Equal(expected, db.Load().Guides["copy"].Link?.ToString());
+    }
+
     // A chip or platform only states what differs; the rest comes from the level above.
     [Fact]
     public void UsbHelpersChipsMayLeaveLimitsEmpty()

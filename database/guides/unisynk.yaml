@@ -14,6 +14,8 @@
 name: Unisynk
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
+link:
 
 
 # -----------------------------------------------------------------------------
@@ -26,6 +28,9 @@ limits:
   tiers:
     recommended: 4
     max: 6
+  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended:
+    max:
   buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
@@ -43,6 +48,9 @@ limits:
     tiers:
       recommended: 3
       max: 4
+    chain:
+      recommended:
+      max:
   exceeded_note: "Topology is getting deep – Unisynk recommends keeping chains short."
 
 

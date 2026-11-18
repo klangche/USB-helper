@@ -788,7 +788,8 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// A profile's checks for the report, as the app judges them; disconnected devices only when there are.
+    /// A profile's checks for the report, as the app judges them: hubs, tiers and the hub chain as far as the guide counts
+    /// them (#310), the displays, and disconnected devices only when there are.
     /// </summary>
     public static List<ReportCheck> ReportChecks(DiagnosticReport result)
     {
@@ -798,12 +799,17 @@ public sealed class MainViewModel : ObservableObject
             LimitState.Exceeded => ConnectionStatus.Purple,
             _ => ConnectionStatus.Grey,
         };
-        var checks = new List<ReportCheck>
+        var checks = new List<ReportCheck>();
+        foreach (var (measure, label, check) in new[]
         {
-            new(Strings.LimitHubs, result.Hubs.Limit, result.Hubs.Actual, Status(result.Hubs.State)),
-            new(Strings.LimitTiers, result.Tiers.Limit, result.Tiers.Actual, Status(result.Tiers.State)),
-            new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)),
-        };
+            (Measure: Guide.Hubs, Label: Strings.LimitHubs, Check: result.Hubs),
+            (Measure: Guide.Tiers, Label: Strings.LimitTiers, Check: result.Tiers),
+            (Measure: Guide.Chain, Label: Strings.LimitChain, Check: result.Chain),
+        }.Where(each => result.Counted.Contains(each.Measure)))
+        {
+            checks.Add(new(label, check.Limit, check.Actual, Status(check.State)));
+        }
+        checks.Add(new(Strings.LimitDisplays, result.Displays.MaxExternal, result.Displays.ExternalDisplays, Status(result.Displays.State)));
         if (result.Missing.Count > 0)
         {
             checks.Add(new(Strings.LimitDisconnected, null, result.Missing.Count, ConnectionStatus.Red));
@@ -1184,6 +1190,7 @@ public sealed class MainViewModel : ObservableObject
         {
             (Strings.LimitHubs, result.Hubs.State, result.Hubs.Actual, result.Hubs.Limit),
             (Strings.LimitTiers, result.Tiers.State, result.Tiers.Actual, result.Tiers.Limit),
+            (Strings.LimitChain, result.Chain.State, result.Chain.Actual, result.Chain.Limit),
             (Strings.LimitDisplays, result.Displays.State, result.Displays.ExternalDisplays, result.Displays.MaxExternal),
         };
         string Line((string Label, LimitState? State, long? Actual, long? Limit) check) =>

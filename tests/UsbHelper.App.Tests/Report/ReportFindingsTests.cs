@@ -25,6 +25,10 @@ public class ReportFindingsTests
     [InlineData("Tier depth 4 exceeds the recommended limits.recommended_tiers 3; limits.max_tiers is 7.",
         "Tier depth 4 exceeds the recommended tiers limit of 3; the deepest tier limit is 7.")]
     [InlineData("3 external hubs are connected; limits.max_hubs is 2.", "3 external hubs are connected; the external hubs limit is 2.")]
+    [InlineData("Hub chain 6 exceeds limits.max_chain 5.", "Hub chain 6 exceeds the hubs in a chain limit of 5.")]
+    [InlineData("Hub chain 4 exceeds the recommended limits.recommended_chain 3; limits.max_chain is 5.",
+        "Hub chain 4 exceeds the recommended hubs in a chain limit of 3; the hubs in a chain limit is 5.")]
+    [InlineData("limits.max_chain = 5 (Ochno: limits.chain.max 5 in guides/ochno.yaml).", "Hubs in a chain: 5 (Hardware database).")]
     [InlineData("3 external displays are active; displays.max_external is 2.", "3 external displays are active; the external displays limit is 2.")]
     [InlineData("3 external displays are active; displays.max_external is 2 (unverified limit).",
         "3 external displays are active; the external displays limit is 2 (Hardware database, unverified).")]

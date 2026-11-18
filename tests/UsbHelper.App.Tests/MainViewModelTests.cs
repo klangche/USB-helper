@@ -1223,6 +1223,22 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Orange, Item(viewModel, "KEYBOARD").Status);
     }
 
+    // #310: a guide that counts the chain lists an exceeded chain; its tiers are not judged.
+    [Fact]
+    public void AnExceededChainIsListed()
+    {
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_chain: 0\n  max_tiers: 2", count: "[chain]");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Load(Desk);
+
+        viewModel.OperatingSystems.Platform().IsChecked = true;
+
+        var row = Assert.Single(viewModel.StatusRows);
+        Assert.Equal("unstable", row.Word);
+        Assert.Equal(["Hubs in a chain: 1, limit 0 (exceeded)"], row.Details);
+        Assert.Equal(ConnectionStatus.Purple, Item(viewModel, "KEYBOARD").Status);
+    }
+
     [Fact]
     public void OnlyTheExceededMaximumIsListedWhenTheRecommendationIsExceededToo()
     {

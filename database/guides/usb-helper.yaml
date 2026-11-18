@@ -12,15 +12,21 @@
 # No sources: the owner keeps USB-Helper's own reasoning in a separate document.
 #
 # Keys
+#   count           what this guide judges: any of chain, tiers, hubs
+#   link            the guide's page (http or https); optional
 #   hubs            external hubs counted per bus
 #   tiers           USB-IF tier count (host = tier 1)
+#   chain           hubs daisy-chained in front of a device, built-in hub
+#                   levels included (judged on each bus)
 #   buses           hubs per bus (usb2, usb3, usb4); global or per chip
-#   camera_audio    stricter limits for isochronous devices (webcams, mics)
+#   camera_audio    stricter tiers and chain for isochronous devices (webcams, mics)
 # =============================================================================
 
 name: USB-Helper
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [tiers, hubs]                  # chain is filled in as a fallback, not judged
+link:
 
 
 # -----------------------------------------------------------------------------
@@ -33,6 +39,9 @@ limits:
   tiers:
     recommended: 5
     max: 7
+  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended: 3
+    max: 5
   buses:                              # external hubs per bus; a chip may override
     usb2:
       hubs:
@@ -50,6 +59,9 @@ limits:
     tiers:
       recommended: 3
       max: 5
+    chain:
+      recommended: 1
+      max: 3
   exceeded_note: "USB topology is getting deep – expect reduced reliability."
 
 

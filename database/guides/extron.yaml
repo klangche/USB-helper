@@ -17,6 +17,8 @@
 name: Extron
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
+link: https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf
 
 
 # -----------------------------------------------------------------------------
@@ -29,6 +31,9 @@ limits:
   tiers:
     recommended: 5
     max: 7                            # USB-IF absolute maximum
+  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended:
+    max:
   buses:                              # empty: this guide's hubs above, then USB-Helper's
     usb2:
       hubs:
@@ -46,6 +51,9 @@ limits:
     tiers:
       recommended: 3
       max: 5
+    chain:
+      recommended:
+      max:
   exceeded_note: "Exceeding five cascading hubs – devices may drop or fail to enumerate."
 
 

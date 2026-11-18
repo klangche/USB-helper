@@ -2,6 +2,7 @@ using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Tests.Database;
+using UsbHelper.Core.Topology;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Diagnostics;
@@ -108,7 +109,7 @@ public class GuideRulesTests
 
     // A test database with one chip of the given built-in hub levels, USB-Helper's guide with hubs 3 / 2, and a picked
     // guide with the values given.
-    private static (ResolvedProfile Profile, Guide Guide) Picked(int levels, Dictionary<string, string> values)
+    private static (ResolvedProfile Profile, Guide Guide) Picked(object levels, Dictionary<string, string> values)
     {
         using var db = new TestDatabase().Write(TestDatabase.PlatformFile, TestDatabase.Platform.Replace("built_in_hub_levels: 0", $"built_in_hub_levels: {levels}"));
         db.UsbHelper["hubs.max"] = "3";
@@ -205,5 +206,129 @@ public class GuideRulesTests
 
         Assert.Equal(2, StrictestProfile.Of(profiles, UsbHelper));
         Assert.Equal(0, StrictestProfile.Of(profiles));
+    }
+
+    // #310: only what a guide counts is judged. Counting the chain, its tier and hub numbers are ignored.
+    [Fact]
+    public void AGuideThatCountsTheChainIgnoresTiersAndHubs()
+    {
+        var (windows, guide) = Picked(0, new() { ["count"] = "[chain]", ["tiers.max"] = "2", ["hubs.max"] = "0", ["chain.max"] = "5" });
+
+        var report = Evaluate(windows, 3, Device("KEYBOARD"), guide);
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Green, report.Overall);
+        Assert.Null(report.Tiers.Limit);
+        Assert.Null(report.Hubs.Limit);
+        Assert.Equal(5L, report.Chain.Limit);
+        Assert.Equal([Guide.Chain], report.Counted);
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("max_tiers", StringComparison.Ordinal)
+            || finding.Message.Contains("max_hubs", StringComparison.Ordinal));
+        Assert.Contains(report.Findings, finding => finding.Message == "limits.max_chain = 5 (Guide: limits.chain.max 5 in guides/guide.yaml).");
+    }
+
+    // Counting tiers and hubs, its chain numbers are ignored, and USB-Helper's chain is never a fallback for them.
+    [Fact]
+    public void AGuideThatCountsTiersAndHubsIgnoresTheChain()
+    {
+        var (windows, guide) = Picked(0, new() { ["count"] = "[tiers, hubs]", ["chain.max"] = "0", ["chain.recommended"] = "0" });
+
+        var report = Evaluate(windows, 1, Device("KEYBOARD"), guide);
+
+        Assert.Equal(ConnectionStatus.Green, report.Connections["KEYBOARD"]);
+        Assert.Null(report.Chain.Limit);
+        Assert.DoesNotContain(report.Findings, finding => finding.Message.Contains("chain", StringComparison.Ordinal));
+    }
+
+    // The chain is the external hubs in front of a device plus the chip's built-in hub levels; purple above the
+    // maximum, orange above the recommendation.
+    [Fact]
+    public void TheChainCountsTheBuiltInHubLevels()
+    {
+        var (profile, guide) = Picked(1, new() { ["count"] = "[chain]", ["chain.recommended"] = "2", ["chain.max"] = "3" });
+
+        Assert.Equal(ConnectionStatus.Green, Evaluate(profile, 1, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Orange, Evaluate(profile, 2, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        var over = Evaluate(profile, 3, Device("KEYBOARD"), guide);
+        Assert.Equal(ConnectionStatus.Purple, over.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Orange, over.Connections["HUB1"]); // Two hubs and the built-in level in front of it.
+        Assert.Contains(over.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message == "Hub chain 4 exceeds limits.max_chain 3.");
+        Assert.Contains(Evaluate(profile, 2, Device("KEYBOARD"), guide).Findings, finding => finding.SubjectId == "KEYBOARD"
+            && finding.Message == "Hub chain 3 exceeds the recommended limits.recommended_chain 2; limits.max_chain is 3.");
+        Assert.Equal(4, over.Chain.Actual);
+        Assert.Equal(LimitState.Exceeded, over.Chain.State);
+    }
+
+    // Unknown built-in hub levels: the chain is at least what is counted, so within the limit is not known for sure.
+    [Fact]
+    public void UnknownBuiltInLevelsMakeTheChainAMinimum()
+    {
+        var (profile, guide) = Picked("null", new() { ["count"] = "[chain]", ["chain.max"] = "3" });
+
+        Assert.Equal(LimitState.Unknown, Evaluate(profile, 2, Device("KEYBOARD"), guide).Chain.State);
+        Assert.Equal(LimitState.Exceeded, Evaluate(profile, 4, Device("KEYBOARD"), guide).Chain.State);
+    }
+
+    // The chain is judged on each bus: a USB 2 tree can be longer than its USB 3 tree.
+    [Fact]
+    public void TheChainIsJudgedOnEachBus()
+    {
+        var (profile, guide) = Picked(0, new() { ["count"] = "[chain]", ["chain.max"] = "2" });
+        IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("A1", Hub("A2", Hub("A3", Device("USB2DEVICE")))), Hub("B1", Device("USB3DEVICE"))))];
+
+        var report = DiagnosticEvaluator.Evaluate(tree, profile, [], externalDisplays: 0, guide: guide);
+
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["USB2DEVICE"]);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["USB3DEVICE"]);
+        Assert.Equal(3, report.Chain.Actual);
+        Assert.Equal(LimitState.Exceeded, report.Chain.State);
+    }
+
+    // Hubs marked on a port (an active cable or extender) are in the chain of everything behind it.
+    [Fact]
+    public void MarkedHubsAreInTheChain()
+    {
+        var (profile, guide) = Picked(0, new() { ["count"] = "[chain]", ["chain.max"] = "2" });
+        var marks = new Dictionary<string, CableMark> { ["ROOT|port1"] = CableMark.OfHubs(2) };
+
+        var report = DiagnosticEvaluator.Evaluate(Chain(1, Device("KEYBOARD")), profile, [], externalDisplays: 0, marks: marks, guide: guide);
+
+        Assert.Equal(ConnectionStatus.Purple, report.Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Green, report.Connections["HUB1"]);
+    }
+
+    // Cameras and audio devices: a stricter chain on top of the general one, when the guide counts the chain.
+    [Fact]
+    public void GuideLimitsCamerasByChain()
+    {
+        var (windows, guide) = Picked(0, new() { ["count"] = "[chain]", ["chain.max"] = "5", ["camera_audio.chain.recommended"] = "1", ["camera_audio.chain.max"] = "2" });
+
+        Assert.Equal(ConnectionStatus.Green, Evaluate(windows, 1, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Orange, Evaluate(windows, 2, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Purple, Evaluate(windows, 3, Camera, guide).Connections["CAMERA"]);
+        Assert.Equal(ConnectionStatus.Green, Evaluate(windows, 3, Device("KEYBOARD"), guide).Connections["KEYBOARD"]);
+        Assert.Contains(Evaluate(windows, 3, Camera, guide).Findings, finding => finding.SubjectId == "CAMERA"
+            && finding.Message == "Hub chain 3 exceeds limits.camera_audio_max_chain 2 for cameras and audio devices.");
+    }
+
+    // Ochno's guide: at most 5 hubs daisy-chained, a laptop's non-root internal hub included, on USB 2 and USB 3 alike.
+    // Windows on Intel has no built-in hub level: 5 external hubs fit. An M-series Mac has one: 4 fit.
+    [Theory]
+    [InlineData("windows-intel", 5)]
+    [InlineData("macos-apple-silicon", 4)]
+    [InlineData("macos-intel", 5)]
+    public void OchnoAllowsFiveHubsInAChain(string profile, int hubs)
+    {
+        var ochno = Db.Guides["ochno"];
+
+        Assert.Equal([Guide.Chain], ochno.Count);
+        Assert.Equal(ConnectionStatus.Green, StatusOf(profile, hubs, Device("KEYBOARD"), ochno));
+        Assert.Equal(ConnectionStatus.Purple, StatusOf(profile, hubs + 1, Device("KEYBOARD"), ochno));
+        // Ochno gives no separate limit for cameras and audio devices, and no tier or hub limit.
+        Assert.Equal(ConnectionStatus.Green, StatusOf(profile, hubs, Camera, ochno));
+        var report = Evaluate(Db.Platforms[profile], hubs, Device("KEYBOARD"), ochno);
+        Assert.Null(report.Tiers.Limit);
+        Assert.Null(report.Hubs.Limit);
+        Assert.Equal(5L, report.Chain.Limit);
     }
 }

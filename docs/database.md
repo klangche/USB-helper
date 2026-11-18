@@ -11,7 +11,8 @@ computer files hold facts, guide files hold every limit and recommendation.
 database/
 ├── base.yaml          facts from the USB specification
 ├── platforms/         one file per operating system, with its chips
-├── guides/            one file per guide: usb-helper.yaml (the default), purelink.yaml, ochno.yaml, unisynk.yaml
+├── guides/            one file per guide: usb-helper.yaml (the default), desktop.yaml, purelink.yaml, ochno.yaml,
+│                      unisynk.yaml, extron.yaml, crestron.yaml
 └── computers/         one file per problem machine, by manufacturer
 ```
 
@@ -58,9 +59,14 @@ Each guide is one file, `guides/<guide>.yaml`, with the same platforms and chips
 to a manufacturer, filled in and sent back. A returned file with a missing or extra platform, chip or key is rejected,
 with file, line and key. A new file in `guides/` is a new guide; no code change is needed.
 
+Every guide file has the same keys in the same order; only the header's values and the limits differ (#310).
+
 ```yaml
 name: PureLink
 selectable: true
+proav: 1                # 1: a ProAV guide, 0: general purpose
+count: [tiers, hubs]    # what this guide judges: any of chain, tiers, hubs
+link:                   # the guide's page (http or https); optional
 
 limits:                 # global: every system
   hubs:                 # external hubs
@@ -69,12 +75,16 @@ limits:                 # global: every system
   tiers:                # USB tiers as the specification counts them (host = tier 1), built-in hub levels included
     recommended: 4
     max: 7
+  chain:                # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended:
+    max:
   buses:                # hubs per bus; empty = the hubs above
     usb2: { hubs: { recommended: , max: } }
     usb3: { hubs: { recommended: , max: } }
     usb4: { hubs: { recommended: , max: } }
-  camera_audio:         # stricter tiers for cameras and audio devices
+  camera_audio:         # stricter tiers and chain for cameras and audio devices
     tiers: { recommended: 3, max: 4 }
+    chain: { recommended: , max: }
   exceeded_note: "Too many hubs/tiers – video or audio may drop frames."   # at most 160 characters
 
 platforms:
@@ -92,18 +102,49 @@ sources:
   - "..."
 ```
 
+Guides state their limits in different terms (#310): some count USB tiers, some count the hubs daisy-chained in
+front of a device ("max 5 hub hops", "five cascading hubs"), some count all hubs on a bus. So every guide says what it
+counts:
+
+- `count` (required): a list of any of `chain`, `tiers` and `hubs`, at least one, each once. Only these are judged
+  for the guide; its numbers for the others are ignored and never fall back into judging. `count` is read from the
+  picked guide itself, never from USB-Helper's.
+- `chain`: the hubs daisy-chained in front of a device on its path from the computer: the external hubs in front of
+  it (marked hubs included) plus the chip's `built_in_hub_levels`. Root hubs do not count; a laptop's non-root
+  internal hub does. With unknown built-in levels the chain is "at least" what is counted, like tiers. It is judged on
+  each bus, like tiers, since a product can have more USB 2 than USB 3 hubs. Its findings name `limits.max_chain`,
+  `limits.recommended_chain`, `limits.camera_audio_max_chain` and `limits.camera_audio_recommended_chain`; the report
+  calls it "Hubs in a chain".
+- `link` (optional): the guide's page, an absolute http or https address. The app links it; without it, the first
+  web address in `sources`.
+
+Example, Ochno's guide ("having max 5 usb hubs daisy-chained", the same for USB 2.0 and USB 3.2, a laptop's internal
+hub included):
+
+```yaml
+count: [chain]
+link: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
+limits:
+  chain:
+    recommended: none   # one hard limit
+    max: 5
+```
+
+A device behind 5 external hubs is within on Windows on Intel (no built-in level) and unstable behind 6; on an
+M-series Mac (one built-in level) 4 are within and 5 unstable, which is Ochno's "4 for all laptops".
+
 How to read a value:
 
 - A number is the limit. An empty value (or a key left out of a chip's or platform's `limits`) means: use the value
   above it: the chip's, then the platform's, then the global one, then USB-Helper's (`guides/usb-helper.yaml`) the same
   way. This is different from platform and computer files, where `null` means unknown.
 - `none` means: deliberately no limit, and nothing above it is used either.
-- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers are the same on every bus.
+- Hubs on one bus: `buses.<bus>.hubs`, else `hubs`, at each level. Tiers and chain are the same on every bus.
 - USB-Helper's guide is the default (ticked at start) and the fallback, so its global limits (`buses` included) and
   every `mst` are filled in. The per-bus hubs are filled in only there, until a manufacturer gives numbers.
 - `selectable: false` lists a guide that is not offered yet.
-- Each limit is checked on its own; nothing is worked out between hubs and tiers. Above any `max` is unstable
-  (purple), above any `recommended` potentially unstable (orange).
+- Each limit is checked on its own; nothing is worked out between hubs, tiers and chain. Above any `max` is unstable
+  (purple), above any `recommended` potentially unstable (orange). Only what the guide's `count` lists is judged.
 - Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
   the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked but not judged yet: USB4
   links are not detected yet (#267).
@@ -115,8 +156,10 @@ How to read a value:
 
 | Guide | Values |
 |---|---|
-| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources: the owner keeps them in a separate document. |
-| `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty; `mst` 0 on macOS. Ochno links its guide page. |
+| `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): counts tiers and hubs; hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; chain 3 / 5 and cameras and audio 1 / 3 (its tiers minus 2), filled in as the fallback, not judged; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources or link: the owner keeps them in a separate document. |
+| `desktop` | General purpose: counts tiers only (no hub limit), tiers 6 / 7. |
+| `purelink`, `unisynk`, `extron`, `crestron` | The owner's files of 2026-11-17, all selectable; count tiers and hubs for now, as their texts are not verified yet; chain and hubs per bus empty; `mst` 0 on macOS. Extron and Crestron link their pages. |
+| `ochno` | Follows Ochno's own guide (#310): counts the chain only, at most 5 hubs daisy-chained, no recommendation and no separate limit for cameras and audio devices; no tier or hub numbers and no platform or chip overrides. Links its guide page. |
 
 ### Custom guide
 
@@ -125,7 +168,8 @@ settings file (`%APPDATA%\USB-helper\custom.yaml` on Windows, next to `settings.
 editor (see [usage.md](usage.md#custom-philosophy)). It has the shape of every guide file and is checked the same way,
 against the platforms and chips of the loaded database, with USB-Helper's guide as the fallback for every empty value.
 In addition, `name` must be `Custom` and `selectable` must be `true`. Errors name `custom.yaml` and the line. The blank
-the editor offers has every platform and chip with every value empty, `proav: 0` and the unlock email as a note.
+the editor offers has every platform and chip with every value empty, `proav: 0`, `count: [tiers, hubs]` (as
+USB-Helper's, since `count` is required and never falls back), an empty `link` and the unlock email as a note.
 
 ### Computer files
 
@@ -147,7 +191,8 @@ nothing.
 
 Loading stops with a list of every problem found, each with file and line: invalid YAML, duplicate fields, unknown
 fields, wrong value types, invalid verification status or date, duplicate ids, a missing platform or chip, a guide file
-whose platforms, chips or keys differ, an empty global value or `mst` in USB-Helper's guide, an `mst` other than 0 or 1, an `exceeded_note` over 160
+whose platforms, chips or keys differ, a guide without a valid `count` or with a `link` that is not an http or https
+address, an empty global value or `mst` in USB-Helper's guide, an `mst` other than 0 or 1, an `exceeded_note` over 160
 characters, a tier above `usb.max_tiers`, or a file that is not read (only `base.yaml`, `platforms/*.yaml`,
 `guides/*.yaml` and the `.yaml` files below `computers/` are; a file whose name starts with a dot, such as
 `.template.yaml`, is left out on purpose).
@@ -243,14 +288,18 @@ chip, for example `macos-a-series`.
 
 ## Topology counting
 
-The two kinds of limits in a guide are checked independently (owner decision
-2026-11-17, #297: hubs and tiers are enough):
+The three kinds of limits in a guide are checked independently (owner decisions
+2026-11-17, #297, and 2026-11-18, #310), each only when the guide's `count` lists it:
 
 - **Tier depth** (`tiers`): as the USB specification counts it: the host with
   its root hub is tier 1, each hub adds one, the device's own tier counts, and
   so do the chip's `built_in_hub_levels`.
 - **Hub count** (`hubs`): all external hubs connected to the computer, root
   hubs and built-in hubs excluded, counted per bus (see below).
+- **Hub chain** (`chain`): the hubs daisy-chained in front of a device: the
+  external hubs between the computer's own port and the device, marked hubs
+  included, plus the chip's `built_in_hub_levels`. Example: laptop port, dock
+  hub, monitor hub, keyboard on an M-series Mac: a chain of 3.
 
 A USB 3 hub is two hubs in one box: a USB 2 hub on the USB 2 bus and a
 SuperSpeed hub on the USB 3 bus, and each bus has its own tree. So all three
@@ -305,8 +354,8 @@ status per checked profile; when several apply, the first in this list wins:
 2. Purple (unstable): the operating system reports an error on the port or the
    device; or the hub or device disconnected and came back since the app
    started, however long or short the drop, until it leaves again or is
-   cleared; or its tier depth is above a `max` of the selected guide
-   (`camera_audio` too for a camera or audio device); or it is a hub on a bus
+   cleared; or its tier depth or hub chain is above a `max` of the selected
+   guide (`camera_audio` too for a camera or audio device); or it is a hub on a bus
    whose hub count is above `hubs.max` (a hub whose bus is not reported counts
    as on every bus over the limit).
 3. Orange (potentially unstable): above a `recommended` value, within every
@@ -326,8 +375,8 @@ DisplayLink adapter on a computer without DisplayLink support or a further
 DisplayPort display on a computer without MST). The findings
 list then shows only the findings of the strictest checked profile: the one
 with the lowest `tiers.max`; on a tie the lowest `tiers.recommended`, then
-`hubs.max`. An unknown limit counts as higher than any known
-one; when still tied, the first in the menus wins. Detected facts (operating
+`hubs.max`, then `chain.max` and `chain.recommended`. An unknown limit, or one
+the guide does not count, counts as higher than any known one; when still tied, the first in the menus wins. Detected facts (operating
 system errors, disconnected and reconnected devices) are always listed. Every
 finding names its device, port or computer and the reason, and is marked as a
 detected fact, a verified database fact, a predicted risk or unknown.

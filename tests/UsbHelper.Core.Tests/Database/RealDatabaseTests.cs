@@ -189,8 +189,8 @@ public class RealDatabaseTests
     [InlineData("purelink", "windows-intel", "tiers.max", 7)]
     [InlineData("purelink", "windows-amd", "tiers.recommended", 3)]
     [InlineData("purelink", "windows-amd", "usb3.hubs.max", 5)] // The guide's own hubs before USB-Helper's per bus.
-    [InlineData("ochno", "windows-intel", "tiers.max", 6)]
-    [InlineData("ochno", "ubuntu-arm", "tiers.max", 4)]
+    [InlineData("ochno", "windows-intel", "chain.max", 5)]
+    [InlineData("ochno", "macos-apple-silicon", "usb2.chain.max", 5)] // Chain is the same on every bus.
     [InlineData("unisynk", "debian-amd", "tiers.recommended", 4)]
     [InlineData("unisynk", "android-phone-qualcomm", "tiers.recommended", 2)]
     [InlineData("unisynk", "apple-mobile-m-series", "tiers.max", 3)]
@@ -299,13 +299,100 @@ public class RealDatabaseTests
         Assert.Equal([ComputerProfileId.From("Manufacturer", "Exact model name")], db.Load().Computers.Keys);
     }
 
-    // The owner's files of 2026-11-17: Extron and Crestron, with their sources; the first web link is the guide's page.
+    // #310: what each guide counts, from its own file. Ochno counts hubs daisy-chained in front of a device; Desktop has
+    // no hub limit; the others keep tiers and hubs until their texts are verified.
+    [Theory]
+    [InlineData("usb-helper", "tiers,hubs")]
+    [InlineData("desktop", "tiers")]
+    [InlineData("ochno", "chain")]
+    [InlineData("purelink", "tiers,hubs")]
+    [InlineData("unisynk", "tiers,hubs")]
+    [InlineData("extron", "tiers,hubs")]
+    [InlineData("crestron", "tiers,hubs")]
+    public void GuidesSayWhatTheyCount(string id, string count) =>
+        Assert.Equal(count.Split(','), HardwareDatabase.Load(DatabaseFolder()).Guides[id].Count);
+
+    // #310: USB-Helper's chain is its tiers minus the computer's port and the device (5 / 7 − 2), cameras' too (3 / 5 − 2).
+    [Theory]
+    [InlineData("chain.recommended", 3)]
+    [InlineData("chain.max", 5)]
+    [InlineData("camera_audio.chain.recommended", 1)]
+    [InlineData("camera_audio.chain.max", 3)]
+    public void UsbHelpersChainIsItsTiersMinusTwo(string path, long value) =>
+        Assert.Equal(value, HardwareDatabase.Load(DatabaseFolder()).DefaultGuide.Limit("windows", "intel", path)!.Number);
+
+    // #310: every guide file has the same keys in the same order: the header starts with the same five, and the global
+    // limits and the platforms with their chips are the same; only values (and a chip's or platform's overrides) differ.
+    [Fact]
+    public void EveryGuideFileHasTheSameShape()
+    {
+        static List<string> Keys(YamlDotNet.RepresentationModel.YamlNode node, string path, bool overrides)
+        {
+            var keys = new List<string>();
+            if (node is not YamlDotNet.RepresentationModel.YamlMappingNode mapping)
+            {
+                return keys;
+            }
+            foreach (var (key, child) in mapping.Children)
+            {
+                var name = $"{path}{((YamlDotNet.RepresentationModel.YamlScalarNode)key).Value}";
+                keys.Add(name);
+                // A platform's or chip's limits hold only what differs from the level above.
+                if (!(overrides && name.EndsWith(".limits", StringComparison.Ordinal)))
+                {
+                    keys.AddRange(Keys(child, name + ".", overrides));
+                }
+            }
+            return keys;
+        }
+        List<string> Shape(string file)
+        {
+            var stream = new YamlDotNet.RepresentationModel.YamlStream();
+            stream.Load(new StringReader(File.ReadAllText(file)));
+            var root = (YamlDotNet.RepresentationModel.YamlMappingNode)stream.Documents[0].RootNode;
+            var top = root.Children.Keys.Select(key => ((YamlDotNet.RepresentationModel.YamlScalarNode)key).Value!).ToList();
+            return [.. top.Take(5), .. top.Where(key => key is "limits" or "platforms"),
+                .. Keys(root.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("limits")], "limits.", overrides: false),
+                .. Keys(root.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("platforms")], "platforms.", overrides: true)];
+        }
+        var files = Directory.GetFiles(Path.Combine(DatabaseFolder(), "guides"), "*.yaml");
+        var expected = Shape(Path.Combine(DatabaseFolder(), "guides", "usb-helper.yaml"));
+
+        Assert.Equal(["name", "selectable", "proav", "count", "link"], expected.Take(5));
+        Assert.Contains("limits.chain.max", expected);
+        Assert.Contains("limits.camera_audio.chain.max", expected);
+        foreach (var file in files)
+        {
+            Assert.Equal(expected, Shape(file));
+        }
+    }
+
+    // Ochno follows its own guide (#310): one hard limit, 5 hubs daisy-chained, and nothing else.
+    [Fact]
+    public void OchnoFollowsItsOwnGuide()
+    {
+        var ochno = HardwareDatabase.Load(DatabaseFolder()).Guides["ochno"];
+
+        Assert.Equal(5L, ochno.Find("limits.chain.max")!.Scalar);
+        Assert.Equal(Guide.None, ochno.Find("limits.chain.recommended")!.Scalar);
+        foreach (var path in new[] { "limits.hubs.max", "limits.tiers.max", "limits.camera_audio.tiers.max", "limits.buses.usb2.hubs.max" })
+        {
+            Assert.Equal(ValueKind.Null, ochno.Find(path)!.Kind);
+        }
+        Assert.Equal(ValueKind.Mapping, ochno.Find("platforms.macos.chips.apple-silicon.limits")!.Kind);
+        Assert.Empty(ochno.Find("platforms.macos.chips.apple-silicon.limits")!.Fields);
+        Assert.True(ochno.ProAv);
+    }
+
+    // The owner's files of 2026-11-17: Extron and Crestron, with their sources; the guide's link (#310) is its page.
     [Theory]
     [InlineData("extron", "Extron", "https://www.chariotgroup.com/wp-content/uploads/2021/01/usb_white_paper_Extron.pdf")]
     [InlineData("crestron", "Crestron", "https://community.crestron.com/s/article/3082")]
     [InlineData("ochno", "Ochno", "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room")]
     [InlineData("usb-helper", "USB-Helper", null)]
-    public void GuidesLinkTheirFirstWebSource(string id, string name, string? link)
+    [InlineData("desktop", "Desktop", null)]
+    [InlineData("purelink", "PureLink", null)]
+    public void GuidesLinkTheirPage(string id, string name, string? link)
     {
         var guide = HardwareDatabase.Load(DatabaseFolder()).Guides[id];
 

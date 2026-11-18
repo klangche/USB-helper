@@ -17,6 +17,18 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>The value that states no limit.</summary>
     public const string None = "none";
 
+    /// <summary>Hubs daisy-chained in front of a device: the external hubs in front of it plus the chip's built-in hub levels.</summary>
+    public const string Chain = "chain";
+
+    /// <summary>USB tiers as the specification counts them (host = tier 1), built-in hub levels included.</summary>
+    public const string Tiers = "tiers";
+
+    /// <summary>External hubs per bus.</summary>
+    public const string Hubs = "hubs";
+
+    /// <summary>What a guide's <c>count</c> may list (owner decision 2026-11-18, #310).</summary>
+    public static readonly IReadOnlyList<string> Measures = [Chain, Tiers, Hubs];
+
     /// <summary>The file's name without extension, for example <c>purelink</c> for <c>guides/purelink.yaml</c>.</summary>
     public string Id { get; } = id;
 
@@ -41,11 +53,26 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary><c>proav: 1</c>: a guide for ProAV rooms, marked in the menu; 0 for a general-purpose one (#299).</summary>
     public bool ProAv => Root.Find("proav")?.Scalar is 1L;
 
-    /// <summary>The first web link among the guide's <c>sources</c>, such as PureLink's whitepaper; null when there is none.</summary>
-    public Uri? Link => Root.Find("sources")?.Items
-        .Select(item => (item.Scalar as string)?.Trim().Split(' ', 2)[0])
-        .Select(text => Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri : null)
+    /// <summary>
+    /// What the guide counts (#310): its <c>count</c>, any of <see cref="Chain"/>, <see cref="Tiers"/> and <see cref="Hubs"/>.
+    /// Only these are judged; numbers for the others are ignored. Read from this guide only, never from USB-Helper's.
+    /// </summary>
+    public IReadOnlyList<string> Count => [.. Root.Find("count")?.Items.Select(item => item.Scalar).OfType<string>() ?? []];
+
+    /// <summary>The guide counts <paramref name="measure"/> (<see cref="Measures"/>), so its limits for it are judged.</summary>
+    public bool Counts(string measure) => Count.Contains(measure);
+
+    /// <summary>
+    /// The guide's page: its <c>link</c> (#310), else the first web link among its <c>sources</c>, such as PureLink's
+    /// whitepaper; null when there is none.
+    /// </summary>
+    public Uri? Link => WebLink(Root.Find("link")?.Scalar as string) ?? Root.Find("sources")?.Items
+        .Select(item => WebLink((item.Scalar as string)?.Trim().Split(' ', 2)[0]))
         .FirstOrDefault(uri => uri != null);
+
+    /// <summary>An absolute http or https address; null for anything else.</summary>
+    internal static Uri? WebLink(string? text) =>
+        Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri : null;
 
     /// <summary>The verification status the file writes; null when it writes none.</summary>
     public string? Status => Root.Find("verification.status")?.Scalar as string;
@@ -57,8 +84,8 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     public ProfileValue? Find(string path) => Root.Find(path);
 
     /// <summary>
-    /// A limit for one platform and chip, such as <c>tiers.max</c>, <c>camera_audio.tiers.recommended</c> or, on one bus,
-    /// <c>usb2.hubs.max</c>. Tiers are the same on every bus, so a bus in front of them is ignored; hubs on a bus
+    /// A limit for one platform and chip, such as <c>tiers.max</c>, <c>chain.max</c>, <c>camera_audio.tiers.recommended</c> or,
+    /// on one bus, <c>usb2.hubs.max</c>. Tiers and chain are the same on every bus, so a bus in front of them is ignored; hubs on a bus
     /// are <c>buses.&lt;bus&gt;.hubs</c>, else <c>hubs</c>, at each level. Looked up in the chip's limits, the platform's,
     /// the global ones, then USB-Helper's the same way; the first that is not empty. Null when every one is empty.
     /// </summary>

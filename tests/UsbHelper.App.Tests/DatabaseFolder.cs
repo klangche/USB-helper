@@ -22,10 +22,11 @@ internal static class DatabaseFolder
     /// <param name="platformFile">The platform file's name without extension; the part of the id before the dash when null.</param>
     /// <param name="status">The verification status of the computer file and of USB-Helper's guide.</param>
     /// <param name="guides">More guides, by id: their name and whether they are selectable; every value in them empty.</param>
+    /// <param name="count">What USB-Helper's guide counts (#310); <c>max_chain: 1</c> in <paramref name="platformLimits"/> sets a chain.</param>
     public static HardwareDatabase Load(
         string manufacturer, string model, string status, string? platformLimits = null, string? name = null, string platform = "os-p",
         string? mst = null, string computerFile = "c", string? platformFile = null,
-        IReadOnlyDictionary<string, (string Name, bool Selectable)>? guides = null)
+        IReadOnlyDictionary<string, (string Name, bool Selectable)>? guides = null, string count = "[tiers, hubs]")
     {
         var dash = platform.IndexOf('-');
         var (file, chip) = (platformFile ?? platform[..dash], platform[(dash + 1)..]);
@@ -52,15 +53,16 @@ internal static class DatabaseFolder
         var limits = (platformLimits ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(line => line.Trim().Split(':', 2))
             .ToDictionary(
-                pair => pair[0] switch { "max_tiers" => "tiers.max", "recommended_tiers" => "tiers.recommended", "max_hubs" => "hubs.max", var other => other },
+                pair => pair[0] switch { "max_tiers" => "tiers.max", "recommended_tiers" => "tiers.recommended", "max_hubs" => "hubs.max", "max_chain" => "chain.max", var other => other },
                 pair => pair[1].Trim());
-        File.WriteAllText(Path.Combine(folder, "guides", "usb-helper.yaml"), UsbHelper(file, chip, limits, status));
+        File.WriteAllText(Path.Combine(folder, "guides", "usb-helper.yaml"), UsbHelper(file, chip, limits, status, count));
         foreach (var (id, (guideName, selectable)) in guides ?? new Dictionary<string, (string, bool)>())
         {
             File.WriteAllText(Path.Combine(folder, "guides", $"{id}.yaml"), $$"""
                 name: {{guideName}}
                 selectable: {{(selectable ? "true" : "false")}}
                 proav: 1
+                count: [tiers, hubs]
                 limits: {}
                 platforms:
                   {{file}}:
@@ -83,7 +85,7 @@ internal static class DatabaseFolder
 
     // USB-Helper's guide file in the shape every guide has: the platform chip with the limits given (none otherwise),
     // the global limits (which the computer's chip uses) hubs 5 and tiers 7, hubs 5 on USB 2 and USB 3.
-    private static string UsbHelper(string platform, string chip, IReadOnlyDictionary<string, string> limits, string status)
+    private static string UsbHelper(string platform, string chip, IReadOnlyDictionary<string, string> limits, string status, string count)
     {
         var computer = new Dictionary<string, string> { ["hubs.max"] = "5", ["tiers.max"] = "7" };
         static string Block(string indent, IReadOnlyDictionary<string, string> values, bool buses)
@@ -92,7 +94,7 @@ internal static class DatabaseFolder
             void Pair(string pad, string key, string path) => yaml.Append($"{indent}{pad}{key}:\n")
                 .Append($"{indent}{pad}  recommended: {values.GetValueOrDefault($"{path}.recommended", "none")}\n")
                 .Append($"{indent}{pad}  max: {values.GetValueOrDefault($"{path}.max", "none")}\n");
-            foreach (var kind in new[] { "hubs", "tiers" })
+            foreach (var kind in new[] { "hubs", "tiers", "chain" })
             {
                 Pair("", kind, kind);
             }
@@ -107,9 +109,10 @@ internal static class DatabaseFolder
             }
             yaml.Append($"{indent}camera_audio:\n");
             Pair("  ", "tiers", "camera_audio.tiers");
+            Pair("  ", "chain", "camera_audio.chain");
             return yaml.Append($"{indent}exceeded_note:\n").ToString();
         }
-        return $"name: USB-Helper\nselectable: true\nproav: 1\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"
+        return $"name: USB-Helper\nselectable: true\nproav: 1\ncount: {count}\nlink:\nverification:\n  status: {status}\nlimits:\n{Block("  ", computer, buses: true)}"
             + $"platforms:\n  {platform}:\n    mst: 0\n    limits: {{}}\n    chips:\n"
             + $"      {chip}:\n        mst: 0\n        limits:\n{Block("          ", limits, buses: false)}"
             + "      computer:\n        mst: 0\n        limits: {}\n";
