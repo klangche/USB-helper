@@ -390,7 +390,6 @@ public class RealDatabaseTests
     [InlineData("crestron", "Crestron", "https://community.crestron.com/s/article/3082#What_Is_A_Tier")]
     [InlineData("ochno", "Ochno", "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room")]
     [InlineData("usb-helper", "USB-Helper", null)]
-    [InlineData("desktop", "Desktop", null)]
     [InlineData("purelink", "PureLink", null)]
     public void GuidesLinkTheirPage(string id, string name, string? link)
     {
@@ -411,7 +410,7 @@ public class RealDatabaseTests
         Assert.Equal(value, db.Guides[id].Limit(windows.Platform, windows.Chip, path)!.Number);
     }
 
-    // #299: every ProAV guide carries the mark; Desktop is the general-purpose one, more generous, on the USB maximum.
+    // #299: every ProAV guide carries the mark; USB Standard (id desktop) is the general-purpose one, more generous, on the USB maximum.
     [Theory]
     [InlineData("usb-helper", true)]
     [InlineData("purelink", true)]
@@ -422,6 +421,10 @@ public class RealDatabaseTests
     [InlineData("desktop", false)]
     public void GuidesSayWhetherTheyAreProAv(string id, bool proAv) =>
         Assert.Equal(proAv, HardwareDatabase.Load(DatabaseFolder()).Guides[id].ProAv);
+
+    // USB Standard (id desktop, #319) has no page of its own.
+    [Fact]
+    public void UsbStandardLinksNoPage() => Assert.Null(HardwareDatabase.Load(DatabaseFolder()).Guides["desktop"].Link);
 
     [Fact]
     public void DesktopFollowsTheUsbMaximum()

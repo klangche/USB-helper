@@ -55,7 +55,7 @@
                     <DataTemplate x:DataType="vm:GuideOption">
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
-                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as Desktop has none. -->
+                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as USB Standard has none. -->
                         <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
                           <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
                         </Border>
