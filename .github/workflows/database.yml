@@ -1,0 +1,58 @@
+name: Database
+
+# A pull request to the database branch (#288): its files must load and pass every test with the code of dev and, when
+# that reads the same format, with the code of the last release, so neither the next beta nor the released app can get a
+# file it cannot read.
+on:
+  pull_request:
+    branches: [database]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        code: [dev, last-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: The code to check with
+        id: code
+        shell: bash
+        run: |
+          if [ "${{ matrix.code }}" = last-release ]; then
+            tag=$(git tag --list | release/last-release.sh)
+            if [ -z "$tag" ]; then echo "No release yet."; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+            git checkout --quiet "$tag"
+            if [ ! -f release/database.sh ]; then
+              echo "$tag reads its own built-in database (from before #288): nothing to check."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          fi
+          version=$(grep -oE 'SchemaVersion = [0-9]+' src/UsbHelper.Core/Database/HardwareDatabase.cs | grep -oE '[0-9]+$')
+          git fetch --quiet origin "refs/pull/${{ github.event.number }}/head"
+          if ! git cat-file -e "FETCH_HEAD:v$version/base.yaml" 2>/dev/null; then
+            echo "This code reads format $version, which the pull request does not have: nothing to check."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          DATABASE_REF=FETCH_HEAD bash release/database.sh
+
+      - uses: actions/setup-dotnet@v6
+        if: steps.code.outputs.skip != 'true'
+        with:
+          global-json-file: global.json
+
+      - if: steps.code.outputs.skip != 'true'
+        run: dotnet test tests/UsbHelper.Core.Tests -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20
+
+      - if: steps.code.outputs.skip != 'true'
+        run: dotnet test tests/UsbHelper.App.Tests -c Release --blame-hang-timeout 5m
+        timeout-minutes: 20

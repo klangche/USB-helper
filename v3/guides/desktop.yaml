@@ -1,5 +1,5 @@
 # =============================================================================
-# Desktop  –  General-purpose guide
+# USB Standard  –  General-purpose guide (file and id: desktop)
 # =============================================================================
 # For everyday desks and offices rather than ProAV rooms: exactly the USB
 # specification (USB-IF), the freest setup. Seven tiers on a path is the only
@@ -12,7 +12,7 @@
 #   - Write "none"         → deliberately no limit
 # =============================================================================
 
-name: Desktop
+name: USB Standard
 selectable: true
 proav: 0                              # 1: ProAV guide (marked in the menu), 0: general purpose
 count: [tiers]                        # no hub limit, so hubs are not counted
