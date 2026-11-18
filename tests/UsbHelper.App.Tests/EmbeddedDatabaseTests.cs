@@ -6,7 +6,7 @@ namespace UsbHelper.App.Tests;
 /// <summary>The database built into the app (#102).</summary>
 public class EmbeddedDatabaseTests
 {
-    private static string RepositoryDatabase()
+    internal static string RepositoryDatabase()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
         {
@@ -16,7 +16,7 @@ public class EmbeddedDatabaseTests
                 return candidate;
             }
         }
-        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder.");
+        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
     // Every value with its path, kind, file and line, so two loads can be compared as text.

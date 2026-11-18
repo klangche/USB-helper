@@ -16,7 +16,7 @@ public class RealDatabaseTests
                 return candidate;
             }
         }
-        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder.");
+        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
     [Fact]

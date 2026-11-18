@@ -91,6 +91,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The hardware database comes from the head of the database branch (#288); a tag from before it keeps its own.
+      - shell: bash
+        run: if [ -f release/database.sh ]; then bash release/database.sh; fi
+
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json

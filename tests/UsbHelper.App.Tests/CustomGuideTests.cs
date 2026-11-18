@@ -1,5 +1,6 @@
 using UsbHelper.App.Licensing;
 using UsbHelper.App.Settings;
+using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
@@ -79,6 +80,36 @@ public sealed class CustomGuideTests : IDisposable
         editor.SaveCommand.Execute(null);
         window.CustomGuideClosed();
         return editor;
+    }
+
+    [Fact]
+    public void ADownloadedDatabaseKeepsCustomWhenItStillFits()
+    {
+        // #290: the database is replaced while the app runs; Custom is read again against it.
+        var (window, view, _, _) = Start(unlock: true);
+        SaveBlank(window, view);
+        var newer = DatabaseFolder.Load("LENOVO", "21K5", "verified", guides: new Dictionary<string, (string, bool)> { ["pure"] = ("Pure", true) });
+
+        window.ReplaceDatabase(newer, new DatabaseVersion(new string('b', 40), DateTimeOffset.UnixEpoch, BuiltIn: false));
+
+        Assert.Equal(CustomGuide.Id, window.Guide!.Id);
+        Assert.Equal(["Pure", "USB-Helper", "Custom"], window.Guides.Select(option => option.Label));
+        Assert.Equal(["Custom"], window.Guides.Where(option => option.IsSelected).Select(option => option.Label));
+    }
+
+    [Fact]
+    public void ADownloadedDatabaseCustomNoLongerFitsFallsBackToUsbHelpersGuide()
+    {
+        // Another platform: custom.yaml's platforms no longer match, so USB-Helper's applies, as at start; the choice stays.
+        var (window, view, _, settings) = Start(unlock: true);
+        SaveBlank(window, view);
+        var newer = DatabaseFolder.Load("LENOVO", "21K5", "verified", platform: "other-p");
+
+        window.ReplaceDatabase(newer, new DatabaseVersion(new string('b', 40), DateTimeOffset.UnixEpoch, BuiltIn: false));
+
+        Assert.Equal("USB-Helper", window.Guide!.Name);
+        Assert.Equal(CustomGuide.Id, settings.CheckedGuide);
+        Assert.Contains(window.Log.Lines, line => line.Contains("Custom guide not used", StringComparison.Ordinal));
     }
 
     [Fact]

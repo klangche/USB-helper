@@ -11,6 +11,9 @@ public sealed record AppSettings
 {
     public bool CheckForUpdatesAtStart { get; set; } = true;
 
+    /// <summary>Newer database files are downloaded from the database branch at start (#290).</summary>
+    public bool DownloadDatabaseUpdates { get; set; } = true;
+
     /// <summary>Betas are offered next to stable releases.</summary>
     public bool OfferBetas { get; set; } = true;
 

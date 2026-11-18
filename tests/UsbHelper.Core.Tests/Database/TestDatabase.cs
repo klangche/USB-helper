@@ -11,7 +11,7 @@ namespace UsbHelper.Core.Tests.Database;
 internal sealed class TestDatabase : IDisposable
 {
     public const string Base = """
-        schema_version: 2
+        schema_version: 3
         usb:
           max_tiers: 7
           max_devices_per_controller: 127

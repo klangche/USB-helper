@@ -33,7 +33,7 @@ public static class ComputerProfileExport
         var dash = computer.Platform?.IndexOf('-') ?? -1;
         if (dash <= 0)
         {
-            yaml.AppendLine("# Choose 'platform' (a file in database/platforms/) and 'chip_family' (one of its chips).");
+            yaml.AppendLine("# Choose 'platform' (a file in v3/platforms/ on the database branch) and 'chip_family' (one of its chips).");
         }
         yaml.AppendLine($"platform: {Text(dash > 0 ? computer.Platform![..dash] : null)}");
         yaml.AppendLine($"chip_family: {Text(dash > 0 ? computer.Platform![(dash + 1)..] : null)}");

@@ -4,11 +4,30 @@ How the YAML database is built, how hubs and tiers are counted, and how each con
 
 ## Hardware database
 
-Human-readable YAML in `database/`, version-controlled and reviewed. Facts and advice are kept apart: platform and
-computer files hold facts, guide files hold every limit and recommendation.
+Human-readable YAML on the [`database` branch](https://github.com/klangche/USB-helper/tree/database) (#288),
+version-controlled and reviewed. Facts and advice are kept apart: platform and computer files hold facts, guide files hold
+every limit and recommendation.
+
+The branch is the only source. Each format has its own folder, `v3/` today (`schema_version: 3` in `base.yaml`), so an
+app always gets files in the format it reads; a new format adds `v4/` next to it. Every build takes the head of the
+branch: `release/database.sh` copies `v<format>/` into `database/` (ignored by git) before the build, in CI and locally.
+Run it once after cloning, and again to get the newest files. It also writes `database/.source`, the commit's full sha
+and date, which the build puts into the app with the files.
+
+A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
+start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
+(`commits?sha=database&path=v3&per_page=1`). When that commit's date is later than the database in use, it lists the
+commit's files (`git/trees/<sha>?recursive=1`), downloads every `.yaml` file of the folder from
+`raw.githubusercontent.com/klangche/USB-helper/<sha>/v3/...`, and uses them only when they load without a problem.
+No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per start
+(GitHub allows 60 an hour without a token), and the files only when they are newer.
+
+To change a file, open a pull request to the `database` branch. Its checks (`.github/workflows/database.yml`) load the
+files with the code of `dev`, and of the last release when that reads the same format, and run every test, so a file the
+app cannot read never lands.
 
 ```
-database/
+v3/ on the database branch, database/ after release/database.sh
 ├── base.yaml          facts from the USB specification
 ├── platforms/         one file per operating system, with its chips
 ├── guides/            one file per guide: usb-helper.yaml (the default), desktop.yaml, purelink.yaml, ochno.yaml,
@@ -16,8 +35,8 @@ database/
 └── computers/         one file per problem machine, by manufacturer
 ```
 
-The build puts these files into the app, so the download has no database folder. The database is only read, never
-written, by the application.
+The build puts these files into the app, so the download has no database folder. The database is only read by the
+application; a newer one it downloads is kept in `database-cache/<sha>/` next to `settings.json`.
 
 ### base.yaml
 
@@ -261,9 +280,9 @@ or other quirks. Every other computer uses its platform profile, so the list
 stays short.
 
 1. Start from a file exported by the app ("Report this machine"), or copy
-   `database/computers/.template.yaml`. Save it as
-   `database/computers/<manufacturer>/<model>.yaml`.
-2. Set `platform` (a file in `database/platforms/`), `chip_family` (one of its
+   `v3/computers/.template.yaml` on the `database` branch. Save it there as
+   `v3/computers/<manufacturer>/<model>.yaml`.
+2. Set `platform` (a file in `v3/platforms/`), `chip_family` (one of its
    chips), `manufacturer`
    and `model` exactly as the computer reports them. Do not add an `id`: it is
    computed (see below). If the model is a technical string (for example
@@ -276,11 +295,12 @@ stays short.
 4. Fill in only values you can cite. List every source in `sources`, set
    `verification.status` and `verification.last_checked` (`YYYY-MM-DD`).
    Remove template fields you do not need; they then inherit.
-5. Run `dotnet test`: it loads the whole database and reports any problem.
-6. Open a pull request. Changes to verified values need review; the git history
+5. To check it locally, copy it into `database/computers/` of a `dev` checkout and run `dotnet test`: it loads the
+   whole database and reports any problem. The pull request runs the same check.
+6. Open a pull request to the `database` branch. Changes to verified values need review; the git history
    keeps every correction.
-7. The database is built into the app, so users get the change with the next
-   release or beta build; an existing download keeps its own database.
+7. Once merged, running apps of the same format download the change at their next start (unless "Download database
+   updates" is off), and every build after it has it built in.
 
 A computer profile's id is never written in the file. The app computes it from
 `manufacturer` and `model` (ignoring case and extra spaces): 6 lowercase letters
