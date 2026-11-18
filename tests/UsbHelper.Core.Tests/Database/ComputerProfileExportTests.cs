@@ -92,7 +92,7 @@ public class ComputerProfileExportTests
 
         Assert.Contains("platform: null", yaml);
         Assert.Contains("chip_family: null", yaml);
-        Assert.Contains("# Choose 'platform' (a file in database/platforms/) and 'chip_family' (one of its chips).", yaml);
+        Assert.Contains("# Choose 'platform' (a file in v3/platforms/ on the database branch) and 'chip_family' (one of its chips).", yaml);
         using var db = new TestDatabase().Write("computers/export.yaml", yaml);
         Assert.Equal(["Field 'platform' is required and must be text.", "Field 'chip_family' is required and must be text."],
             db.LoadErrors().Select(error => error.Message));

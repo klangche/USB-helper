@@ -90,9 +90,14 @@
     <DefineConstants>$(DefineConstants);USBH_FREE_UNLOCK</DefineConstants>
   </PropertyGroup>
 
-  <!-- The hardware database is built into the app (#102); database/ in the repository is its source. -->
+  <!-- The hardware database is built into the app (#102). Its source is the database branch (#288): release/database.sh
+       puts it in database/ before a build. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\database\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+  <Target Name="RequireDatabase" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\..\database\base.yaml')"
+           Text="database/ is missing: run release/database.sh to fetch the hardware database from the database branch (#288)." />
+  </Target>
 
 </Project>

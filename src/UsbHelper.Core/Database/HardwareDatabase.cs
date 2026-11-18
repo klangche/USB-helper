@@ -10,7 +10,7 @@ namespace UsbHelper.Core.Database;
 public sealed class HardwareDatabase
 {
     private const string BaseFile = "base.yaml";
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     // Kept for guides read later, such as custom.yaml (#300): they are checked against the same platforms, chips and tiers.
     private readonly IReadOnlyDictionary<string, List<string>> chips;

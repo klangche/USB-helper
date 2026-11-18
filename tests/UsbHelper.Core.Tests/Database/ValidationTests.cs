@@ -274,15 +274,15 @@ public class ValidationTests
     [Fact]
     public void WrongSchemaVersionIsRejected()
     {
-        using var db = new TestDatabase().Write("base.yaml", TestDatabase.Base.Replace("schema_version: 2", "schema_version: 1"));
+        using var db = new TestDatabase().Write("base.yaml", TestDatabase.Base.Replace("schema_version: 3", "schema_version: 2"));
 
-        Single(db.LoadErrors(), "base.yaml", 1, "'schema_version' must be 2");
+        Single(db.LoadErrors(), "base.yaml", 1, "'schema_version' must be 3");
     }
 
     [Fact]
     public void BaseMustSetTheUsbMaximum()
     {
-        using var db = new TestDatabase().Write("base.yaml", "schema_version: 2\n");
+        using var db = new TestDatabase().Write("base.yaml", "schema_version: 3\n");
 
         Single(db.LoadErrors(), "base.yaml", 1, "Field 'usb.max_tiers' is required");
     }

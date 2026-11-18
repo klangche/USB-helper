@@ -35,7 +35,7 @@ internal static class DatabaseFolder
         {
             Directory.CreateDirectory(Path.Combine(folder, subfolder));
         }
-        File.WriteAllText(Path.Combine(folder, "base.yaml"), "schema_version: 2\nusb:\n  max_tiers: 7\n  max_devices_per_controller: 127\n");
+        File.WriteAllText(Path.Combine(folder, "base.yaml"), "schema_version: 3\nusb:\n  max_tiers: 7\n  max_devices_per_controller: 127\n");
         File.WriteAllText(Path.Combine(folder, "platforms", $"{file}.yaml"),
             $"name: \"{file}\"\nchips:\n  {chip}: {{ name: {chip}, built_in_hub_levels: 0 }}\n  computer: {{ name: Computer, built_in_hub_levels: 0 }}\n");
         File.WriteAllText(Path.Combine(folder, "computers", $"{computerFile}.yaml"), $"""

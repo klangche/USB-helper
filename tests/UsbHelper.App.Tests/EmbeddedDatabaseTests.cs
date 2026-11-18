@@ -16,7 +16,7 @@ public class EmbeddedDatabaseTests
                 return candidate;
             }
         }
-        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder.");
+        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
     // Every value with its path, kind, file and line, so two loads can be compared as text.
