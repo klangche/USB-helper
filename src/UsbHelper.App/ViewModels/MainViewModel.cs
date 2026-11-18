@@ -606,7 +606,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The view that carries out the commands below; set by the main window.</summary>
     public IMainWindowActions? Window { get; set; }
 
-    /// <summary>File > Export computer profile and the top bar button; enabled when <see cref="CanExport"/>.</summary>
+    /// <summary>File > Report this machine and the button in "Known issues"; enabled when <see cref="CanExport"/>.</summary>
     public RelayCommand ExportProfileCommand { get; }
 
     /// <summary>File > Export log: the same export as the log window's button.</summary>

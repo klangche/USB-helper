@@ -363,4 +363,15 @@ public class GuideRulesTests
     [InlineData(6, ConnectionStatus.Purple)]
     public void CrestronCountsSevenTiers(int hubs, ConnectionStatus status) =>
         Assert.Equal(status, StatusOf("windows-intel", hubs, Device("KEYBOARD"), Db.Guides["crestron"]));
+
+    // Desktop is the freest setup, exactly the USB specification: nothing turns orange, only above 7 tiers is
+    // unstable, and cameras get no stricter rule (owner 2026-11-18). Windows Intel: N hubs = tier N + 2.
+    [Theory]
+    [InlineData(5, ConnectionStatus.Green)]
+    [InlineData(6, ConnectionStatus.Purple)]
+    public void DesktopFollowsTheUsbStandardOnly(int hubs, ConnectionStatus status)
+    {
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Device("KEYBOARD"), Db.Guides["desktop"]));
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Camera, Db.Guides["desktop"]));
+    }
 }

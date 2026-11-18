@@ -431,7 +431,8 @@ public class RealDatabaseTests
         var desktop = db.Guides["desktop"];
 
         Assert.Equal(7L, desktop.Limit(windows.Platform, windows.Chip, "tiers.max")!.Number);
-        Assert.Equal(6L, desktop.Limit(windows.Platform, windows.Chip, "tiers.recommended")!.Number);
+        Assert.Null(desktop.Limit(windows.Platform, windows.Chip, "tiers.recommended")!.Number); // none: the freest setup.
+        Assert.Null(desktop.Limit(windows.Platform, windows.Chip, "camera_audio.tiers.max")!.Number);
         Assert.Null(desktop.Limit(windows.Platform, windows.Chip, "usb2.hubs.max")!.Number); // none: no hub count limit.
     }
 }

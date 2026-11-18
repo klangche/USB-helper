@@ -89,7 +89,7 @@
     <value>Export</value>
   </data>
   <data name="ExportProfile" xml:space="preserve">
-    <value>Export computer profile</value>
+    <value>Report this machine</value>
   </data>
   <data name="ExportTitle" xml:space="preserve">
     <value>Save this computer as a computer profile</value>
@@ -418,7 +418,7 @@ This version keeps running.</value>
     <value>_File</value>
   </data>
   <data name="MenuExportProfile" xml:space="preserve">
-    <value>_Export computer profile...</value>
+    <value>Report this _machine...</value>
   </data>
   <data name="MenuExportLog" xml:space="preserve">
     <value>Export _log...</value>

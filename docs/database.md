@@ -157,7 +157,7 @@ How to read a value:
 | Guide | Values |
 |---|---|
 | `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): counts tiers and hubs; hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; chain 3 / 5 and cameras and audio 1 / 3 (its tiers minus 2), filled in as the fallback, not judged; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources or link: the owner keeps them in a separate document. |
-| `desktop` | General purpose: counts tiers only (no hub limit), tiers 6 / 7. |
+| `desktop` | General purpose and the freest: exactly the USB specification, tiers at most 7, no recommendation, no hub count, no camera rule. |
 | `purelink` | PureLink's USB-C whitepaper v3 (Robin Cullen, 8 Oct 2025, not published yet, so no link): `count: [tiers]`, tiers 4 recommended / 7 max, cameras and audio 3 / 4. No per-platform numbers. |
 | `extron` | Extron's "USB-C for Pro AV" design guide, linked to its article page: `count: [chain]`, at most five cascading hubs, no recommendation, no camera rule. |
 | `crestron` | Crestron's knowledge article 3082 "USB Tiers" (linked; needs a Crestron login): `count: [tiers]`, never more than 7, no recommendation, no camera rule. |
@@ -260,7 +260,7 @@ from its platform profile through built-in hubs, unusual ports, display limits
 or other quirks. Every other computer uses its platform profile, so the list
 stays short.
 
-1. Start from a file exported by the app ("Export computer profile"), or copy
+1. Start from a file exported by the app ("Report this machine"), or copy
    `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `platform` (a file in `database/platforms/`), `chip_family` (one of its

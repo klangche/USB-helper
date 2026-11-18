@@ -1,9 +1,10 @@
 # =============================================================================
 # Desktop  –  General-purpose guide
 # =============================================================================
-# For everyday desks and offices rather than ProAV rooms: it follows the USB
-# specification (USB-IF) and is more generous than the ProAV guides. Seven
-# tiers on a path is the hard limit; there is no limit on the number of hubs.
+# For everyday desks and offices rather than ProAV rooms: exactly the USB
+# specification (USB-IF), the freest setup. Seven tiers on a path is the only
+# limit (and 127 devices per controller, in base.yaml); no recommendation, no
+# hub count, no stricter rule for cameras and audio.
 #
 # How to edit
 #   - Leave a value empty  → fall back to the value above it
@@ -26,7 +27,7 @@ limits:
     recommended: none                 # the USB specification sets no hub count, only tiers
     max: none
   tiers:
-    recommended: 6
+    recommended: none                 # the USB specification has no recommendation
     max: 7                            # USB-IF absolute maximum
   chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
     recommended:
@@ -44,13 +45,13 @@ limits:
       hubs:
         recommended:
         max:
-  camera_audio:
+  camera_audio:                       # the USB specification has no camera or audio rule
     tiers:
-      recommended: 5
-      max: 7
+      recommended: none
+      max: none
     chain:
-      recommended:
-      max:
+      recommended: none
+      max: none
   exceeded_note: "Beyond the USB specification – devices may fail to enumerate."
 
 
