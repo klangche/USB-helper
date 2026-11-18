@@ -158,7 +158,10 @@ How to read a value:
 |---|---|
 | `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): counts tiers and hubs; hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; chain 3 / 5 and cameras and audio 1 / 3 (its tiers minus 2), filled in as the fallback, not judged; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources or link: the owner keeps them in a separate document. |
 | `desktop` | General purpose: counts tiers only (no hub limit), tiers 6 / 7. |
-| `purelink`, `unisynk`, `extron`, `crestron` | The owner's files of 2026-11-17, all selectable; count tiers and hubs for now, as their texts are not verified yet; chain and hubs per bus empty; `mst` 0 on macOS. Extron and Crestron link their pages. |
+| `purelink` | PureLink's USB-C whitepaper v3 (Robin Cullen, 8 Oct 2025, not published yet, so no link): `count: [tiers]`, tiers 4 recommended / 7 max, cameras and audio 3 / 4. No per-platform numbers. |
+| `extron` | Extron's "USB-C for Pro AV" design guide, linked to its article page: `count: [chain]`, at most five cascading hubs, no recommendation, no camera rule. |
+| `crestron` | Crestron's knowledge article 3082 "USB Tiers" (linked; needs a Crestron login): `count: [tiers]`, never more than 7, no recommendation, no camera rule. |
+| `unisynk` | The owner's file of 2026-11-17; counts tiers and hubs for now, as its text is not verified yet. |
 | `ochno` | Follows Ochno's own guide (#310): counts the chain only, at most 5 hubs daisy-chained, no recommendation and no separate limit for cameras and audio devices; no tier or hub numbers and no platform or chip overrides. Links its guide page. |
 
 ### Custom guide

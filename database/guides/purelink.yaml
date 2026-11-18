@@ -1,9 +1,13 @@
 # =============================================================================
 # PureLink  –  Manufacturer guide
 # =============================================================================
-# Values taken from the PureLink USB-C whitepaper (Robin Cullen, Oct 2025).
-# PureLink is more conservative than the USB-IF maximum, especially for
-# isochronous devices (cameras / microphones).
+# From PureLink's "USB-C Technology" whitepaper v3 (Robin Cullen, 8 Oct 2025;
+# not published yet). "USB supports a maximum of seven tiers along any
+# individual connection path", and "this limit applies to the number of hubs
+# connected in series, not the total number of hubs". PureLink recommends
+# "keeping hub depth as low as practical, ideally within four tiers", "a
+# conservative design preference, not a USB-IF limitation". Webcams and audio
+# interfaces: "Limit to 3–4 tiers max". So PureLink counts tiers only.
 #
 # How to edit
 #   - Leave a value empty  → fall back to the value above it
@@ -14,21 +18,20 @@
 name: PureLink
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
-count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
-link:
-
+count: [tiers]                        # PureLink counts tiers on each path, not the total number of hubs
+link:                                 # the whitepaper is not published yet
 
 # -----------------------------------------------------------------------------
 # Global defaults
 # -----------------------------------------------------------------------------
 limits:
-  hubs:
-    recommended: 3
-    max: 5
-  tiers:
-    recommended: 4                    # PureLink recommended practice
-    max: 7                            # USB-IF absolute maximum
-  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+  hubs:                            # not counted by PureLink
+    recommended:
+    max:
+  tiers:                           # "ideally within four tiers"; seven is the USB maximum
+    recommended: 4
+    max: 7
+  chain:                           # not counted by PureLink
     recommended:
     max:
   buses:                              # empty: this guide's hubs above, then USB-Helper's
@@ -44,14 +47,14 @@ limits:
       hubs:
         recommended:
         max:
-  camera_audio:                       # stricter for isochronous traffic
+  camera_audio:                       # "Limit to 3–4 tiers max" for webcams and audio
     tiers:
       recommended: 3
       max: 4
     chain:
-      recommended:
-      max:
-  exceeded_note: "Too many hubs/tiers – video or audio may drop frames."
+      recommended: none
+      max: none
+  exceeded_note: "PureLink: keep hub depth within four tiers; cameras and audio within 3–4."
 
 
 # =============================================================================
@@ -70,17 +73,11 @@ platforms:
 
       amd:
         mst: 1
-        limits:
-          tiers:
-            recommended: 3            # AMD controllers sometimes less tolerant
-            max: 6
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -97,17 +94,11 @@ platforms:
 
       apple-silicon:                    # M1 / M2 / M3 / M4 / M-series
         mst: 0
-        limits:
-          tiers:
-            recommended: 4
-            max: 6
+        limits: {}
 
       a-series:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -128,10 +119,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -152,10 +140,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -163,13 +148,7 @@ platforms:
 # =============================================================================
   apple-mobile:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       a-series:
@@ -186,13 +165,7 @@ platforms:
 # =============================================================================
   android:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       phone-qualcomm:
@@ -206,6 +179,6 @@ platforms:
 
 # -----------------------------------------------------------------------------
 sources:
-  - "PureLink USB-C Technology whitepaper v3 (Robin Cullen, 8-Oct-2025)"
-  - "USB-IF: maximum 7 tiers on a path; PureLink recommends ≤ 4 tiers in ProAV"
-  - "PureLink: keep camera/audio devices within 3–4 tiers"
+  - "PureLink, USB-C Technology whitepaper v3 (Robin Cullen, 8 Oct 2025), not published yet"
+  - "PureLink: maximum seven tiers on a connection path; the limit is hubs in series, not the total number of hubs"
+  - "PureLink: ideally within four tiers in ProAV; webcams and audio interfaces 3–4 tiers at most"

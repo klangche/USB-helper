@@ -1,12 +1,15 @@
 # =============================================================================
 # Crestron  –  Manufacturer guide
 # =============================================================================
-# Based on Crestron’s USB Tiers knowledge article and product documentation
-# for USB-EXT, DM-NUX and DM Essentials series.
-#
-# Crestron treats the USB-IF 7-tier limit as absolute. Every hub, extender or
-# inline device adds at least one tier. Product sheets commonly allow up to
-# 4 external hubs in a chain (plus the local/remote pair).
+# From Crestron's knowledge article 3082 "USB Tiers" (Oct 22, 2026; behind a
+# Crestron login). "The host is always tier 1 and the device is always the
+# final tier." "There can never be more than 7 tiers in a single USB signal
+# chain. Beyond 7 tiers, devices will fail to enumerate." A laptop's internal
+# hub already makes its ports tier 2 (the chip's built-in hub levels here), hub
+# products with more than four ports hold two hubs, extender pairs commonly use
+# two tiers, and an active cable adds a tier for each extra 5 m (USB 2) or 3 m
+# (USB 3): mark it "+1 Tier". So Crestron counts tiers only, at most 7, with no
+# separate recommendation and no camera rule.
 #
 # How to edit
 #   - Leave a value empty  → fall back to the value above it
@@ -17,21 +20,20 @@
 name: Crestron
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
-count: [tiers, hubs]                  # for now: the texts behind this guide are not verified yet
-link: https://community.crestron.com/s/article/3082
-
+count: [tiers]                        # Crestron counts tiers on each signal chain
+link: https://community.crestron.com/s/article/3082#What_Is_A_Tier
 
 # -----------------------------------------------------------------------------
 # Global defaults
 # -----------------------------------------------------------------------------
 limits:
-  hubs:
-    recommended: 3
-    max: 4
-  tiers:
-    recommended: 5
-    max: 7                            # USB-IF absolute maximum (Crestron enforces this)
-  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+  hubs:                            # not counted by Crestron
+    recommended:
+    max:
+  tiers:                           # "never more than 7 tiers in a single USB signal chain"
+    recommended: none
+    max: 7
+  chain:                           # not counted by Crestron
     recommended:
     max:
   buses:                              # empty: this guide's hubs above, then USB-Helper's
@@ -47,14 +49,14 @@ limits:
       hubs:
         recommended:
         max:
-  camera_audio:                       # isochronous devices should sit higher in the tree
+  camera_audio:                       # no camera or audio rule in the article
     tiers:
-      recommended: 3
-      max: 5
+      recommended: none
+      max: none
     chain:
-      recommended:
-      max:
-  exceeded_note: "USB topology is deep – devices may fail to enumerate (Crestron 7-tier limit)."
+      recommended: none
+      max: none
+  exceeded_note: "Crestron: never more than 7 tiers; beyond that devices fail to enumerate."
 
 
 # =============================================================================
@@ -73,17 +75,11 @@ platforms:
 
       amd:
         mst: 1
-        limits:
-          tiers:
-            recommended: 4
-            max: 6
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -100,17 +96,11 @@ platforms:
 
       apple-silicon:
         mst: 0
-        limits:
-          tiers:
-            recommended: 4
-            max: 6
+        limits: {}
 
       a-series:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -131,10 +121,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -155,10 +142,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
 
 # =============================================================================
@@ -166,13 +150,7 @@ platforms:
 # =============================================================================
   apple-mobile:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       a-series:
@@ -189,13 +167,7 @@ platforms:
 # =============================================================================
   android:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       phone-qualcomm:
@@ -209,7 +181,6 @@ platforms:
 
 # -----------------------------------------------------------------------------
 sources:
-  - "https://community.crestron.com/s/article/3082  (USB Tiers knowledge article)"
-  - "Crestron USB-EXT-2 / USB-EXT-3 product documentation: up to 4 USB hubs supported in chain"
-  - "DM-NUX series notes: refer to Knowledge Article 3082 for tier and bandwidth management"
-  - "USB-IF maximum of 7 tiers; Crestron treats this as a hard limit"
+  - "https://community.crestron.com/s/article/3082#What_Is_A_Tier"
+  - "Crestron knowledge article 3082, USB Tiers (Oct 22, 2026): host tier 1, device the final tier, never more than 7 tiers"
+  - "Crestron: built-in host hubs, hub products with more than four ports and extender pairs each add tiers; an active cable adds a tier per extra 5 m (USB 2) or 3 m (USB 3)"
