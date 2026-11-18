@@ -55,7 +55,7 @@ a code, and never put one in an issue, pull request or test.
   hub IOCTLs).
 - `src/UsbHelper.App`: the GUI. Run it from source on Windows with
   `dotnet run --project src/UsbHelper.App`. It reads the database built into
-  it from `database/` (rebuild after a database change), picks the computer
+  it from `database/`, which `release/database.sh` fetches from the `database` branch (rebuild after fetching), picks the computer
   profile only when the manufacturer and model reported by Windows match a
   profile exactly, and otherwise lets the user choose. All texts it shows are in
   `src/UsbHelper.App/Resources/Strings.resx`. The update check (`Update/UpdateCheck`,

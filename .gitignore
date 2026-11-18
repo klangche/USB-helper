@@ -8,3 +8,6 @@ obj/
 .wix/
 License.rtf
 decompiled.wxs
+
+# The hardware database lives on the database branch (#288); release/database.sh puts it here for builds and tests.
+/database/
