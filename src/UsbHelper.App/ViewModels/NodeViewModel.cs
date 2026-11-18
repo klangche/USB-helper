@@ -265,6 +265,13 @@ public sealed class NodeViewModel : ObservableObject
 
     public bool HasStatus => Status != null;
 
+    /// <summary>A warning that is not a status (#296): "⚠ no MST" on a display that is duplicated; null for none.</summary>
+    public string? WarningBadge
+    {
+        get;
+        private set => SetField(ref field, value);
+    }
+
     /// <summary>The result word on the right, in <see cref="LineColor"/>; null for controllers, root hubs and ports.</summary>
     public string? StatusWord => Status is { } value ? StatusColors.Word(value) : null;
 
@@ -566,6 +573,7 @@ public sealed class NodeViewModel : ObservableObject
             item.Text = string.Format(CultureInfo.CurrentCulture, Strings.MonitorItem, monitor.Name ?? Strings.MonitorUnnamed, OutputText(monitor.Output));
             item.IsLast = i == monitors.Count - 1;
             item.Status = report.Connections.TryGetValue(monitor.Id, out var status) ? status : null;
+            item.WarningBadge = report.NoMstMonitors.Contains(monitor.Id) ? Strings.NoMstBadge : null;
             item.PathStatus = item.Status;
         }
         while (Children.Count > start + monitors.Count)

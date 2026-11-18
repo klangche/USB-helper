@@ -35,8 +35,8 @@ public class ReportFindingsTests
     [InlineData("Not on the left port (unverified, computers/c.yaml)", "Not on the left port (Hardware database, unverified)")]
     [InlineData("2 DisplayPort displays are active; whether Dell Latitude 7450 supports MST (displays.mst) is unknown (computers/c.yaml).",
         "2 DisplayPort displays are active; whether Dell Latitude 7450 supports MST is unknown (Hardware database).")]
-    [InlineData("No MST on X: this display is duplicated; use a second USB-C port or DisplayLink. (displays.mst comes from an unverified profile, computers/c.yaml)",
-        "No MST on X: this display is duplicated; use a second USB-C port or DisplayLink. (Hardware database, unverified)")]
+    [InlineData("⚠ No MST on X: this display is duplicated; use a second USB-C port or DisplayLink. (displays.mst comes from an unverified profile, computers/c.yaml)",
+        "⚠ No MST on X: this display is duplicated; use a second USB-C port or DisplayLink. (Hardware database, unverified)")]
     [InlineData("Disconnected and reconnected during this session.", "Disconnected and reconnected during this session.")]
     // File names with parentheses, from computer and platform profiles, verified and unverified.
     [InlineData("limits.max_hubs = 4 (computers/Dell XPS (1).yaml).", "External hubs: 4 (Hardware database).")]
@@ -46,8 +46,8 @@ public class ReportFindingsTests
     [InlineData("limits.max_hubs is unknown (platforms/win (1).yaml).", "External hubs: unknown (Hardware database).")]
     [InlineData("displays.max_external = 2 comes from an unverified profile (computers/Dell XPS (1).yaml); it is not confirmed.",
         "External displays: 2 (Hardware database, unverified).")]
-    [InlineData("No MST on X: this display is duplicated. (displays.mst comes from an unverified profile, computers/Dell XPS (1).yaml)",
-        "No MST on X: this display is duplicated. (Hardware database, unverified)")]
+    [InlineData("⚠ No MST on X: this display is duplicated. (displays.mst comes from an unverified profile, computers/Dell XPS (1).yaml)",
+        "⚠ No MST on X: this display is duplicated. (Hardware database, unverified)")]
     public void Messages_name_the_check_and_the_hardware_database_not_fields_and_files(string message, string expected)
     {
         Assert.Equal(expected, ReportFindings.Readable(message, Files));

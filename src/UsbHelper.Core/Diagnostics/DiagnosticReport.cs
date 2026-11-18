@@ -27,7 +27,10 @@ public sealed record DiagnosticReport(
     /// More than one DisplayPort display is active and the profile does not support MST (#296): a warning, not a status;
     /// the displays stay green.
     /// </summary>
-    public bool NoMst { get; init; }
+    public bool NoMst => NoMstMonitors.Count > 0;
+
+    /// <summary>The displays that are duplicated for lack of MST, by monitor id: each gets a "⚠ no MST" warning.</summary>
+    public IReadOnlySet<string> NoMstMonitors { get; init; } = new HashSet<string>();
 
     /// <summary>
     /// The bus whose hub check <see cref="Hubs"/> is, as hubs are judged per bus (#195); null when no bus is known and

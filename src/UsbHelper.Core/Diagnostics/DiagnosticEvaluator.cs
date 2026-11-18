@@ -340,11 +340,14 @@ public static class DiagnosticEvaluator
         }
 
         var (displays, displayContribution) = DisplayEvaluator.Evaluate(tree, profile, externalDisplays, computer, findings);
-        var noMst = false;
+        var noMst = new HashSet<string>();
         foreach (var (monitor, status) in DisplayEvaluator.Mst(profile, monitors ?? [], computer, findings, guide))
         {
             connections[monitor] = status;
-            noMst |= findings.Any(finding => finding.SubjectId == monitor && finding.Brief.StartsWith("No MST", StringComparison.Ordinal));
+            if (findings.Any(finding => finding.SubjectId == monitor && finding.Brief.StartsWith("⚠ No MST", StringComparison.Ordinal)))
+            {
+                noMst.Add(monitor);
+            }
         }
 
         var overall = connections.Values
@@ -357,7 +360,7 @@ public static class DiagnosticEvaluator
         return new DiagnosticReport(overall, connections, hubs, tiers, displays, disconnected, findings)
         {
             Depths = depths,
-            NoMst = noMst,
+            NoMstMonitors = noMst,
             HubsBus = hubsMax.First(each => ReferenceEquals(each.Check, hubs)).Bus,
             Chain = chain,
             Counted = counted,
