@@ -1,0 +1,25 @@
+name: iPhone and iPad
+
+chips:
+  a-series:
+    name: A-series
+    architecture: arm64
+    built_in_hub_levels: 2
+  m-series:
+    name: M-series
+    architecture: arm64
+    built_in_hub_levels: null
+
+notes:
+  - "Generic Apple A-series mobile device profile (iOS, iPadOS). Not a Mac computer profile."
+  - "File name apple-mobile matches the guide files (owner decision 2026-11-17)."
+  - "m-series, built_in_hub_levels null: not measured yet on an M-series iPad, so unknown."
+  - "a-series, built_in_hub_levels 2: A-series devices use three of the seven tiers themselves, one more than M-series Macs (Lightware, measured on the MacBook Neo, which has an A-series chip), which leaves three hubs (owner decision 2026-11-16)."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://www.lightware.com/en/news/macbook-neo-usbc-av-design-usb-topology-challenges (Lightware, 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15: tiers used by M-series MacBooks and the MacBook Neo)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

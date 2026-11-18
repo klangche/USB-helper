@@ -1,0 +1,27 @@
+name: Ubuntu
+
+chips:
+  intel:
+    name: Intel
+    architecture: x64
+    built_in_hub_levels: 0
+  amd:
+    name: AMD
+    architecture: x64
+    built_in_hub_levels: 0
+  arm:
+    name: ARM
+    architecture: arm64
+    built_in_hub_levels: 0
+
+notes:
+  - "Ubuntu, one entry per processor (owner decision 2026-11-17: Ubuntu and Debian are separate operating systems in the menu)."
+  - "built_in_hub_levels 0 for all chips, as the generic Linux profile before it: five hubs fit in a row (PureLink)."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.linuxArm; config version 1.0.0, 2026-02-24)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

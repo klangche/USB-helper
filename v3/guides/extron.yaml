@@ -1,0 +1,185 @@
+# =============================================================================
+# Extron  –  Manufacturer guide
+# =============================================================================
+# From Extron's "USB-C for Pro AV" design guide: "USB bus topology consists of
+# seven tiers, each starting with a USB hub. The first of the seven tiers is the
+# host device and its root hub. The last tier is the final peripheral in the
+# chain. That leaves a maximum of five additional hubs in your signal chain."
+# Extenders use one or two hubs in the transmitter and receivers with several
+# ports contain a hub: "Each of these hubs counts toward the five cascading hub
+# limit." So Extron counts hubs in a row (chain), max 5, with no separate
+# recommendation and no camera rule.
+#
+# How to edit
+#   - Leave a value empty  → fall back to the value above it
+#   - Write a number       → that is the limit
+#   - Write "none"         → deliberately no limit
+# =============================================================================
+
+name: Extron
+selectable: true
+proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [chain]                        # Extron counts cascading hubs in front of a device
+link: https://www.extron.com/article/usb-c-connectivity-for-pro-av
+
+# -----------------------------------------------------------------------------
+# Global defaults
+# -----------------------------------------------------------------------------
+limits:
+  hubs:                            # not counted by Extron
+    recommended:
+    max:
+  tiers:                           # not counted by Extron (seven tiers = five hubs in a row)
+    recommended:
+    max:
+  chain:                           # "the five cascading hub limit"
+    recommended: none
+    max: 5
+  buses:                              # empty: this guide's hubs above, then USB-Helper's
+    usb2:
+      hubs:
+        recommended:
+        max:
+    usb3:
+      hubs:
+        recommended:
+        max:
+    usb4:
+      hubs:
+        recommended:
+        max:
+  camera_audio:                       # no camera or audio rule in the guide
+    tiers:
+      recommended: none
+      max: none
+    chain:
+      recommended: none
+      max: none
+  exceeded_note: "Extron: at most five cascading hubs, extender and receiver hubs included."
+
+
+# =============================================================================
+# WINDOWS
+# =============================================================================
+platforms:
+
+  windows:
+    mst: 1
+    limits: {}
+
+    chips:
+      intel:
+        mst: 1
+        limits: {}
+
+      amd:
+        mst: 1
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# macOS
+# =============================================================================
+  macos:
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      apple-silicon:
+        mst: 0
+        limits: {}
+
+      a-series:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# LINUX: UBUNTU
+# =============================================================================
+  ubuntu:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      amd:
+        mst: 0
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# LINUX: DEBIAN
+# =============================================================================
+  debian:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      amd:
+        mst: 0
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# APPLE MOBILE  (iPhone / iPad)
+# =============================================================================
+  apple-mobile:
+    mst: 0
+    limits: {}
+
+    chips:
+      a-series:
+        mst: 0
+        limits: {}
+
+      m-series:
+        mst: 0
+        limits: {}
+
+
+# =============================================================================
+# ANDROID
+# =============================================================================
+  android:
+    mst: 0
+    limits: {}
+
+    chips:
+      phone-qualcomm:
+        mst: 0
+        limits: {}
+
+      tablet-exynos:
+        mst: 0
+        limits: {}
+
+
+# -----------------------------------------------------------------------------
+sources:
+  - "https://www.extron.com/article/usb-c-connectivity-for-pro-av"
+  - "Extron, USB-C for Pro AV design guide: seven tiers, so at most five additional hubs in the signal chain"
+  - "Extron: extender transmitter hubs (one or two) and receiver hubs count toward the five cascading hub limit"

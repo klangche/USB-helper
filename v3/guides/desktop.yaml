@@ -1,0 +1,185 @@
+# =============================================================================
+# Desktop  –  General-purpose guide
+# =============================================================================
+# For everyday desks and offices rather than ProAV rooms: exactly the USB
+# specification (USB-IF), the freest setup. Seven tiers on a path is the only
+# limit (and 127 devices per controller, in base.yaml); no recommendation, no
+# hub count, no stricter rule for cameras and audio.
+#
+# How to edit
+#   - Leave a value empty  → fall back to the value above it
+#   - Write a number       → that is the limit
+#   - Write "none"         → deliberately no limit
+# =============================================================================
+
+name: Desktop
+selectable: true
+proav: 0                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [tiers]                        # no hub limit, so hubs are not counted
+link:
+
+
+# -----------------------------------------------------------------------------
+# Global defaults
+# -----------------------------------------------------------------------------
+limits:
+  hubs:
+    recommended: none                 # the USB specification sets no hub count, only tiers
+    max: none
+  tiers:
+    recommended: none                 # the USB specification has no recommendation
+    max: 7                            # USB-IF absolute maximum
+  chain:                              # hubs daisy-chained in front of a device, built-in hub levels included
+    recommended:
+    max:
+  buses:                              # empty: this guide's hubs above, then USB-Helper's
+    usb2:
+      hubs:
+        recommended:
+        max:
+    usb3:
+      hubs:
+        recommended:
+        max:
+    usb4:
+      hubs:
+        recommended:
+        max:
+  camera_audio:                       # the USB specification has no camera or audio rule
+    tiers:
+      recommended: none
+      max: none
+    chain:
+      recommended: none
+      max: none
+  exceeded_note: "Beyond the USB specification – devices may fail to enumerate."
+
+
+# =============================================================================
+# WINDOWS
+# =============================================================================
+platforms:
+
+  windows:
+    mst: 1
+    limits: {}
+
+    chips:
+      intel:
+        mst: 1
+        limits: {}
+
+      amd:
+        mst: 1
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+
+# =============================================================================
+# macOS
+# =============================================================================
+  macos:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      apple-silicon:
+        mst: 0
+        limits: {}
+
+      a-series:
+        mst: 0
+        limits: {}
+
+
+
+# =============================================================================
+# LINUX: UBUNTU
+# =============================================================================
+  ubuntu:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      amd:
+        mst: 0
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+
+# =============================================================================
+# LINUX: DEBIAN
+# =============================================================================
+  debian:
+    mst: 0
+    limits: {}
+
+    chips:
+      intel:
+        mst: 0
+        limits: {}
+
+      amd:
+        mst: 0
+        limits: {}
+
+      arm:
+        mst: 0
+        limits: {}
+
+
+
+# =============================================================================
+# APPLE MOBILE  (iPhone / iPad)
+# =============================================================================
+  apple-mobile:
+    mst: 0
+    limits: {}
+
+    chips:
+      a-series:
+        mst: 0
+        limits: {}
+
+      m-series:
+        mst: 0
+        limits: {}
+
+
+
+# =============================================================================
+# ANDROID
+# =============================================================================
+  android:
+    mst: 0
+    limits: {}
+
+    chips:
+      phone-qualcomm:
+        mst: 0
+        limits: {}
+
+      tablet-exynos:
+        mst: 0
+        limits: {}
+
+
+# -----------------------------------------------------------------------------
+sources:
+  - "USB 2.0 and USB 3.x specifications (USB-IF): at most 7 tiers on a path, host included"
