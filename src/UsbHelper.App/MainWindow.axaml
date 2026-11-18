@@ -315,10 +315,13 @@
                     <TextBlock Text="{Binding PortBadge}" />
                   </Border>
                   <!-- A warning that is not a status (#296): "⚠ no MST" on a display duplicated for lack of MST. -->
-                  <Border BorderThickness="1" CornerRadius="3" Padding="4,0" VerticalAlignment="Center" BorderBrush="#C77700"
-                          IsVisible="{Binding WarningBadge, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <TextBlock Text="{Binding WarningBadge}" FontWeight="SemiBold" Foreground="#C77700" />
-                  </Border>
+                  <!-- The triangle at the text's size, "no MST" smaller, in the warning's orange; hovering the row explains it. -->
+                  <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center"
+                              IsVisible="{Binding WarningBadge, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="⚠" Foreground="#EF6C00" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Static res:Strings.NoMstShort}" FontSize="10" FontWeight="SemiBold" Foreground="#EF6C00"
+                               VerticalAlignment="Center" />
+                  </StackPanel>
                   <!-- The result word, in the same colour as the elbow, only when the row is not stable. -->
                   <TextBlock Text="{Binding RowStatusWord}" FontWeight="SemiBold"
                              IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"

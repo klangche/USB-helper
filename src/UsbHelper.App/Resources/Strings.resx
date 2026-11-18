@@ -22,6 +22,12 @@
   <data name="NoMstWarning" xml:space="preserve">
     <value>⚠ no MST: a second DisplayPort display is duplicated</value>
   </data>
+  <data name="NoMstShort" xml:space="preserve">
+    <value>no MST</value>
+  </data>
+  <data name="NoMstTip" xml:space="preserve">
+    <value>Warning: a selected operating system or chip does not natively support MST, so this display is duplicated. Use a second USB-C port or DisplayLink to extend it.</value>
+  </data>
   <data name="NoMstBadge" xml:space="preserve">
     <value>⚠ no MST</value>
   </data>

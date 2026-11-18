@@ -269,7 +269,16 @@ public sealed class NodeViewModel : ObservableObject
     public string? WarningBadge
     {
         get;
-        private set => SetField(ref field, value);
+        private set
+        {
+            if (SetField(ref field, value))
+            {
+                OnPropertyChanged(nameof(LineColor));
+                OnPropertyChanged(nameof(ElbowColor));
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(RowTip));
+            }
+        }
     }
 
     /// <summary>The result word on the right, in <see cref="LineColor"/>; null for controllers, root hubs and ports.</summary>
@@ -285,7 +294,7 @@ public sealed class NodeViewModel : ObservableObject
     /// The elbow from the parent: the item's own status colour for a hub or device; for a controller, root hub or port
     /// the worst status below it.
     /// </summary>
-    public string ElbowColor => Color(Status ?? PathStatus);
+    public string ElbowColor => WarningBadge != null ? StatusColors.Hex(ConnectionStatus.Orange) : Color(Status ?? PathStatus);
 
     /// <summary>The parent's trunk down to this item's elbow: the worst status of this item and its later siblings.</summary>
     public string TrunkAboveColor
@@ -416,9 +425,11 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    public string LineColor => Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
+    // A warning (#296) draws the line orange although the status stays stable: it can be sorted, it is not unstable.
+    public string LineColor => WarningBadge != null ? StatusColors.Hex(ConnectionStatus.Orange)
+        : Status is { } value ? StatusColors.Hex(value) : StatusColors.None;
 
-    public string? StatusText => Status is { } value ? StatusColors.Text(value) : null;
+    public string? StatusText => WarningBadge != null ? Strings.NoMstTip : Status is { } value ? StatusColors.Text(value) : null;
 
     /// <summary>
     /// For a counted hub or device: "Tier N" (#195), the user's marks counted. Null for everything else.
@@ -574,7 +585,7 @@ public sealed class NodeViewModel : ObservableObject
             item.IsLast = i == monitors.Count - 1;
             item.Status = report.Connections.TryGetValue(monitor.Id, out var status) ? status : null;
             item.WarningBadge = report.NoMstMonitors.Contains(monitor.Id) ? Strings.NoMstBadge : null;
-            item.PathStatus = item.Status;
+            item.PathStatus = item.WarningBadge != null ? ConnectionStatus.Orange : item.Status; // The line to it is orange too.
         }
         while (Children.Count > start + monitors.Count)
         {

@@ -1639,6 +1639,11 @@ public class MainViewModelTests
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "display|A").Status);
         Assert.Equal(ConnectionStatus.Green, Item(viewModel, "display|B").Status);
         Assert.Equal("⚠ no MST", Item(viewModel, "display|B").WarningBadge); // A warning on the duplicated display.
+        // Its line is orange and its hover explains it, but its status stays stable (owner 2026-11-18).
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Orange), Item(viewModel, "display|B").LineColor);
+        Assert.Equal(StatusColors.Hex(ConnectionStatus.Orange), Item(viewModel, "display|B").ElbowColor);
+        Assert.Contains("does not natively support MST", Item(viewModel, "display|B").StatusText, StringComparison.Ordinal);
+        Assert.Null(Item(viewModel, "display|B").RowStatusWord);
         Assert.Null(Item(viewModel, "display|A").WarningBadge);
         var row = viewModel.StatusRows.Single();
         Assert.Equal("stable", row.Word);
