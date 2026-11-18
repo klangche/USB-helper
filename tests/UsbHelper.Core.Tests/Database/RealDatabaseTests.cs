@@ -308,7 +308,7 @@ public class RealDatabaseTests
     [InlineData("purelink", "tiers")]
     [InlineData("unisynk", "tiers,hubs")]
     [InlineData("extron", "chain")]
-    [InlineData("crestron", "tiers,hubs")]
+    [InlineData("crestron", "tiers")]
     public void GuidesSayWhatTheyCount(string id, string count) =>
         Assert.Equal(count.Split(','), HardwareDatabase.Load(DatabaseFolder()).Guides[id].Count);
 
@@ -402,7 +402,6 @@ public class RealDatabaseTests
 
     [Theory]
     [InlineData("extron", "chain.max", 5)] // "the five cascading hub limit"
-    [InlineData("crestron", "hubs.max", 4)]
     [InlineData("crestron", "tiers.max", 7)]
     public void ExtronAndCrestronHoldTheirLimits(string id, string path, long value)
     {

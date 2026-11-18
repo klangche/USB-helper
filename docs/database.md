@@ -160,7 +160,8 @@ How to read a value:
 | `desktop` | General purpose: counts tiers only (no hub limit), tiers 6 / 7. |
 | `purelink` | PureLink's USB-C whitepaper v3 (Robin Cullen, 8 Oct 2025, not published yet, so no link): `count: [tiers]`, tiers 4 recommended / 7 max, cameras and audio 3 / 4. No per-platform numbers. |
 | `extron` | Extron's "USB-C for Pro AV" design guide, linked to its article page: `count: [chain]`, at most five cascading hubs, no recommendation, no camera rule. |
-| `unisynk`, `crestron` | The owner's files of 2026-11-17; count tiers and hubs for now, as their texts are not verified yet. Crestron's article (linked) needs a Crestron login. |
+| `crestron` | Crestron's knowledge article 3082 "USB Tiers" (linked; needs a Crestron login): `count: [tiers]`, never more than 7, no recommendation, no camera rule. |
+| `unisynk` | The owner's file of 2026-11-17; counts tiers and hubs for now, as its text is not verified yet. |
 | `ochno` | Follows Ochno's own guide (#310): counts the chain only, at most 5 hubs daisy-chained, no recommendation and no separate limit for cameras and audio devices; no tier or hub numbers and no platform or chip overrides. Links its guide page. |
 
 ### Custom guide

@@ -356,4 +356,11 @@ public class GuideRulesTests
     [InlineData(3, ConnectionStatus.Purple)]
     public void PureLinkLimitsCamerasToThreeOrFourTiers(int hubs, ConnectionStatus status) =>
         Assert.Equal(status, StatusOf("windows-intel", hubs, Camera, Db.Guides["purelink"]));
+
+    // Crestron's article 3082: tiers only, never more than 7, no recommendation. Windows Intel: N hubs = tier N + 2.
+    [Theory]
+    [InlineData(5, ConnectionStatus.Green)]
+    [InlineData(6, ConnectionStatus.Purple)]
+    public void CrestronCountsSevenTiers(int hubs, ConnectionStatus status) =>
+        Assert.Equal(status, StatusOf("windows-intel", hubs, Device("KEYBOARD"), Db.Guides["crestron"]));
 }
