@@ -4,6 +4,7 @@ using UsbHelper.App.Licensing;
 using UsbHelper.App.Report;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
+using UsbHelper.App.Update;
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -271,7 +272,8 @@ public sealed class MainViewModel : ObservableObject
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
-    public void LoadDatabase(HardwareDatabase? loaded, IReadOnlyList<DatabaseError> errors)
+    /// <param name="version">The database branch commit it comes from (#290), for the log and the About window; null when unknown.</param>
+    public void LoadDatabase(HardwareDatabase? loaded, IReadOnlyList<DatabaseError> errors, DatabaseVersion? version = null)
     {
         if (loaded != null)
         {
@@ -281,6 +283,7 @@ public sealed class MainViewModel : ObservableObject
         {
             log.DatabaseFailed(errors);
         }
+        UseVersion(version);
         DatabaseErrors = errors.Select(error => error.ToString()).ToList();
         OnPropertyChanged(nameof(DatabaseErrors));
         OnPropertyChanged(nameof(HasDatabaseErrors));
@@ -288,11 +291,59 @@ public sealed class MainViewModel : ObservableObject
         // "remember" on (#126), the operating systems and the guide picked last time instead. Computer profiles, even an
         // exact match, are never checked at start (#286).
         var remembered = Settings.RememberCheckedProfiles && Settings.CheckedOperatingSystems.Count > 0;
+        Fill(loaded, id => remembered ? Settings.CheckedOperatingSystems.Contains(id) : id == identity.Platform, _ => false);
+        LoadingStage = Strings.ReadingDevices;
+    }
+
+    /// <summary>
+    /// A newer database downloaded while the app runs (#290): the menus fill in again from it with the same ticks and the
+    /// same guide, as far as they are still in it, and the results are judged again. Custom is read again against the new
+    /// database; when it no longer fits, USB-Helper's guide applies, as at start.
+    /// </summary>
+    public void ReplaceDatabase(HardwareDatabase loaded, DatabaseVersion version)
+    {
+        var ticked = Checked.Select(option => option.Profile.Id).ToHashSet();
+        OperatingSystems.Clear();
+        Computers.Clear();
+        PlatformGroups.Clear();
+        Guides.Clear();
+        customOption = null;
+        log.DatabaseLoaded(loaded);
+        UseVersion(version);
+        DatabaseErrors = [];
+        OnPropertyChanged(nameof(DatabaseErrors));
+        OnPropertyChanged(nameof(HasDatabaseErrors));
+        Fill(loaded, ticked.Contains, ticked.Contains);
+        KeepCheckedProfiles();
+        if (!IsLoading)
+        {
+            Refresh(); // While loading, the tree's load judges it.
+        }
+    }
+
+    /// <summary>Which database is in use (#290); null when the build did not record it.</summary>
+    public DatabaseVersion? DatabaseVersion { get; private set; }
+
+    private void UseVersion(DatabaseVersion? version)
+    {
+        DatabaseVersion = version;
+        if (version != null)
+        {
+            log.Add($"Database in use: {version.LogText}");
+        }
+    }
+
+    // The menus from the database, with the ticks by profile id and the guide picked in the settings.
+    private void Fill(HardwareDatabase? loaded, Func<string, bool> platformTicked, Func<string, bool> computerTicked)
+    {
         AddOptions(OperatingSystems, (loaded?.Platforms.Values ?? []).Select(profile => new ProfileOption(profile.Id, profile)
         {
-            IsChecked = remembered ? Settings.CheckedOperatingSystems.Contains(profile.Id) : profile.Id == identity.Platform,
+            IsChecked = platformTicked(profile.Id),
         }));
-        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)));
+        AddOptions(Computers, (loaded?.Computers.Values ?? []).Select(profile => new ProfileOption(ComputerLabel(profile), profile)
+        {
+            IsChecked = computerTicked(profile.Id),
+        }));
         foreach (var group in OperatingSystems.GroupBy(option => option.Profile.Platform)
             .OrderBy(group => PlatformOrder(group.Key)).ThenBy(group => group.First().Profile.PlatformName, StringComparer.CurrentCultureIgnoreCase))
         {
@@ -318,8 +369,8 @@ public sealed class MainViewModel : ObservableObject
         }
         HostName = HostNameFor(loaded, identity);
         guide = picked;
+        OnPropertyChanged(nameof(Guide));
         OnGuideChanged();
-        LoadingStage = Strings.ReadingDevices;
     }
 
     private void AddGuideOption(GuideOption option)

@@ -26,6 +26,7 @@ public sealed class SettingsFileTests : IDisposable
         var settings = new SettingsFile(FilePath).Load(log);
 
         Assert.True(settings.CheckForUpdatesAtStart);
+        Assert.True(settings.DownloadDatabaseUpdates);
         Assert.True(settings.OfferBetas);
         Assert.False(settings.RememberCheckedProfiles);
         Assert.Empty(settings.CheckedOperatingSystems);

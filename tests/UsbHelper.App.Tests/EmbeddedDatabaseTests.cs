@@ -6,7 +6,7 @@ namespace UsbHelper.App.Tests;
 /// <summary>The database built into the app (#102).</summary>
 public class EmbeddedDatabaseTests
 {
-    private static string RepositoryDatabase()
+    internal static string RepositoryDatabase()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
         {
