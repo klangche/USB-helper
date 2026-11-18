@@ -138,6 +138,12 @@ public partial class MainWindow : Window, IMainWindowActions
         }
     }
 
+    async void IMainWindowActions.ShowCustomGuide(CustomGuideViewModel editor)
+    {
+        await new CustomGuideWindow { DataContext = editor }.ShowDialog(this);
+        (DataContext as MainViewModel)?.CustomGuideClosed();
+    }
+
     void IMainWindowActions.ShowAbout() => _ = new AboutWindow { DataContext = new AboutViewModel() }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();

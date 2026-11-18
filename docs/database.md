@@ -118,6 +118,15 @@ How to read a value:
 | `usb-helper` | The owner's file of 2026-11-17 (the former usb-script platform values): hubs 4 / 6, tiers 5 / 7, hubs per bus 4 / 6 (to be revised by the owner), cameras and audio tiers 3 / 5; iPhone and iPad stricter; Android direct products only (any hub is potentially unstable); `mst` 1 on Windows except ARM, 0 elsewhere (macOS has no MST). No sources: the owner keeps them in a separate document. |
 | `purelink`, `ochno`, `unisynk` | The owner's files of 2026-11-17, all selectable; hubs per bus empty; `mst` 0 on macOS. Ochno links its guide page. |
 
+### Custom guide
+
+An unlocked user's own guide (#300) is not part of the database: it is `custom.yaml` in the folder of the app's
+settings file (`%APPDATA%\USB-helper\custom.yaml` on Windows, next to `settings.json`), written by the app's Custom
+editor (see [usage.md](usage.md#custom-philosophy)). It has the shape of every guide file and is checked the same way,
+against the platforms and chips of the loaded database, with USB-Helper's guide as the fallback for every empty value.
+In addition, `name` must be `Custom` and `selectable` must be `true`. Errors name `custom.yaml` and the line. The blank
+the editor offers has every platform and chip with every value empty, `proav: 0` and the unlock email as a note.
+
 ### Computer files
 
 ```yaml

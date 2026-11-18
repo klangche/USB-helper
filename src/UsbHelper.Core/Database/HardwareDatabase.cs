@@ -12,12 +12,19 @@ public sealed class HardwareDatabase
     private const string BaseFile = "base.yaml";
     private const int SchemaVersion = 2;
 
+    // Kept for guides read later, such as custom.yaml (#300): they are checked against the same platforms, chips and tiers.
+    private readonly IReadOnlyDictionary<string, List<string>> chips;
+    private readonly long? maxTiers;
+
     private HardwareDatabase(
-        Dictionary<string, ResolvedProfile> platforms, Dictionary<string, ResolvedProfile> computers, Dictionary<string, Guide> guides)
+        Dictionary<string, ResolvedProfile> platforms, Dictionary<string, ResolvedProfile> computers, Dictionary<string, Guide> guides,
+        IReadOnlyDictionary<string, List<string>> chips, long? maxTiers)
     {
         Platforms = platforms;
         Computers = computers;
         Guides = guides;
+        this.chips = chips;
+        this.maxTiers = maxTiers;
     }
 
     /// <summary>One profile per operating system and chip, by id (platform and chip, for example <c>windows-intel</c>).</summary>
@@ -62,7 +69,24 @@ public sealed class HardwareDatabase
         {
             throw new DatabaseException(errors);
         }
-        return new HardwareDatabase(platforms, computers, guides);
+        return new HardwareDatabase(platforms, computers, guides, chips, MaxTiers(usb));
+    }
+
+    /// <summary>
+    /// Reads one more guide that is not part of the database, such as the user's <c>custom.yaml</c> (#300): validated as
+    /// every guide in <c>guides/</c>, with USB-Helper's guide as its fallback.
+    /// </summary>
+    /// <param name="file">The name used in errors and as the guide's file, for example <c>custom.yaml</c>.</param>
+    /// <exception cref="DatabaseException">The guide has one or more problems; all are listed.</exception>
+    internal Guide ReadGuide(string yaml, string file, string id, Action<ProfileValue, List<DatabaseError>>? check = null)
+    {
+        var errors = new List<DatabaseError>();
+        var guide = ReadGuide(yaml, file, id, chips, maxTiers, DefaultGuide, errors, check);
+        if (errors.Count > 0 || guide == null)
+        {
+            throw new DatabaseException(errors);
+        }
+        return guide;
     }
 
     // chips: every platform file's chip keys, also of a file with errors, for the guides' shape.
@@ -182,39 +206,54 @@ public sealed class HardwareDatabase
         {
             errors.Add(new DatabaseError($"guides/{Guide.DefaultId}.yaml", 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
         }
-        var maxTiers = usb.Find("usb.max_tiers")?.Scalar as long?;
+        var maxTiers = MaxTiers(usb);
         Guide? fallback = null;
         foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key == Guide.DefaultId ? 0 : 1).ThenBy(guide => guide.Key, StringComparer.Ordinal))
         {
             var isDefault = id == Guide.DefaultId;
-            var root = ProfileFileReader.Read(files[file], file, errors);
-            if (root == null)
+            if (ReadGuide(files[file], file, id, chips, maxTiers, isDefault ? null : fallback, errors) is not { } guide)
             {
                 continue;
             }
-            GuideSchema.Validate(root, chips, isDefault, maxTiers, errors);
-            var name = RequiredText(root, "name", errors);
-            var selectable = root.Fields.GetValueOrDefault("selectable");
-            if (selectable?.Kind != ValueKind.Boolean)
-            {
-                errors.Add(new DatabaseError(file, selectable?.Line ?? root.Line, "Field 'selectable' is required and must be true or false."));
-            }
-            // 1: a ProAV guide (shown with a ProAV mark), 0: a general-purpose one such as Desktop (#299).
-            var proav = root.Fields.GetValueOrDefault("proav");
-            if (proav?.Scalar is not (0L or 1L))
-            {
-                errors.Add(new DatabaseError(file, proav?.Line ?? root.Line, "Field 'proav' is required and must be 1 (ProAV) or 0 (general purpose)."));
-            }
-            if (name == null || selectable?.Scalar is not bool isSelectable)
-            {
-                continue;
-            }
-            var guide = new Guide(id, name, isSelectable, root, isDefault ? null : fallback);
             fallback = isDefault ? guide : fallback;
             guides.Add(id, guide);
         }
         return guides;
     }
+
+    // One guide file; null when it cannot be used. A guide without fallback is USB-Helper's, whose values must all be filled in.
+    private static Guide? ReadGuide(
+        string yaml, string file, string id, IReadOnlyDictionary<string, List<string>> chips, long? maxTiers, Guide? fallback,
+        List<DatabaseError> errors, Action<ProfileValue, List<DatabaseError>>? check = null)
+    {
+        var isDefault = id == Guide.DefaultId;
+        var root = ProfileFileReader.Read(yaml, file, errors);
+        if (root == null)
+        {
+            return null;
+        }
+        GuideSchema.Validate(root, chips, isDefault, maxTiers, errors);
+        check?.Invoke(root, errors);
+        var name = RequiredText(root, "name", errors);
+        var selectable = root.Fields.GetValueOrDefault("selectable");
+        if (selectable?.Kind != ValueKind.Boolean)
+        {
+            errors.Add(new DatabaseError(file, selectable?.Line ?? root.Line, "Field 'selectable' is required and must be true or false."));
+        }
+        // 1: a ProAV guide (shown with a ProAV mark), 0: a general-purpose one such as Desktop (#299).
+        var proav = root.Fields.GetValueOrDefault("proav");
+        if (proav?.Scalar is not (0L or 1L))
+        {
+            errors.Add(new DatabaseError(file, proav?.Line ?? root.Line, "Field 'proav' is required and must be 1 (ProAV) or 0 (general purpose)."));
+        }
+        if (name == null || selectable?.Scalar is not bool isSelectable)
+        {
+            return null;
+        }
+        return new Guide(id, name, isSelectable, root, fallback);
+    }
+
+    private static long? MaxTiers(ProfileValue usb) => usb.Find("usb.max_tiers")?.Scalar as long?;
 
     // guides/<id>.yaml, directly in guides/.
     private static bool IsGuideFile(string file) => IsInFolder(file, "guides", subfolders: false);

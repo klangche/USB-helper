@@ -264,6 +264,34 @@ shows the names devices give themselves, and many USB 3 hubs call their USB 2
 half "USB2.1 Hub". There is no USB 2.1; it is a USB 2.0 hub with extra power
 saving.
 
+## Custom philosophy
+
+While unlocked, "USB philosophy" lists **Custom** last, after the ProAV
+guides: your own guide. Picking it before you have saved one, or clicking its
+"Edit..." button, opens the Custom editor: the guide as YAML text, in the same
+shape as the other guides (see [database.md](database.md#custom-guide)), with
+every operating system and chip. It starts with your saved guide, else with a
+blank one: every value empty, so everything falls back to USB-Helper's guide
+until you fill it in. Leave a value empty to use the value above it, write a
+number for a limit, or `none` for no limit. The blank records the unlock email
+as a note ("Made by <email>").
+
+- **Download blank YAML...** saves the blank to a file you pick, for example to
+  fill in elsewhere or send to someone.
+- **Open file...** loads a `.yaml` file into the editor (nothing is saved yet).
+- **Save** checks the text as every guide is checked. With problems, they are
+  listed with their line (`custom.yaml:12: ...`) and nothing is saved; the
+  previous Custom guide stays. Without problems it is saved as `custom.yaml`
+  next to the settings file and used at once: the status field says "Judged by
+  the Custom philosophy".
+- **Close** closes the editor. Custom picked and closed without saving leaves
+  the previous philosophy picked.
+
+Custom is kept as the picked philosophy through restarts. Locking the app
+hides Custom and USB-Helper's guide applies; so it does at start when the app
+is locked or `custom.yaml` is missing or invalid (the log says why). The file
+is kept, and Custom is back once unlocked.
+
 ## Unlock
 
 An unlock code adds company branding, the PDF report and beta updates. Codes

@@ -759,4 +759,52 @@ This version keeps running.</value>
   <data name="ReportPage" xml:space="preserve">
     <value>Page {0} of {1}</value>
   </data>
+  <data name="CustomGuide" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="CustomGuideEdit" xml:space="preserve">
+    <value>Edit…</value>
+  </data>
+  <data name="CustomGuideTitle" xml:space="preserve">
+    <value>Custom guide</value>
+  </data>
+  <data name="CustomGuideIntro" xml:space="preserve">
+    <value>Your own guide, in the same YAML shape as the other guides. Leave a value empty to fall back to the value above it, then to USB-Helper's guide; write none for no limit. Save checks it and keeps it as custom.yaml next to settings.json.</value>
+  </data>
+  <data name="CustomGuideDownload" xml:space="preserve">
+    <value>Download blank YAML…</value>
+  </data>
+  <data name="CustomGuideOpen" xml:space="preserve">
+    <value>Open file…</value>
+  </data>
+  <data name="CustomGuideSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="CustomGuideClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="CustomGuideSaved" xml:space="preserve">
+    <value>Saved. The Custom guide is in use.</value>
+  </data>
+  <data name="CustomGuideHasErrors" xml:space="preserve">
+    <value>Not saved: fix these problems first.</value>
+  </data>
+  <data name="CustomGuideNotSaved" xml:space="preserve">
+    <value>custom.yaml could not be saved: {0}</value>
+  </data>
+  <data name="CustomGuideNotRead" xml:space="preserve">
+    <value>custom.yaml could not be read: {0}</value>
+  </data>
+  <data name="CustomGuideDownloadTitle" xml:space="preserve">
+    <value>Save the blank Custom guide</value>
+  </data>
+  <data name="CustomGuideOpenTitle" xml:space="preserve">
+    <value>Open a guide file</value>
+  </data>
+  <data name="CustomGuideDownloaded" xml:space="preserve">
+    <value>Blank saved to {0}</value>
+  </data>
+  <data name="CustomGuideFileFailed" xml:space="preserve">
+    <value>The file could not be used: {0}</value>
+  </data>
 </root>
