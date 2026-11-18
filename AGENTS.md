@@ -257,3 +257,9 @@ Filled in by the setup pull request. Changed only by the owner.
     only a `dev` to `main` pull request titled `Release 1.0.0: ...` leaves 0.x.
     This replaces "branch from the latest `main`" in section 6 and the
     2026-10-29 rule that every merge to `main` is released.
+  - 2026-11-18: the hardware database lives on the `database` branch, in one
+    folder per schema version (`v3/` today). Changes to it are a pull
+    request to `database`, not `dev`; branch from the latest `database`.
+    The app downloads it without a new release, and
+    builds copy it in with `release/database.sh`. Code changes still target
+    `dev`.
