@@ -81,9 +81,11 @@ public class ProfileMenuTests
         Assert.Equal(["Windows", "macOS", "Ubuntu", "Debian", "iPhone and iPad", "Android"], window.PlatformGroups.Select(group => group.Name));
         Assert.Equal(["Intel", "AMD", "ARM"], window.PlatformGroups[0].Chips.Select(chip => chip.ChipLabel));
         // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17).
-        Assert.Equal(["Desktop", "Crestron", "Extron", "Ochno", "PureLink", "Unisynk", "USB-Helper"], window.Guides.Select(option => option.Label));
+        // The general-purpose guide is read by id: its name is the database's to change (#319).
+        var general = window.Guides.Single(option => option.Guide?.Id == "desktop").Label;
+        Assert.Equal([general, "Crestron", "Extron", "Ochno", "PureLink", "Unisynk", "USB-Helper"], window.Guides.Select(option => option.Label));
         Assert.Equal("USB-Helper", window.Guide!.Name);
-        Assert.Equal(["Desktop"], window.Guides.Where(option => !option.IsProAv).Select(option => option.Label));
+        Assert.Equal([general], window.Guides.Where(option => !option.IsProAv).Select(option => option.Label));
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }
 
