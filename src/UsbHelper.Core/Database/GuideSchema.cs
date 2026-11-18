@@ -3,16 +3,17 @@ namespace UsbHelper.Core.Database;
 /// <summary>
 /// The shape every guide file must have (owner decisions 2026-11-17, #285): a header, global <c>limits</c>, and
 /// <c>platforms</c> with exactly the platforms of <c>platforms/*.yaml</c>, each with <c>mst</c>, <c>limits</c> and exactly
-/// its chips, each with <c>mst</c> and <c>limits</c>. A limits block holds any of <c>hubs</c>, <c>tiers</c>,
+/// its chips, each with <c>mst</c> and <c>limits</c>. A limits block holds any of <c>hubs</c>, <c>tiers</c>, <c>chain</c>,
 /// <c>buses</c>, <c>camera_audio</c> and <c>exceeded_note</c>; USB-Helper's global block holds all of them, filled in.
+/// The header's <c>count</c> lists what the guide counts, and <c>link</c>, when there, is its page (#310).
 /// A file with a missing or extra platform, chip or key is rejected, naming file, line and key.
 /// </summary>
 internal static class GuideSchema
 {
-    private static readonly string[] Header = ["name", "selectable", "proav", "notes", "sources", "verification"];
+    private static readonly string[] Header = ["name", "selectable", "proav", "count", "link", "notes", "sources", "verification"];
     private static readonly string[] Sections = ["limits", "platforms"];
     private static readonly string[] Buses = ["usb2", "usb3", "usb4"];
-    private static readonly string[] Kinds = ["hubs", "tiers"];
+    private static readonly string[] Kinds = ["hubs", "tiers", "chain"];
     private static readonly string[] Values = ["recommended", "max"];
     private static readonly string[] BlockKeys = [.. Kinds, "buses", "camera_audio", "exceeded_note"];
 
@@ -25,6 +26,11 @@ internal static class GuideSchema
         ProfileSchema.Validate(
             ProfileValue.CreateMapping(root.Fields.Where(field => Header.Contains(field.Key)).ToDictionary(), root.File, root.Line),
             ProfileSchema.GuideHeaderFields, errors);
+        Count(root, errors);
+        if (root.Fields.GetValueOrDefault("link") is { Kind: not ValueKind.Null } link && Guide.WebLink(link.Scalar as string) == null)
+        {
+            errors.Add(new DatabaseError(root.File, link.Line, "Field 'link': expected a web address starting with http:// or https://, or nothing."));
+        }
         var check = new Checker(root.File, isDefault, maxTiers, errors);
         check.Keys(root, "", [.. Header, .. Sections], required: false);
         check.Keys(ProfileValue.CreateMapping(root.Fields.Where(field => Sections.Contains(field.Key)).ToDictionary(), root.File, root.Line),
@@ -57,6 +63,35 @@ internal static class GuideSchema
                 {
                     check.Level(chipSection, $"{path}.chips.{chip}", ["mst", "limits"]);
                 }
+            }
+        }
+    }
+
+    // count: a list of what the guide counts, at least one, each of Guide.Measures once. Required in every guide, as it
+    // is never taken from USB-Helper's.
+    private static void Count(ProfileValue root, List<DatabaseError> errors)
+    {
+        const string Expected = "expected a list of what the guide counts: any of chain, tiers and hubs, each once, for example [tiers, hubs].";
+        if (root.Fields.GetValueOrDefault("count") is not { } count)
+        {
+            errors.Add(new DatabaseError(root.File, root.Line, $"Field 'count' is required: {Expected}"));
+            return;
+        }
+        if (count.Kind != ValueKind.List || count.Items.Count == 0)
+        {
+            errors.Add(new DatabaseError(root.File, count.Line, $"Field 'count': {Expected}"));
+            return;
+        }
+        var seen = new HashSet<string>();
+        foreach (var item in count.Items)
+        {
+            if (item.Scalar is not string measure || !Guide.Measures.Contains(measure))
+            {
+                errors.Add(new DatabaseError(root.File, item.Line, $"Field 'count': '{item.Scalar}' is not one of chain, tiers and hubs."));
+            }
+            else if (!seen.Add(measure))
+            {
+                errors.Add(new DatabaseError(root.File, item.Line, $"Field 'count': '{measure}' is listed twice."));
             }
         }
     }
@@ -123,8 +158,9 @@ internal static class GuideSchema
             }
             if (Mapping(block.Fields.GetValueOrDefault("camera_audio"), path + ".camera_audio") is { } camera)
             {
-                Keys(camera, path + ".camera_audio.", ["tiers"], all);
+                Keys(camera, path + ".camera_audio.", ["tiers", "chain"], all);
                 Pair(camera.Fields.GetValueOrDefault("tiers"), path + ".camera_audio.tiers", tiers: true, all);
+                Pair(camera.Fields.GetValueOrDefault("chain"), path + ".camera_audio.chain", tiers: false, all);
             }
             if (block.Fields.GetValueOrDefault("exceeded_note") is { } note && !Empty(note, path + ".exceeded_note", required: false))
             {

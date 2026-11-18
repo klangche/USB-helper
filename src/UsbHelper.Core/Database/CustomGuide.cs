@@ -37,7 +37,8 @@ public static class CustomGuide
 
     /// <summary>
     /// A blank custom guide: every platform and chip of <paramref name="database"/>, every value empty, so everything falls
-    /// back to USB-Helper's guide until it is filled in. It loads without errors.
+    /// back to USB-Helper's guide until it is filled in, and <c>count</c> as USB-Helper's (tiers and hubs; #310), as it is
+    /// required. It loads without errors.
     /// </summary>
     /// <param name="madeBy">The unlock email, written as the note "Made by &lt;email&gt;"; no note when null.</param>
     public static string Blank(HardwareDatabase database, string? madeBy = null)
@@ -58,16 +59,22 @@ public static class CustomGuide
         Line("#   - Write \"none\"         → deliberately no limit");
         Line("#");
         Line("# Keys");
+        Line("#   count           what this guide judges: any of chain, tiers, hubs");
+        Line("#   link            the guide's page (http or https); optional");
         Line("#   hubs            external hubs counted per bus");
         Line("#   tiers           USB-IF tier count (host = tier 1)");
+        Line("#   chain           hubs daisy-chained in front of a device, built-in hub");
+        Line("#                   levels included (judged on each bus)");
         Line("#   buses           hubs per bus (usb2, usb3, usb4)");
-        Line("#   camera_audio    stricter limits for isochronous devices (webcams, mics)");
+        Line("#   camera_audio    stricter tiers and chain for isochronous devices (webcams, mics)");
         Line("#   mst             1: the platform or chip extends the desktop over MST, 0: no");
         Line(Rule);
         Line();
         Line($"name: {Name}");
         Line("selectable: true");
         Line("proav: 0                              # 1: ProAV guide (marked in the menu), 0: general purpose");
+        Line("count: [tiers, hubs]                  # what this guide judges: any of chain, tiers, hubs");
+        Line("link:");
         if (madeBy != null)
         {
             Line("notes:");
@@ -123,6 +130,7 @@ public static class CustomGuide
         Line("limits:");
         Pair("  ", "hubs");
         Pair("  ", "tiers");
+        Pair("  ", "chain");
         Line("  buses:");
         foreach (var bus in new[] { "usb2", "usb3", "usb4" })
         {
@@ -131,6 +139,7 @@ public static class CustomGuide
         }
         Line("  camera_audio:");
         Pair("    ", "tiers");
+        Pair("    ", "chain");
         Line("  exceeded_note:");
     }
 }

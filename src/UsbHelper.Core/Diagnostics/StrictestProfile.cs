@@ -5,12 +5,12 @@ namespace UsbHelper.Core.Diagnostics;
 /// <summary>
 /// Owner decision in #68: with several profiles checked, the findings come from the strictest one only. The rule is
 /// from #72, with the limits of the selected guide (<see cref="GuideLimits"/>, the lowest of USB 2 and USB 3): the lowest <c>tiers.max</c>; on a tie
-/// the lowest <c>tiers.recommended</c>, then <c>hubs.max</c>. An unknown limit counts as higher than any known one.
-/// Still tied: the first.
+/// the lowest <c>tiers.recommended</c>, then <c>hubs.max</c>, then <c>chain.max</c> and <c>chain.recommended</c> (#310). An
+/// unknown limit, or one of a measure the guide does not count, counts as higher than any known one. Still tied: the first.
 /// </summary>
 public static class StrictestProfile
 {
-    private static readonly string[] Paths = ["tiers.max", "tiers.recommended", "hubs.max"];
+    private static readonly string[] Paths = ["tiers.max", "tiers.recommended", "hubs.max", "chain.max", "chain.recommended"];
 
     /// <summary>The index of the strictest of <paramref name="profiles"/>, which must not be empty.</summary>
     /// <param name="guide">The selected guide; null for none.</param>

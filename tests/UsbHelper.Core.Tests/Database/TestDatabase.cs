@@ -68,7 +68,8 @@ internal sealed class TestDatabase : IDisposable
     /// <c>usb2.hubs.max</c> sets one bus's hubs (<c>usb2.tiers.max</c> is the same as <c>tiers.max</c>: tiers are
     /// the same on every bus; a bus's hubs default to the global hubs in USB-Helper's); <c>mst</c> sets every platform's and chip's mst; a path such as
     /// <c>platforms.test.chips.platform.limits.tiers.max</c> (or <c>.limits.mst</c>) sets one chip's value. Unset values are
-    /// <c>none</c>, a bus's hubs the global hubs, <c>mst</c> 0 and no note.
+    /// <c>none</c>, a bus's hubs the global hubs, <c>mst</c> 0 and no note. <c>count</c> sets the header's count (default
+    /// <c>[tiers, hubs]</c>) and <c>link</c> its link (default empty).
     /// </summary>
     public Dictionary<string, string> UsbHelper { get; } = [];
 
@@ -106,7 +107,7 @@ internal sealed class TestDatabase : IDisposable
             {
                 return values.GetValueOrDefault(string.Join('.', parts[1..])) ?? (isDefault ? Global(string.Join('.', parts[2..])) : null);
             }
-            return parts[0] is "tiers"
+            return parts[0] is "tiers" or "chain"
                 ? values.GetValueOrDefault("usb2." + relative) ?? values.GetValueOrDefault("usb3." + relative)
                 : null;
         }
@@ -119,8 +120,11 @@ internal sealed class TestDatabase : IDisposable
             Leaf(indent + "  ", "max", value($"{key}.max"));
         }
         string? Filled(string relative) => Global(relative) ?? (!isDefault || relative == "exceeded_note" ? null : "none");
-        yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nproav: 1\nverification:\n  status: {status}\nlimits:\n");
-        foreach (var kind in new[] { "hubs", "tiers" })
+        yaml.Append($"name: {name}\nselectable: {(selectable ? "true" : "false")}\nproav: 1\n");
+        yaml.Append($"count: {values.GetValueOrDefault("count", "[tiers, hubs]")}\n");
+        Leaf("", "link", values.GetValueOrDefault("link"));
+        yaml.Append($"verification:\n  status: {status}\nlimits:\n");
+        foreach (var kind in new[] { "hubs", "tiers", "chain" })
         {
             Pair("  ", kind, Filled);
         }
@@ -132,6 +136,7 @@ internal sealed class TestDatabase : IDisposable
         }
         yaml.Append("  camera_audio:\n");
         Pair("    ", "tiers", relative => Filled("camera_audio." + relative));
+        Pair("    ", "chain", relative => Filled("camera_audio." + relative));
         Leaf("  ", "exceeded_note", Global("exceeded_note"));
         var mst = values.GetValueOrDefault("mst") ?? (isDefault ? "0" : null);
         yaml.Append("platforms:\n");

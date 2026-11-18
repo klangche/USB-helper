@@ -18,6 +18,8 @@ public static partial class ReportFindings
         ["limits.max_hubs"] = Strings.LimitHubs,
         ["limits.max_tiers"] = Strings.LimitTiers,
         ["limits.recommended_tiers"] = Strings.LimitRecommendedTiers,
+        ["limits.max_chain"] = Strings.LimitChain,
+        ["limits.recommended_chain"] = Strings.LimitRecommendedChain,
         ["displays.max_external"] = Strings.LimitDisplays,
     };
 
@@ -72,7 +74,7 @@ public static partial class ReportFindings
         ? $"({Strings.ReportSourceUnverified})"
         : $"({Strings.ReportSourceDatabase})";
 
-    private const string Field = @"(?<field>limits\.max_hubs|limits\.max_tiers|limits\.recommended_tiers|displays\.max_external)";
+    private const string Field = @"(?<field>limits\.max_hubs|limits\.max_tiers|limits\.recommended_tiers|limits\.max_chain|limits\.recommended_chain|displays\.max_external)";
 
     // "limits.max_tiers = 5 comes from an unverified profile (platforms/p.yaml); it is not confirmed."
     [GeneratedRegex("^" + Field + @" = (?<value>\d+) comes from an unverified profile(?: \(\x01\))?; it is not confirmed\.")]

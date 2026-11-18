@@ -565,4 +565,21 @@ public class ReportPdfTests
         Assert.Equal(new ReportCheck("Disconnected devices", null, 1, ConnectionStatus.Red),
             MainViewModel.ReportChecks(Evaluated(tiers: 3, maxTiers: 7, missing: 1))[^1]);
     }
+
+    // #310: the report lists what the guide counts: a guide that counts only the chain shows hubs in a chain, not hubs or tiers.
+    [Fact]
+    public void The_report_checks_are_what_the_guide_counts()
+    {
+        var report = Evaluated(tiers: 3, maxTiers: 7) with
+        {
+            Chain = new LimitCheck("limits.max_chain", 6, 5, true, null, LimitState.Exceeded),
+            Counted = ["chain"],
+        };
+
+        Assert.Equal(
+        [
+            new ReportCheck("Hubs in a chain", 5, 6, ConnectionStatus.Purple),
+            new ReportCheck("External displays", 2, 1, ConnectionStatus.Green),
+        ], MainViewModel.ReportChecks(report));
+    }
 }

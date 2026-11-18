@@ -1,9 +1,13 @@
 # =============================================================================
 # Ochno  –  Manufacturer guide
 # =============================================================================
-# Ochno products (O-PC-4 / O-PC-4-NODE) contain 1–2 internal hubs.
-# Because of that they recommend staying well below the USB-IF maximum
-# when daisy-chaining or adding external hubs.
+# From Ochno's "Guide: USB hub chains in video conference room" (Johan
+# Niininen, updated Oct 28). Ochno counts hubs daisy-chained in front of a
+# device, not tiers: "having max 5 usb hubs daisy-chained", and "the max 5
+# hub hops is the same for USB 2.0 and USB 3.2". Root hubs do not count; a
+# laptop's additional non-root internal hub does, so "to ensure that the
+# video conference room works with 100% of all laptops, the max available
+# hubs are 4". The built-in hub levels of each chip give that here.
 #
 # How to edit
 #   - Leave a value empty  → fall back to the value above it
@@ -14,19 +18,24 @@
 name: Ochno
 selectable: true
 proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+count: [chain]                        # Ochno counts hubs daisy-chained in front of a device
+link: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
 
 
 # -----------------------------------------------------------------------------
 # Global defaults
 # -----------------------------------------------------------------------------
 limits:
-  hubs:
-    recommended: 2
-    max: 4
-  tiers:
-    recommended: 4
-    max: 6                            # stay under USB-IF 7 because of internal hubs
-  buses:                              # empty: this guide's hubs above, then USB-Helper's
+  hubs:                               # not counted by Ochno
+    recommended:
+    max:
+  tiers:                              # not counted by Ochno
+    recommended:
+    max:
+  chain:                              # "max 5 usb hubs daisy-chained", built-in laptop hubs included
+    recommended: none                 # the guide gives one hard limit
+    max: 5
+  buses:                              # not counted by Ochno
     usb2:
       hubs:
         recommended:
@@ -39,11 +48,14 @@ limits:
       hubs:
         recommended:
         max:
-  camera_audio:
+  camera_audio:                       # the guide has no separate limit for cameras and audio
     tiers:
-      recommended: 3
-      max: 4
-  exceeded_note: "Ochno units already contain internal hubs – keep the chain short."
+      recommended:
+      max:
+    chain:
+      recommended: none
+      max: none
+  exceeded_note: "Ochno: at most 5 USB hubs daisy-chained, a laptop's internal hub included."
 
 
 # =============================================================================
@@ -62,17 +74,11 @@ platforms:
 
       amd:
         mst: 1
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 4
+        limits: {}
 
 
 # =============================================================================
@@ -89,17 +95,11 @@ platforms:
 
       apple-silicon:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 5
+        limits: {}
 
       a-series:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 4
+        limits: {}
 
 
 # =============================================================================
@@ -120,10 +120,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 4
+        limits: {}
 
 
 # =============================================================================
@@ -144,10 +141,7 @@ platforms:
 
       arm:
         mst: 0
-        limits:
-          tiers:
-            recommended: 3
-            max: 4
+        limits: {}
 
 
 # =============================================================================
@@ -155,13 +149,7 @@ platforms:
 # =============================================================================
   apple-mobile:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       a-series:
@@ -178,13 +166,7 @@ platforms:
 # =============================================================================
   android:
     mst: 0
-    limits:
-      hubs:
-        recommended: 1
-        max: 2
-      tiers:
-        recommended: 2
-        max: 3
+    limits: {}
 
     chips:
       phone-qualcomm:
@@ -199,6 +181,4 @@ platforms:
 # -----------------------------------------------------------------------------
 sources:
   - "https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"
-  - "Ochno O-PC-4 documentation (internal hubs = 1 or 2 depending on port)"
-  - "Ochno recommendation: do not daisy-chain more than two O-PC-4 units"
-  - "USB-IF maximum of 7 tiers; Ochno stays more conservative because of built-in hubs"
+  - "Ochno: max 5 USB hubs daisy-chained, the same for USB 2.0 and USB 3.2; root hubs do not count, a laptop's non-root internal hub does (MacBook Pro M-series, other ARM laptops and Chromebooks, a few Intel laptops), so 4 for all laptops; docks have at least 2 hubs inside, Ethernet extenders 1–2, active electrical cables use hubs as re-drivers, active optical cables usually 1–2, interactive displays at least 2; many videobars, cameras and audio devices have internal hubs; some products have more USB 2.0 than USB 3.2 hubs."

@@ -52,4 +52,19 @@ public class StrictestProfileTests
     [Fact]
     public void StillTiedTheFirstWins() =>
         Assert.Equal(0, Strictest(("7", "5", "none"), ("7", "5", "none")));
+
+    // #310: a guide that counts the chain is judged by it too; one that does not count it ignores its numbers.
+    [Theory]
+    [InlineData("[chain]", 1)]
+    [InlineData("[tiers, hubs]", 0)]
+    public void TheChainCountsOnlyWhenTheGuideCountsIt(string count, int strictest)
+    {
+        using var db = new TestDatabase().Write("platforms/p.yaml", "name: P\nchips:\n  c0: { name: C0, built_in_hub_levels: 0 }\n  c1: { name: C1, built_in_hub_levels: 0 }\n");
+        db.UsbHelper["count"] = count;
+        db.UsbHelper["chain.max"] = "5";
+        db.UsbHelper["platforms.p.chips.c1.limits.chain.max"] = "3";
+        var loaded = db.Load();
+
+        Assert.Equal(strictest, StrictestProfile.Of([loaded.Platforms["p-c0"], loaded.Platforms["p-c1"]], loaded.DefaultGuide));
+    }
 }

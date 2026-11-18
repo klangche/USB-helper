@@ -81,6 +81,8 @@ internal static class ProfileSchema
         ["name"] = FieldType.String,
         ["selectable"] = FieldType.Boolean,
         ["proav"] = FieldType.Integer,
+        ["count"] = FieldType.StringList, // What the guide counts: chain, tiers, hubs (#310); checked by GuideSchema.
+        ["link"] = FieldType.String, // The guide's page, an http or https address (#310).
     });
 
     public static readonly string[] VerificationStatuses = ["verified", "partial", "unverified"];

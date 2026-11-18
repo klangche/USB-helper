@@ -206,6 +206,12 @@
   <data name="LimitRecommendedTiers" xml:space="preserve">
     <value>Recommended tiers</value>
   </data>
+  <data name="LimitChain" xml:space="preserve">
+    <value>Hubs in a chain</value>
+  </data>
+  <data name="LimitRecommendedChain" xml:space="preserve">
+    <value>Recommended hubs in a chain</value>
+  </data>
   <data name="ReportDevices" xml:space="preserve">
     <value>USB devices</value>
   </data>
