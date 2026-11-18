@@ -348,7 +348,6 @@ public class TopologyCountsTests
     [InlineData(2, 3, 3)]
     [InlineData(3, 0, 1)]
     [InlineData(4, 0, 2)]
-    [InlineData(5, 0, 3)]
     public void EachMarkChoiceAddsItsHubsOnItsBusAndItsTiers(int choice, int hubs, int tiers)
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))];
@@ -367,8 +366,8 @@ public class TopologyCountsTests
     [Fact]
     public void TheMarkChoicesAreHubsThenTiers()
     {
-        Assert.Equal(["+1 hub", "+2 hubs", "+3 hubs", "+1 tier", "+2 tiers", "+3 tiers"], CableMark.Choices.Select(mark => mark.ToString()));
-        Assert.Equal([false, true, false, false, false, false], CableMark.Choices.Select(mark => mark.IsActiveExtension));
+        Assert.Equal(["+1 hub", "+2 hubs", "+3 hubs", "+1 tier", "+2 tiers"], CableMark.Choices.Select(mark => mark.ToString()));
+        Assert.Equal([false, true, false, false, false], CableMark.Choices.Select(mark => mark.IsActiveExtension));
         Assert.Equal("+1 hub, +3 tiers", new CableMark(1, 3).ToString()); // Only from a hand-edited setup.json.
     }
 

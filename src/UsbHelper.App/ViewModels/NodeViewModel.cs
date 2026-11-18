@@ -99,6 +99,22 @@ public sealed class NodeViewModel : ObservableObject
             : string.Format(CultureInfo.CurrentCulture, Strings.MarkHubsAndTiers, Hubs(mark.Hubs), Tiers(mark.Tiers));
     }
 
+    /// <summary>Sets the mark from the menu: the parameter is the place in <see cref="MarkChoices"/>, 0 for none.</summary>
+    public System.Windows.Input.ICommand SetMark => field ??= new IndexCommand(index => MarkIndex = index);
+
+    private sealed class IndexCommand(Action<int> run) : System.Windows.Input.ICommand
+    {
+        public event EventHandler? CanExecuteChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public bool CanExecute(object? parameter) => true;
+
+        public void Execute(object? parameter) => run(Convert.ToInt32(parameter, CultureInfo.InvariantCulture));
+    }
+
     /// <summary>For a connected hub or device: the port its line comes from, where a mark is kept. Null otherwise.</summary>
     public string? PortId { get; }
 

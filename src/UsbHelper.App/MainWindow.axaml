@@ -8,13 +8,6 @@
         Width="1100" Height="700"
         Title="{x:Static res:Strings.WindowTitle}">
 
-  <Window.Styles>
-    <!-- The cable mark menu (#307): as wide as its content, so it never scrolls sideways. -->
-    <Style Selector="FlyoutPresenter.mark">
-      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-    </Style>
-  </Window.Styles>
-
   <!-- F5 refreshes from anywhere in the window; the Refresh button left the top bar (owner order 2026-11-17). -->
   <Window.KeyBindings>
     <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
@@ -63,8 +56,8 @@
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <RadioButton GroupName="Guides" Content="{Binding Label}" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" />
                         <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as Desktop has none. -->
-                        <Border IsVisible="{Binding IsProAv}" Background="#1F6FB2" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
-                          <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                        <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                          <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
                         </Border>
                       </StackPanel>
                     </DataTemplate>
@@ -270,17 +263,16 @@
                     <Path Data="M0,2.5 H5 M2.5,0 V5" StrokeThickness="1.2"
                           Stroke="{Binding ElbowColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                     <Button.Flyout>
-                      <!-- A click outside also reaches what is under it, so the other menu opens in one click (#295).
-                           A short vertical list that sizes to its content, never scrolling sideways (#307). -->
-                      <Flyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True"
-                              FlyoutPresenterClasses="mark">
-                        <StackPanel Spacing="6">
-                          <TextBlock Text="{x:Static res:Strings.CableMarkTitle}" TextWrapping="Wrap" MaxWidth="240" />
-                          <ListBox ItemsSource="{x:Static vm:NodeViewModel.MarkChoices}" SelectedIndex="{Binding MarkIndex}"
-                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                   ScrollViewer.VerticalScrollBarVisibility="Disabled" />
-                        </StackPanel>
-                      </Flyout>
+                      <!-- A plain menu (owner 2026-11-17): None, +1 / +2 (active extender) / +3 Hub, +1 / +2 Tier. A hub
+                           mark adds as many tiers itself. A click outside also reaches what is under it (#295). -->
+                      <MenuFlyout Placement="BottomEdgeAlignedLeft" OverlayDismissEventPassThrough="True">
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[0]}" Command="{Binding SetMark}" CommandParameter="0" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[1]}" Command="{Binding SetMark}" CommandParameter="1" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[2]}" Command="{Binding SetMark}" CommandParameter="2" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[3]}" Command="{Binding SetMark}" CommandParameter="3" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[4]}" Command="{Binding SetMark}" CommandParameter="4" />
+                        <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[5]}" Command="{Binding SetMark}" CommandParameter="5" />
+                      </MenuFlyout>
                     </Button.Flyout>
                   </Button>
                 </app:TreeLines>

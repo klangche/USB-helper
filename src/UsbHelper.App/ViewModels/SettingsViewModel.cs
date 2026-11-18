@@ -107,12 +107,12 @@ public sealed class SettingsViewModel : ObservableObject
     {
         get => current.RememberCheckedProfiles;
         set => Change(value ? current with { RememberCheckedProfiles = true }
-            : current with { RememberCheckedProfiles = false, CheckedOperatingSystems = [], CheckedComputers = [], CheckedGuide = null });
+            : current with { RememberCheckedProfiles = false, CheckedOperatingSystems = [], CheckedComputers = [] });
     }
 
     public IReadOnlyList<string> CheckedOperatingSystems => current.CheckedOperatingSystems;
 
-    /// <summary>The guide picked when the app closed, by id; null for USB-Helper's or when not remembered.</summary>
+    /// <summary>The guide picked when the app closed, by id; null for USB-Helper's. Always kept (owner 2026-11-17).</summary>
     public string? CheckedGuide => current.CheckedGuide;
 
     /// <summary>Trimmed when it is set; empty means none.</summary>
@@ -192,16 +192,19 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The operating systems checked now and the guide picked, by id; kept only while <see cref="RememberCheckedProfiles"/>
-    /// is on. Computers are never kept: none is checked at start (#286).
+    /// The operating systems checked now, by id; kept only while <see cref="RememberCheckedProfiles"/> is on. Computers
+    /// are never kept: none is checked at start (#286). The guide is kept by <see cref="PickedGuide"/>.
     /// </summary>
-    public void CheckedProfiles(IReadOnlyList<string> operatingSystems, string? guide)
+    public void CheckedProfiles(IReadOnlyList<string> operatingSystems)
     {
         if (current.RememberCheckedProfiles)
         {
-            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = [], CheckedGuide = guide });
+            Change(current with { CheckedOperatingSystems = operatingSystems, CheckedComputers = [] });
         }
     }
+
+    /// <summary>Keeps the picked guide's id, null for USB-Helper's, whatever <see cref="RememberCheckedProfiles"/> says.</summary>
+    public void PickedGuide(string? guide) => Change(current with { CheckedGuide = guide });
 
     public string? LicenceEmail => current.LicenceEmail;
 

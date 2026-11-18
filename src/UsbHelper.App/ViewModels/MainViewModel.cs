@@ -277,9 +277,11 @@ public sealed class MainViewModel : ObservableObject
             PlatformGroups.Add(new PlatformGroup(group.First().Profile.PlatformName is { Length: > 0 } name ? name : group.Key,
                 [.. group.OrderBy(option => loaded!.Platforms.Keys.ToList().IndexOf(option.Profile.Id))], Batch));
         }
-        var picked = Settings.RememberCheckedProfiles && Settings.CheckedGuide is { } id
+        // The picked guide is always kept, through restarts and updates; USB-Helper's until the user picks another.
+        var picked = Settings.CheckedGuide is { } id
             && loaded?.Guides.GetValueOrDefault(id) is { Selectable: true } kept ? kept : loaded?.DefaultGuide;
-        foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.Id == Guide.DefaultId ? 0 : 1)
+        // General-purpose guides first, then the ProAV ones, each by name (owner 2026-11-17).
+        foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.ProAv ? 1 : 0)
             .ThenBy(each => each.Name, StringComparer.CurrentCultureIgnoreCase))
         {
             var option = new GuideOption(each) { IsSelected = each == picked };
@@ -373,6 +375,7 @@ public sealed class MainViewModel : ObservableObject
             }
             OnGuideChanged();
             log.GuidePicked(value?.Name);
+            Settings.PickedGuide(value is { Id: not Guide.DefaultId } kept ? kept.Id : null);
             KeepCheckedProfiles();
             Refresh();
         }
@@ -450,8 +453,7 @@ public sealed class MainViewModel : ObservableObject
 
     // Kept only while "remember" is on; see SettingsViewModel.CheckedProfiles.
     private void KeepCheckedProfiles() => Settings.CheckedProfiles(
-        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)],
-        guide is { Id: not Guide.DefaultId } picked ? picked.Id : null);
+        [.. OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id)]);
 
     private IReadOnlyList<ProfileOption> Checked => [.. OperatingSystems.Where(option => option.IsChecked), .. Computers.Where(option => option.IsChecked)];
 

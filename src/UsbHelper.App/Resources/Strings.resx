@@ -333,22 +333,22 @@
     <value>None</value>
   </data>
   <data name="MarkHubOne" xml:space="preserve">
-    <value>+1 hub</value>
+    <value>+1 Hub</value>
   </data>
   <data name="MarkHubs" xml:space="preserve">
-    <value>+{0} hubs</value>
+    <value>+{0} Hub</value>
   </data>
   <data name="MarkTierOne" xml:space="preserve">
-    <value>+1 tier</value>
+    <value>+1 Tier</value>
   </data>
   <data name="MarkTiers" xml:space="preserve">
-    <value>+{0} tiers</value>
+    <value>+{0} Tier</value>
   </data>
   <data name="MarkHubsAndTiers" xml:space="preserve">
     <value>{0}, {1}</value>
   </data>
   <data name="MarkActiveExtension" xml:space="preserve">
-    <value>{0} (active extension)</value>
+    <value>{0} (active extender)</value>
   </data>
   <data name="LogButton" xml:space="preserve">
     <value>Log</value>
