@@ -177,7 +177,7 @@ public class MenuTests
         var top = menu.Items.OfType<NativeMenuItem>().ToList();
         Assert.Equal(["File", MacNativeMenu.HelpTitle], top.Select(item => item.Header));
         List<string> Headers(int index) => top[index].Menu!.Items.OfType<NativeMenuItem>().Select(item => item.Header!).ToList();
-        Assert.Equal(["Refresh...", "-", "Export computer profile...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
+        Assert.Equal(["Refresh...", "-", "Report this machine...", "Export log...", "Export full setup...", "Export PDF...", "-", "Copy tree as text", "-", "Settings..."], Headers(0));
         Assert.Equal(["Check for updates", "-", "Unlock...", "About USB-helper"], Headers(1));
         // #238: Help > Unlock... opens the unlock popup.
         var unlock = top[1].Menu!.Items.OfType<NativeMenuItem>().Single(item => item.Header == "Unlock...");

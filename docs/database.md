@@ -260,7 +260,7 @@ from its platform profile through built-in hubs, unusual ports, display limits
 or other quirks. Every other computer uses its platform profile, so the list
 stays short.
 
-1. Start from a file exported by the app ("Export computer profile"), or copy
+1. Start from a file exported by the app ("Report this machine"), or copy
    `database/computers/.template.yaml`. Save it as
    `database/computers/<manufacturer>/<model>.yaml`.
 2. Set `platform` (a file in `database/platforms/`), `chip_family` (one of its
