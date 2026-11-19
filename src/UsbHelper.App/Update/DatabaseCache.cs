@@ -111,11 +111,26 @@ public sealed class DatabaseCache
         var current = Path.Combine(Folder, CurrentFile);
         File.WriteAllText(current + ".tmp", (version with { BuiltIn = false }).Format());
         File.Move(current + ".tmp", current, overwrite: true);
-        // Only this format's older folders: the other formats keep theirs.
+        // Only this format's older folders: the other formats keep theirs. Folders that are not a commit of this layout,
+        // an interrupted download's .partial folder or a cache from before #334 (files at the top, next to "current"),
+        // are deleted whole.
+        try
+        {
+            File.Delete(Path.Combine(Folder, "current"));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Only space: the next download tries again.
+        }
         foreach (var old in Directory.GetDirectories(Folder).Where(each => Path.GetFileName(each) != version.Sha))
         {
             try
             {
+                if (!DatabaseVersion.IsSha(Path.GetFileName(old)) || File.Exists(Path.Combine(old, "base.yaml")))
+                {
+                    Directory.Delete(old, recursive: true);
+                    continue;
+                }
                 var oldFiles = Path.Combine(old, DatabaseFormats.Folder(Format));
                 if (Directory.Exists(oldFiles))
                 {

@@ -266,6 +266,41 @@ public sealed class DatabaseUpdateTests : IDisposable
         Assert.Equal(preferred, DatabaseUpdate.PreferredFormat(beta, saved));
     }
 
+    // A cache from before #334 (files at the top, a "current" file) and an interrupted download are removed on save.
+    [Fact]
+    public void ASaveRemovesTheOldLayoutAndInterruptedDownloads()
+    {
+        var files = RealFiles();
+        var oldLayout = Path.Combine(Cache.Folder, Older.Sha);
+        Directory.CreateDirectory(oldLayout);
+        File.WriteAllText(Path.Combine(oldLayout, "base.yaml"), files["base.yaml"]);
+        File.WriteAllText(Path.Combine(Cache.Folder, "current"), Older.Format());
+        var partial = Path.Combine(Cache.Folder, $"{new string('e', 40)}.partial-v3");
+        Directory.CreateDirectory(partial);
+        File.WriteAllText(Path.Combine(partial, "base.yaml"), files["base.yaml"]);
+
+        Cache.Save(Newer, files);
+
+        Assert.Equal([Newer.Sha, "current-v3"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    // A newer database of a format not in use is stored for that format, and the window keeps its database.
+    [Fact]
+    public async Task AFormatNotInUseIsStoredButDoesNotReplaceTheDatabase()
+    {
+        var window = Window();
+        window.DatabaseFormat = 4;
+        var before = window.DatabaseVersion;
+        var computers = window.Computers.Count;
+
+        await Update(GitHub(Newer, RealFiles()), window).CheckAsync();
+
+        Assert.Equal(before, window.DatabaseVersion);
+        Assert.Equal(computers, window.Computers.Count);
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v3", "base.yaml")));
+        Assert.Equal(Newer, new DatabaseCache(Cache.Folder, 3).Version());
+    }
+
     // Each format is cached on its own: a newer v4 goes into <sha>/v4/ while v3 stays.
     [Fact]
     public void EachFormatIsCachedOnItsOwn()

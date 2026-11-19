@@ -103,6 +103,8 @@ public sealed class DatabaseUpdate(
     private async Task CheckAsync(int format)
     {
         var inUse = format == window.DatabaseFormat;
+        // The log names the format once the app reads more than one.
+        var label = DatabaseFormats.Supported.Count > 1 ? $" ({DatabaseFormats.Folder(format)})" : "";
         var formatCache = new DatabaseCache(cache.Folder, format);
         using var cancel = new CancellationTokenSource(timeout);
         var current = inUse ? window.DatabaseVersion
@@ -115,7 +117,7 @@ public sealed class DatabaseUpdate(
             newest = await DatabaseCheck.NewestAsync(http, appVersion, cancel.Token, format);
             if (!newest.IsNewerThan(current))
             {
-                log.Add($"Database update check: {current?.LogText} is up to date (newest on GitHub: {newest.ShortSha}, {newest.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)})");
+                log.Add($"Database update check{label}: {current?.LogText} is up to date (newest on GitHub: {newest.ShortSha}, {newest.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)})");
                 return;
             }
             files = await DatabaseCheck.DownloadAsync(http, appVersion, newest, cancel.Token, format);
@@ -123,18 +125,18 @@ public sealed class DatabaseUpdate(
         }
         catch (DatabaseException e)
         {
-            log.Add($"Database update not used: {e.Errors.Count} problem(s), first: {e.Errors[0]}");
+            log.Add($"Database update{label} not used: {e.Errors.Count} problem(s), first: {e.Errors[0]}");
             return;
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
-            log.Add($"Database update check skipped: no answer within {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} s");
+            log.Add($"Database update check{label} skipped: no answer within {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)} s");
             return;
         }
         catch (Exception e)
         {
             // Offline, a GitHub error or rate limit, an unexpected answer: nothing else observes this task.
-            log.Add($"Database update check skipped: {e.Message}");
+            log.Add($"Database update check{label} skipped: {e.Message}");
             return;
         }
         try
@@ -144,7 +146,7 @@ public sealed class DatabaseUpdate(
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             // It is checked, so it is used now; the next start downloads it again.
-            log.Add($"Database update {newest.ShortSha} could not be stored in {cache.Folder}: {e.Message}");
+            log.Add($"Database update {newest.ShortSha} could not be stored in {formatCache.FilesOf(newest.Sha)}: {e.Message}");
         }
         if (inUse)
         {

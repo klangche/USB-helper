@@ -30,10 +30,10 @@ must be there, or the script fails. Run it once after cloning, and again to get 
 
 A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
 start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
-(`commits?sha=database&path=v3&per_page=1`), for each format it reads. When that commit's date is later than the database in use, it lists the
+(`commits?sha=database&path=v<format>&per_page=1`), for each format it reads. When that commit's date is later than the database in use, it lists the
 commit's files (`git/trees/<sha>?recursive=1`), downloads every `.yaml` file of the folder from
-`raw.githubusercontent.com/klangche/USB-helper/<sha>/v3/...`, and uses them only when they load without a problem.
-No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per start
+`raw.githubusercontent.com/klangche/USB-helper/<sha>/v<format>/...`, and uses them only when they load without a problem.
+No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per format per start
 (GitHub allows 60 an hour without a token), and the files only when they are newer.
 
 To change a file, open a pull request to the `database` branch. Its checks (`.github/workflows/database.yml`) load the
