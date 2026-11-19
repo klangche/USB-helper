@@ -1,0 +1,29 @@
+name: Windows
+
+chips:
+  intel:
+    name: Intel
+    architecture: x64
+    computer_hubs: null
+  amd:
+    name: AMD
+    architecture: x64
+    computer_hubs: null
+  arm:
+    name: ARM
+    architecture: arm64
+    computer_hubs: null
+
+notes:
+  - "Generic Windows platform profile, one entry per processor family."
+  - "built_in_hub_levels 0 for every chip: the computer's own port is on tier 1, so five hubs fit in a row (PureLink). Until 2026-11-16 Intel and AMD had max_hops 7 from the usb-script config, which is above the USB maximum; ARM had 5 from the same config, tested in practice."
+  - "computer_hubs null for every chip: Ochno counts an additional non-root hub in other ARM laptops, Chromebooks and a few Intel laptops, so it is not established that any Windows chip has no hub of its own (2026-11-19, #325)."
+  - "The built_in_hub_levels note above was replaced on 2026-11-19 (#328): v4 uses computer_hubs, set only where a source establishes it."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.windowsArm; config version 1.0.0, 2026-02-24)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

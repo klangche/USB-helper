@@ -1,0 +1,33 @@
+name: macOS
+
+chips:
+  intel:
+    name: Intel
+    architecture: x64
+    computer_hubs: null
+  apple-silicon:
+    name: M-series
+    architecture: arm64
+    computer_hubs: 1
+  a-series:
+    name: A-series
+    architecture: arm64
+    computer_hubs: null
+
+notes:
+  - "Generic macOS platform profile, one entry per chip family."
+  - "intel, built_in_hub_levels 0: five hubs fit in a row (PureLink). Until 2026-11-16 this profile had max_hops 7 from the usb-script config, which is above the USB maximum."
+  - "apple-silicon, built_in_hub_levels 1: M-series Macs use two of the seven tiers themselves, a built-in hub level per port, which leaves four hubs (Lightware; owner decision 2026-11-16)."
+  - "a-series, built_in_hub_levels 2: A-series Macs, such as the MacBook Neo, use three of the seven tiers themselves, one more than M-series Macs, which leaves three hubs (Lightware, measured on the MacBook Neo; owner decision 2026-11-16)."
+  - "intel, computer_hubs null: no source establishes that Intel Macs have no hub of their own, and PureLink V6: \"Avoid fixed per-chip-family tier figures unless backed by reproducible model/OS measurements\" (#325, 2026-11-19)."
+  - "apple-silicon, computer_hubs 1: Ochno counts an additional non-root internal hub for \"MacBook Pro M-series (all versions)\"; Lightware: \"typical M-series MacBooks\" use two tiers, the root hub and one hub. Owner decision 2026-11-19 (#328): the internal hub comes with the chip, so every M-series Mac, MacBook or desktop, gets 1."
+  - "a-series, computer_hubs null: only one model, the MacBook Neo, was measured (Lightware); its value is in its computer file (2026-11-19, #328)."
+  - "The built_in_hub_levels notes above were replaced on 2026-11-19 (#328): v4 uses computer_hubs, set only where a source establishes it."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://www.lightware.com/en/news/macbook-neo-usbc-av-design-usb-topology-challenges (Lightware, 'MacBook Neo USB-C: Navigating hidden USB topology challenges in AV design', 2026-09-15: tiers used by M-series MacBooks and the MacBook Neo)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

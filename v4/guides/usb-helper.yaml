@@ -1,0 +1,82 @@
+# =============================================================================
+# USB-Helper  –  USB-Helper's own guide, format v4 (#327, #328)
+# =============================================================================
+# The v3 file's own numbers as rules. It is USB-Helper's own guide, not a
+# manufacturer's, so its rules have no source quote. v3's hub count per bus is
+# not a path measure in v4, so it is not here. The MST settings per platform
+# and chip are copied unchanged.
+# =============================================================================
+
+name: USB-Helper
+selectable: true
+proav: 1                              # 1: ProAV guide (marked in the menu), 0: general purpose
+own: true                             # USB-Helper's own numbers: no source to quote
+
+measures:
+  tiers:
+    counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
+    computer_hub: { from: [computer, chip], unknown: open }
+
+rules:
+  - { measure: tiers, recommended: 5, max: 7 }
+  - { measure: tiers, devices: [camera], recommended: 3, max: 5 }
+  - { measure: tiers, devices: [audio], recommended: 3, max: 5 }
+  - { measure: tiers, on: [apple-mobile], recommended: 2, max: 3 }
+  - { measure: tiers, on: [android/phone-qualcomm], recommended: 2, max: 3 }
+  - { measure: tiers, on: [android/tablet-exynos], recommended: 3, max: 4 }
+
+platforms:
+  windows:
+    mst: 1
+    chips:
+      intel:
+        mst: 1
+      amd:
+        mst: 1
+      arm:
+        mst: 0
+  macos:
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
+    chips:
+      intel:
+        mst: 0
+      apple-silicon:
+        mst: 0
+      a-series:
+        mst: 0
+  ubuntu:
+    mst: 0
+    chips:
+      intel:
+        mst: 0
+      amd:
+        mst: 0
+      arm:
+        mst: 0
+  debian:
+    mst: 0
+    chips:
+      intel:
+        mst: 0
+      amd:
+        mst: 0
+      arm:
+        mst: 0
+  apple-mobile:
+    mst: 0
+    chips:
+      a-series:
+        mst: 0
+      m-series:
+        mst: 0
+  android:
+    mst: 0
+    chips:
+      phone-qualcomm:
+        mst: 0
+      tablet-exynos:
+        mst: 0
+
+notes:
+  - "Converted from v3/guides/usb-helper.yaml on 2026-11-19 (#328): tiers 5 recommended / 7 max, cameras and audio 3 / 5, Apple mobile and Android phones 2 / 3, Android tablets 3 / 4."
+  - "v3's hubs per bus (4 / 6; Apple mobile 1 / 2, Android 0 / 2) and chain (3 / 5; cameras and audio 1 / 3) are not carried over: v3 counted chain only as a fallback, and hubs per bus is not a path measure."

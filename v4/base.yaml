@@ -1,0 +1,45 @@
+schema_version: 4
+
+# Facts from the USB specification. They hold for every computer.
+usb:
+  # Seven tiers on a path: the host with its root hub, up to five hubs, and the device.
+  max_tiers: 7
+  # A 7-bit device address: at most 127 devices, hubs included, on one host controller.
+  max_devices_per_controller: 127
+
+usb4:
+  # Routers in a row below the host router (USB4 connection manager). Loaded, not judged yet: USB4 links are not
+  # detected yet (#267).
+  max_router_depth: 5
+
+# The parts a path is counted from (#326, #327). Guides add them up in their measures.
+path_elements:
+  root_hub: { found_by: "the root hub of the controller the device is on: tier 1" }
+  computer_hub: { found_by: "computer_hubs in the platform or computer file; detection follows in #330" }
+  hub: { found_by: "every external hub the operating system reports" }
+  marked_hub: { found_by: "a hub the user marks on a port: an active extender the operating system does not show" }
+  cable_length: { found_by: "tiers the user marks on a port: an active cable" }
+  usb4_router: { found_by: "not measured yet (#267, #332)" }
+  device: { found_by: "the hub or device itself" }
+
+# Device kinds by USB interface class (#274, #327).
+device_kinds:
+  camera: { usb_class: 14 }   # 0x0E, video
+  audio: { usb_class: 1 }     # 0x01
+  hid: { usb_class: 3 }       # 0x03, keyboards and mice; not detected yet
+
+notes:
+  - "max_tiers 7: USB allows seven tiers on a path: the host with its root hub, up to five hubs, and the device (USB 2.0 specification, section 4.1.1; PureLink cites it too)."
+  - "max_devices_per_controller 127: USB 2.0 specification, the 7-bit device address. Above it is unstable."
+  - "usb4.max_router_depth 5: the Linux Thunderbolt/USB4 driver (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview (#267)."
+  - "A device's tier is counted as the USB specification does: a device in the computer's own port is on tier 2, each hub adds one, and the chip's built_in_hub_levels (platforms/) add theirs."
+  - "The note above on built_in_hub_levels was replaced on 2026-11-19 (#328): in v4 a count is a sum of path_elements, and the computer's own hubs are computer_hubs in platforms/ and computers/."
+
+sources:
+  - "USB 2.0 specification, section 4.1.1 (bus topology: seven tiers at most) and section 9.6.1 (7-bit device address)"
+  - "https://github.com/torvalds/linux/blob/master/drivers/thunderbolt/tb.h (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview, as found on #267"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17
