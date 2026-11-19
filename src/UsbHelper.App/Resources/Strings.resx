@@ -570,6 +570,10 @@ This version keeps running.</value>
   <data name="GuideLineSeparator" xml:space="preserve">
     <value>; </value>
   </data>
+  <data name="GuideMeasureOther" xml:space="preserve">
+    <value>{0}</value>
+    <comment>A measure or device kind the strings file has no word for: its id from the guide.</comment>
+  </data>
   <data name="GuideMeasureChain" xml:space="preserve">
     <value>hub chain</value>
   </data>

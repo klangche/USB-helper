@@ -20,7 +20,7 @@ internal static class GuideReaderV4
     public static readonly IReadOnlyList<string> ComputerHubEvidence = ["detected", "computer", "chip"];
 
     private static readonly string[] TopFields =
-        ["name", "selectable", "proav", "basis", "sources", "measures", "rules", "requires", "platforms", "notes", "verification"];
+        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "requires", "platforms", "notes", "verification"];
 
     /// <param name="baseElements">The path elements base.yaml lists.</param>
     /// <param name="baseKinds">The device kinds base.yaml lists.</param>
@@ -64,8 +64,13 @@ internal static class GuideReaderV4
         {
             Error(value, $"Unknown field '{key}'.");
         }
-        // Every guide but USB-Helper's own states someone else's limits, so each of its rules quotes its source.
-        var manufacturer = id != Guide.DefaultId;
+        // A ProAV guide states a manufacturer's limits, so each rule quotes its source; own: true marks the owner's own
+        // numbers (USB-Helper, Unisynk), which have no source to quote. A general-purpose guide (proav: 0) quotes where it can.
+        if (root.Find("own") is { } ownValue && ownValue.Kind != ValueKind.Boolean)
+        {
+            Error(ownValue, "Field 'own' must be true or false.");
+        }
+        var manufacturer = root.Find("proav")?.Scalar is 1L && root.Find("own")?.Scalar is not true;
         var sources = ReadSources(root.Find("sources"), Error);
         if (root.Find("basis") is { } basis)
         {
@@ -73,7 +78,7 @@ internal static class GuideReaderV4
         }
         else if (manufacturer)
         {
-            Error(root, "Field 'basis' is required in a guide from a source: the source and the exact quote the guide works from.");
+            Error(root, "Field 'basis' is required in a manufacturer guide (proav: 1 without own: true): the source and the exact quote it works from.");
         }
         var measures = ReadMeasures(root.Find("measures"), baseElements, Error);
         var rules = ReadRules(root.Find("rules"), measures, baseKinds, chips, sources, manufacturer, Error);
@@ -282,7 +287,7 @@ internal static class GuideReaderV4
         var quote = value.Find("quote");
         if (required && (source?.Scalar is not string || quote?.Scalar is not string { Length: > 0 }))
         {
-            error(value, $"{what}: 'source' and 'quote' are required in a guide from a source.");
+            error(value, $"{what}: 'source' and 'quote' are required in a manufacturer guide (proav: 1 without own: true).");
         }
         if (source?.Scalar is string id && !sources.ContainsKey(id))
         {

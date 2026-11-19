@@ -46,10 +46,12 @@ public class RealDatabaseV4Tests
         foreach (var profile in db.Platforms.Values.Concat(db.Computers.Values))
         {
             var value = profile.Find("computer_hubs");
-            if (value?.Scalar is not long hubs)
+            if (value == null || value.Kind == ValueKind.Null)
             {
                 continue;
             }
+            // A number, or one per bus: the note starts with the number, or with the first bus's.
+            var hubs = value.Scalar as long? ?? value.Fields.Values.Select(bus => bus.Scalar as long?).First();
             var fromComputer = value.File.StartsWith("computers/", StringComparison.Ordinal);
             var start = fromComputer ? $"computer_hubs {hubs}:" : $"{profile.Chip}, computer_hubs {hubs}:";
             var notes = db.Platforms.Values.Concat(db.Computers.Values)

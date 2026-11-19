@@ -73,7 +73,7 @@ public static class GuideLine
         "chain" => Strings.GuideMeasureChain,
         "tiers" => Strings.GuideMeasureTiers,
         "room" => Strings.GuideMeasureRoom,
-        _ => measure,
+        _ => string.Format(CultureInfo.CurrentCulture, Strings.GuideMeasureOther, measure),
     };
 
     private static string KindName(string kind) => kind switch
@@ -81,7 +81,7 @@ public static class GuideLine
         "camera" => Strings.GuideLineCameras,
         "audio" => Strings.GuideLineAudio,
         "hid" => Strings.GuideLineHid,
-        _ => kind,
+        _ => string.Format(CultureInfo.CurrentCulture, Strings.GuideMeasureOther, kind),
     };
 
     // "cameras and audio".

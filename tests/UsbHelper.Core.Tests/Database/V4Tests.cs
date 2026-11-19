@@ -145,7 +145,7 @@ public class V4Tests
 
         Assert.Equal("guides/room.yaml", error.File);
         Assert.Equal(15, error.Line);
-        Assert.Contains("'source' and 'quote' are required in a guide from a source", error.Message, StringComparison.Ordinal);
+        Assert.Contains("'source' and 'quote' are required in a manufacturer guide", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -239,7 +239,28 @@ public class V4Tests
         var over = Evaluate("windows-amd", Chain(6, Device("KEYBOARD")));
         var finding = Assert.Single(over.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message.Contains("the maximum 5.", StringComparison.Ordinal));
         Assert.StartsWith("Room: chain at least 6 exceeds the maximum 5.", finding.Message, StringComparison.Ordinal);
-        Assert.Equal(new CountPart(PathElements.ComputerHub, null, "platforms/windows.yaml: not evidence Room accepts"), finding.CountParts[0]);
+        Assert.Equal(new CountPart(PathElements.ComputerHub, null, "platforms/windows.yaml amd: unknown"), finding.CountParts[0]);
+    }
+
+    // A value from evidence the measure does not accept is unknown, and the part says why.
+    [Fact]
+    public void EvidenceTheMeasureDoesNotAcceptIsUnknown()
+    {
+        var db = HardwareDatabase.LoadV4(Files(("guides/room.yaml", Room.Replace("from: [computer, chip]", "from: [computer]", StringComparison.Ordinal))));
+
+        var report = DiagnosticEvaluator.Evaluate(Chain(6, Device("KEYBOARD")), db.Platforms["macos-apple-silicon"], [], externalDisplays: 0, guide: db.Guides["room"]);
+
+        var finding = Assert.Single(report.Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Message.Contains("the maximum 5.", StringComparison.Ordinal));
+        Assert.Equal(new CountPart(PathElements.ComputerHub, null, "platforms/macos.yaml: not evidence Room accepts"), finding.CountParts[0]);
+    }
+
+    // own: true marks the owner's own numbers: a ProAV guide without quotes.
+    [Fact]
+    public void AnOwnGuideNeedsNoQuotes()
+    {
+        var db = HardwareDatabase.LoadV4(Files(("guides/mine.yaml", "name: Mine\nselectable: true\nproav: 1\nown: true\nmeasures:\n  tiers: { counts: [root_hub, hub, device] }\nrules:\n  - { measure: tiers, max: 6 }\n")));
+
+        Assert.Single(db.Guides["mine"].Rules);
     }
 
     // A guide's number for an unknown computer_hub is used, with the guide as its origin.

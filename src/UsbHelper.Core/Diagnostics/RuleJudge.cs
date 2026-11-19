@@ -83,7 +83,11 @@ internal static class RuleJudge
         }
         return measure.ComputerHubUnknown is { } assumed
             ? new CountPart(PathElements.ComputerHub, assumed, $"{guide.File}:{measure.ComputerHubUnknownLine} when unknown")
-            : new CountPart(PathElements.ComputerHub, null, value == null ? "not in the database" : $"{value.File}: not evidence {guide.Name} accepts");
+            : new CountPart(PathElements.ComputerHub, null,
+                value == null ? "not in the database"
+                : evidence != null && measure.ComputerHubFrom.Contains(evidence)
+                    ? $"{value.File} {(evidence == "chip" ? profile.Chip : "computer_hubs")}: unknown"
+                    : $"{value.File}: not evidence {guide.Name} accepts");
     }
 
     /// <summary>The node's status by every matching rule, and a finding for each limit it exceeds.</summary>
