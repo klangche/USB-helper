@@ -36,7 +36,11 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
             fi
           fi
-          version=$(grep -oE 'SchemaVersion = [0-9]+' src/UsbHelper.Core/Database/HardwareDatabase.cs | grep -oE '[0-9]+$')
+          if [ -f src/UsbHelper.Core/Database/DatabaseFormats.cs ]; then
+            version=$(grep -oE '^\s*\[[0-9]+\] = ' src/UsbHelper.Core/Database/DatabaseFormats.cs | grep -oE '[0-9]+' | sort -n | tail -1)
+          else
+            version=$(grep -oE 'SchemaVersion = [0-9]+' src/UsbHelper.Core/Database/HardwareDatabase.cs | grep -oE '[0-9]+$')
+          fi
           git fetch --quiet origin "refs/pull/${{ github.event.number }}/head"
           if ! git cat-file -e "FETCH_HEAD:v$version/base.yaml" 2>/dev/null; then
             echo "This code reads format $version, which the pull request does not have: nothing to check."

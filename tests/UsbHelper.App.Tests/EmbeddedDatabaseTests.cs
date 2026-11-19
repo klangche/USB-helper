@@ -10,13 +10,14 @@ public class EmbeddedDatabaseTests
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, "database");
+            // The v3 format (#334): the existing tests are on its data.
+            var candidate = Path.Combine(directory.FullName, "database", "v3");
             if (File.Exists(Path.Combine(candidate, "base.yaml")))
             {
                 return candidate;
             }
         }
-        throw new DirectoryNotFoundException("database/base.yaml not found above the test output folder: run release/database.sh (#288).");
+        throw new DirectoryNotFoundException("database/v3/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
     // Every value with its path, kind, file and line, so two loads can be compared as text.

@@ -534,6 +534,12 @@ This version keeps running.</value>
   <data name="SettingsOfferBetas" xml:space="preserve">
     <value>Offer beta versions</value>
   </data>
+  <data name="SettingsDatabaseFormat" xml:space="preserve">
+    <value>Database format (beta only, used from the next start):</value>
+  </data>
+  <data name="SettingsDatabaseFormatNewest" xml:space="preserve">
+    <value>Newest ({0})</value>
+  </data>
   <data name="SettingsRememberProfiles" xml:space="preserve">
     <value>Remember the checked profiles between starts</value>
   </data>

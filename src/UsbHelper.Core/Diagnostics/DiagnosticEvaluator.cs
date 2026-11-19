@@ -142,21 +142,28 @@ public static class DiagnosticEvaluator
             ?? checks.Where(check => check.Limit != null).MinBy(check => check.Limit) ?? checks.First();
         var hubs = Summary([.. hubsMax.Select(each => each.Check)]);
 
-        // A device's tier as the USB specification counts it (#285): the counted tier plus the chip's built-in hub
-        // levels. Its chain (#310): the hubs daisy-chained in front of it, the external hubs (marked ones included) plus
-        // the chip's built-in hub levels; root hubs do not count. Unknown levels count as none, so the tier and the
-        // chain are then at least what is counted.
+        // A device's tier as the USB specification counts it (#285) and its chain (#310), each a sum of path elements
+        // (#326). Tier: root_hub 1, computer_hub, the detected hubs, the marked hubs and cable lengths, and the device
+        // itself. Chain: the hubs daisy-chained in front of it, computer_hub included; root hubs do not count. An
+        // unknown computer_hub counts as none, so the tier and the chain are then at least what is counted.
+        var paths = TopologyCounts.Paths(tree, marks);
         var levelsValue = profile?.Find("built_in_hub_levels");
-        var levels = (int)(levelsValue?.Scalar as long? ?? 0);
+        var computerHub = ComputerHubPart(profile, levelsValue);
         var tiersOpen = incomplete || (profile != null && levelsValue?.Scalar is not long);
-        int TierOf(ConnectionDepth depth) => depth.Tier + levels;
-        int ChainOf(ConnectionDepth depth) => depth.HubsInFront + levels;
-        int Measured(string path, ConnectionDepth depth) => GuideLimits.Measure(path) == Guide.Chain ? ChainOf(depth) : TierOf(depth);
+        IReadOnlyList<CountPart> PartsOf(string measure, string id)
+        {
+            var path = paths.GetValueOrDefault(id) ?? new DevicePath([], []);
+            return measure == Guide.Chain
+                ? [computerHub, .. path.Parts(tiers: false)]
+                : [new CountPart(PathElements.RootHub, 1, "detected"), computerHub, .. path.Parts(tiers: true), new CountPart(PathElements.Device, 1, "detected")];
+        }
+        int Sum(IReadOnlyList<CountPart> parts) => parts.Sum(part => part.Count ?? 0);
+        int Measured(string path, string id) => Sum(PartsOf(GuideLimits.Measure(path) == Guide.Chain ? Guide.Chain : Guide.Tiers, id));
         var cameraAudioIds = AllNodes(tree).Where(IsCameraOrAudio).Select(node => node.Id).ToHashSet();
         // The deepest tier or longest chain on a bus (null: every bus), or of cameras and audio devices.
         int Deepest(string path, UsbBus? bus, bool cameraAudio) => depths
             .Where(depth => (!cameraAudio || cameraAudioIds.Contains(depth.Key)) && (bus == null || nodeBuses.GetValueOrDefault(depth.Key) == bus))
-            .Select(depth => Measured(path, depth.Value)).DefaultIfEmpty(0).Max();
+            .Select(depth => Measured(path, depth.Key)).DefaultIfEmpty(0).Max();
         LimitCheck Depth(string path)
         {
             if (!perBus.AnyBusKnown)
@@ -185,13 +192,30 @@ public static class DiagnosticEvaluator
         string Note(LimitCheck limit) => notes.GetValueOrDefault(limit.Field) is { } note ? $" {note}" : "";
         // #298: the hubs of all buses as the app shows them, "Hubs: 3 (2+1+0)", after a bus's own count.
         var allHubs = $"Hubs: {(computerOpen ? "at least " : "")}{perBus.HubsText}: USB 2, USB 3, USB 4.";
+        // The parts of a hub count (#326): the detected hubs and the hubs the user's marks add, on the bus (null: all buses).
+        var countedNodes = AllNodes(computerTree).Where(node => nodeBuses.ContainsKey(node.Id)).ToList();
+        IReadOnlyList<CountPart> HubParts(UsbBus? bus)
+        {
+            bool OnBus(UsbNode node) => bus == null || nodeBuses[node.Id] == bus;
+            var detected = countedNodes.Where(node => node.Kind == UsbNodeKind.Hub && OnBus(node)).Select(node => node.Name).ToList();
+            List<CountPart> parts = [new CountPart(PathElements.Hub, detected.Count, $"detected: {string.Join(", ", detected)}")];
+            foreach (var (hub, port) in Ports(computerTree))
+            {
+                if (marks?.GetValueOrDefault(port.Id) is { Hubs: > 0 } mark && port.Children.Any(node => nodeBuses.ContainsKey(node.Id) && OnBus(node)))
+                {
+                    parts.Add(new CountPart(PathElements.MarkedHub, mark.Hubs, $"your mark on {port.Name} of {hub.Name}"));
+                }
+            }
+            return parts;
+        }
         void HubFindings(List<(UsbBus? Bus, LimitCheck Check)> checks, string recommended)
         {
             foreach (var (bus, check) in checks.Where(each => each.Check.State == LimitState.Exceeded))
             {
                 findings.Add(Risk(ComputerId, computer, unverified => bus == null
                     ? $"{check.Actual} external hubs are connected; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"
-                    : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)} {allHubs}"));
+                    : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)} {allHubs}") with
+                { CountParts = HubParts(bus) });
             }
         }
         var hubsExceeded = hubsMax.Any(each => each.Check.State == LimitState.Exceeded);
@@ -239,7 +263,7 @@ public static class DiagnosticEvaluator
                 var bus = nodeBuses.GetValueOrDefault(node.Id);
                 if (depth != null)
                 {
-                    status = Max(status, JudgeDepth(node, BusKey(bus), depth, IsCameraOrAudio(node)));
+                    status = Max(status, JudgeDepth(node, BusKey(bus), IsCameraOrAudio(node)));
                 }
                 // Only hubs on a bus over a hub limit; a hub whose bus is unknown may be on any of them.
                 bool OnBusOver(List<(UsbBus? Bus, LimitCheck Check)> checks) => checks.Any(each =>
@@ -268,38 +292,41 @@ public static class DiagnosticEvaluator
 
         // Above any maximum is unstable; else above any recommendation is potentially unstable. Each exceeded limit is a
         // finding with its guide's exceeded_note. Tiers and chain are each judged on the node's bus.
-        ConnectionStatus JudgeDepth(UsbNode node, string? bus, ConnectionDepth depth, bool cameraAudio)
+        ConnectionStatus JudgeDepth(UsbNode node, string? bus, bool cameraAudio)
         {
-            var checks = new List<(LimitCheck Max, LimitCheck Recommended, bool Camera, string Text)>();
+            var checks = new List<(LimitCheck Max, LimitCheck Recommended, bool Camera, string Text, IReadOnlyList<CountPart> Parts)>();
             foreach (var measure in new[] { Guide.Tiers, Guide.Chain })
             {
-                var actual = Measured($"{measure}.max", depth);
+                var parts = PartsOf(measure, node.Id);
+                var actual = Sum(parts);
                 var text = measure == Guide.Chain ? $"Hub chain {actual}" : $"Tier depth {actual}";
                 LimitCheck On(string path) => Judge(GuideLimits.OnBus(profile, guide, bus, path), path, actual, false);
                 LimitCheck OnCamera(string path) => Judge(GuideLimits.Of(profile, guide, path), path, actual, false);
-                checks.Add((On($"{measure}.max"), On($"{measure}.recommended"), false, text));
+                checks.Add((On($"{measure}.max"), On($"{measure}.recommended"), false, text, parts));
                 if (cameraAudio)
                 {
-                    checks.Add((OnCamera($"camera_audio.{measure}.max"), OnCamera($"camera_audio.{measure}.recommended"), true, text));
+                    checks.Add((OnCamera($"camera_audio.{measure}.max"), OnCamera($"camera_audio.{measure}.recommended"), true, text, parts));
                 }
             }
             static string For(bool camera) => camera ? " for cameras and audio devices" : "";
             var overMax = checks.Where(check => check.Max.State == LimitState.Exceeded).ToList();
-            foreach (var (max, _, camera, text) in overMax)
+            foreach (var (max, _, camera, text, parts) in overMax)
             {
                 findings.Add(Risk(node.Id, node.Name, unverified =>
-                    $"{text} exceeds {max.Field} {max.Limit}{unverified(max)}{For(camera)}.{Note(max)}"));
+                    $"{text} exceeds {max.Field} {max.Limit}{unverified(max)}{For(camera)}.{Note(max)}") with
+                { CountParts = parts });
             }
             if (overMax.Count > 0)
             {
                 return ConnectionStatus.Purple;
             }
             var overRecommended = checks.Where(check => check.Recommended.State == LimitState.Exceeded).ToList();
-            foreach (var (max, recommended, camera, text) in overRecommended)
+            foreach (var (max, recommended, camera, text, parts) in overRecommended)
             {
                 findings.Add(Risk(node.Id, node.Name, unverified =>
                     $"{text} exceeds the recommended {recommended.Field} {recommended.Limit}{unverified(recommended)}{For(camera)}; "
-                    + $"{max.Field} is {(max.Limit == null ? "unknown" : $"{max.Limit}{unverified(max)}")}.{Note(recommended)}"));
+                    + $"{max.Field} is {(max.Limit == null ? "unknown" : $"{max.Limit}{unverified(max)}")}.{Note(recommended)}") with
+                { CountParts = parts });
             }
             return overRecommended.Count > 0 ? ConnectionStatus.Orange : ConnectionStatus.Green;
         }
@@ -395,6 +422,15 @@ public static class DiagnosticEvaluator
         : limit.State == LimitState.Exceeded ? ConnectionStatus.Purple
         : limit.State == LimitState.Unknown ? ConnectionStatus.Grey
         : ConnectionStatus.Green;
+
+    // The computer's own hubs the operating system does not show (#326), from the profile; unknown when it has no number.
+    private static CountPart ComputerHubPart(ResolvedProfile? profile, ProfileValue? value)
+    {
+        var origin = value == null ? "not in the database"
+            : value.File.StartsWith("platforms/", StringComparison.Ordinal) && profile!.Chip.Length > 0 ? $"{value.File} {profile.Chip}"
+            : $"{value.File} built_in_hub_levels";
+        return new CountPart(PathElements.ComputerHub, value?.Scalar is long levels ? (int)levels : null, origin);
+    }
 
     private static ConnectionStatus Max(ConnectionStatus a, ConnectionStatus b) => a > b ? a : b;
 
