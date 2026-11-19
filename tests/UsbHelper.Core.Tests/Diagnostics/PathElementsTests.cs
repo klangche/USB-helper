@@ -30,6 +30,39 @@ public class PathElementsTests
     private static Finding Over(DiagnosticReport report, string id) =>
         Assert.Single(report.Findings, finding => finding.SubjectId == id && finding.Kind == FactKind.PredictedRisk);
 
+    // The line the log writes for a finding.
+    private static string Logged(Finding finding)
+    {
+        var log = new EventLog();
+        log.Findings([("p", finding)]);
+        return log.Entries[^1].Text;
+    }
+
+    [Fact]
+    public void TheLogListsWhatWasCounted()
+    {
+        var over = Evaluate(Db.Platforms["macos-apple-silicon"], Chain(5, Device("KEYBOARD")), Ochno);
+
+        Assert.EndsWith(" Counted: computer_hub 1 platforms/macos.yaml apple-silicon + hub 5 detected: HUB1, HUB2, HUB3, HUB4, HUB5.", Logged(Over(over, "KEYBOARD")));
+    }
+
+    // A hub count on one bus: the hubs on that bus by name, and each mark on a port of that bus.
+    [Fact]
+    public void AHubCountListsTheHubsAndMarksOnItsBus()
+    {
+        using var db = new TestDatabase();
+        db.UsbHelper["count"] = "[hubs]";
+        db.UsbHelper["usb2.hubs.max"] = "2";
+        var loaded = db.Load();
+        var tree = new[] { Controller("C1", RootWithBuses("ROOT", Behind(3, Device("USB2DEV"), "TWO"), Behind(1, Device("USB3DEV"), "THREE"))) };
+
+        var report = Evaluate(loaded.Platforms["test-platform"], tree, loaded.DefaultGuide, new Dictionary<string, CableMark> { ["TWO3|port1"] = CableMark.OfHubs(1) });
+
+        var finding = Assert.Single(report.Findings, finding => finding.SubjectId == DiagnosticEvaluator.ComputerId && finding.Kind == FactKind.PredictedRisk);
+        Assert.StartsWith("4 hubs are on the USB 2 bus", finding.Message, StringComparison.Ordinal);
+        Assert.Equal([new CountPart(PathElements.Hub, 3, "detected: TWO1, TWO2, TWO3"), new CountPart(PathElements.MarkedHub, 1, "your mark on Port 1 of TWO3")], finding.CountParts);
+    }
+
     [Theory]
     [InlineData("macos-apple-silicon", 4)]
     [InlineData("windows-intel", 5)]
@@ -82,6 +115,7 @@ public class PathElementsTests
             [new CountPart(PathElements.ComputerHub, null, "platforms/test.yaml platform"), new CountPart(PathElements.Hub, 6, Hubs(6))],
             Over(over, "KEYBOARD").CountParts);
         Assert.Equal("computer_hub unknown platforms/test.yaml platform", Over(over, "KEYBOARD").CountParts[0].ToString());
+        Assert.EndsWith(" Counted (at least): computer_hub unknown platforms/test.yaml platform + hub 6 detected: HUB1, HUB2, HUB3, HUB4, HUB5, HUB6.", Logged(Over(over, "KEYBOARD")));
     }
 
     // Each bus has its own tree; the computer's hub is on each of them.

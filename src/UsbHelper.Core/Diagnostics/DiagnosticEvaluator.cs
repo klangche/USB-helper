@@ -192,15 +192,19 @@ public static class DiagnosticEvaluator
         string Note(LimitCheck limit) => notes.GetValueOrDefault(limit.Field) is { } note ? $" {note}" : "";
         // #298: the hubs of all buses as the app shows them, "Hubs: 3 (2+1+0)", after a bus's own count.
         var allHubs = $"Hubs: {(computerOpen ? "at least " : "")}{perBus.HubsText}: USB 2, USB 3, USB 4.";
-        // The parts of a hub count (#326): the detected hubs and those the user's marks add, on the bus or all buses.
-        var unmarked = TopologyCounts.PerBus(computerTree);
-        IReadOnlyList<CountPart> HubParts(UsbBus? bus, int actual)
+        // The parts of a hub count (#326): the detected hubs and the hubs the user's marks add, on the bus (null: all buses).
+        var countedNodes = AllNodes(computerTree).Where(node => nodeBuses.ContainsKey(node.Id)).ToList();
+        IReadOnlyList<CountPart> HubParts(UsbBus? bus)
         {
-            var detected = bus == UsbBus.Usb2 ? unmarked.Usb2.Hubs : bus == UsbBus.Usb3 ? unmarked.Usb3.Hubs : unmarked.Hubs;
-            List<CountPart> parts = [new CountPart(PathElements.Hub, detected, "detected")];
-            if (actual > detected)
+            bool OnBus(UsbNode node) => bus == null || nodeBuses[node.Id] == bus;
+            var detected = countedNodes.Where(node => node.Kind == UsbNodeKind.Hub && OnBus(node)).Select(node => node.Name).ToList();
+            List<CountPart> parts = [new CountPart(PathElements.Hub, detected.Count, $"detected: {string.Join(", ", detected)}")];
+            foreach (var (hub, port) in Ports(computerTree))
             {
-                parts.Add(new CountPart(PathElements.MarkedHub, actual - detected, "your marks"));
+                if (marks?.GetValueOrDefault(port.Id) is { Hubs: > 0 } mark && port.Children.Any(node => nodeBuses.ContainsKey(node.Id) && OnBus(node)))
+                {
+                    parts.Add(new CountPart(PathElements.MarkedHub, mark.Hubs, $"your mark on {port.Name} of {hub.Name}"));
+                }
             }
             return parts;
         }
@@ -211,7 +215,7 @@ public static class DiagnosticEvaluator
                 findings.Add(Risk(ComputerId, computer, unverified => bus == null
                     ? $"{check.Actual} external hubs are connected; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)}"
                     : $"{check.Actual} hubs are on the {(bus == UsbBus.Usb2 ? "USB 2" : "USB 3")} bus; {recommended}{check.Field} is {check.Limit}{unverified(check)}.{Note(check)} {allHubs}") with
-                { CountParts = HubParts(bus, check.Actual) });
+                { CountParts = HubParts(bus) });
             }
         }
         var hubsExceeded = hubsMax.Any(each => each.Check.State == LimitState.Exceeded);
@@ -424,7 +428,7 @@ public static class DiagnosticEvaluator
     {
         var origin = value == null ? "not in the database"
             : value.File.StartsWith("platforms/", StringComparison.Ordinal) && profile!.Chip.Length > 0 ? $"{value.File} {profile.Chip}"
-            : value.File;
+            : $"{value.File} built_in_hub_levels";
         return new CountPart(PathElements.ComputerHub, value?.Scalar is long levels ? (int)levels : null, origin);
     }
 
