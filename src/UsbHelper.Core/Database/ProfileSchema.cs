@@ -8,7 +8,7 @@ namespace UsbHelper.Core.Database;
 /// </summary>
 internal static class ProfileSchema
 {
-    internal enum FieldType { String, Integer, Boolean, Date, Status, StringList, Mapping }
+    internal enum FieldType { String, Integer, Boolean, Date, Status, StringList, Mapping, Hubs }
 
     // The fields every file may have.
     private static readonly Dictionary<string, FieldType> Common = new()
@@ -75,6 +75,31 @@ internal static class ProfileSchema
         ["ports.*.limitations"] = FieldType.StringList,
     });
 
+    /// <summary>v4 <c>base.yaml</c> (#327): the v3 facts, the path elements and the device kinds. "*" stands for any name.</summary>
+    public static readonly IReadOnlyDictionary<string, FieldType> BaseFieldsV4 = With(BaseFields.ToDictionary(), new()
+    {
+        ["path_elements"] = FieldType.Mapping,
+        ["path_elements.*"] = FieldType.Mapping,
+        ["path_elements.*.found_by"] = FieldType.String, // How the app finds it, or that it is not measured yet.
+        ["device_kinds"] = FieldType.Mapping,
+        ["device_kinds.*"] = FieldType.Mapping,
+        ["device_kinds.*.usb_class"] = FieldType.Integer, // The USB interface class, for example 0x0E (14) for a camera.
+    });
+
+    /// <summary>v4 platform files (#327): <c>computer_hubs</c> instead of <c>built_in_hub_levels</c>.</summary>
+    public static readonly IReadOnlyDictionary<string, FieldType> PlatformFieldsV4 = V4(PlatformFields, "chips.*.");
+
+    /// <summary>v4 computer files (#327): <c>computer_hubs</c> instead of <c>built_in_hub_levels</c>.</summary>
+    public static readonly IReadOnlyDictionary<string, FieldType> ComputerFieldsV4 = V4(ComputerFields, "");
+
+    // The computer's own hubs: a number, null, or one per bus, { usb2: n, usb3: n }.
+    private static Dictionary<string, FieldType> V4(IReadOnlyDictionary<string, FieldType> v3, string prefix)
+    {
+        var fields = v3.Where(field => field.Key != $"{prefix}built_in_hub_levels").ToDictionary();
+        fields[$"{prefix}computer_hubs"] = FieldType.Hubs;
+        return fields;
+    }
+
     /// <summary>The header of a guide (<c>guides/&lt;guide&gt;.yaml</c>); the rest of a guide is checked by <see cref="GuideSchema"/>.</summary>
     public static readonly IReadOnlyDictionary<string, FieldType> GuideHeaderFields = With(Common, new()
     {
@@ -124,7 +149,7 @@ internal static class ProfileSchema
     private static string SchemaPath(string path)
     {
         var parts = path.Split('.');
-        if (parts.Length >= 2 && parts[0] is "ports" or "chips")
+        if (parts.Length >= 2 && parts[0] is "ports" or "chips" or "path_elements" or "device_kinds")
         {
             parts[1] = "*";
         }
@@ -145,6 +170,11 @@ internal static class ProfileSchema
         FieldType.StringList when value.Kind != ValueKind.List => "expected a list.",
         FieldType.StringList when value.Items.Any(item => item.Kind != ValueKind.String) => "expected a list of text items.",
         FieldType.Mapping when value.Kind != ValueKind.Mapping => "expected a mapping.",
+        FieldType.Hubs when value.Kind == ValueKind.Integer => (long)value.Scalar! < 0 ? "must not be negative." : null,
+        FieldType.Hubs when value.Kind != ValueKind.Mapping
+            || value.Fields.Any(bus => bus.Key is not ("usb2" or "usb3") || bus.Value.Kind is not (ValueKind.Integer or ValueKind.Null)
+                || bus.Value.Scalar is < 0L)
+            => "expected a whole number, null, or { usb2: n, usb3: n }.",
         _ => null,
     };
 }

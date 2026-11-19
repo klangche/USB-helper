@@ -12,6 +12,7 @@ public static class DatabaseFormats
     private static readonly Dictionary<int, Func<IReadOnlyDictionary<string, string>, HardwareDatabase>> Readers = new()
     {
         [3] = HardwareDatabase.Load,
+        [4] = HardwareDatabase.LoadV4,
     };
 
     /// <summary>The formats this app reads, oldest first.</summary>
