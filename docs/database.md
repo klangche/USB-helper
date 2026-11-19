@@ -52,7 +52,7 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
 - There is **no fallback** between guides. A hub or device is judged by every rule that matches it, and the strictest
   result wins. A count with an unknown part (an `open` computer_hub, `usb4_router`) is "at least": above a limit it is
   exceeded, within it unknown.
-- In a manufacturer guide (`proav: 1`) every rule needs `source` and `quote`. Unknown measures, path elements and
+- In every guide but USB-Helper's own (`usb-helper.yaml`), `basis` and every rule need `source` and `quote`. Unknown measures, path elements and
   device kinds, and two rules with the same measure, bus, devices and platforms, are errors with the file and line.
 - The line under a guide in the menu is generated from its rules, with the words from the strings file, for example
   "hub chain max 5; USB 2: hub chain max 2; cameras and audio: tiers recommended 3, max 4".

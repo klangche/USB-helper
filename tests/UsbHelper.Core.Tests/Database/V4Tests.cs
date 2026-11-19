@@ -145,7 +145,7 @@ public class V4Tests
 
         Assert.Equal("guides/room.yaml", error.File);
         Assert.Equal(15, error.Line);
-        Assert.Contains("'source' and 'quote' are required", error.Message, StringComparison.Ordinal);
+        Assert.Contains("'source' and 'quote' are required in a guide from a source", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

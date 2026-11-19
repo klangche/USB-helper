@@ -64,7 +64,8 @@ internal static class GuideReaderV4
         {
             Error(value, $"Unknown field '{key}'.");
         }
-        var manufacturer = root.Find("proav")?.Scalar is 1L;
+        // Every guide but USB-Helper's own states someone else's limits, so each of its rules quotes its source.
+        var manufacturer = id != Guide.DefaultId;
         var sources = ReadSources(root.Find("sources"), Error);
         if (root.Find("basis") is { } basis)
         {
@@ -72,7 +73,7 @@ internal static class GuideReaderV4
         }
         else if (manufacturer)
         {
-            Error(root, "Field 'basis' is required in a manufacturer guide: the source and the exact quote the guide works from.");
+            Error(root, "Field 'basis' is required in a guide from a source: the source and the exact quote the guide works from.");
         }
         var measures = ReadMeasures(root.Find("measures"), baseElements, Error);
         var rules = ReadRules(root.Find("rules"), measures, baseKinds, chips, sources, manufacturer, Error);
@@ -281,7 +282,7 @@ internal static class GuideReaderV4
         var quote = value.Find("quote");
         if (required && (source?.Scalar is not string || quote?.Scalar is not string { Length: > 0 }))
         {
-            error(value, $"{what}: 'source' and 'quote' are required in a manufacturer guide.");
+            error(value, $"{what}: 'source' and 'quote' are required in a guide from a source.");
         }
         if (source?.Scalar is string id && !sources.ContainsKey(id))
         {

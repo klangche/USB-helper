@@ -20,6 +20,9 @@ public class EmbeddedDatabaseTests
         throw new DirectoryNotFoundException("database/v3/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
+    /// <summary>The built-in v3 database (#334): the tests of the real data are on v3 while the v4 guides are written (#329).</summary>
+    internal static HardwareDatabase V3() => DatabaseFormats.Read(3, EmbeddedDatabase.Files()[3]);
+
     // Every value with its path, kind, file and line, so two loads can be compared as text.
     private static IEnumerable<string> Dump(ResolvedProfile profile) =>
         Dump(profile.Root, profile.Id).Prepend(string.Join(", ", profile.Files));
@@ -35,7 +38,7 @@ public class EmbeddedDatabaseTests
     [Fact]
     public void EmbeddedDatabaseGivesTheSameProfilesAsTheDatabaseFolder()
     {
-        var embedded = EmbeddedDatabase.Load();
+        var embedded = V3();
         var folder = HardwareDatabase.Load(RepositoryDatabase());
 
         Assert.NotEmpty(embedded.Platforms);
