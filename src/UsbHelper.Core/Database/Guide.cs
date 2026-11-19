@@ -57,16 +57,20 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// What the guide counts (#310): its <c>count</c>, any of <see cref="Chain"/>, <see cref="Tiers"/> and <see cref="Hubs"/>.
     /// Only these are judged; numbers for the others are ignored. Read from this guide only, never from USB-Helper's.
     /// </summary>
-    public IReadOnlyList<string> Count => [.. Root.Find("count")?.Items.Select(item => item.Scalar).OfType<string>() ?? []];
+    public IReadOnlyList<string> Count => Format >= 4
+        ? [.. Rules.Select(rule => rule.Measure).Distinct()]
+        : [.. Root.Find("count")?.Items.Select(item => item.Scalar).OfType<string>() ?? []];
 
     /// <summary>The guide counts <paramref name="measure"/> (<see cref="Measures"/>), so its limits for it are judged.</summary>
-    public bool Counts(string measure) => Count.Contains(measure);
+    public bool Counts(string measure) => Format < 4 && Count.Contains(measure);
 
     /// <summary>
     /// The guide's page: its <c>link</c> (#310), else the first web link among its <c>sources</c>, such as PureLink's
     /// whitepaper; null when there is none.
     /// </summary>
-    public Uri? Link => WebLink(Root.Find("link")?.Scalar as string) ?? Root.Find("sources")?.Items
+    public Uri? Link => WebLink(Root.Find("link")?.Scalar as string)
+        ?? SourceDefinitions.Values.Select(source => WebLink(source.Link)).FirstOrDefault(uri => uri != null)
+        ?? Root.Find("sources")?.Items
         .Select(item => WebLink((item.Scalar as string)?.Trim().Split(' ', 2)[0]))
         .FirstOrDefault(uri => uri != null);
 
@@ -79,6 +83,27 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
 
     /// <summary>The file is verified or partially verified.</summary>
     public bool Verified => Status is "verified" or "partial";
+
+    /// <summary>The database format the guide was read from: 3 (limits) or 4 (measures and rules, #327).</summary>
+    public int Format { get; init; } = 3;
+
+    /// <summary>A v4 guide's measures by id (#327); empty for a v3 guide.</summary>
+    public IReadOnlyDictionary<string, GuideMeasure> MeasureDefinitions { get; init; } = new Dictionary<string, GuideMeasure>();
+
+    /// <summary>A v4 guide's rules, in file order (#327); empty for a v3 guide.</summary>
+    public IReadOnlyList<GuideRule> Rules { get; init; } = [];
+
+    /// <summary>A v4 guide's sources by id (#327); empty for a v3 guide.</summary>
+    public IReadOnlyDictionary<string, GuideSource> SourceDefinitions { get; init; } = new Dictionary<string, GuideSource>();
+
+    /// <summary>
+    /// What the guide <c>requires</c> that this app does not know (#327). When not empty, the guide is listed as "needs a
+    /// newer USB-Helper" and nothing is judged by it.
+    /// </summary>
+    public IReadOnlyList<string> Unsupported { get; init; } = [];
+
+    /// <summary>The guide needs a newer USB-Helper (<see cref="Unsupported"/>).</summary>
+    public bool NeedsNewerApp => Unsupported.Count > 0;
 
     /// <summary>The value at a dotted path such as <c>limits.tiers.max</c>, or null when the file has no such key.</summary>
     public ProfileValue? Find(string path) => Root.Find(path);

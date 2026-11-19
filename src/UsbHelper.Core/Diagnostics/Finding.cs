@@ -32,6 +32,20 @@ public sealed record Finding(FactKind Kind, string SubjectId, string SubjectName
     public string Brief { get; init; } = Message;
 
     /// <summary>
+    /// For a limit exceeded: every part of the count with its origin (#326), such as
+    /// "computer_hub 1 platforms/macos.yaml apple-silicon". A part with an unknown count makes the count "at least".
+    /// Empty for other findings.
+    /// </summary>
+    public IReadOnlyList<Topology.CountPart> CountParts { get; init; } = [];
+
+    /// <summary>Equal when kind, subject, message, brief and problem are: the count parts explain a finding, they do not make it another one.</summary>
+    public bool Equals(Finding? other) =>
+        other is not null && Kind == other.Kind && SubjectId == other.SubjectId && SubjectName == other.SubjectName
+        && Message == other.Message && Brief == other.Brief && IsProblem == other.IsProblem;
+
+    public override int GetHashCode() => HashCode.Combine(Kind, SubjectId, SubjectName, Message, Brief, IsProblem);
+
+    /// <summary>
     /// A real finding (owner decision in #85): a limit or recommendation exceeded, a display problem, or a detected
     /// problem. Unknowns and database facts are not real findings; they belong in the log only.
     /// </summary>

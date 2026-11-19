@@ -534,6 +534,61 @@ This version keeps running.</value>
   <data name="SettingsOfferBetas" xml:space="preserve">
     <value>Offer beta versions</value>
   </data>
+  <data name="GuideNeedsNewer" xml:space="preserve">
+    <value>needs a newer USB-Helper</value>
+  </data>
+  <data name="GuideLineRecommended" xml:space="preserve">
+    <value>recommended {0}</value>
+  </data>
+  <data name="GuideLineMax" xml:space="preserve">
+    <value>max {0}</value>
+  </data>
+  <data name="GuideLineNone" xml:space="preserve">
+    <value>no limit</value>
+  </data>
+  <data name="GuideLineUsb2" xml:space="preserve">
+    <value>USB 2</value>
+  </data>
+  <data name="GuideLineUsb3" xml:space="preserve">
+    <value>USB 3</value>
+  </data>
+  <data name="GuideLineCameras" xml:space="preserve">
+    <value>cameras</value>
+  </data>
+  <data name="GuideLineAudio" xml:space="preserve">
+    <value>audio</value>
+  </data>
+  <data name="GuideLineHid" xml:space="preserve">
+    <value>keyboards and mice</value>
+  </data>
+  <data name="GuideLineAnd" xml:space="preserve">
+    <value>{0} and {1}</value>
+  </data>
+  <data name="GuideLineScope" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="GuideLineSeparator" xml:space="preserve">
+    <value>; </value>
+  </data>
+  <data name="GuideMeasureOther" xml:space="preserve">
+    <value>{0}</value>
+    <comment>A measure or device kind the strings file has no word for: its id from the guide.</comment>
+  </data>
+  <data name="GuideMeasureChain" xml:space="preserve">
+    <value>hub chain</value>
+  </data>
+  <data name="GuideMeasureTiers" xml:space="preserve">
+    <value>tiers</value>
+  </data>
+  <data name="GuideMeasureRoom" xml:space="preserve">
+    <value>hubs in the room</value>
+  </data>
+  <data name="SettingsDatabaseFormat" xml:space="preserve">
+    <value>Database format (beta only, used from the next start):</value>
+  </data>
+  <data name="SettingsDatabaseFormatNewest" xml:space="preserve">
+    <value>Newest ({0})</value>
+  </data>
   <data name="SettingsRememberProfiles" xml:space="preserve">
     <value>Remember the checked profiles between starts</value>
   </data>

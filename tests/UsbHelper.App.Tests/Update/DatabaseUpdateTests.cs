@@ -28,7 +28,8 @@ public sealed class DatabaseUpdateTests : IDisposable
 
     public void Dispose() => Directory.Delete(folder, recursive: true);
 
-    private DatabaseCache Cache => new(Path.Combine(folder, "database-cache"));
+    // These tests are on the v3 format (#334): its cache, its folder on GitHub, one format checked.
+    private DatabaseCache Cache => new(Path.Combine(folder, "database-cache"), 3);
 
     private IEnumerable<string> Lines => log.Entries.Select(entry => entry.Text);
 
@@ -54,7 +55,7 @@ public sealed class DatabaseUpdateTests : IDisposable
             truncated = false,
         });
         var answers = files.ToDictionary(file => $"{DatabaseCheck.RawUrl}{commit.Sha}/v3/{file.Key}", file => file.Value);
-        answers[DatabaseCheck.CommitsUrl] = commits;
+        answers[DatabaseCheck.CommitsUrlOf(3)] = commits;
         answers[$"{DatabaseCheck.TreesUrl}{commit.Sha}?recursive=1"] = tree;
         return new FakeHttp((request, _) => Task.FromResult(answers.TryGetValue(request.RequestUri!.ToString(), out var body)
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8) }
@@ -65,13 +66,14 @@ public sealed class DatabaseUpdateTests : IDisposable
     private MainViewModel Window(DatabaseVersion? inUse = null)
     {
         var window = new MainViewModel(new ComputerIdentity("LENOVO", "21K5", Platform: "windows-intel"), log: log);
+        window.DatabaseFormat = 3;
         window.LoadDatabase(Small, [], inUse ?? BuiltIn);
         window.Guide = Small.Guides["desktop"];
         return window;
     }
 
     private DatabaseUpdate Update(FakeHttp http, MainViewModel window, SettingsViewModel? settings = null) =>
-        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(5), settings ?? new SettingsViewModel());
+        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(5), settings ?? new SettingsViewModel(), formats: [3]);
 
     [Fact]
     public async Task ANewerDatabaseIsDownloadedCheckedStoredAndUsed()
@@ -86,8 +88,8 @@ public sealed class DatabaseUpdateTests : IDisposable
         Assert.Contains("Database in use: updated, 2026-11-18 (bbbbbbb)", Lines);
         // Stored for the next start, every file under the commit's folder, and marked current.
         Assert.Equal(Newer, Cache.Version());
-        Assert.Equal(files["base.yaml"], File.ReadAllText(Path.Combine(Cache.Folder, Newer.Sha, "base.yaml")));
-        Assert.False(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "computers", ".template.yaml")));
+        Assert.Equal(files["base.yaml"], File.ReadAllText(Path.Combine(Cache.Folder, Newer.Sha, "v3", "base.yaml")));
+        Assert.False(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v3", "computers", ".template.yaml")));
         // The ticks and the picked guide are kept.
         Assert.Equal(["windows-intel"], window.OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id));
         Assert.Equal("desktop", window.Guide!.Id);
@@ -103,7 +105,7 @@ public sealed class DatabaseUpdateTests : IDisposable
 
         await Update(http, window).CheckAsync();
 
-        Assert.Equal([DatabaseCheck.CommitsUrl], http.Requests.Select(uri => uri.ToString()));
+        Assert.Equal([DatabaseCheck.CommitsUrlOf(3)], http.Requests.Select(uri => uri.ToString()));
         Assert.Equal(BuiltIn, window.DatabaseVersion);
         Assert.Contains("Database update check: built in, 2026-11-01 (aaaaaaa) is up to date (newest on GitHub: aaaaaaa, 2026-11-01)", Lines);
         Assert.Null(Cache.Version());
@@ -244,6 +246,80 @@ public sealed class DatabaseUpdateTests : IDisposable
         Assert.Contains(Lines, line => line.StartsWith("Downloaded database bbbbbbb not used: 1 problem(s), first: base.yaml:", StringComparison.Ordinal));
     }
 
+    // Each format folder is read with its own reader and the newest that loads is used (#334).
+    [Fact]
+    public void AtStartTheBuiltInFormatIsReadAndNamed()
+    {
+        var (database, errors, version, format) = DatabaseUpdate.LoadAtStart(Cache.Folder, new Dictionary<int, IReadOnlyDictionary<string, string>> { [3] = RealFiles() }, BuiltIn, log, null);
+
+        Assert.NotNull(database);
+        Assert.Empty(errors);
+        Assert.Equal(BuiltIn, version);
+        Assert.Equal(3, format);
+        Assert.Contains("Database format v3 in use", Lines);
+    }
+
+    [Theory]
+    [InlineData(true, 3, 3)]
+    [InlineData(false, 3, null)]
+    [InlineData(true, null, null)]
+    public void OnlyABetaUsesTheSavedFormat(bool beta, int? saved, int? preferred)
+    {
+        Assert.Equal(preferred, DatabaseUpdate.PreferredFormat(beta, saved));
+    }
+
+    // A cache from before #334 (files at the top, a "current" file) and an interrupted download are removed on save.
+    [Fact]
+    public void ASaveRemovesTheOldLayoutAndInterruptedDownloads()
+    {
+        var files = RealFiles();
+        var oldLayout = Path.Combine(Cache.Folder, Older.Sha);
+        Directory.CreateDirectory(oldLayout);
+        File.WriteAllText(Path.Combine(oldLayout, "base.yaml"), files["base.yaml"]);
+        File.WriteAllText(Path.Combine(Cache.Folder, "current"), Older.Format());
+        var partial = Path.Combine(Cache.Folder, $"{new string('e', 40)}.partial-v3");
+        Directory.CreateDirectory(partial);
+        File.WriteAllText(Path.Combine(partial, "base.yaml"), files["base.yaml"]);
+
+        Cache.Save(Newer, files);
+
+        Assert.Equal([Newer.Sha, "current-v3"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+    }
+
+    // A newer database of a format not in use is stored for that format, and the window keeps its database.
+    [Fact]
+    public async Task AFormatNotInUseIsStoredButDoesNotReplaceTheDatabase()
+    {
+        var window = Window();
+        window.DatabaseFormat = 4;
+        var before = window.DatabaseVersion;
+        var computers = window.Computers.Count;
+
+        await Update(GitHub(Newer, RealFiles()), window).CheckAsync();
+
+        Assert.Equal(before, window.DatabaseVersion);
+        Assert.Equal(computers, window.Computers.Count);
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v3", "base.yaml")));
+        Assert.Equal(Newer, new DatabaseCache(Cache.Folder, 3).Version());
+    }
+
+    // Each format is cached on its own: a newer v4 goes into <sha>/v4/ while v3 stays.
+    [Fact]
+    public void EachFormatIsCachedOnItsOwn()
+    {
+        var files = RealFiles();
+        var v3 = new DatabaseCache(Cache.Folder, 3);
+        var v4 = new DatabaseCache(Cache.Folder, 4);
+        v3.Save(Older, files);
+
+        v4.Save(Newer, files);
+
+        Assert.Equal(Older, v3.Version());
+        Assert.Equal(Newer, v4.Version());
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Older.Sha, "v3", "base.yaml")));
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v4", "base.yaml")));
+    }
+
     [Fact]
     public void ANewDownloadReplacesTheStoredOne()
     {
@@ -253,13 +329,13 @@ public sealed class DatabaseUpdateTests : IDisposable
         Cache.Save(Newer, files);
 
         Assert.Equal(Newer.Sha, Cache.Version()!.Sha);
-        Assert.Equal([Newer.Sha, "current"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal([Newer.Sha, "current-v3"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 
     [Fact]
     public void TheBuiltInDatabaseRecordsItsCommit()
     {
-        var source = File.ReadAllText(Path.Combine(EmbeddedDatabaseTests.RepositoryDatabase(), ".source"));
+        var source = File.ReadAllText(Path.Combine(EmbeddedDatabaseTests.RepositoryDatabase(), "..", ".source"));
 
         var version = EmbeddedDatabase.Version();
 

@@ -76,7 +76,7 @@ public class ProfileMenuTests
     [Fact]
     public void TheRealDatabaseListsTheOperatingSystemsInMenuOrder()
     {
-        var window = new MainViewModel(EmbeddedDatabase.Load(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+        var window = new MainViewModel(EmbeddedDatabaseTests.V3(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
 
         Assert.Equal(["Windows", "macOS", "Ubuntu", "Debian", "iPhone and iPad", "Android"], window.PlatformGroups.Select(group => group.Name));
         Assert.Equal(["Intel", "AMD", "ARM"], window.PlatformGroups[0].Chips.Select(chip => chip.ChipLabel));
@@ -109,7 +109,7 @@ public class ProfileMenuTests
     [Fact]
     public void TheStatusFieldLinksTheGuidesPage()
     {
-        var window = new MainViewModel(EmbeddedDatabase.Load(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+        var window = new MainViewModel(EmbeddedDatabaseTests.V3(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
 
         Assert.False(window.HasGuideLink); // USB-Helper has no sources.
         Assert.Equal("Judged by the ", window.GuideTextBefore);
