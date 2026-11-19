@@ -71,6 +71,10 @@ internal static class GuideReaderV4
             Error(ownValue, "Field 'own' must be true or false.");
         }
         var manufacturer = root.Find("proav")?.Scalar is 1L && root.Find("own")?.Scalar is not true;
+        if (root.Find("own")?.Scalar is true && root.Find("basis") != null)
+        {
+            Error(root.Find("basis")!, "A guide with own: true states the owner's own numbers, so it has no 'basis' to quote.");
+        }
         var sources = ReadSources(root.Find("sources"), Error);
         if (root.Find("basis") is { } basis)
         {

@@ -81,7 +81,7 @@ public static class GuideLine
         "camera" => Strings.GuideLineCameras,
         "audio" => Strings.GuideLineAudio,
         "hid" => Strings.GuideLineHid,
-        _ => string.Format(CultureInfo.CurrentCulture, Strings.GuideMeasureOther, kind),
+        _ => kind, // Not reached: the loader accepts only the kinds above.
     };
 
     // "cameras and audio".
