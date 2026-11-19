@@ -20,7 +20,7 @@
 
   <!-- A broken database, embedded the way the app embeds database/, for the error tests. -->
   <ItemGroup>
-    <EmbeddedResource Include="BrokenDatabase\**\*.yaml" LogicalName="database/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="BrokenDatabase\**\*.yaml" LogicalName="database/v3/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- Golden files of a setup export (#135), read from the output folder. -->

@@ -321,6 +321,9 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>The database format in use (#334), set at start: an update of this format replaces the database.</summary>
+    public int DatabaseFormat { get; set; } = DatabaseFormats.Newest;
+
     /// <summary>Which database is in use (#290); null when the build did not record it.</summary>
     public DatabaseVersion? DatabaseVersion { get; private set; }
 

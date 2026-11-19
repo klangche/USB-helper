@@ -10,6 +10,7 @@ using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
 using UsbHelper.App.Update;
 using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 
@@ -69,7 +70,7 @@ public partial class App : Application
             Update = new UpdateViewModel(http, AppVersion.Current, kind, UpdateFolder,
                 msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
-        var databaseUpdate = new DatabaseUpdate(http, AppVersion.Current, cache, viewModel, log, DatabaseUpdateTimeout, settings);
+        var databaseUpdate = new DatabaseUpdate(http, AppVersion.Current, cache, viewModel, log, DatabaseUpdateTimeout, settings, EmbeddedDatabase.Version());
         _ = LoadInBackground(viewModel, log, desktop, platform, cache, databaseUpdate);
         return viewModel;
     }
@@ -117,11 +118,15 @@ public partial class App : Application
         log.Add("Loading database");
         // The log is only written on the UI thread: why a downloaded database is not used is copied over after.
         var notes = new EventLog();
-        var (database, errors, version) = await Task.Run(() => DatabaseUpdate.LoadAtStart(cache, EmbeddedDatabase.Load, EmbeddedDatabase.Version(), notes));
+        // A beta may use an older format, chosen in the settings (#334); a release always uses the newest.
+        var preferred = SettingsViewModel.IsBeta ? viewModel.Settings.DatabaseFormat : null;
+        var (database, errors, version, format) = await Task.Run(() =>
+            DatabaseUpdate.LoadAtStart(cache.Folder, EmbeddedDatabase.Files(), EmbeddedDatabase.Version(), notes, preferred));
         foreach (var note in notes.Entries)
         {
             log.Add(note.Text);
         }
+        viewModel.DatabaseFormat = format ?? DatabaseFormats.Newest;
         viewModel.LoadDatabase(database, errors, version);
     }
 

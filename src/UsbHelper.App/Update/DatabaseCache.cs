@@ -4,19 +4,34 @@ using UsbHelper.Core.Diagnostics;
 namespace UsbHelper.App.Update;
 
 /// <summary>
-/// The newest downloaded database (#290), in <c>database-cache/</c> next to settings.json: one folder per commit
-/// (<c>&lt;sha&gt;/base.yaml</c>, ...) and a <c>current</c> file with that commit's sha and date. A new download is written
-/// to a folder of its own first and becomes current only when complete, by replacing <c>current</c> in one step; older
-/// folders are then deleted.
+/// The newest downloaded database of one format (#290, #334), in <c>database-cache/</c> next to settings.json: one folder
+/// per commit and format (<c>&lt;sha&gt;/v3/base.yaml</c>, ...) and a <c>current-v3</c> file with that commit's sha and date.
+/// Each format is cached on its own. A new download is written to a folder of its own first and becomes current only when
+/// complete, by replacing <c>current-v&lt;N&gt;</c> in one step; that format's older folders are then deleted.
 /// </summary>
-public sealed class DatabaseCache(string folder)
+public sealed class DatabaseCache
 {
-    private const string CurrentFile = "current";
+    /// <param name="folder">The cache folder, shared by all formats.</param>
+    /// <param name="format">The format this cache holds; the newest this app reads when not given.</param>
+    public DatabaseCache(string folder, int? format = null)
+    {
+        Folder = folder;
+        Format = format ?? DatabaseFormats.Newest;
+        CurrentFile = $"current-{DatabaseFormats.Folder(Format)}";
+    }
+
+    private string CurrentFile { get; }
 
     /// <summary>The cache folder next to <paramref name="settingsPath"/> (settings.json).</summary>
     public static string NextTo(string settingsPath) => Path.Combine(Path.GetDirectoryName(settingsPath)!, "database-cache");
 
-    public string Folder { get; } = folder;
+    public string Folder { get; }
+
+    /// <summary>The database format this cache holds.</summary>
+    public int Format { get; }
+
+    /// <summary>The cached files of <paramref name="sha"/>: <c>&lt;sha&gt;/v&lt;N&gt;</c>.</summary>
+    public string FilesOf(string sha) => Path.Combine(Folder, sha, DatabaseFormats.Folder(Format));
 
     /// <summary>The cached commit, or null when there is none or <c>current</c> cannot be read.</summary>
     public DatabaseVersion? Version()
@@ -42,7 +57,7 @@ public sealed class DatabaseCache(string folder)
         {
             return null;
         }
-        var files = Path.Combine(Folder, version.Sha);
+        var files = FilesOf(version.Sha);
         try
         {
             if (!File.Exists(Path.Combine(files, "base.yaml")))
@@ -50,7 +65,9 @@ public sealed class DatabaseCache(string folder)
                 log.Add($"Downloaded database {version.ShortSha} not used: its files are missing");
                 return null;
             }
-            return (HardwareDatabase.Load(files), version);
+            return (DatabaseFormats.Read(Format, Directory.EnumerateFiles(files, "*", SearchOption.AllDirectories)
+                .Where(path => Path.GetExtension(path) is ".yaml" or ".yml")
+                .ToDictionary(path => Path.GetRelativePath(files, path).Replace('\\', '/'), File.ReadAllText)), version);
         }
         catch (DatabaseException e)
         {
@@ -73,7 +90,7 @@ public sealed class DatabaseCache(string folder)
             throw new ArgumentException("not a commit sha", nameof(version));
         }
         Directory.CreateDirectory(Folder);
-        var partial = Path.Combine(Folder, $"{version.Sha}.partial");
+        var partial = Path.Combine(Folder, $"{version.Sha}.partial-{DatabaseFormats.Folder(Format)}");
         if (Directory.Exists(partial))
         {
             Directory.Delete(partial, recursive: true);
@@ -84,20 +101,30 @@ public sealed class DatabaseCache(string folder)
             Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             File.WriteAllText(file, text);
         }
-        var target = Path.Combine(Folder, version.Sha);
+        var target = FilesOf(version.Sha);
         if (Directory.Exists(target))
         {
             Directory.Delete(target, recursive: true);
         }
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         Directory.Move(partial, target);
         var current = Path.Combine(Folder, CurrentFile);
         File.WriteAllText(current + ".tmp", (version with { BuiltIn = false }).Format());
         File.Move(current + ".tmp", current, overwrite: true);
+        // Only this format's older folders: the other formats keep theirs.
         foreach (var old in Directory.GetDirectories(Folder).Where(each => Path.GetFileName(each) != version.Sha))
         {
             try
             {
-                Directory.Delete(old, recursive: true);
+                var oldFiles = Path.Combine(old, DatabaseFormats.Folder(Format));
+                if (Directory.Exists(oldFiles))
+                {
+                    Directory.Delete(oldFiles, recursive: true);
+                }
+                if (!Directory.EnumerateFileSystemEntries(old).Any())
+                {
+                    Directory.Delete(old);
+                }
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {

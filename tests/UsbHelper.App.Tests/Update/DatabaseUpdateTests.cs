@@ -86,8 +86,8 @@ public sealed class DatabaseUpdateTests : IDisposable
         Assert.Contains("Database in use: updated, 2026-11-18 (bbbbbbb)", Lines);
         // Stored for the next start, every file under the commit's folder, and marked current.
         Assert.Equal(Newer, Cache.Version());
-        Assert.Equal(files["base.yaml"], File.ReadAllText(Path.Combine(Cache.Folder, Newer.Sha, "base.yaml")));
-        Assert.False(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "computers", ".template.yaml")));
+        Assert.Equal(files["base.yaml"], File.ReadAllText(Path.Combine(Cache.Folder, Newer.Sha, "v3", "base.yaml")));
+        Assert.False(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v3", "computers", ".template.yaml")));
         // The ticks and the picked guide are kept.
         Assert.Equal(["windows-intel"], window.OperatingSystems.Where(option => option.IsChecked).Select(option => option.Profile.Id));
         Assert.Equal("desktop", window.Guide!.Id);
@@ -253,13 +253,13 @@ public sealed class DatabaseUpdateTests : IDisposable
         Cache.Save(Newer, files);
 
         Assert.Equal(Newer.Sha, Cache.Version()!.Sha);
-        Assert.Equal([Newer.Sha, "current"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal([Newer.Sha, "current-v3"], Directory.EnumerateFileSystemEntries(Cache.Folder).Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 
     [Fact]
     public void TheBuiltInDatabaseRecordsItsCommit()
     {
-        var source = File.ReadAllText(Path.Combine(EmbeddedDatabaseTests.RepositoryDatabase(), ".source"));
+        var source = File.ReadAllText(Path.Combine(EmbeddedDatabaseTests.RepositoryDatabase(), "..", ".source"));
 
         var version = EmbeddedDatabase.Version();
 
