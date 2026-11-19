@@ -1,0 +1,29 @@
+name: Debian
+
+chips:
+  intel:
+    name: Intel
+    architecture: x64
+    computer_hubs: null
+  amd:
+    name: AMD
+    architecture: x64
+    computer_hubs: null
+  arm:
+    name: ARM
+    architecture: arm64
+    computer_hubs: null
+
+notes:
+  - "Debian, one entry per processor (owner decision 2026-11-17: Ubuntu and Debian are separate operating systems in the menu)."
+  - "built_in_hub_levels 0 for all chips, as the generic Linux profile before it: five hubs fit in a row (PureLink)."
+  - "computer_hubs null for all chips: no source establishes the hubs of a Linux computer, and PureLink V6 gives no distribution-specific limits (2026-11-19, #325)."
+  - "The built_in_hub_levels note above was replaced on 2026-11-19 (#328): v4 uses computer_hubs, set only where a source establishes it."
+
+sources:
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.linuxArm; config version 1.0.0, 2026-02-24)"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17

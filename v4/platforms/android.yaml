@@ -1,0 +1,26 @@
+name: Android
+
+chips:
+  phone-qualcomm:
+    name: Phone (Qualcomm)
+    architecture: arm64
+    computer_hubs: null
+  tablet-exynos:
+    name: Tablet (Exynos)
+    architecture: arm64
+    computer_hubs: null
+
+notes:
+  - "Generic Android profiles: a phone with a Qualcomm chip and a tablet with an Exynos chip."
+  - "phone-qualcomm, built_in_hub_levels 0: the usb-script config (Android Phone (Qualcomm)) has max_hops 5, tested in practice, not a manufacturer specification. That is the USB maximum (PureLink)."
+  - "tablet-exynos, built_in_hub_levels 1: the usb-script config (Android Tablet (Exynos)) has max_hops 4, tested in practice, not a manufacturer specification. Kept as one built-in hub level, which gives the same 4 hubs; it is not a measured tier count (owner decision 2026-11-16)."
+  - "computer_hubs null for every chip: the usb-script max_hops values are tested hop counts, not hub counts, so they do not establish the hubs inside the device (2026-11-19, #325)."
+  - "The built_in_hub_levels notes above were replaced on 2026-11-19 (#328): v4 uses computer_hubs, set only where a source establishes it."
+
+sources:
+  - "https://github.com/klangche/usb-script/blob/main/usb-tree-config.json (platformStability.androidPhone and platformStability.androidTablet; config version 1.0.0, 2026-02-24)"
+  - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
+
+verification:
+  status: partial
+  last_checked: 2026-11-17
