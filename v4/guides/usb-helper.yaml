@@ -35,7 +35,7 @@ platforms:
       arm:
         mst: 0
   macos:
-    mst: 0
+    mst: 0                            # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
     chips:
       intel:
         mst: 0
