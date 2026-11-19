@@ -244,6 +244,45 @@ public sealed class DatabaseUpdateTests : IDisposable
         Assert.Contains(Lines, line => line.StartsWith("Downloaded database bbbbbbb not used: 1 problem(s), first: base.yaml:", StringComparison.Ordinal));
     }
 
+    // Each format folder is read with its own reader and the newest that loads is used (#334).
+    [Fact]
+    public void AtStartTheBuiltInFormatIsReadAndNamed()
+    {
+        var (database, errors, version, format) = DatabaseUpdate.LoadAtStart(Cache.Folder, new Dictionary<int, IReadOnlyDictionary<string, string>> { [3] = RealFiles() }, BuiltIn, log, null);
+
+        Assert.NotNull(database);
+        Assert.Empty(errors);
+        Assert.Equal(BuiltIn, version);
+        Assert.Equal(3, format);
+        Assert.Contains("Database format v3 in use", Lines);
+    }
+
+    [Theory]
+    [InlineData(true, 3, 3)]
+    [InlineData(false, 3, null)]
+    [InlineData(true, null, null)]
+    public void OnlyABetaUsesTheSavedFormat(bool beta, int? saved, int? preferred)
+    {
+        Assert.Equal(preferred, DatabaseUpdate.PreferredFormat(beta, saved));
+    }
+
+    // Each format is cached on its own: a newer v4 goes into <sha>/v4/ while v3 stays.
+    [Fact]
+    public void EachFormatIsCachedOnItsOwn()
+    {
+        var files = RealFiles();
+        var v3 = new DatabaseCache(Cache.Folder, 3);
+        var v4 = new DatabaseCache(Cache.Folder, 4);
+        v3.Save(Older, files);
+
+        v4.Save(Newer, files);
+
+        Assert.Equal(Older, v3.Version());
+        Assert.Equal(Newer, v4.Version());
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Older.Sha, "v3", "base.yaml")));
+        Assert.True(File.Exists(Path.Combine(Cache.Folder, Newer.Sha, "v4", "base.yaml")));
+    }
+
     [Fact]
     public void ANewDownloadReplacesTheStoredOne()
     {

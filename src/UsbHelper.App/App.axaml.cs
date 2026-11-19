@@ -119,7 +119,7 @@ public partial class App : Application
         // The log is only written on the UI thread: why a downloaded database is not used is copied over after.
         var notes = new EventLog();
         // A beta may use an older format, chosen in the settings (#334); a release always uses the newest.
-        var preferred = SettingsViewModel.IsBeta ? viewModel.Settings.DatabaseFormat : null;
+        var preferred = DatabaseUpdate.PreferredFormat(SettingsViewModel.IsBeta, viewModel.Settings.DatabaseFormat);
         var (database, errors, version, format) = await Task.Run(() =>
             DatabaseUpdate.LoadAtStart(cache.Folder, EmbeddedDatabase.Files(), EmbeddedDatabase.Version(), notes, preferred));
         foreach (var note in notes.Entries)

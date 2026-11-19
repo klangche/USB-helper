@@ -10,13 +10,27 @@ every limit and recommendation.
 
 The branch is the only source. Each format has its own folder, `v3/` today (`schema_version: 3` in `base.yaml`), so an
 app always gets files in the format it reads; a new format adds `v4/` next to it. Every build takes the head of the
-branch: `release/database.sh` copies `v<format>/` into `database/` (ignored by git) before the build, in CI and locally.
-Run it once after cloning, and again to get the newest files. It also writes `database/.source`, the commit's full sha
-and date, which the build puts into the app with the files.
+branch: `release/database.sh` copies every format this code reads that the branch has, `v<format>/`, into
+`database/v<format>/` (ignored by git) before the build, in CI and locally. An older format may be missing; the newest
+must be there, or the script fails. Run it once after cloning, and again to get the newest files. It also writes
+`database/.source`, the commit's full sha and date, which the build puts into the app with the files.
+
+### Formats (#334)
+
+- The formats the app reads are the readers in `src/UsbHelper.Core/Database/DatabaseFormats.cs`, one per format. Every
+  reader gives the same in-memory database, so the newest engine also judges older data.
+- At start the app uses the newest built-in format that loads. When it does not load, the next lower one is used. The
+  log says which format is in use, and why when it is not the newest ("Database format v3 in use, because v4 does not
+  load").
+- A folder of a format the app does not know, such as `v5/` seen by an app that reads up to `v4/`, is ignored, so
+  publishing a new format never breaks installed apps.
+- Betas have a "Database format" switch in Settings (see [usage.md](usage.md#settings)). Release builds ignore it.
+- Adding `v5`: add its reader to `DatabaseFormats`, and `v5/` to the `database` branch before the code that reads it is
+  built. Nothing else changes: the build script, the update check and the cache follow the list of readers.
 
 A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
 start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
-(`commits?sha=database&path=v3&per_page=1`). When that commit's date is later than the database in use, it lists the
+(`commits?sha=database&path=v3&per_page=1`), for each format it reads. When that commit's date is later than the database in use, it lists the
 commit's files (`git/trees/<sha>?recursive=1`), downloads every `.yaml` file of the folder from
 `raw.githubusercontent.com/klangche/USB-helper/<sha>/v3/...`, and uses them only when they load without a problem.
 No manifest or extra workflow is needed: merging to the `database` branch is publishing. Two API requests per start
@@ -27,7 +41,7 @@ files with the code of `dev`, and of the last release when that reads the same f
 app cannot read never lands.
 
 ```
-v3/ on the database branch, database/ after release/database.sh
+v3/ on the database branch, database/v3/ after release/database.sh
 ├── base.yaml          facts from the USB specification
 ├── platforms/         one file per operating system, with its chips
 ├── guides/            one file per guide: usb-helper.yaml (the default), desktop.yaml, purelink.yaml, ochno.yaml,
@@ -36,7 +50,8 @@ v3/ on the database branch, database/ after release/database.sh
 ```
 
 The build puts these files into the app, so the download has no database folder. The database is only read by the
-application; a newer one it downloads is kept in `database-cache/<sha>/` next to `settings.json`.
+application; a newer one it downloads is kept in `database-cache/<sha>/v<format>/` next to `settings.json`, with a
+`current-v<format>` file per format, so each format is cached on its own.
 
 ### base.yaml
 

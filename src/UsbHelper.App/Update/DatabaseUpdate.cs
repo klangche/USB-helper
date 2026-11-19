@@ -21,6 +21,9 @@ public sealed class DatabaseUpdate(
     HttpClient http, string appVersion, DatabaseCache cache, MainViewModel window, EventLog log, TimeSpan timeout, SettingsViewModel settings,
     DatabaseVersion? builtIn = null)
 {
+    /// <summary>The format to prefer at start (#334): the saved one in a beta; a release always uses the newest (null).</summary>
+    public static int? PreferredFormat(bool beta, int? saved) => beta ? saved : null;
+
     /// <summary>
     /// The database to start with (#334): of each built-in format, the downloaded one when it is newer and still loads,
     /// else the built-in one; then the format chosen in a beta's settings, or the newest that loads
