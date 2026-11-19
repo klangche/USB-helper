@@ -239,8 +239,11 @@ public sealed class EventLog(TimeProvider? clock = null)
     /// </summary>
     public void Findings(IEnumerable<(string? Profile, Finding Finding)> current)
     {
+        // What was counted (#326), part by part with its origin.
+        static string Counted(Finding finding) =>
+            finding.CountParts.Count == 0 ? "" : $" Counted: {string.Join(" + ", finding.CountParts)}.";
         var texts = current.Select(item =>
-            $"Finding ({item.Profile ?? "no profile"}, {KindText(item.Finding.Kind)}): {item.Finding.SubjectName}: {item.Finding.Message}").ToList();
+            $"Finding ({item.Profile ?? "no profile"}, {KindText(item.Finding.Kind)}): {item.Finding.SubjectName}: {item.Finding.Message}{Counted(item.Finding)}").ToList();
         foreach (var text in texts.Distinct().Where(text => !findings.Contains(text)))
         {
             Add(text);
