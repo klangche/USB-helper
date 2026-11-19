@@ -44,6 +44,19 @@ public class EmbeddedDatabaseTests
         Assert.Equal(Dump(folder.Computers), Dump(embedded.Computers));
     }
 
+    // Every built-in format loads with its own reader (#334, #327), so a change to an older folder is checked too.
+    [Fact]
+    public void EveryBuiltInFormatLoads()
+    {
+        var formats = EmbeddedDatabase.Files();
+
+        Assert.Contains(3, formats.Keys);
+        foreach (var (format, files) in formats)
+        {
+            Assert.Equal(format, DatabaseFormats.Read(format, files).Format);
+        }
+    }
+
     [Fact]
     public void MissingAndInvalidEmbeddedFilesAreReported()
     {

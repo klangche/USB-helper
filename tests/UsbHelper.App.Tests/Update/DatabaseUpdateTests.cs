@@ -28,7 +28,8 @@ public sealed class DatabaseUpdateTests : IDisposable
 
     public void Dispose() => Directory.Delete(folder, recursive: true);
 
-    private DatabaseCache Cache => new(Path.Combine(folder, "database-cache"));
+    // These tests are on the v3 format (#334): its cache, its folder on GitHub, one format checked.
+    private DatabaseCache Cache => new(Path.Combine(folder, "database-cache"), 3);
 
     private IEnumerable<string> Lines => log.Entries.Select(entry => entry.Text);
 
@@ -54,7 +55,7 @@ public sealed class DatabaseUpdateTests : IDisposable
             truncated = false,
         });
         var answers = files.ToDictionary(file => $"{DatabaseCheck.RawUrl}{commit.Sha}/v3/{file.Key}", file => file.Value);
-        answers[DatabaseCheck.CommitsUrl] = commits;
+        answers[DatabaseCheck.CommitsUrlOf(3)] = commits;
         answers[$"{DatabaseCheck.TreesUrl}{commit.Sha}?recursive=1"] = tree;
         return new FakeHttp((request, _) => Task.FromResult(answers.TryGetValue(request.RequestUri!.ToString(), out var body)
             ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8) }
@@ -65,13 +66,14 @@ public sealed class DatabaseUpdateTests : IDisposable
     private MainViewModel Window(DatabaseVersion? inUse = null)
     {
         var window = new MainViewModel(new ComputerIdentity("LENOVO", "21K5", Platform: "windows-intel"), log: log);
+        window.DatabaseFormat = 3;
         window.LoadDatabase(Small, [], inUse ?? BuiltIn);
         window.Guide = Small.Guides["desktop"];
         return window;
     }
 
     private DatabaseUpdate Update(FakeHttp http, MainViewModel window, SettingsViewModel? settings = null) =>
-        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(5), settings ?? new SettingsViewModel());
+        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(5), settings ?? new SettingsViewModel(), formats: [3]);
 
     [Fact]
     public async Task ANewerDatabaseIsDownloadedCheckedStoredAndUsed()
@@ -103,7 +105,7 @@ public sealed class DatabaseUpdateTests : IDisposable
 
         await Update(http, window).CheckAsync();
 
-        Assert.Equal([DatabaseCheck.CommitsUrl], http.Requests.Select(uri => uri.ToString()));
+        Assert.Equal([DatabaseCheck.CommitsUrlOf(3)], http.Requests.Select(uri => uri.ToString()));
         Assert.Equal(BuiltIn, window.DatabaseVersion);
         Assert.Contains("Database update check: built in, 2026-11-01 (aaaaaaa) is up to date (newest on GitHub: aaaaaaa, 2026-11-01)", Lines);
         Assert.Null(Cache.Version());

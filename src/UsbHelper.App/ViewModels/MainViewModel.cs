@@ -87,7 +87,16 @@ public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : Obser
 
     public string Label => IsCustom ? Strings.CustomGuide : Guide!.Name;
 
-    public bool IsEnabled => IsCustom || Guide!.Selectable;
+    public bool IsEnabled => IsCustom || (Guide!.Selectable && !Guide.NeedsNewerApp);
+
+    /// <summary>The platform profiles, for the names in <see cref="Detail"/>.</summary>
+    public IReadOnlyDictionary<string, ResolvedProfile>? Platforms { get; init; }
+
+    /// <summary>The line under the name (#327), generated from a v4 guide's rules; empty for a v3 guide and Custom.</summary>
+    public string Detail => Guide is { Format: >= 4 } rules ? GuideLine.For(rules, Platforms) : "";
+
+    /// <summary>A line is shown.</summary>
+    public bool HasDetail => Detail.Length > 0;
 
     /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
     public bool IsProAv => Guide?.ProAv == true;
@@ -364,7 +373,7 @@ public sealed class MainViewModel : ObservableObject
         foreach (var each in (loaded?.Guides.Values ?? []).OrderBy(each => each.ProAv ? 1 : 0)
             .ThenBy(each => each.Name, StringComparer.CurrentCultureIgnoreCase))
         {
-            AddGuideOption(new GuideOption(each) { IsSelected = each == picked });
+            AddGuideOption(new GuideOption(each) { IsSelected = each == picked, Platforms = loaded?.Platforms });
         }
         if (loaded != null && CustomUnlocked)
         {
