@@ -46,12 +46,26 @@ internal static class RuleJudge
         Add(PathElements.RootHub, 1, "detected");
         if (measure.Weight(PathElements.ComputerHub) > 0)
         {
-            var computerHub = ComputerHub(measure, guide, profile, bus);
+            // Hubs the system reports inside the computer (#330) take the place of the database value on this path, so
+            // they are never counted twice.
+            var computerHub = path.ComputerHubs.Count > 0 && measure.ComputerHubFrom.Contains("detected")
+                ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, $"detected: {string.Join(", ", path.ComputerHubs)}")
+                : ComputerHub(measure, guide, profile, bus);
             parts.Add(computerHub with { Count = computerHub.Count * measure.Weight(PathElements.ComputerHub) });
         }
         foreach (var part in path.Parts(tiers: true))
         {
             Add(part.Element, part.Count, part.Origin);
+        }
+        // An active cable with a length (#331): the measure says how many metres make a tier on its bus.
+        foreach (var (port, mark) in path.Marks.Where(each => each.Mark.Metres != null))
+        {
+            var cableBus = mark.Bus == UsbBus.Usb3 ? "usb3" : "usb2";
+            if (measure.CableMetresPerTier.TryGetValue(cableBus, out var metresPerTier))
+            {
+                Add(PathElements.CableLength, mark.TiersFor(metresPerTier),
+                    string.Create(CultureInfo.InvariantCulture, $"your mark on {port}: {mark}, a tier per {metresPerTier:0.#} m after the first"));
+            }
         }
         if (measure.Weight(PathElements.Usb4Router) > 0)
         {

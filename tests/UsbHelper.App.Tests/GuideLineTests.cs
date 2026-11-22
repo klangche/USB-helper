@@ -93,6 +93,26 @@ public class GuideLineTests
         Assert.Equal("hub chain max 5; Windows AMD: hub chain max 4", Line("  - { measure: chain, max: 5 }\n  - { measure: chain, on: windows/amd, max: 4 }"));
     }
 
+    // The generated line of each real v4 guide (#329).
+    [Theory]
+    [InlineData("ochno", "hub chain max 5; hubs in the room max 4")]
+    [InlineData("extron", "hub chain max 5")]
+    [InlineData("crestron", "tiers max 7")]
+    [InlineData("purelink", "tiers recommended 4, max 7")]
+    [InlineData("desktop", "tiers max 7")]
+    [InlineData("usb-helper", "tiers recommended 5, max 7; cameras and audio: tiers recommended 3, max 5; ")]
+    [InlineData("unisynk", "tiers recommended 4, max 6; cameras and audio: tiers recommended 3, max 4; ")]
+    public void EachRealGuideHasItsLine(string guide, string line)
+    {
+        var db = DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]);
+
+        Assert.StartsWith(line, GuideLine.For(db.Guides[guide], db.Platforms), StringComparison.Ordinal);
+        if (!line.EndsWith("; ", StringComparison.Ordinal))
+        {
+            Assert.Equal(line, GuideLine.For(db.Guides[guide], db.Platforms));
+        }
+    }
+
     [Fact]
     public void AGuideThatNeedsANewerAppSaysSo()
     {

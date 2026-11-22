@@ -1,4 +1,5 @@
 using System.Globalization;
+using UsbHelper.Core.Detection;
 
 namespace UsbHelper.Core.Topology;
 
@@ -11,6 +12,24 @@ namespace UsbHelper.Core.Topology;
 /// <param name="Tiers">The tiers the mark adds to everything behind its port, its hubs included.</param>
 public sealed record CableMark(int Hubs, int Tiers)
 {
+    /// <summary>An active cable's length in metres (#331); null for a mark without a length.</summary>
+    public double? Metres { get; init; }
+
+    /// <summary>The bus the active cable carries (#331): USB 2 or USB 3; null for a mark without a length.</summary>
+    public UsbBus? Bus { get; init; }
+
+    /// <summary>
+    /// An active cable of <paramref name="metres"/> on <paramref name="bus"/> (#331): no hub, and the tiers each guide
+    /// works out from its length (Crestron: the first 5 m on USB 2 or 3 m on USB 3 are free, then a tier per 5 m or 3 m).
+    /// </summary>
+    public static CableMark ActiveCable(double metres, UsbBus bus) => new(0, 0) { Metres = metres, Bus = bus };
+
+    /// <summary>
+    /// The tiers this cable adds when a tier comes for each <paramref name="metresPerTier"/> beyond the first: 10 m at 5 m
+    /// per tier is 1, 3 m at 3 m is 0, 9 m at 3 m is 2. Zero for a mark without a length.
+    /// </summary>
+    public int TiersFor(double metresPerTier) =>
+        Metres is { } metres && metresPerTier > 0 ? Math.Max(0, (int)Math.Ceiling(metres / metresPerTier - 1e-9) - 1) : 0;
     /// <summary>"+N hubs": N hubs and N tiers.</summary>
     public static CableMark OfHubs(int hubs) => new(hubs, hubs);
 
@@ -32,7 +51,8 @@ public sealed record CableMark(int Hubs, int Tiers)
     /// only possible in a hand-edited setup.json, says both: "+1 hub, +3 tiers".
     /// </summary>
     public override string ToString() =>
-        Hubs == 0 ? Count(Tiers, "tier")
+        Metres is { } metres ? string.Create(CultureInfo.InvariantCulture, $"{metres:0.#} m {(Bus == UsbBus.Usb3 ? "USB 3" : "USB 2")} active cable")
+        : Hubs == 0 ? Count(Tiers, "tier")
         : Hubs == Tiers ? Count(Hubs, "hub")
         : $"{Count(Hubs, "hub")}, {Count(Tiers, "tier")}";
 

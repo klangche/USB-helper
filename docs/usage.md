@@ -143,6 +143,12 @@ every hub is a tier. "+N Tier" adds only N tiers, for an extender or repeater
 that is not a hub. The marked line is drawn dashed with a badge saying what it
 adds, for example "+2 Hub" or "+1 Tier", so it is clear that you added it and
 Windows did not detect it.
+Below the list, "Active cable" takes the cable's length in metres and its bus
+(USB 2 or USB 3), then Set. Each guide works out what that length adds: Crestron
+gives the first 5 m (USB 2) or 3 m (USB 3) free, then one tier per further 5 m
+or 3 m, so a 10 m USB 2 cable adds one tier; a guide that does not count cable
+length, such as Ochno, ignores it. The badge then says, for example, "10 m USB 2
+active cable".
 Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with
@@ -295,6 +301,21 @@ Custom is kept as the picked philosophy through restarts. Locking the app
 hides Custom and USB-Helper's guide applies; so it does at start when the app
 is locked or `custom.yaml` is missing or invalid (the log says why). The file
 is kept, and Custom is back once unlocked.
+
+## Guide sources
+
+Under the guide's name, "Sources:" lists every PDF and web link of the guide's
+sources, each by its name (#333). A PDF has a small PDF mark and opens in the
+app's own viewer, at the quoted page when the guide gives one; a link opens in
+the browser. A PDF is downloaded only when you click it, into `sources-cache/`
+next to `settings.json`, and checked: it must be a PDF, and its size and
+fingerprint must match the guide's. When the download fails or gives no PDF,
+the address opens in the browser and the app says why. When the fingerprint
+differs, the viewer says "This source has changed since the guide was written".
+A PDF without a public download (for example behind a login) asks for a copy
+you have, checks it against the fingerprint, and keeps it. The viewer scrolls,
+zooms, shows the page number and saves a copy; when it cannot start, the
+system's PDF app opens the file.
 
 ## Unlock
 

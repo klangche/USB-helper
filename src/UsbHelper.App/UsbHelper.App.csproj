@@ -26,6 +26,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <!-- Draws source PDFs in the built-in viewer with PDFium (#333). 5.2.1 is the version on SkiaSharp 3.119, as Avalonia 12.1. -->
+    <PackageReference Include="PDFtoImage" Version="5.2.1" />
     <!-- Reads company logos in SVG (#228) and draws them in the PDF report (#231). -->
     <PackageReference Include="Svg.Skia" Version="5.1.1" />
   </ItemGroup>
