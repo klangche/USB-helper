@@ -78,6 +78,24 @@ rules:
   - { measure: chain, max: 5, source: ochno, quote: "…" }
 ```
 
+### USB4 routers (#332)
+
+`usb4_router` is a path element, but it is **not measured yet** in 0.11.0: no USB4 or Thunderbolt dock was available
+to test detection with (owner, 2026-11-19). No current guide counts it, so no result depends on it. A guide whose
+measure counts `usb4_router` gets an unknown part ("not measured yet"), so its count is "at least": over a limit it is
+exceeded, within one it is unknown. It is never guessed as 0.
+
+- Routers are not hubs: PureLink V6 says to "distinguish USB hub tiers from USB4 routers and PCIe/DisplayPort tunnels".
+  Hubs behind a USB4 dock stay hubs on the USB 3 bus.
+- The depth limit, `usb4.max_router_depth 5` in `base.yaml`, comes from:
+  - the Linux Thunderbolt/USB4 driver, `drivers/thunderbolt/tb.h`, lines 75–76 on `master` as read on 2026-11-22:
+    `#define TB_SWITCH_MAX_DEPTH 6` (Thunderbolt) and `#define USB4_SWITCH_MAX_DEPTH 5` (USB4);
+  - the USB-IF USB4 System Overview, as found on #267.
+  The exact sections of the USB4 specification and of Microsoft's USB4 documentation are still to be checked; they are
+  not cited until someone has read them.
+- Detection (macOS through `MacThunderbolt.cs`, Windows through the USB4 host router) moves to #267's follow-up. It is
+  enabled only after a test with a real dock.
+
 A running app gets newer files without a new app version (#290, see [usage.md](usage.md#database-updates)): at
 start it asks the GitHub API for the newest commit that changed `v<format>/` on the branch
 (`commits?sha=database&path=v<format>&per_page=1`), for each format it reads. When that commit's date is later than the database in use, it lists the
