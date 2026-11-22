@@ -26,6 +26,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <!-- Draws source PDFs in the built-in viewer with PDFium (#333). 5.2.1 is the version on SkiaSharp 3.119, as Avalonia 12.1. -->
     <PackageReference Include="PDFtoImage" Version="5.2.1" />
     <!-- Reads company logos in SVG (#228) and draws them in the PDF report (#231). -->
     <PackageReference Include="Svg.Skia" Version="5.1.1" />
@@ -73,8 +74,10 @@
     <!-- Never upload a binlog (-bl) of a build with keys: it records the environment and this file, so the key ends up
          in it. -->
     <!-- 32 bytes are 43 base64 characters and one '='. The message names the variable, never its value. -->
-    <Error Condition="'@(_LicenceKey)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_LicenceKey.Secret)', '^[A-Za-z0-9+/]{43}=$'))" Text="USBH_LICENCE_KEY_%(_LicenceKey.Identity) is not a base64 32-byte key." />
-    <WriteLinesToFile Condition="'@(_LicenceKey)' != ''" File="$(LicenceKeysFile)" Overwrite="true" WriteOnlyWhenDifferent="true" Lines="// &lt;auto-generated/&gt; by the GenerateLicenceKeys target (#234). Never commit this file.;namespace UsbHelper.App.Licensing%3B;internal static partial class LicenceKeys;{;    static partial void AddKeys(Dictionary&lt;int, byte[]&gt; keys);    {;@(_LicenceKey->'        keys.Add(%(Identity), Convert.FromBase64String(&quot;%(Secret)&quot;))%3B');    };}" />
+    <Error Condition="'@(_LicenceKey)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('%(_LicenceKey.Secret)', '^[A-Za-z0-9+/]{43}=$'))"
+           Text="USBH_LICENCE_KEY_%(_LicenceKey.Identity) is not a base64 32-byte key." />
+    <WriteLinesToFile Condition="'@(_LicenceKey)' != ''" File="$(LicenceKeysFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="// &lt;auto-generated/&gt; by the GenerateLicenceKeys target (#234). Never commit this file.;namespace UsbHelper.App.Licensing%3B;internal static partial class LicenceKeys;{;    static partial void AddKeys(Dictionary&lt;int, byte[]&gt; keys);    {;@(_LicenceKey->'        keys.Add(%(Identity), Convert.FromBase64String(&quot;%(Secret)&quot;))%3B');    };}" />
     <Delete Condition="'@(_LicenceKey)' == ''" Files="$(LicenceKeysFile)" />
     <ItemGroup Condition="'@(_LicenceKey)' != ''">
       <Compile Include="$(LicenceKeysFile)" />
@@ -97,7 +100,8 @@
     <EmbeddedResource Include="..\..\database\.source" LogicalName="database.source" Condition="Exists('$(MSBuildThisFileDirectory)..\..\database\.source')" />
   </ItemGroup>
   <Target Name="RequireDatabase" BeforeTargets="BeforeBuild">
-    <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\..\database\.source')" Text="database/ or database/.source is missing: run release/database.sh to fetch the hardware database from the database branch (#288)." />
+    <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\..\database\.source')"
+           Text="database/ or database/.source is missing: run release/database.sh to fetch the hardware database from the database branch (#288)." />
   </Target>
 
 </Project>

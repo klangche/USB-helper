@@ -55,16 +55,19 @@ public partial class PdfViewerWindow : Window
             window = new PdfViewerWindow(bytes, PDFtoImage.Conversion.GetPageCount(bytes), title, notice);
             window.Render();
         }
+        // PDFium missing, or a PDF it cannot read (corrupt, password-protected): the system's PDF app tries instead.
         catch (Exception e) when (e is DllNotFoundException or TypeInitializationException or BadImageFormatException or EntryPointNotFoundException
-            or IOException or InvalidOperationException or NotSupportedException or PlatformNotSupportedException)
+            or IOException or InvalidOperationException or NotSupportedException or PlatformNotSupportedException
+            or PDFtoImage.Exceptions.PdfException)
         {
             return false;
         }
-        window.Show(owner);
         if (page is > 1)
         {
-            window.Opened += (_, _) => window.GoTo(page.Value);
+            // Subscribed before Show, which raises Opened; the pages are laid out after it, so the jump waits for that.
+            window.Opened += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(() => window.GoTo(page.Value), Avalonia.Threading.DispatcherPriority.Loaded);
         }
+        window.Show(owner);
         return true;
     }
 

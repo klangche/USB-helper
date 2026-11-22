@@ -205,6 +205,10 @@ internal static class GuideReaderV4
                 error(entry, $"Source '{id}': the name '{name}' is used twice.");
                 continue;
             }
+            if (entry.Find("size") is { Kind: not ValueKind.Null } sizeValue && sizeValue.Scalar is not (long and > 0))
+            {
+                error(sizeValue, $"Source '{id}': 'size' must be a whole number of bytes.");
+            }
             files.Add(new SourceFile(name, url, isPdf, sha256, entry.Find("size")?.Scalar as long?));
         }
         return files;
@@ -227,6 +231,14 @@ internal static class GuideReaderV4
             if (file == null && pdfs.Count == 1)
             {
                 file = pdfs[0].Name;
+            }
+            else if (file == null)
+            {
+                error(quote, $"Source '{id}': a quote needs 'file', the name of its entry, unless the source has exactly one PDF.");
+            }
+            if (quote.Find("page") is { Kind: not ValueKind.Null } pageValue && pageValue.Scalar is not (long and > 0))
+            {
+                error(pageValue, $"Source '{id}': a quote's 'page' must be a page number from 1.");
             }
             if (file != null && files.All(each => each.Name != file))
             {
