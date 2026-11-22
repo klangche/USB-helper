@@ -72,8 +72,9 @@ public sealed class DatabaseUpdateTests : IDisposable
         return window;
     }
 
+    // The budget covers loading the real database too; 5 s was too little on a busy Windows runner. No test here waits for it.
     private DatabaseUpdate Update(FakeHttp http, MainViewModel window, SettingsViewModel? settings = null) =>
-        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(5), settings ?? new SettingsViewModel(), formats: [3]);
+        new(http.Client(), "0.9.0", Cache, window, log, TimeSpan.FromSeconds(60), settings ?? new SettingsViewModel(), formats: [3]);
 
     [Fact]
     public async Task ANewerDatabaseIsDownloadedCheckedStoredAndUsed()
