@@ -262,7 +262,8 @@ public sealed class MainViewModel : ObservableObject
     /// Does nothing when nobody reads the tree (an operating system without detection), or while a read is running, so
     /// two reads never overlap.
     /// </summary>
-    public void RequestRefresh(bool clearLog)
+    /// <param name="logged">False to leave out the "Refresh" log line (a new session's line stands for it, #341).</param>
+    public void RequestRefresh(bool clearLog, bool logged = true)
     {
         if (RefreshRequested is null || IsLoading)
         {
@@ -273,7 +274,7 @@ public sealed class MainViewModel : ObservableObject
             ClearSession();
             log.Add("Refresh: log and disconnected devices cleared");
         }
-        else
+        else if (logged)
         {
             log.Add("Refresh");
         }
@@ -357,7 +358,11 @@ public sealed class MainViewModel : ObservableObject
         ClearSession();
         log.SessionStarted(RunningVersion, newSession: true);
         Refresh(); // The findings and the disconnected list follow the cleared history at once.
-        RequestRefresh(clearLog: false);
+        // A read already running brings the fresh tree; otherwise read it again, as Refresh does, without its log line.
+        if (!IsLoading)
+        {
+            RequestRefresh(clearLog: false, logged: false);
+        }
     }
 
     /// <summary>"Keep this session" or "Later" (#341): nothing is cleared; the log says it was kept.</summary>
@@ -376,6 +381,7 @@ public sealed class MainViewModel : ObservableObject
     public void Restart()
     {
         SessionOffer = null;
+        Session.Keep(); // If the restart fails, this window goes on and is asked again at the next break.
         log.Add("Restarting into the installed version");
         RestartRequested?.Invoke();
     }

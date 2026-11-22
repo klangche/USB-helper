@@ -172,11 +172,17 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         switch (choice)
         {
             case SessionChoice.SaveThenNewSession:
-                if (await LogWindow.SaveLog(this, viewModel.Log) is { } result)
+                // The log is cleared only once it is saved: a cancelled or failed save keeps the session.
+                var (message, saved) = await LogWindow.TrySaveLog(this, viewModel.Log);
+                ExportResult.Text = saved ? message : message ?? Strings.SessionNotSaved;
+                if (saved)
                 {
-                    ExportResult.Text = result;
+                    viewModel.StartNewSession();
                 }
-                viewModel.StartNewSession();
+                else
+                {
+                    viewModel.KeepSession();
+                }
                 break;
             case SessionChoice.NewSession:
                 viewModel.StartNewSession();

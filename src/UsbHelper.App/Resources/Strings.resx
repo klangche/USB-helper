@@ -997,4 +997,7 @@ This version keeps running.</value>
   <data name="SessionLater" xml:space="preserve">
     <value>Later</value>
   </data>
+  <data name="SessionNotSaved" xml:space="preserve">
+    <value>The log was not saved, so the session was kept.</value>
+  </data>
 </root>

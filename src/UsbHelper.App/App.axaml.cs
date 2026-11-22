@@ -111,11 +111,13 @@ public partial class App : Application
     {
         try
         {
-            if (Environment.ProcessPath is { } path)
+            if (Environment.ProcessPath is not { } path)
             {
-                Process.Start(new ProcessStartInfo(path) { UseShellExecute = false })!.Dispose();
-                desktop.Shutdown();
+                log.Add("The installed version could not be started: the app's own path is unknown");
+                return;
             }
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = false })!.Dispose();
+            desktop.Shutdown();
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
         {

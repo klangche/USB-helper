@@ -361,7 +361,8 @@ November. Start a new session?"
 
 - "New session" clears the log, the disconnected and reconnected devices and
   the findings, and reads the USB tree again, as "Refresh and clear log" does.
-  "Save the log first" opens Save log before. Cable marks and settings stay.
+  "Save the log first" opens Save log before; when that is cancelled or fails,
+  the session is kept and nothing is cleared. Cable marks and settings stay.
 - "Keep this session" clears nothing; the log says "Kept the session after
   sleep (12 h)". It is not asked again until the next sleep, or the next day.
 

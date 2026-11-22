@@ -1,3 +1,4 @@
+using System.Globalization;
 using UsbHelper.App.ViewModels;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
@@ -73,6 +74,7 @@ public class SessionTests
         // The ports tested start over: only the port in use now.
         Assert.StartsWith("Tested on 1 of 2 ports", window.Report(clock.Now.DateTime, null, null, "0.11.0").PortsTested, StringComparison.Ordinal);
         Assert.Equal(1, reads());
+        Assert.DoesNotContain(log.Entries, entry => entry.Text == "Refresh");
         window.Load(Desk, []);
         Assert.Equal(new CableMark(1, 1), Find(window.Roots, "HUB")!.Mark); // The marks stay.
         Assert.Equal(clock.Now, window.Session.Started);
@@ -100,8 +102,16 @@ public class SessionTests
     {
         var (window, _, clock, _) = Running();
         clock.Now += TimeSpan.FromDays(2);
-
-        window.SessionActivated();
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture; // English day and month names on every machine.
+        try
+        {
+            window.SessionActivated();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
 
         Assert.Equal("USB-helper has been open since Sunday 22 November. Start a new session?", window.SessionOffer!.Text);
     }
@@ -121,6 +131,61 @@ public class SessionTests
         window.Restart();
         Assert.Equal(1, restarted);
         Assert.Equal("Restarting into the installed version", log.Entries[^1].Text);
+    }
+
+    [Fact]
+    public void LaterKeepsEverythingAndAsksAgainOnlyAtTheNextBreak()
+    {
+        var (window, log, clock, reads) = Running(installed: "0.12.0");
+        clock.Now += TimeSpan.FromHours(12);
+        window.SessionTick();
+
+        window.KeepSession();
+
+        Assert.Null(window.SessionOffer);
+        Assert.Equal("Restart later", log.Entries[^1].Text);
+        Assert.NotEmpty(window.Disconnected);
+        Assert.Equal(0, reads());
+        clock.Now += TimeSpan.FromSeconds(30);
+        window.SessionTick();
+        window.SessionActivated();
+        Assert.Null(window.SessionOffer);
+        clock.Now += TimeSpan.FromHours(1);
+        window.SessionTick();
+        Assert.True(window.SessionOffer!.Restart);
+    }
+
+    // A restart that does not happen leaves this window open: it is asked again at the next break.
+    [Fact]
+    public void AFailedRestartIsAskedAgainAtTheNextBreak()
+    {
+        var (window, _, clock, _) = Running(installed: "0.12.0");
+        clock.Now += TimeSpan.FromHours(12);
+        window.SessionTick();
+
+        window.Restart(); // No RestartRequested: nothing starts.
+
+        clock.Now += TimeSpan.FromHours(1);
+        window.SessionTick();
+        Assert.NotNull(window.SessionOffer);
+    }
+
+    // During a read, the read already running brings the fresh tree: no second read, and no "Refresh" line.
+    [Fact]
+    public void ANewSessionDuringAReadWaitsForThatRead()
+    {
+        var (window, log, clock, reads) = Running();
+        clock.Now += TimeSpan.FromHours(12);
+        window.SessionTick();
+        window.IsLoading = true;
+
+        window.StartNewSession();
+
+        Assert.Equal(0, reads());
+        Assert.Equal("New session 2026-11-22 21:30 (USB-helper 0.11.0)", log.Entries[0].Text);
+        Assert.DoesNotContain(log.Entries, entry => entry.Text == "Refresh");
+        window.Load(Desk, []);
+        Assert.False(window.IsLoading);
     }
 
     [Fact]
