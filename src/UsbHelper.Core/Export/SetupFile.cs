@@ -78,7 +78,7 @@ public sealed record SetupFile(
             int Field(string name) => mark.RootElement.TryGetProperty(name, out var value) ? value.GetInt32() : 0;
             // An active cable's length and bus (#331); a mark without them is read as before.
             var metres = mark.RootElement.TryGetProperty("metres", out var length) ? length.GetDouble() : (double?)null;
-            Detection.UsbBus? bus = mark.RootElement.TryGetProperty("bus", out var busValue)
+            Detection.UsbBus? bus = metres != null && mark.RootElement.TryGetProperty("bus", out var busValue)
                 ? busValue.GetString() == "usb3" ? Detection.UsbBus.Usb3 : Detection.UsbBus.Usb2
                 : null;
             return new Topology.CableMark(Field("hubs"), Field("tiers")) { Metres = metres, Bus = bus };

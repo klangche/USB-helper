@@ -158,10 +158,20 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>The length typed for an active cable (#331), in metres; the mark is set with <see cref="SetCable"/>.</summary>
-    public decimal? CableMetres { get; set; } = 5;
+    public decimal? CableMetres
+    {
+        get => field ?? (cableMark?.Metres is { } metres ? (decimal)metres : 5);
+        set;
+    }
 
-    /// <summary>The active cable's bus for <see cref="SetCable"/>: 0 for USB 2, 1 for USB 3.</summary>
-    public int CableBusIndex { get; set; }
+    /// <summary>The active cable's bus for <see cref="SetCable"/>: 0 for USB 2, 1 for USB 3; the marked cable's at first.</summary>
+    public int CableBusIndex
+    {
+        get => cableBusIndex ?? (cableMark?.Bus == UsbBus.Usb3 ? 1 : 0);
+        set => cableBusIndex = value;
+    }
+
+    private int? cableBusIndex;
 
     /// <summary>The choices for <see cref="CableBusIndex"/>.</summary>
     public static IReadOnlyList<string> CableBuses { get; } = [Strings.GuideLineUsb2, Strings.GuideLineUsb3];
