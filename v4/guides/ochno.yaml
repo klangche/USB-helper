@@ -1,0 +1,85 @@
+# =============================================================================
+# Ochno  –  Manufacturer guide, format v4 (#329)
+# =============================================================================
+# Ochno counts hubs daisy-chained in front of a device, the computer's own
+# non-root hub included (chain, max 5), and the hubs in the room (room, max 4,
+# "for 100% of all laptops"). Root hubs do not count. The same on USB 2.0 and
+# USB 3.2. No separate rule for cameras or audio.
+# Setups: a known computer (computer_hubs from its file or chip) gives an exact
+# chain; an unknown one leaves the chain "at least" (unknown: open); marked hubs
+# (active extenders) count in both chain and room.
+# =============================================================================
+
+name: Ochno
+selectable: true
+proav: 1
+basis: { source: ochno, quote: "having max 5 usb hubs daisy-chained" }
+
+sources:
+  ochno:
+    link: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
+    title: "Guide: USB hub chains in video conference room"
+    author: Johan Niininen
+    version: "Updated Oct 28"
+    read: "the copy quoted in #325"
+
+measures:
+  chain:
+    counts: [computer_hub, hub, marked_hub]
+    computer_hub: { from: [detected, computer, chip], unknown: open }
+  room:
+    counts: [hub, marked_hub]
+
+rules:
+  - { measure: chain, max: 5, source: ochno, quote: "having max 5 usb hubs daisy-chained" }
+  - { measure: room, max: 4, source: ochno, quote: "to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4" }
+
+platforms:
+  windows:
+    mst: 1
+    chips:
+      intel: { mst: 1 }
+      amd: { mst: 1 }
+      arm: { mst: 0 }
+  macos:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      apple-silicon: { mst: 0 }
+      a-series: { mst: 0 }
+  ubuntu:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      amd: { mst: 0 }
+      arm: { mst: 0 }
+  debian:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      amd: { mst: 0 }
+      arm: { mst: 0 }
+  apple-mobile:
+    mst: 0
+    chips:
+      a-series: { mst: 0 }
+      m-series: { mst: 0 }
+  android:
+    mst: 0
+    chips:
+      phone-qualcomm: { mst: 0 }
+      tablet-exynos: { mst: 0 }
+
+notes:
+  - "Quotes (Ochno, Updated Oct 28): \"having max 5 usb hubs daisy-chained\"; \"the max 5 hub hops is the same for USB 2.0 and USB 3.2\"; \"to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4\"; a non-root internal hub counts for \"MacBook Pro M-series (all versions)\"."
+  - "Converted to v4 on 2026-11-19 (#329): chain = computer_hub + hub + marked_hub, max 5; room = hub + marked_hub, max 4."
+  - "Worked examples (derived by USB-Helper, not stated by Ochno; owner, 2026-11-22):"
+  - "A: Windows Intel laptop (0 internal hubs) → dock (2 hubs) → AOC (1) → videobar (1, camera behind it): room 4, chain 4. Both within."
+  - "B: the same room on a MacBook Pro M1 (1 internal hub): room 4, chain 5. Both within."
+  - "C: Windows Intel laptop → dock (2) → Ethernet extender (2) → videobar (1): room 5 is over 4 (notice: only for known Windows laptops), chain 5 within. On an M-series Mac: chain 6, over."
+  - "D: MacBook Neo (2 internal hubs, Lightware, not Ochno) → dock (2) → AOC (1) → videobar (1): room 4 within, chain 6 over. Ochno's \"4 for all laptops\" does not cover two internal hubs, and Ochno does not name the MacBook Neo."
+  - "E: M-series Mac → dock (2) → active electrical cable (2 on USB 2, 0 on USB 3) → videobar (1). Camera on USB 3: chain 4, within. Microphone on USB 2: chain 6, over. This is the failure the article describes."
+  - "F: the article's picture, \"8 hubs in a chain and will fail 100% of the time\": chain 8 or more on any laptop, over 5."
+  - "v3 source line, kept: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"
+  - "v3 source line, kept: Ochno: max 5 USB hubs daisy-chained, the same for USB 2.0 and USB 3.2; root hubs do not count, a laptop's non-root internal hub does (MacBook Pro M-series, other ARM laptops and Chromebooks, a few Intel laptops), so 4 for all laptops; docks have at least 2 hubs inside, Ethernet extenders 1–2, active electrical cables use hubs as re-drivers, active optical cables usually 1–2, interactive displays at least 2; many videobars, cameras and audio devices have internal hubs; some products have more USB 2.0 than USB 3.2 hubs."
+  - "v3 link, kept: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"

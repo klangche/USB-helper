@@ -1,0 +1,66 @@
+# =============================================================================
+# USB Standard  –  general purpose, format v4 (#329)
+# =============================================================================
+# The USB specification: at most 7 tiers on a path, host included.
+# Setups: a known computer gives exact tiers; an unknown one leaves them "at
+# least"; marked hubs and active cables add tiers.
+# =============================================================================
+
+name: USB Standard
+selectable: true
+proav: 0
+
+sources:
+  usb2:
+    title: "USB 2.0 specification"
+    author: USB-IF
+    version: "section 4.1.1"
+    read: "as cited in base.yaml"
+
+measures:
+  tiers:
+    counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
+    computer_hub: { from: [detected, computer, chip], unknown: open }
+
+rules:
+  - { measure: tiers, max: 7, source: usb2 }
+
+platforms:
+  windows:
+    mst: 1
+    chips:
+      intel: { mst: 1 }
+      amd: { mst: 1 }
+      arm: { mst: 0 }
+  macos:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      apple-silicon: { mst: 0 }
+      a-series: { mst: 0 }
+  ubuntu:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      amd: { mst: 0 }
+      arm: { mst: 0 }
+  debian:
+    mst: 0
+    chips:
+      intel: { mst: 0 }
+      amd: { mst: 0 }
+      arm: { mst: 0 }
+  apple-mobile:
+    mst: 0
+    chips:
+      a-series: { mst: 0 }
+      m-series: { mst: 0 }
+  android:
+    mst: 0
+    chips:
+      phone-qualcomm: { mst: 0 }
+      tablet-exynos: { mst: 0 }
+
+notes:
+  - "Converted to v4 on 2026-11-19 (#329): tiers max 7 from the USB 2.0 specification, section 4.1.1. No quote: the specification's text was not supplied."
+  - "v3 source line, kept: USB 2.0 and USB 3.x specifications (USB-IF): at most 7 tiers on a path, host included"
