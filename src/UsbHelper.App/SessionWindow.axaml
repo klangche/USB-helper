@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.SessionWindow"
+        Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Title="{x:Static res:Strings.SessionTitle}">
+
+  <!-- #341: after sleep or a long session, a new session or keep this one; with a newer version installed, a restart. -->
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock x:Name="Question" TextWrapping="Wrap" />
+    <CheckBox x:Name="SaveFirst" Content="{x:Static res:Strings.SessionSaveFirst}" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button x:Name="Primary" IsDefault="True" Click="PrimaryClick" />
+      <Button x:Name="Secondary" IsCancel="True" Click="SecondaryClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

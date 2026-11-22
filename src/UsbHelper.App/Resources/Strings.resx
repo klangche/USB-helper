@@ -937,4 +937,31 @@ This version keeps running.</value>
   <data name="CustomGuideFileFailed" xml:space="preserve">
     <value>The file could not be used: {0}</value>
   </data>
+  <data name="SessionTitle" xml:space="preserve">
+    <value>New session?</value>
+  </data>
+  <data name="SessionSlept" xml:space="preserve">
+    <value>The computer slept. Start a new session?</value>
+  </data>
+  <data name="SessionOpenSince" xml:space="preserve">
+    <value>USB-helper has been open since {0}. Start a new session?</value>
+  </data>
+  <data name="SessionNew" xml:space="preserve">
+    <value>New session</value>
+  </data>
+  <data name="SessionKeep" xml:space="preserve">
+    <value>Keep this session</value>
+  </data>
+  <data name="SessionSaveFirst" xml:space="preserve">
+    <value>Save the log first</value>
+  </data>
+  <data name="SessionNewerInstalled" xml:space="preserve">
+    <value>USB-helper {0} is installed; this window is {1}. Restart now?</value>
+  </data>
+  <data name="SessionRestart" xml:space="preserve">
+    <value>Restart</value>
+  </data>
+  <data name="SessionLater" xml:space="preserve">
+    <value>Later</value>
+  </data>
 </root>

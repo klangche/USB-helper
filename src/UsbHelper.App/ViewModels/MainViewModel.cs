@@ -125,6 +125,11 @@ public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 /// </param>
 public sealed record FindingItem(string Header, string Message);
 
+/// <summary>The session popup (#341): a new session after a break, or a restart into a newer installed version.</summary>
+/// <param name="Text">What the popup asks.</param>
+/// <param name="Restart">True for the restart question ("Restart" or "Later"), false for "New session" or "Keep this session".</param>
+public sealed record SessionOffer(SessionBreak Break, string Text, bool Restart);
+
 public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 
 /// <summary>
@@ -261,8 +266,7 @@ public sealed class MainViewModel : ObservableObject
         }
         if (clearLog)
         {
-            log.Clear();
-            history.Reset();
+            ClearSession();
             log.Add("Refresh: log and disconnected devices cleared");
         }
         else
@@ -278,6 +282,94 @@ public sealed class MainViewModel : ObservableObject
         LoadingStage = Strings.ReadingDevices;
         IsLoading = true;
         RefreshRequested();
+    }
+
+    // What a fresh session forgets (#206, #341): the log and the disconnected and reconnected devices.
+    private void ClearSession()
+    {
+        log.Clear();
+        history.Reset();
+    }
+
+    /// <summary>Notices sleep and long sessions (#341); tests give it their own clock.</summary>
+    public SessionWatch Session { get; init; } = new();
+
+    /// <summary>The version installed on disk now (#341), or null when it cannot be read; tests replace it.</summary>
+    internal Func<string?> InstalledVersion { get; init; } = InstalledApp.Version;
+
+    /// <summary>The running version; tests replace it.</summary>
+    internal string RunningVersion { get; init; } = AppVersion.Current;
+
+    /// <summary>Starts the installed version and closes this one (#341); set by the app.</summary>
+    public Action? RestartRequested { get; set; }
+
+    /// <summary>The popup asking for a new session or a restart (#341), or null when none is open.</summary>
+    public SessionOffer? SessionOffer
+    {
+        get => sessionOffer;
+        private set => SetField(ref sessionOffer, value);
+    }
+
+    private SessionOffer? sessionOffer;
+
+    /// <summary>Call every <see cref="SessionWatch.Tick"/>.</summary>
+    public void SessionTick() => Offer(Session.Ticked());
+
+    /// <summary>Call when the main window is activated.</summary>
+    public void SessionActivated() => Offer(Session.Activated());
+
+    // A break: a newer installed version asks for a restart instead of a new session.
+    private void Offer(SessionBreak? found)
+    {
+        if (found == null)
+        {
+            return;
+        }
+        var installed = InstalledVersion();
+        var newer = installed != null && ReleaseVersion.Parse(installed) is { } onDisk && ReleaseVersion.Parse(RunningVersion) is { } running
+            && onDisk.CompareTo(running) > 0;
+        SessionOffer = newer
+            ? new SessionOffer(found, string.Format(CultureInfo.CurrentCulture, Strings.SessionNewerInstalled, installed, RunningVersion), Restart: true)
+            : new SessionOffer(found, found.Kind == SessionBreakKind.Sleep
+                ? Strings.SessionSlept
+                : string.Format(CultureInfo.CurrentCulture, Strings.SessionOpenSince, found.Started.ToString("dddd d MMMM", CultureInfo.CurrentCulture)), Restart: false);
+        log.Add(newer ? $"USB-helper {installed} is installed; this window is {RunningVersion}" : found.Kind == SessionBreakKind.Sleep
+            ? $"The computer slept ({found.Duration})"
+            : $"Open since {found.Started.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)}");
+    }
+
+    /// <summary>
+    /// "New session" (#341): clears the log, the disconnected and reconnected devices and the findings, starts the log
+    /// with the session line and reads the tree again. Cable marks and settings stay.
+    /// </summary>
+    public void StartNewSession()
+    {
+        SessionOffer = null;
+        Session.NewSession();
+        ClearSession();
+        log.SessionStarted(RunningVersion, newSession: true);
+        Refresh(); // The findings and the disconnected list follow the cleared history at once.
+        RequestRefresh(clearLog: false);
+    }
+
+    /// <summary>"Keep this session" or "Later" (#341): nothing is cleared; the log says it was kept.</summary>
+    public void KeepSession()
+    {
+        if (SessionOffer is not { } offer)
+        {
+            return;
+        }
+        SessionOffer = null;
+        Session.Keep();
+        log.Add(offer.Restart ? "Restart later" : offer.Break.KeptText);
+    }
+
+    /// <summary>"Restart" (#341): starts the installed version and closes this one.</summary>
+    public void Restart()
+    {
+        SessionOffer = null;
+        log.Add("Restarting into the installed version");
+        RestartRequested?.Invoke();
     }
 
     /// <summary>The database load result: the profiles fill in and the window moves on to "Reading USB devices...".</summary>
