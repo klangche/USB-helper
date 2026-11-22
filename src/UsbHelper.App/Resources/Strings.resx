@@ -631,6 +631,27 @@ This version keeps running.</value>
   <data name="SettingsRemoveLogo" xml:space="preserve">
     <value>Remove</value>
   </data>
+  <data name="LogoHardToSeeDark" xml:space="preserve">
+    <value>This logo is hard to see on the dark theme</value>
+  </data>
+  <data name="LogoHardToSeeLight" xml:space="preserve">
+    <value>This logo is hard to see on the light theme</value>
+  </data>
+  <data name="LogoInvert" xml:space="preserve">
+    <value>Invert it</value>
+  </data>
+  <data name="LogoUploadDark" xml:space="preserve">
+    <value>Upload a logo for the dark theme</value>
+  </data>
+  <data name="LogoUploadLight" xml:space="preserve">
+    <value>Upload a logo for the light theme</value>
+  </data>
+  <data name="LogoKeepInverted" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="LogoCancelInvert" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="LogoFileType" xml:space="preserve">
     <value>SVG, PNG or WebP image</value>
   </data>

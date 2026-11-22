@@ -15,6 +15,9 @@ public sealed class SettingsViewModel : ObservableObject
     private readonly SettingsFile? file;
     private readonly EventLog? log;
     private readonly CompanyLogo? logo;
+    private readonly ThemeLogos? themes;
+    private double? luminance;
+    private bool luminanceRead;
     private IEntitlements? entitlements;
     private AppSettings current;
     private string? logoMessage;
@@ -31,6 +34,8 @@ public sealed class SettingsViewModel : ObservableObject
         this.log = log;
         this.current = current;
         this.logo = logo;
+        themes = logo == null ? null : ThemeLogos.Next(logo);
+        ThemeOffers = [new ThemeLogoViewModel(this, LogoTheme.Light), new ThemeLogoViewModel(this, LogoTheme.Dark)];
         CustomGuide = new CustomGuideFile(file == null ? null
             : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(file.Path)!, Core.Database.CustomGuide.FileName));
     }
@@ -58,6 +63,10 @@ public sealed class SettingsViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(BrandingUnlocked));
             OnPropertyChanged(nameof(Branding));
+            foreach (var offer in ThemeOffers)
+            {
+                offer.Changed();
+            }
             OnPropertyChanged(nameof(BetasUnlocked));
             OnPropertyChanged(nameof(BetasOffered));
         };
@@ -160,7 +169,93 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>The company name and logo for reports, or null when branding is locked or empty; see <see cref="Settings.Branding"/>.</summary>
-    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, BrandingUnlocked);
+    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, BrandingUnlocked, themes, Luminance());
+
+    /// <summary>The offers for a logo that is hard to see on the light and on the dark theme (#340), in that order.</summary>
+    public IReadOnlyList<ThemeLogoViewModel> ThemeOffers { get; }
+
+    /// <summary>The offer for <paramref name="theme"/>.</summary>
+    public ThemeLogoViewModel ThemeOffer(LogoTheme theme) => ThemeOffers[theme == LogoTheme.Light ? 0 : 1];
+
+    // The uploaded logo's luminance, read once per logo.
+    private double? Luminance()
+    {
+        if (!luminanceRead)
+        {
+            luminance = logo?.Original == null ? null : LogoContrast.Luminance(logo.Png(128));
+            luminanceRead = true;
+        }
+        return luminance;
+    }
+
+    /// <summary>
+    /// Makes <paramref name="path"/> the logo of <paramref name="theme"/> (#340), cropped as <paramref name="crop"/> says;
+    /// a refused or failed import keeps the old one and says why.
+    /// </summary>
+    public void ImportThemeLogo(LogoTheme theme, string path, LogoCrop? crop = null) =>
+        ChangeThemeLogo(theme, () => themes?.For(theme).Import(path, crop));
+
+    /// <summary>The uploaded logo inverted (RGB inverted, alpha kept) as PNG, to preview before it is kept; null when there is none.</summary>
+    public byte[]? InvertedLogo() => logo?.Original == null ? null : LogoContrast.Inverted(logo.Png(512));
+
+    /// <summary>Saves <paramref name="png"/>, from <see cref="InvertedLogo"/>, as the logo of <paramref name="theme"/>.</summary>
+    public void KeepInverted(LogoTheme theme, byte[] png)
+    {
+        var temporary = Path.Combine(Path.GetTempPath(), $"usbhelper-inverted-{Guid.NewGuid():N}.png");
+        try
+        {
+            ChangeThemeLogo(theme, () =>
+            {
+                File.WriteAllBytes(temporary, png);
+                themes?.For(theme).Import(temporary);
+            });
+        }
+        finally
+        {
+            File.Delete(temporary);
+        }
+    }
+
+    /// <summary>Removes the logo of <paramref name="theme"/>; that theme goes back to the uploaded logo or the company name.</summary>
+    public void RemoveThemeLogo(LogoTheme theme) => ChangeThemeLogo(theme, () => themes?.For(theme).Remove());
+
+    private void ChangeThemeLogo(LogoTheme theme, Action change)
+    {
+        var offer = ThemeOffer(theme);
+        try
+        {
+            change();
+            offer.Message = null;
+        }
+        catch (InvalidDataException e)
+        {
+            offer.Message = e.Message;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            log?.Add($"Company logo in {themes!.For(theme).Folder} could not be changed: {e.Message}");
+            offer.Message = string.Format(CultureInfo.CurrentCulture, Strings.LogoNotSaved, e.Message);
+        }
+        LogoChanged();
+    }
+
+    // The theme logos are made from the uploaded one, so they go with it.
+    private void RemoveThemeLogos()
+    {
+        themes?.Light.Remove();
+        themes?.Dark.Remove();
+    }
+
+    private void LogoChanged()
+    {
+        luminanceRead = false;
+        foreach (var offer in ThemeOffers)
+        {
+            offer.Changed();
+        }
+        OnPropertyChanged(nameof(LogoPreview));
+        OnPropertyChanged(nameof(Branding));
+    }
 
     /// <summary>The logo 128 pixels high for the settings window, or null when there is no logo.</summary>
     public string? LogoPreview => logo?.Original == null ? null : logo.Png(128);
@@ -215,6 +310,7 @@ public sealed class SettingsViewModel : ObservableObject
         {
             change();
             LogoMessage = null;
+            RemoveThemeLogos();
         }
         catch (InvalidDataException e)
         {
@@ -225,7 +321,7 @@ public sealed class SettingsViewModel : ObservableObject
             log?.Add($"Company logo in {logo!.Folder} could not be changed: {e.Message}");
             LogoMessage = string.Format(CultureInfo.CurrentCulture, Strings.LogoNotSaved, e.Message);
         }
-        OnPropertyChanged(nameof(LogoPreview));
+        LogoChanged();
     }
 
     /// <summary>
