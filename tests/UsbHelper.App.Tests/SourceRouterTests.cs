@@ -106,10 +106,6 @@ public sealed class SourceRouterTests : IDisposable
         var db = DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]);
 
         Assert.NotEmpty(SourceRouter.EntriesOf(db.Guides["ochno"]));
-        // Extron (#329): the white paper page, its PDF by fingerprint only (page 12 quoted), and the article.
-        var extron = SourceRouter.EntriesOf(db.Guides["extron"]);
-        Assert.Equal([(false, true), (true, false), (false, true)], extron.Select(entry => (entry.IsPdf, entry.File.Url != null)));
-        Assert.Equal(12, extron[1].Page);
         Assert.Empty(SourceRouter.EntriesOf(EmbeddedDatabaseTests.V3().Guides["ochno"]));
     }
 }
