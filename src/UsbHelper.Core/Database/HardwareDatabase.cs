@@ -20,14 +20,18 @@ public sealed class HardwareDatabase
 
     private HardwareDatabase(
         Dictionary<string, ResolvedProfile> platforms, Dictionary<string, ResolvedProfile> computers, Dictionary<string, Guide> guides,
-        IReadOnlyDictionary<string, List<string>> chips, long? maxTiers)
+        IReadOnlyDictionary<string, List<string>> chips, long? maxTiers, int format)
     {
+        Format = format;
         Platforms = platforms;
         Computers = computers;
         Guides = guides;
         this.chips = chips;
         this.maxTiers = maxTiers;
     }
+
+    /// <summary>The format the files were read in: 3, or 4 (#327).</summary>
+    public int Format { get; }
 
     /// <summary>One profile per operating system and chip, by id (platform and chip, for example <c>windows-intel</c>).</summary>
     public IReadOnlyDictionary<string, ResolvedProfile> Platforms { get; }
@@ -53,14 +57,23 @@ public sealed class HardwareDatabase
     /// <summary>Loads and validates the database from its files' contents.</summary>
     /// <param name="files">Each YAML file's content, by its path relative to the database folder, with '/' between folders.</param>
     /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
-    public static HardwareDatabase Load(IReadOnlyDictionary<string, string> files)
+    public static HardwareDatabase Load(IReadOnlyDictionary<string, string> files) => Load(files, SchemaVersion);
+
+    /// <summary>
+    /// Loads and validates a v4 database (#327): path elements and device kinds in base.yaml, <c>computer_hubs</c> in
+    /// platform and computer files, and guides with measures and quoted rules.
+    /// </summary>
+    /// <exception cref="DatabaseException">The database has one or more problems; all are listed.</exception>
+    public static HardwareDatabase LoadV4(IReadOnlyDictionary<string, string> files) => Load(files, 4);
+
+    private static HardwareDatabase Load(IReadOnlyDictionary<string, string> files, int format)
     {
         var errors = new List<DatabaseError>();
-        var usb = ReadBase(files, errors);
+        var usb = ReadBase(files, format, errors);
         var chips = new Dictionary<string, List<string>>();
-        var platforms = ReadPlatforms(files, usb, chips, errors);
-        var computers = ReadComputers(files, platforms, errors);
-        var guides = ReadGuides(files, usb, chips, errors);
+        var platforms = ReadPlatforms(files, usb, format, chips, errors);
+        var computers = ReadComputers(files, platforms, format, errors);
+        var guides = ReadGuides(files, usb, format, chips, errors);
         foreach (var file in files.Keys.Where(file => !IsRead(file)).Order(StringComparer.Ordinal))
         {
             errors.Add(new DatabaseError(file, 0,
@@ -71,7 +84,7 @@ public sealed class HardwareDatabase
         {
             throw new DatabaseException(errors);
         }
-        return new HardwareDatabase(platforms, computers, guides, chips, MaxTiers(usb));
+        return new HardwareDatabase(platforms, computers, guides, chips, MaxTiers(usb), format);
     }
 
     /// <summary>
@@ -93,8 +106,9 @@ public sealed class HardwareDatabase
 
     // chips: every platform file's chip keys, also of a file with errors, for the guides' shape.
     private static Dictionary<string, ResolvedProfile> ReadPlatforms(
-        IReadOnlyDictionary<string, string> files, ProfileValue usb, Dictionary<string, List<string>> chips, List<DatabaseError> errors)
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, int format, Dictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
+        var hubsField = format >= 4 ? "computer_hubs" : "built_in_hub_levels";
         var platforms = new Dictionary<string, ResolvedProfile>();
         foreach (var file in FilesIn(files, "platforms", subfolders: false))
         {
@@ -103,12 +117,12 @@ public sealed class HardwareDatabase
             {
                 continue;
             }
-            ProfileSchema.Validate(root, ProfileSchema.PlatformFields, errors);
+            ProfileSchema.Validate(root, format >= 4 ? ProfileSchema.PlatformFieldsV4 : ProfileSchema.PlatformFields, errors);
             var name = RequiredText(root, "name", errors);
             var chipList = root.Fields.GetValueOrDefault("chips");
             if (chipList is not { Kind: ValueKind.Mapping, Fields.Count: > 0 })
             {
-                errors.Add(new DatabaseError(file, chipList?.Line ?? root.Line, "Field 'chips' is required: at least one chip, each with 'name' and 'built_in_hub_levels'."));
+                errors.Add(new DatabaseError(file, chipList?.Line ?? root.Line, $"Field 'chips' is required: at least one chip, each with 'name' and '{hubsField}'."));
                 continue;
             }
             var platform = FileId(file);
@@ -119,9 +133,9 @@ public sealed class HardwareDatabase
             foreach (var (key, chip) in chipList.Fields.Where(chip => chip.Value.Kind == ValueKind.Mapping))
             {
                 var chipName = RequiredText(chip, "name", errors, $"chips.{key}.");
-                if (chip.Find("built_in_hub_levels") == null)
+                if (chip.Find(hubsField) == null)
                 {
-                    errors.Add(new DatabaseError(file, chip.Line, $"Chip '{key}' must set 'built_in_hub_levels' (null when unknown)."));
+                    errors.Add(new DatabaseError(file, chip.Line, $"Chip '{key}' must set '{hubsField}' (null when unknown)."));
                 }
                 if (name == null || chipName == null)
                 {
@@ -145,7 +159,7 @@ public sealed class HardwareDatabase
     }
 
     private static Dictionary<string, ResolvedProfile> ReadComputers(
-        IReadOnlyDictionary<string, string> files, Dictionary<string, ResolvedProfile> platforms, List<DatabaseError> errors)
+        IReadOnlyDictionary<string, string> files, Dictionary<string, ResolvedProfile> platforms, int format, List<DatabaseError> errors)
     {
         var computers = new Dictionary<string, ResolvedProfile>();
         foreach (var file in FilesIn(files, "computers", subfolders: true))
@@ -156,7 +170,7 @@ public sealed class HardwareDatabase
                 continue;
             }
             var (id, idLine) = ComputedId(root, errors);
-            ProfileSchema.Validate(Without(root, "id"), ProfileSchema.ComputerFields, errors);
+            ProfileSchema.Validate(Without(root, "id"), format >= 4 ? ProfileSchema.ComputerFieldsV4 : ProfileSchema.ComputerFields, errors);
             foreach (var field in new[] { "manufacturer", "model" })
             {
                 if (root.Find(field) == null)
@@ -200,7 +214,7 @@ public sealed class HardwareDatabase
 
     // Each guide is one file (guides/<id>.yaml). USB-Helper's is read first: it is the fallback of every other.
     private static Dictionary<string, Guide> ReadGuides(
-        IReadOnlyDictionary<string, string> files, ProfileValue usb, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, int format, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
         var guides = new Dictionary<string, Guide>();
         var guideFiles = files.Keys.Where(IsGuideFile).ToDictionary(FileId);
@@ -209,6 +223,20 @@ public sealed class HardwareDatabase
             errors.Add(new DatabaseError($"guides/{Guide.DefaultId}.yaml", 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
         }
         var maxTiers = MaxTiers(usb);
+        if (format >= 4)
+        {
+            // v4 (#327): no fallback between guides; each states its own rules.
+            var elements = usb.Find("path_elements")?.Fields.Keys.ToList() ?? [];
+            var kinds = usb.Find("device_kinds")?.Fields.Keys.ToList() ?? [];
+            foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key, StringComparer.Ordinal))
+            {
+                if (ProfileFileReader.Read(files[file], file, errors) is { } root && GuideReaderV4.Read(root, id, elements, kinds, chips, errors) is { } guide)
+                {
+                    guides.Add(id, guide);
+                }
+            }
+            return guides;
+        }
         Guide? fallback = null;
         foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key == Guide.DefaultId ? 0 : 1).ThenBy(guide => guide.Key, StringComparer.Ordinal))
         {
@@ -284,7 +312,7 @@ public sealed class HardwareDatabase
     private static string? Status(ProfileValue profile) => profile.Find("verification.status")?.Scalar as string;
 
     // base.yaml without schema_version: the USB facts every profile starts from.
-    private static ProfileValue ReadBase(IReadOnlyDictionary<string, string> files, List<DatabaseError> errors)
+    private static ProfileValue ReadBase(IReadOnlyDictionary<string, string> files, int format, List<DatabaseError> errors)
     {
         var empty = ProfileValue.CreateMapping(new Dictionary<string, ProfileValue>(), BaseFile, 0);
         if (!files.TryGetValue(BaseFile, out var yaml))
@@ -299,10 +327,17 @@ public sealed class HardwareDatabase
         }
 
         var body = Without(root, "schema_version");
-        ProfileSchema.Validate(body, ProfileSchema.BaseFields, errors);
-        if (!root.Fields.TryGetValue("schema_version", out var version) || version.Scalar is not long number || number != SchemaVersion)
+        ProfileSchema.Validate(body, format >= 4 ? ProfileSchema.BaseFieldsV4 : ProfileSchema.BaseFields, errors);
+        if (!root.Fields.TryGetValue("schema_version", out var version) || version.Scalar is not long number || number != format)
         {
-            errors.Add(new DatabaseError(BaseFile, version?.Line ?? root.Line, $"'schema_version' must be {SchemaVersion}."));
+            errors.Add(new DatabaseError(BaseFile, version?.Line ?? root.Line, $"'schema_version' must be {format}."));
+        }
+        if (format >= 4)
+        {
+            foreach (var element in GuideReaderV4.KnownElements.Where(element => body.Find($"path_elements.{element}") == null))
+            {
+                errors.Add(new DatabaseError(BaseFile, root.Line, $"Path element '{element}' is missing from 'path_elements'."));
+            }
         }
         if (body.Find("usb.max_tiers") == null)
         {

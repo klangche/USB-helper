@@ -69,6 +69,15 @@ public static class DiagnosticEvaluator
             findings.Add(new Finding(FactKind.Unknown, ComputerId, computer, "No computer profile is selected, so no limits are known."));
         }
 
+        // A v4 guide judges by its rules (#327); one that needs a newer app judges nothing.
+        var rulesGuide = guide is { Format: >= 4 } ? guide : null;
+        if (rulesGuide is { NeedsNewerApp: true })
+        {
+            findings.Add(new Finding(FactKind.Unknown, ComputerId, computer,
+                $"{rulesGuide.Name} needs a newer USB-Helper ({string.Join(", ", rulesGuide.Unsupported)}); nothing is judged by it."));
+            rulesGuide = null;
+        }
+
         var unreadable = TopologyCounts.Unreadable(tree).ToList();
         foreach (var node in unreadable)
         {
@@ -183,9 +192,11 @@ public static class DiagnosticEvaluator
             Camera("camera_audio.chain.max"), Camera("camera_audio.chain.recommended")];
         // What is counted (#310); without a guide nothing is known, and the log names hubs and tiers as unknown.
         var counted = guide?.Count ?? [Guide.Tiers, Guide.Hubs];
+        // A v4 guide has no limits of this kind: its rules are judged per device below.
+        var countedLimits = guide is { Format: >= 4 } ? [] : counted;
         // The maximums of what is counted are always named in the log; a recommendation or camera limit only when known.
         (LimitCheck Check, string Measure)[] maximums = [(hubs, Guide.Hubs), (tiers, Guide.Tiers), (chain, Guide.Chain)];
-        foreach (var limit in all.Where(limit => limit.Limit != null || maximums.Any(each => each.Check == limit && counted.Contains(each.Measure))))
+        foreach (var limit in all.Where(limit => limit.Limit != null || maximums.Any(each => each.Check == limit && countedLimits.Contains(each.Measure))))
         {
             findings.Add(LimitFinding(limit, computer));
         }
@@ -247,7 +258,7 @@ public static class DiagnosticEvaluator
 
         // Owner decision in #39: stability is judged on the limits the profile knows; an unknown limit is a finding,
         // and only a profile without any limit leaves the lines unknown.
-        var anyLimitKnown = all.Any(limit => limit.Limit != null);
+        var anyLimitKnown = all.Any(limit => limit.Limit != null) || (rulesGuide != null && profile != null && RuleJudge.AnyLimit(rulesGuide, profile));
         var connections = new Dictionary<string, ConnectionStatus>();
         foreach (var (_, port) in Ports(tree))
         {
@@ -264,6 +275,10 @@ public static class DiagnosticEvaluator
                 if (depth != null)
                 {
                     status = Max(status, JudgeDepth(node, BusKey(bus), IsCameraOrAudio(node)));
+                    if (rulesGuide != null && profile != null)
+                    {
+                        status = Max(status, RuleJudge.Judge(rulesGuide, profile, node, bus, paths[node.Id], findings));
+                    }
                 }
                 // Only hubs on a bus over a hub limit; a hub whose bus is unknown may be on any of them.
                 bool OnBusOver(List<(UsbBus? Bus, LimitCheck Check)> checks) => checks.Any(each =>

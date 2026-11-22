@@ -17,10 +17,13 @@ namespace UsbHelper.App.Update;
 /// <param name="cache">The cache of the newest format; the other formats are cached in the same folder.</param>
 /// <param name="timeout">For the whole check and download.</param>
 /// <param name="builtIn">The built-in database's commit, to tell whether a format not in use has newer files.</param>
+/// <param name="formats">The formats to check; every format this app reads when not given.</param>
 public sealed class DatabaseUpdate(
     HttpClient http, string appVersion, DatabaseCache cache, MainViewModel window, EventLog log, TimeSpan timeout, SettingsViewModel settings,
-    DatabaseVersion? builtIn = null)
+    DatabaseVersion? builtIn = null, IReadOnlyList<int>? formats = null)
 {
+    private readonly IReadOnlyList<int> formats = formats ?? DatabaseFormats.Supported;
+
     /// <summary>The format to prefer at start (#334): the saved one in a beta; a release always uses the newest (null).</summary>
     public static int? PreferredFormat(bool beta, int? saved) => beta ? saved : null;
 
@@ -94,7 +97,7 @@ public sealed class DatabaseUpdate(
     /// </summary>
     public async Task CheckAsync()
     {
-        foreach (var format in DatabaseFormats.Supported.Reverse())
+        foreach (var format in formats.Reverse())
         {
             await CheckAsync(format);
         }
@@ -104,7 +107,7 @@ public sealed class DatabaseUpdate(
     {
         var inUse = format == window.DatabaseFormat;
         // The log names the format once the app reads more than one.
-        var label = DatabaseFormats.Supported.Count > 1 ? $" ({DatabaseFormats.Folder(format)})" : "";
+        var label = formats.Count > 1 ? $" ({DatabaseFormats.Folder(format)})" : "";
         var formatCache = new DatabaseCache(cache.Folder, format);
         using var cancel = new CancellationTokenSource(timeout);
         var current = inUse ? window.DatabaseVersion

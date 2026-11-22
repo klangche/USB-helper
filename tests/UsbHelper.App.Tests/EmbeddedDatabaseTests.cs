@@ -20,6 +20,9 @@ public class EmbeddedDatabaseTests
         throw new DirectoryNotFoundException("database/v3/base.yaml not found above the test output folder: run release/database.sh (#288).");
     }
 
+    /// <summary>The built-in v3 database (#334): the tests of the real data are on v3 while the v4 guides are written (#329).</summary>
+    internal static HardwareDatabase V3() => DatabaseFormats.Read(3, EmbeddedDatabase.Files()[3]);
+
     // Every value with its path, kind, file and line, so two loads can be compared as text.
     private static IEnumerable<string> Dump(ResolvedProfile profile) =>
         Dump(profile.Root, profile.Id).Prepend(string.Join(", ", profile.Files));
@@ -35,13 +38,26 @@ public class EmbeddedDatabaseTests
     [Fact]
     public void EmbeddedDatabaseGivesTheSameProfilesAsTheDatabaseFolder()
     {
-        var embedded = EmbeddedDatabase.Load();
+        var embedded = V3();
         var folder = HardwareDatabase.Load(RepositoryDatabase());
 
         Assert.NotEmpty(embedded.Platforms);
         Assert.NotEmpty(embedded.Computers);
         Assert.Equal(Dump(folder.Platforms), Dump(embedded.Platforms));
         Assert.Equal(Dump(folder.Computers), Dump(embedded.Computers));
+    }
+
+    // Every built-in format loads with its own reader (#334, #327), so a change to an older folder is checked too.
+    [Fact]
+    public void EveryBuiltInFormatLoads()
+    {
+        var formats = EmbeddedDatabase.Files();
+
+        Assert.Contains(3, formats.Keys);
+        foreach (var (format, files) in formats)
+        {
+            Assert.Equal(format, DatabaseFormats.Read(format, files).Format);
+        }
     }
 
     [Fact]
