@@ -16,15 +16,27 @@ basis: { source: whitepaper, quote: "five cascading hub limit" }
 
 sources:
   whitepaper:
-    link: https://www.extron.com/article/understandingusbwp?tab=tools
     title: "Understanding USB in Professional AV Environments"
     author: Extron
     version: "Rev 1.0, 03/31/17"
-    read: "a copy supplied by the owner (3878270 bytes, SHA-256 ff607ff629a566a2e2e59bff2ff44f5c6a5da74e745a0549435352a0b56358c9); the download needs a login, so no PDF link (#329)"
+    read: "a copy supplied by the owner; the download needs a login, so the PDF has no URL (#329)"
+    files:
+      - name: "Understanding USB in Professional AV Environments (page, login)"
+        link: https://www.extron.com/article/understandingusbwp?tab=tools
+      - name: "Understanding USB in Professional AV Environments (PDF, Rev 1.0)"
+        pdf:                       # no public download: open a local copy
+        sha256: ff607ff629a566a2e2e59bff2ff44f5c6a5da74e745a0549435352a0b56358c9
+        size: 3878270
+    quotes:
+      - text: "count all of the hubs between the host controller and the farthest peripheral. This includes all of the hubs located inside any computer connected to the bus, plus all hubs enclosed within USB compound devices"
+        file: "Understanding USB in Professional AV Environments (PDF, Rev 1.0)"
+        page: 12
   article:
-    link: https://www.extron.com/article/usb-c-connectivity-for-pro-av
     title: "USB-C for Pro AV"
     author: Extron
+    files:
+      - name: "USB-C for Pro AV (article)"
+        link: https://www.extron.com/article/usb-c-connectivity-for-pro-av
 
 measures:
   chain:
