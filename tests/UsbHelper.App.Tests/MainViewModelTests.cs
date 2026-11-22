@@ -901,6 +901,23 @@ public class MainViewModelTests
         Assert.Null(hub.MarkBadge);
     }
 
+    // #331: the mark menu's length and bus fields mark the line as an active cable.
+    [Fact]
+    public void TheCableFieldsMarkAnActiveCableWithItsLengthAndBus()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load(Desk);
+        var hub = Item(viewModel, "HUB");
+
+        hub.CableMetres = 10;
+        hub.CableBusIndex = 1;
+        hub.SetCable.Execute(null);
+
+        Assert.Equal(CableMark.ActiveCable(10, UsbBus.Usb3), hub.Mark);
+        Assert.Equal(-1, hub.MarkIndex);
+        Assert.Equal("10 m USB 3 active cable", hub.MarkBadge);
+    }
+
     // #307: a mark that is none of the choices, from a hand-edited setup.json, selects no entry and stays.
     [Fact]
     public void AMarkThatIsNoChoiceSelectsNoEntry()

@@ -143,6 +143,12 @@ every hub is a tier. "+N Tier" adds only N tiers, for an extender or repeater
 that is not a hub. The marked line is drawn dashed with a badge saying what it
 adds, for example "+2 Hub" or "+1 Tier", so it is clear that you added it and
 Windows did not detect it.
+Below the list, "Active cable" takes the cable's length in metres and its bus
+(USB 2 or USB 3), then Set. Each guide works out what that length adds: Crestron
+gives the first 5 m (USB 2) or 3 m (USB 3) free, then one tier per further 5 m
+or 3 m, so a 10 m USB 2 cable adds one tier; a guide that does not count cable
+length, such as Ochno, ignores it. The badge then says, for example, "10 m USB 2
+active cable".
 Click the "+" again to change the mark, or pick "None" to remove it. Marks last until the app closes.
 
 Click "Log" in the top bar to open the log: every event of this session with

@@ -18,6 +18,12 @@ public sealed record GuideMeasure(
     string Id, IReadOnlyList<string> Counts, IReadOnlyDictionary<string, int> Weights, IReadOnlyList<string> ComputerHubFrom,
     int? ComputerHubUnknown, int ComputerHubUnknownLine)
 {
+    /// <summary>
+    /// Metres of active cable per tier, by bus (<c>usb2</c>, <c>usb3</c>), from <c>cable_length</c> (#331); empty when the
+    /// measure does not convert a cable's length.
+    /// </summary>
+    public IReadOnlyDictionary<string, double> CableMetresPerTier { get; init; } = new Dictionary<string, double>();
+
     /// <summary>How much <paramref name="element"/> counts in this measure; 0 when it does not count.</summary>
     public int Weight(string element) => Counts.Contains(element) ? Weights.GetValueOrDefault(element, 1) : 0;
 }

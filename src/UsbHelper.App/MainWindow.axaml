@@ -281,6 +281,20 @@
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[3]}" Command="{Binding SetMark}" CommandParameter="3" />
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[4]}" Command="{Binding SetMark}" CommandParameter="4" />
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[5]}" Command="{Binding SetMark}" CommandParameter="5" />
+                        <!-- An active cable with its length and bus (#331): each guide works out its tiers. -->
+                        <Separator />
+                        <MenuItem StaysOpenOnClick="True">
+                          <MenuItem.Header>
+                            <StackPanel Spacing="4">
+                              <TextBlock Text="{x:Static res:Strings.MarkCableTitle}" />
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <NumericUpDown Value="{Binding CableMetres}" Minimum="0.5" Maximum="100" Increment="0.5" FormatString="0.#" Width="110" />
+                                <ComboBox ItemsSource="{x:Static vm:NodeViewModel.CableBuses}" SelectedIndex="{Binding CableBusIndex}" />
+                                <Button Content="{x:Static res:Strings.MarkCableSet}" Command="{Binding SetCable}" CommandParameter="0" />
+                              </StackPanel>
+                            </StackPanel>
+                          </MenuItem.Header>
+                        </MenuItem>
                       </MenuFlyout>
                     </Button.Flyout>
                   </Button>

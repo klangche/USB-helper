@@ -1,6 +1,7 @@
 using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
+using UsbHelper.Core.Topology;
 using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Database;
@@ -67,6 +68,39 @@ public class RealGuidesV4Tests
         var m1Max = Evaluate(M1Max, "purelink", 3);
         Assert.Contains(m1Max.Findings, finding => finding.SubjectId == "KEYBOARD"
             && finding.Message.StartsWith("PureLink: tiers at least 5 exceeds the recommended 4.", StringComparison.Ordinal));
+    }
+
+    // An active cable with a length (#331): Crestron's first 5 m (USB 2) or 3 m (USB 3) are free, then a tier per 5 m or 3 m.
+    [Theory]
+    [InlineData(10, false, 1)] // Crestron's Example 2
+    [InlineData(3, true, 0)]
+    [InlineData(9, true, 2)]
+    public void CrestronGivesTiersForAnActiveCablesLength(double metres, bool usb3, int tiers)
+    {
+        var mark = CableMark.ActiveCable(metres, usb3 ? UsbBus.Usb3 : UsbBus.Usb2);
+        // Windows Intel's hubs are unknown, so Crestron assumes one: a device behind 4 hubs is on tier 7, the limit.
+        var report = DiagnosticEvaluator.Evaluate([Controller("C1", Hub("ROOT", Behind(4, Device("KEYBOARD"))))], Db.Platforms["windows-intel"], [],
+            externalDisplays: 0, marks: new Dictionary<string, CableMark> { ["HUB4|port1"] = mark }, guide: Db.Guides["crestron"]);
+
+        var over = report.Findings.SingleOrDefault(finding => finding.SubjectId == "KEYBOARD" && finding.Kind == FactKind.PredictedRisk);
+        Assert.Equal(tiers > 0, over != null);
+        if (over != null)
+        {
+            Assert.StartsWith($"Crestron: tiers {7 + tiers} exceeds the maximum 7.", over.Message, StringComparison.Ordinal);
+            Assert.Contains(over.CountParts, part => part.Element == PathElements.CableLength && part.Count == tiers);
+        }
+    }
+
+    // Ochno does not count cable length: the same cable changes nothing, and only marked hubs count.
+    [Fact]
+    public void OchnoIgnoresACablesLength()
+    {
+        var mSeries = Db.Platforms["macos-apple-silicon"];
+        DiagnosticReport With(CableMark mark) => DiagnosticEvaluator.Evaluate([Controller("C1", Hub("ROOT", Behind(4, Device("KEYBOARD"))))], mSeries, [],
+            externalDisplays: 0, marks: new Dictionary<string, CableMark> { ["HUB4|port1"] = mark }, guide: Db.Guides["ochno"]);
+
+        Assert.Equal(ConnectionStatus.Green, With(CableMark.ActiveCable(30, UsbBus.Usb2)).Connections["KEYBOARD"]);
+        Assert.Equal(ConnectionStatus.Purple, With(CableMark.OfHubs(1)).Connections["KEYBOARD"]);
     }
 
     // Every rule of a manufacturer guide quotes words that are in its notes or basis.

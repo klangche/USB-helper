@@ -43,7 +43,8 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
   - `sources`: id → `link`, `title`, `author`, `version`, `read` (how it was read);
   - `measures`: each a sum of path elements (`counts`), with optional `weights`, and which evidence it accepts for
     `computer_hub` (`from: [detected, computer, chip]`) and what to do when that is unknown (`unknown: open`, or a
-    number). `cable_length` may give `usb2_metres_per_tier` and `usb3_metres_per_tier`;
+    number). `cable_length` may give `usb2_metres_per_tier` and `usb3_metres_per_tier`: an active cable marked with its
+    length (#331) then adds a tier per that many metres after the first, so at 5 m per tier a 10 m cable adds 1;
   - `rules`: each names a `measure`, optionally a `bus` (`usb2`, `usb3`), `devices` (device kinds) and `on`
     (`windows` or `windows/amd`), then `recommended` and/or `max` (a number or `none`), `source` and `quote`;
   - `requires`: elements or device kinds the guide needs. A guide that needs one this app does not know is listed

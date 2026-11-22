@@ -200,17 +200,21 @@ internal static class GuideReaderV4
                     error(unknownValue ?? computerHub, $"Measure '{id}': computer_hub 'unknown' must be 'open' or a whole number.");
                 }
             }
+            var metres = new Dictionary<string, double>();
             if (measure.Find("cable_length") is { } cable)
             {
                 foreach (var (key, field) in cable.Fields)
                 {
-                    if (key is not ("usb2_metres_per_tier" or "usb3_metres_per_tier") || field.Scalar is not long and not double)
+                    if (key is not ("usb2_metres_per_tier" or "usb3_metres_per_tier") || field.Scalar is not (long or double)
+                        || Convert.ToDouble(field.Scalar, System.Globalization.CultureInfo.InvariantCulture) <= 0)
                     {
-                        error(field, $"Measure '{id}': cable_length takes usb2_metres_per_tier and usb3_metres_per_tier, each a number.");
+                        error(field, $"Measure '{id}': cable_length takes usb2_metres_per_tier and usb3_metres_per_tier, each a number above 0.");
+                        continue;
                     }
+                    metres[key[..4]] = Convert.ToDouble(field.Scalar, System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
-            measures[id] = new GuideMeasure(id, counts, weights, from, unknown, unknownLine);
+            measures[id] = new GuideMeasure(id, counts, weights, from, unknown, unknownLine) { CableMetresPerTier = metres };
         }
         return measures;
     }

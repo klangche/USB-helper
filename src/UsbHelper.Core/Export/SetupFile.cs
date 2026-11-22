@@ -64,7 +64,7 @@ public sealed record SetupFile(
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower), new HexIdConverter(), new CableMarkConverter() },
     };
 
-    // A mark as {"hubs": 2, "tiers": 2} (#307). Before #307 a mark was one number N; it is read as +N hubs (N hubs and
+    // A mark as {"hubs": 2, "tiers": 2} (#307), an active cable also with {"metres": 10, "bus": "usb2"} (#331). Before #307 a mark was one number N; it is read as +N hubs (N hubs and
     // N tiers). The format stays 1, as this app reads both forms.
     private sealed class CableMarkConverter : JsonConverter<Topology.CableMark>
     {
@@ -76,7 +76,12 @@ public sealed record SetupFile(
             }
             using var mark = JsonDocument.ParseValue(ref reader);
             int Field(string name) => mark.RootElement.TryGetProperty(name, out var value) ? value.GetInt32() : 0;
-            return new Topology.CableMark(Field("hubs"), Field("tiers"));
+            // An active cable's length and bus (#331); a mark without them is read as before.
+            var metres = mark.RootElement.TryGetProperty("metres", out var length) ? length.GetDouble() : (double?)null;
+            Detection.UsbBus? bus = mark.RootElement.TryGetProperty("bus", out var busValue)
+                ? busValue.GetString() == "usb3" ? Detection.UsbBus.Usb3 : Detection.UsbBus.Usb2
+                : null;
+            return new Topology.CableMark(Field("hubs"), Field("tiers")) { Metres = metres, Bus = bus };
         }
 
         public override void Write(Utf8JsonWriter writer, Topology.CableMark value, JsonSerializerOptions options)
@@ -84,6 +89,11 @@ public sealed record SetupFile(
             writer.WriteStartObject();
             writer.WriteNumber("hubs", value.Hubs);
             writer.WriteNumber("tiers", value.Tiers);
+            if (value.Metres is { } metres)
+            {
+                writer.WriteNumber("metres", metres);
+                writer.WriteString("bus", value.Bus == Detection.UsbBus.Usb3 ? "usb3" : "usb2");
+            }
             writer.WriteEndObject();
         }
     }

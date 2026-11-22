@@ -534,6 +534,15 @@ This version keeps running.</value>
   <data name="SettingsOfferBetas" xml:space="preserve">
     <value>Offer beta versions</value>
   </data>
+  <data name="MarkCable" xml:space="preserve">
+    <value>{0} m {1} active cable</value>
+  </data>
+  <data name="MarkCableTitle" xml:space="preserve">
+    <value>Active cable, length in metres:</value>
+  </data>
+  <data name="MarkCableSet" xml:space="preserve">
+    <value>Set</value>
+  </data>
   <data name="GuideNeedsNewer" xml:space="preserve">
     <value>needs a newer USB-Helper</value>
   </data>
