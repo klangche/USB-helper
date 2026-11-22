@@ -854,7 +854,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
-            PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(), ports.Differences()),
+            PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(PortsProfile(Checked.Select(option => option.Profile))), ports.Differences()),
             DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
     }
@@ -973,9 +973,12 @@ public sealed class MainViewModel : ObservableObject
             ? string.Format(CultureInfo.CurrentCulture, Strings.PortOnBus, port.Name, details)
             : port.Name;
 
+    // The checked computer whose file lists its ports, for the "Ports tested" total (#342).
+    private static ResolvedProfile? PortsProfile(IEnumerable<ResolvedProfile> profiles) => profiles.FirstOrDefault(profile => profile.Find("ports") != null);
+
     // How the ports tried differ (#342), as detected facts: listed with the findings, in the log and in the report.
     private IReadOnlyList<Finding> PortFindings() =>
-        [.. ports.Differences().Select(difference => new Finding(FactKind.DetectedFact, "ports-tested", "Ports tested",
+        [.. ports.Differences().Select(difference => new Finding(FactKind.DetectedFact, "ports-tested", Strings.ReportPortsTested,
             PortTesting.DifferenceText(difference)) { IsProblem = true })];
 
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>
@@ -1168,7 +1171,7 @@ public sealed class MainViewModel : ObservableObject
         // exported log and the report.
         ports.Update(tree, all.Connections);
         portFindings = PortFindings();
-        log.PortsTested(PortTesting.LogText(ports.Summary(), ports.Differences()), [.. portFindings.Select(finding => finding.Message)]);
+        log.PortsTested(PortTesting.LogText(ports.Summary(PortsProfile(profiles)), ports.Differences()), [.. portFindings.Select(finding => finding.Message)]);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))

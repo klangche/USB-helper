@@ -1,4 +1,5 @@
 using System.Globalization;
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 
 namespace UsbHelper.Core.Diagnostics;
@@ -59,8 +60,12 @@ public enum PortDifferenceKind
 public sealed record PortDifference(PortDifferenceKind Kind, string? Device, ComputerPort Worse, ComputerPort Better, ConnectionStatus Status = ConnectionStatus.Green);
 
 /// <summary>"Ports tested" (#342): each port tried with its result, and the ports not tried.</summary>
-/// <param name="Total">The computer's ports seen this session: the computer files do not count ports one by one.</param>
-/// <param name="SeenOnly">Some ports seen do not say whether they are built in (macOS), so the total may include others.</param>
+/// <param name="Total">
+/// The computer's ports: its computer file's USB <c>ports</c> entries (MacBook Neo: 2), unless the system showed more
+/// ports than the file has entries, which means an entry stands for several ports (MacBook Pro: one <c>thunderbolt4</c>
+/// for three); then, and without a file, the ports seen this session.
+/// </param>
+/// <param name="SeenOnly">The total is the ports seen, and some do not say whether they are built in (macOS).</param>
 public sealed record PortsTested(IReadOnlyList<PortResult> Tried, IReadOnlyList<ComputerPort> NotTried, int Total, bool SeenOnly);
 
 /// <summary>
@@ -184,10 +189,7 @@ public sealed class PortTesting
         {
             foreach (var worse in tried.Where(other => other != better))
             {
-                if (better.Status == ConnectionStatus.Green && worse.Status is ConnectionStatus.Orange or ConnectionStatus.Purple)
-                {
-                    differences.Add(new PortDifference(PortDifferenceKind.Limit, null, worse.Port, better.Port, worse.Status));
-                }
+                var found = differences.Count;
                 foreach (var (key, device) in better.Devices)
                 {
                     if (!worse.Devices.TryGetValue(key, out var there))
@@ -203,15 +205,25 @@ public sealed class PortTesting
                         differences.Add(new PortDifference(PortDifferenceKind.Usb2, device.Name, worse.Port, better.Port));
                     }
                 }
+                // Over a limit only when no device explains the worse result: an error or USB 2 also lowers it.
+                if (differences.Count == found && better.Status == ConnectionStatus.Green && worse.Status is ConnectionStatus.Orange or ConnectionStatus.Purple)
+                {
+                    differences.Add(new PortDifference(PortDifferenceKind.Limit, null, worse.Port, better.Port, worse.Status));
+                }
             }
         }
         return differences;
     }
 
-    /// <summary>The "Ports tested" summary.</summary>
-    public PortsTested Summary() => new(Tried,
-        [.. seen.Values.Where(port => !results.ContainsKey(port.Id)).OrderBy(port => port.Order)],
-        Math.Max(seen.Count, results.Count), SeenPortsUnknown);
+    /// <summary>The "Ports tested" summary; the total comes from <paramref name="profile"/>'s <c>ports</c> when it can (see <see cref="PortsTested.Total"/>).</summary>
+    public PortsTested Summary(ResolvedProfile? profile = null)
+    {
+        var inFile = profile?.Find("ports")?.Fields.Values.Count(entry => entry.Fields.ContainsKey("usb")) ?? 0;
+        var seenCount = Math.Max(seen.Count, results.Count);
+        var fromFile = inFile > 0 && inFile >= seenCount;
+        return new PortsTested(Tried, [.. seen.Values.Where(port => !results.ContainsKey(port.Id)).OrderBy(port => port.Order)],
+            fromFile ? inFile : seenCount, !fromFile && SeenPortsUnknown);
+    }
 
     /// <summary>True when any port seen does not say whether it is user-connectable.</summary>
     public bool SeenPortsUnknown { get; private set; }

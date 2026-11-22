@@ -1,3 +1,4 @@
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using static UsbHelper.Core.Tests.Detection.TestTree;
@@ -173,8 +174,8 @@ public class PortTestingTests
         Assert.Equal("Tested on 3 of 3 ports, all stable.", PortTesting.LogText(testing.Summary(), []));
     }
 
-    [Fact]
-    public void TwoOfTwoPortsAllStable()
+    // A computer with two USB 3 ports, Port 1 and Port 2; the dock on the given one.
+    private static IReadOnlyList<UsbNode> On(int port)
     {
         UsbNode Port(int number, UsbNode? child) => new($"ROOT|port{number}", UsbNodeKind.Port, $"Port {number}", child == null ? [] : [child])
         {
@@ -182,8 +183,37 @@ public class PortTestingTests
             Bus = UsbBus.Usb3,
             UserConnectable = true,
         };
-        IReadOnlyList<UsbNode> On(int port) =>
-            [Controller("C1", new UsbNode("ROOT", UsbNodeKind.Hub, "Root hub", [Port(1, port == 1 ? Dock("A") : null), Port(2, port == 2 ? Dock("B") : null)]))];
+        return [Controller("C1", new UsbNode("ROOT", UsbNodeKind.Hub, "Root hub", [Port(1, port == 1 ? Dock("A") : null), Port(2, port == 2 ? Dock("B") : null)]))];
+    }
+
+    private static ResolvedProfile Mac(string model) =>
+        HardwareDatabase.Load(Database.RealDatabaseTests.DatabaseFolder()).Computers[ComputerProfileId.From("Apple Inc.", model)];
+
+    // The computer file's USB ports give the total: the MacBook Neo has two.
+    [Fact]
+    public void TheTotalComesFromTheComputerFile()
+    {
+        var testing = new PortTesting();
+        testing.Update(On(1), Green(On(1)));
+
+        var tested = testing.Summary(Mac("Mac17,5"));
+        Assert.Equal(2, tested.Total);
+        Assert.Equal("Tested on 1 of 2 ports, all stable. Port 2 not tested.", PortTesting.LogText(tested, []));
+    }
+
+    // The MacBook Pro file has one thunderbolt4 entry for its three ports: the three ports seen count, not the one entry.
+    [Fact]
+    public void AFileWithFewerEntriesThanPortsSeenGivesThePortsSeen()
+    {
+        var testing = new PortTesting();
+        testing.Update(Computer(1), Green(Computer(1)));
+
+        Assert.Equal(3, testing.Summary(Mac("MacBookPro18,2")).Total);
+    }
+
+    [Fact]
+    public void TwoOfTwoPortsAllStable()
+    {
         var testing = new PortTesting();
         testing.Update(On(1), Green(On(1)));
         testing.Update(On(2), Green(On(2)));
@@ -199,7 +229,11 @@ public class PortTestingTests
         testing.Update(Computer(1), Green(Computer(1)));
         var broken = Computer(3, Ids(Hub("DOCKP3", Ids(Device("CAMERAP3") with { Name = "Camera", Problem = "Code 43" }, 0x046D, 0x0893),
             Ids(Device("AUDIOP3") with { Name = "Speaker" }, 0x0B0E, 0x0420)), 0x2109, 0x2817));
-        testing.Update(broken, Green(broken));
+        // The error also turns the port purple; that is the same cause, not also "over a limit".
+        var statuses = Green(broken);
+        statuses["DOCKP3"] = ConnectionStatus.Purple;
+        statuses["CAMERAP3"] = ConnectionStatus.Purple;
+        testing.Update(broken, statuses);
 
         var difference = Assert.Single(testing.Differences());
         Assert.Equal("On Port 3 the Camera has an error; on Port 1 it has none.", PortTesting.DifferenceText(difference));

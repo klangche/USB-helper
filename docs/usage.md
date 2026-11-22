@@ -314,10 +314,12 @@ an error on one only, that runs on USB 2 on one ("On Port 2 the Camera runs on
 USB 2 (USB 3 on Port 1).") or a setup within the limits on one port and over
 one on another. The exported log ends with, and the PDF report has, "Ports
 tested": "Tested on 2 of 3 ports: Port 1 stable, Port 2 potentially unstable
-(Camera on USB 2). Port 3 not tested." The number of ports is the computer's
-ports the system reported this session (the computer files do not count ports
-one by one); on macOS, which does not say which ports are built in, the summary
-says so. Nothing is saved; "Refresh and clear log" starts over.
+(Camera on USB 2). Port 3 not tested." The number of ports comes from the checked
+computer's file, one per USB entry under `ports` (MacBook Neo: 2). When the
+system shows more ports than the file has entries, one entry stands for several
+ports (the MacBook Pro has one `thunderbolt4` entry for three), so the ports
+seen this session count instead, as they do without a file; on macOS, which
+does not say which ports are built in, the summary then says so. Nothing is saved; "Refresh and clear log" starts over.
 
 ## Unlock
 
