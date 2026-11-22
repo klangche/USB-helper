@@ -91,6 +91,10 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>What a mark adds, as its badge says: "+1 hub", "+2 hubs", "+3 tiers" (#307).</summary>
     public static string MarkText(CableMark mark)
     {
+        if (mark.Metres is { } metres)
+        {
+            return string.Format(CultureInfo.CurrentCulture, Strings.MarkCable, metres, mark.Bus == UsbBus.Usb3 ? Strings.GuideLineUsb3 : Strings.GuideLineUsb2);
+        }
         string Hubs(int number) => number == 1 ? Strings.MarkHubOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkHubs, number);
         string Tiers(int number) => number == 1 ? Strings.MarkTierOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkTiers, number);
         // Hubs and more tiers than hubs: only from a hand-edited setup.json.
@@ -152,6 +156,34 @@ public sealed class NodeViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>The length typed for an active cable (#331), in metres; the mark is set with <see cref="SetCable"/>.</summary>
+    public decimal? CableMetres
+    {
+        get => field ?? (cableMark?.Metres is { } metres ? (decimal)metres : 5);
+        set;
+    }
+
+    /// <summary>The active cable's bus for <see cref="SetCable"/>: 0 for USB 2, 1 for USB 3; the marked cable's at first.</summary>
+    public int CableBusIndex
+    {
+        get => cableBusIndex ?? (cableMark?.Bus == UsbBus.Usb3 ? 1 : 0);
+        set => cableBusIndex = value;
+    }
+
+    private int? cableBusIndex;
+
+    /// <summary>The choices for <see cref="CableBusIndex"/>.</summary>
+    public static IReadOnlyList<string> CableBuses { get; } = [Strings.GuideLineUsb2, Strings.GuideLineUsb3];
+
+    /// <summary>Marks the line as an active cable of <see cref="CableMetres"/> on the chosen bus (#331).</summary>
+    public System.Windows.Input.ICommand SetCable => field ??= new IndexCommand(_ =>
+    {
+        if (CableMetres is { } metres && metres > 0)
+        {
+            Mark = CableMark.ActiveCable((double)metres, CableBusIndex == 1 ? UsbBus.Usb3 : UsbBus.Usb2);
+        }
+    });
 
     /// <summary>The user marked this line; the view draws it dashed with <see cref="MarkBadge"/>.</summary>
     public bool IsUserMarked => cableMark != null;

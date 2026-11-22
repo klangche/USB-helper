@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:res="using:UsbHelper.App.Resources"
+        x:Class="UsbHelper.App.PdfViewerWindow"
+        Width="900" Height="1000" WindowStartupLocation="CenterOwner">
+
+  <!-- The built-in PDF viewer (#333): pages drawn by PDFium, with scroll, zoom, the page number and "Save a copy…". -->
+  <DockPanel>
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8">
+      <Button Content="−" Click="ZoomOut" Width="32" />
+      <TextBlock x:Name="ZoomText" VerticalAlignment="Center" MinWidth="48" TextAlignment="Center" />
+      <Button Content="+" Click="ZoomIn" Width="32" />
+      <TextBlock x:Name="PageText" VerticalAlignment="Center" Margin="16,0" />
+      <Button Content="{x:Static res:Strings.PdfSaveCopy}" Click="SaveCopy" />
+    </StackPanel>
+    <!-- "This source has changed since the guide was written", when the fingerprint differs. -->
+    <Border x:Name="NoticeBar" DockPanel.Dock="Top" IsVisible="False" Background="#FFF4CE" Padding="8">
+      <TextBlock x:Name="NoticeText" Foreground="Black" TextWrapping="Wrap" />
+    </Border>
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto">
+      <StackPanel x:Name="Pages" Spacing="12" Margin="12" HorizontalAlignment="Center" />
+    </ScrollViewer>
+  </DockPanel>
+</Window>

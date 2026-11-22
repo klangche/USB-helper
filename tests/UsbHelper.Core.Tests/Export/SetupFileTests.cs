@@ -136,6 +136,21 @@ public class SetupFileTests
         Assert.Equal(new CableMark(2, 2), SetupFile.FromJson(old).Marks["1/1/1"]);
     }
 
+    // #331: an active cable keeps its length and bus; a file without them reads as before.
+    [Fact]
+    public void AnActiveCableKeepsItsLengthAndBus()
+    {
+        var setup = Minimal() with { Marks = new Dictionary<string, CableMark> { ["1/1/1"] = CableMark.ActiveCable(10, UsbBus.Usb3) } };
+        var json = setup.ToJson();
+
+        Assert.Contains("\"metres\": 10,\n      \"bus\": \"usb3\"", json.ReplaceLineEndings("\n"));
+        var read = SetupFile.FromJson(json).Marks["1/1/1"];
+        Assert.Equal(10, read.Metres);
+        Assert.Equal(UsbBus.Usb3, read.Bus);
+        Assert.Equal(CableMark.ActiveCable(10, UsbBus.Usb3), read);
+        Assert.Equal("10 m USB 3 active cable", read.ToString());
+    }
+
     // #274: the kind of a device is optional and left out for hubs, ports and controllers; older readers ignore it, so
     // the format stays 1.
     [Fact]

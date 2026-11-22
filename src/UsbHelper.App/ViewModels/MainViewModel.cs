@@ -596,8 +596,16 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasGuideNoLink => guide != null && GuideLink == null;
 
+    /// <summary>Every PDF and link of the guide's sources, in the order listed (#333); empty for a v3 guide.</summary>
+    public IReadOnlyList<Sources.SourceEntry> GuideSources => Sources.SourceRouter.EntriesOf(guide);
+
+    /// <summary>The guide lists sources with PDFs or links.</summary>
+    public bool HasGuideSources => GuideSources.Count > 0;
+
     private void OnGuideChanged()
     {
+        OnPropertyChanged(nameof(GuideSources));
+        OnPropertyChanged(nameof(HasGuideSources));
         OnPropertyChanged(nameof(GuideText));
         OnPropertyChanged(nameof(GuideTextBefore));
         OnPropertyChanged(nameof(GuideTextAfter));
