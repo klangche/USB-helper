@@ -46,7 +46,11 @@ internal static class RuleJudge
         Add(PathElements.RootHub, 1, "detected");
         if (measure.Weight(PathElements.ComputerHub) > 0)
         {
-            var computerHub = ComputerHub(measure, guide, profile, bus);
+            // Hubs the system reports inside the computer (#330) take the place of the database value on this path, so
+            // they are never counted twice.
+            var computerHub = path.ComputerHubs.Count > 0 && measure.ComputerHubFrom.Contains("detected")
+                ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, $"detected: {string.Join(", ", path.ComputerHubs)}")
+                : ComputerHub(measure, guide, profile, bus);
             parts.Add(computerHub with { Count = computerHub.Count * measure.Weight(PathElements.ComputerHub) });
         }
         foreach (var part in path.Parts(tiers: true))
