@@ -301,6 +301,21 @@ hides Custom and USB-Helper's guide applies; so it does at start when the app
 is locked or `custom.yaml` is missing or invalid (the log says why). The file
 is kept, and Custom is back once unlocked.
 
+## Guide sources
+
+Under the guide's name, "Sources:" lists every PDF and web link of the guide's
+sources, each by its name (#333). A PDF has a small PDF mark and opens in the
+app's own viewer, at the quoted page when the guide gives one; a link opens in
+the browser. A PDF is downloaded only when you click it, into `sources-cache/`
+next to `settings.json`, and checked: it must be a PDF, and its size and
+fingerprint must match the guide's. When the download fails or gives no PDF,
+the address opens in the browser and the app says why. When the fingerprint
+differs, the viewer says "This source has changed since the guide was written".
+A PDF without a public download (for example behind a login) asks for a copy
+you have, checks it against the fingerprint, and keeps it. The viewer scrolls,
+zooms, shows the page number and saves a copy; when it cannot start, the
+system's PDF app opens the file.
+
 ## Unlock
 
 An unlock code adds company branding, the PDF report and beta updates. Codes

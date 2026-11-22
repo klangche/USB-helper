@@ -543,6 +543,45 @@ This version keeps running.</value>
   <data name="MarkCableSet" xml:space="preserve">
     <value>Set</value>
   </data>
+  <data name="PdfMark" xml:space="preserve">
+    <value>PDF</value>
+  </data>
+  <data name="PdfSaveCopy" xml:space="preserve">
+    <value>Save a copy…</value>
+  </data>
+  <data name="PdfPage" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="PdfZoom" xml:space="preserve">
+    <value>{0} %</value>
+  </data>
+  <data name="SourceChanged" xml:space="preserve">
+    <value>This source has changed since the guide was written.</value>
+  </data>
+  <data name="SourceDownloadFailed" xml:space="preserve">
+    <value>The PDF could not be downloaded ({0}), so it opens in the browser.</value>
+  </data>
+  <data name="SourceNotPdf" xml:space="preserve">
+    <value>The address did not give a PDF, so it opens in the browser.</value>
+  </data>
+  <data name="SourceNoDownload" xml:space="preserve">
+    <value>This PDF has no public download. Open a copy you have: it is checked against the guide's fingerprint.</value>
+  </data>
+  <data name="SourceLocalMismatch" xml:space="preserve">
+    <value>This file is not the source's PDF: its size or fingerprint does not match.</value>
+  </data>
+  <data name="SourceLocalNotPdf" xml:space="preserve">
+    <value>This file is not a PDF.</value>
+  </data>
+  <data name="SourceOpenLocal" xml:space="preserve">
+    <value>Open local file…</value>
+  </data>
+  <data name="PdfViewerFailed" xml:space="preserve">
+    <value>The built-in viewer could not start, so the PDF opens in the system's PDF app.</value>
+  </data>
+  <data name="SourcesLabel" xml:space="preserve">
+    <value>Sources:</value>
+  </data>
   <data name="GuideNeedsNewer" xml:space="preserve">
     <value>needs a newer USB-Helper</value>
   </data>

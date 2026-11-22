@@ -40,7 +40,11 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
   that the operating system does not show. It is a number, `null` (unknown) or one per bus, `{ usb2: 1, usb3: 1 }`.
 - A guide has:
   - `basis`: the source id and the exact quote it works from;
-  - `sources`: id → `link`, `title`, `author`, `version`, `read` (how it was read);
+  - `sources`: id → `title`, `author`, `version`, `read` (how it was read), `files` and `quotes` (#333). `files` lists
+    any number of entries, each exactly one of `pdf` or `link`; a `pdf` may give `sha256` and `size`, and a PDF
+    without a public download gives only those. One entry may leave out `name` (its URL's decoded file name, or the
+    host, is shown); with several, every entry needs its own unique `name`. A quote gives `text`, the entry's name as
+    `file` (optional with a single PDF) and `page`. A plain `link` still works as one link entry;
   - `measures`: each a sum of path elements (`counts`), with optional `weights`, and which evidence it accepts for
     `computer_hub` (`from: [detected, computer, chip]`) and what to do when that is unknown (`unknown: open`, or a
     number). `cable_length` may give `usb2_metres_per_tier` and `usb3_metres_per_tier`: an active cable marked with its

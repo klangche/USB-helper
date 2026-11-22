@@ -39,3 +39,9 @@ https://github.com/klangche/USB-helper#hardware-database
 The app icon is the "usb" icon from Font Awesome Free by Fonticons, Inc.
 (https://fontawesome.com), licensed under CC BY 4.0
 (https://creativecommons.org/licenses/by/4.0/), drawn white.
+
+Source PDFs are drawn by PDFium (https://pdfium.googlesource.com/pdfium/),
+Copyright 2014 The PDFium Authors, under the BSD 3-Clause and Apache 2.0
+licences, built by pdfium-binaries (https://github.com/bblanchon/pdfium-binaries,
+MIT licence), through PDFtoImage (https://github.com/sungaila/PDFtoImage,
+MIT licence).
