@@ -88,11 +88,13 @@ exceeded, within one it is unknown. It is never guessed as 0.
 - Routers are not hubs: PureLink V6 says to "distinguish USB hub tiers from USB4 routers and PCIe/DisplayPort tunnels".
   Hubs behind a USB4 dock stay hubs on the USB 3 bus.
 - The depth limit, `usb4.max_router_depth 5` in `base.yaml`, comes from:
-  - the Linux Thunderbolt/USB4 driver, `drivers/thunderbolt/tb.h`, lines 75–76 on `master` as read on 2026-11-22:
-    `#define TB_SWITCH_MAX_DEPTH 6` (Thunderbolt) and `#define USB4_SWITCH_MAX_DEPTH 5` (USB4);
-  - the USB-IF USB4 System Overview, as found on #267.
-  The exact sections of the USB4 specification and of Microsoft's USB4 documentation are still to be checked; they are
-  not cited until someone has read them.
+  - the Linux Thunderbolt/USB4 driver, `drivers/thunderbolt/tb.h` lines 75–76 at commit 4843f6873f7c (read on
+    2026-11-22,
+    https://github.com/torvalds/linux/blob/4843f6873f7c4835e62f2c73ba0fd538e57a2f22/drivers/thunderbolt/tb.h#L75-L76):
+    `#define TB_SWITCH_MAX_DEPTH 6` (Thunderbolt) and `#define USB4_SWITCH_MAX_DEPTH 5` (USB4).
+  Still to be checked, so not cited as a source: the USB-IF USB4 System Overview (#267 saw it only in search snippets,
+  which say "up to 6 routers" and "up to 5 hops", and no primary text was read), the USB4 specification and Microsoft's
+  USB4 documentation, each with its exact section.
 - Detection (macOS through `MacThunderbolt.cs`, Windows through the USB4 host router) moves to #267's follow-up. It is
   enabled only after a test with a real dock.
 
