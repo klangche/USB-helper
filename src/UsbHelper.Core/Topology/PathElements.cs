@@ -48,6 +48,13 @@ public sealed record CountPart(string Element, int? Count, string Origin)
 /// <param name="Marks">Each mark on the path, with the name of its port.</param>
 public sealed record DevicePath(IReadOnlyList<string> Hubs, IReadOnlyList<(string Port, CableMark Mark)> Marks)
 {
+    /// <summary>
+    /// The hubs built into the computer that the operating system reports in front of this node's external port (#330):
+    /// hubs reached through ports that are not user-connectable. Empty for a node on an internal port, such as a
+    /// built-in webcam, and when the system reports none.
+    /// </summary>
+    public IReadOnlyList<string> ComputerHubs { get; init; } = [];
+
     /// <summary>The detected and marked parts: hub, marked_hub and, for tiers, cable_length. Empty parts are left out.</summary>
     /// <param name="tiers">True for the tier count, which also counts the tiers an active cable adds.</param>
     public IEnumerable<CountPart> Parts(bool tiers)

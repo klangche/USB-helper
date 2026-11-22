@@ -170,13 +170,16 @@ public static class TopologyCounts
             {
                 if (connected.Kind == UsbNodeKind.Hub && builtIn && port.UserConnectable == false)
                 {
-                    foreach (var entry in Below(connected, above, hubs, builtIn: true, marks, portPath))
+                    // A hub built into the computer (#330): not an external hub, but a computer_hub for what is behind it.
+                    foreach (var entry in Below(connected, above, hubs, builtIn: true, marks, portPath with { ComputerHubs = [.. portPath.ComputerHubs, connected.Name] }))
                     {
                         yield return entry;
                     }
                     continue;
                 }
-                yield return (connected, new ConnectionDepth(Tier: above + 1, HubsInFront: hubs), port.Bus, port, portPath);
+                // A node on an internal port (a built-in webcam) has no computer_hub in front of an external port.
+                var nodePath = builtIn && port.UserConnectable == false ? portPath with { ComputerHubs = [] } : portPath;
+                yield return (connected, new ConnectionDepth(Tier: above + 1, HubsInFront: hubs), port.Bus, port, nodePath);
                 if (connected.Kind == UsbNodeKind.Hub)
                 {
                     foreach (var entry in Below(connected, above + 1, hubs + 1, builtIn: false, marks, portPath with { Hubs = [.. portPath.Hubs, connected.Name] }))

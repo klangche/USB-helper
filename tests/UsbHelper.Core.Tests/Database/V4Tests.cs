@@ -278,6 +278,40 @@ public class V4Tests
         Assert.Contains(new CountPart(PathElements.Usb4Router, null, "not measured yet (#267)"), over.CountParts);
     }
 
+    // A guide that accepts hubs the system reports inside the computer (#330).
+    private const string Detected = "name: Detected\nselectable: true\nproav: 0\nmeasures:\n  chain:\n    counts: [computer_hub, hub, marked_hub]\n"
+        + "    computer_hub: { from: [detected, computer, chip], unknown: open }\nrules:\n  - { measure: chain, max: 5 }\n";
+
+    private static CountPart ComputerHubOf(string profile, IReadOnlyList<UsbNode> tree, string id)
+    {
+        var db = HardwareDatabase.LoadV4(Files(("guides/detected.yaml", Detected)));
+        var guide = db.Guides["detected"];
+        var path = TopologyCounts.Paths(tree)[id];
+        return RuleJudge.Parts(guide.MeasureDefinitions["chain"], guide, db.Platforms[profile], path, null)[0];
+    }
+
+    // Windows: an internal hub on a root port that is not user-connectable, with an external port behind it.
+    private static IReadOnlyList<UsbNode> InternalHubTree => [Controller("C1",
+        Hub("ROOT", Hub("INTERNAL", Device("KEYBOARD"), Device("WEBCAM")).Connectable(true, false), Device("MOUSE")).Connectable(false, true))];
+
+    [Fact]
+    public void AnInternalHubInFrontOfAnExternalPortIsADetectedComputerHub()
+    {
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 1, "detected: INTERNAL"), ComputerHubOf("windows-intel", InternalHubTree, "KEYBOARD"));
+        // The detected hub takes the place of the database value: an M-series Mac's 1 is not added to it.
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 1, "detected: INTERNAL"), ComputerHubOf("macos-apple-silicon", InternalHubTree, "KEYBOARD"));
+        // It is a computer hub, not an external hub.
+        Assert.Empty(TopologyCounts.Paths(InternalHubTree)["KEYBOARD"].Hubs);
+    }
+
+    // A built-in device behind it (a webcam on an internal port), and a device on the root's own port, get no detected hub.
+    [Fact]
+    public void AnInternalHubWithoutAnExternalPortBehindItIsNotCounted()
+    {
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 0, "platforms/windows.yaml intel"), ComputerHubOf("windows-intel", InternalHubTree, "WEBCAM"));
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 0, "platforms/windows.yaml intel"), ComputerHubOf("windows-intel", InternalHubTree, "MOUSE"));
+    }
+
     // A guide's number for an unknown computer_hub is used, with the guide as its origin.
     [Fact]
     public void AnAssumedComputerHubComesFromTheGuide()

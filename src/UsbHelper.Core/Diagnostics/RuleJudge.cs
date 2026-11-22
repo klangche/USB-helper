@@ -10,7 +10,7 @@ namespace UsbHelper.Core.Diagnostics;
 /// kinds and platform); the strictest result wins. A count with an unknown part is "at least": over a limit it is
 /// exceeded, within one it is unknown. Nothing comes from another guide.
 /// </summary>
-internal static class RuleJudge
+public static class RuleJudge
 {
     /// <summary>The device kinds of a node as base.yaml names them (#274): camera, audio or both. Never guessed.</summary>
     public static IReadOnlyList<string> KindsOf(UsbNode node) => node.DeviceKind switch
@@ -46,7 +46,11 @@ internal static class RuleJudge
         Add(PathElements.RootHub, 1, "detected");
         if (measure.Weight(PathElements.ComputerHub) > 0)
         {
-            var computerHub = ComputerHub(measure, guide, profile, bus);
+            // Hubs the system reports inside the computer (#330) take the place of the database value on this path, so
+            // they are never counted twice.
+            var computerHub = path.ComputerHubs.Count > 0 && measure.ComputerHubFrom.Contains("detected")
+                ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, $"detected: {string.Join(", ", path.ComputerHubs)}")
+                : ComputerHub(measure, guide, profile, bus);
             parts.Add(computerHub with { Count = computerHub.Count * measure.Weight(PathElements.ComputerHub) });
         }
         foreach (var part in path.Parts(tiers: true))
