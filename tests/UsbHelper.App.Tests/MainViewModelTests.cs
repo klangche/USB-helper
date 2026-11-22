@@ -2177,8 +2177,8 @@ public class MainViewModelTests
     {
         var pngs = new Dictionary<int, string> { [256] = "logo-256.png", [512] = "logo-512.png" };
 
-        Assert.Equal("logo.svg", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.svg", pngs, "logo.svg")));
-        Assert.Equal("logo-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null)));
+        Assert.Equal("logo.svg", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.svg", pngs, "logo.svg", Luminance: 0)));
+        Assert.Equal("logo-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 0)));
         Assert.Null(MainViewModel.ReportLogo(new Branding("Acme AB", null, new Dictionary<int, string>(), null)));
         Assert.Null(MainViewModel.ReportLogo(null));
     }

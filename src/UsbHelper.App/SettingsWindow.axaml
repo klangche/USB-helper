@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UsbHelper.App.ViewModels"
         xmlns:res="using:UsbHelper.App.Resources"
+        xmlns:app="using:UsbHelper.App"
         x:Class="UsbHelper.App.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Width="460" SizeToContent="Height" CanResize="False" ShowInTaskbar="False"
@@ -53,6 +54,30 @@
     </StackPanel>
     <TextBlock Text="{Binding LogoMessage}" IsVisible="{Binding LogoMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
                TextWrapping="Wrap" Foreground="#C42B1C" />
+    <!-- A logo too weak on a theme (#340): invert it, with a preview first, or upload one for that theme. Never a
+         background plate. Once the theme has its own logo, it shows with Remove. -->
+    <ItemsControl ItemsSource="{Binding ThemeOffers}" IsEnabled="{Binding BrandingUnlocked}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:ThemeLogoViewModel">
+          <StackPanel Spacing="6" Margin="0,4,0,0" IsVisible="{Binding Offered}">
+            <TextBlock Text="{Binding HardToSee}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Image Width="96" Height="32" Stretch="Uniform" IsVisible="{Binding HasOwnLogo}"
+                     Source="{Binding OwnLogo, Converter={x:Static app:PngConverter.Instance}}" />
+              <Image Width="96" Height="32" Stretch="Uniform" IsVisible="{Binding Previewing}"
+                     Source="{Binding InvertPreview, Converter={x:Static app:PngConverter.Instance}}" />
+              <Button Content="{x:Static res:Strings.LogoInvert}" Click="InvertThemeLogo" IsVisible="{Binding ShowsChoices}" />
+              <Button Content="{Binding UploadLabel}" Click="UploadThemeLogo" IsVisible="{Binding ShowsChoices}" />
+              <Button Content="{x:Static res:Strings.LogoKeepInverted}" Click="KeepInvertedLogo" IsVisible="{Binding Previewing}" />
+              <Button Content="{x:Static res:Strings.LogoCancelInvert}" Click="CancelInvertedLogo" IsVisible="{Binding Previewing}" />
+              <Button Content="{x:Static res:Strings.SettingsRemoveLogo}" Click="RemoveThemeLogo" IsVisible="{Binding HasOwnLogo}" />
+            </StackPanel>
+            <TextBlock Text="{Binding Message}" IsVisible="{Binding Message, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       TextWrapping="Wrap" Foreground="#C42B1C" />
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
 
     <TextBlock Text="{x:Static res:Strings.SettingsSavedAt}" TextWrapping="Wrap" Opacity="0.7" />
     <SelectableTextBlock Text="{Binding FilePath}" TextWrapping="Wrap" FontFamily="monospace" Opacity="0.7" />

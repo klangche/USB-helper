@@ -794,7 +794,9 @@ public sealed class MainViewModel : ObservableObject
         Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
 
     /// <summary>The logo for the PDF report (#232): the cropped vector logo when there is one, else the 512 pixel PNG.</summary>
-    public static string? ReportLogo(Branding? branding) => branding?.LogoSvg ?? branding?.LogoPngs.GetValueOrDefault(512);
+    /// <remarks>The report has a white page, so it takes the light theme's choice (#340); null means the name is shown.</remarks>
+    public static string? ReportLogo(Branding? branding) =>
+        branding?.Logo(LogoTheme.Light) is { } logo ? logo.Svg ?? logo.Pngs.GetValueOrDefault(512) : null;
 
     // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
     // ones included.
@@ -909,10 +911,29 @@ public sealed class MainViewModel : ObservableObject
     public bool ShowsBranding => Settings.Branding != null;
 
     /// <summary>The company name in the top bar, only when there is no logo: never both. Null when locked or none.</summary>
-    public string? BrandingName => Settings.Branding is { LogoOriginal: null } branding ? branding.CompanyName : null;
+    public string? BrandingName => Settings.Branding is { } branding && branding.Logo(Theme) == null ? branding.CompanyName : null;
 
-    /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
-    public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
+    /// <summary>
+    /// The logo 64 pixels high for the top bar (32 high at 200% scale), chosen for <see cref="Theme"/> (#340); null when
+    /// locked, when there is no logo, or when it would be too hard to see there.
+    /// </summary>
+    public string? BrandingLogo => Settings.Branding?.Logo(Theme)?.Pngs.GetValueOrDefault(64);
+
+    /// <summary>The app's theme now, set by the main window when the system theme changes (#340).</summary>
+    public LogoTheme Theme
+    {
+        get => theme;
+        set
+        {
+            if (SetField(ref theme, value))
+            {
+                OnPropertyChanged(nameof(BrandingName));
+                OnPropertyChanged(nameof(BrandingLogo));
+            }
+        }
+    }
+
+    private LogoTheme theme;
 
     /// <summary>The unlock popup's content and the unlock text of the top bar and the status line (#238).</summary>
     public UnlockViewModel Unlock { get; }
