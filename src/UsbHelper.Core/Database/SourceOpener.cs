@@ -81,7 +81,7 @@ public sealed class SourceOpener(string cacheFolder, HttpClient http)
             {
                 throw new HttpRequestException($"larger than {MaxBytes / 1024 / 1024} MB");
             }
-            bytes = await response.Content.ReadAsByteArrayAsync(cancel);
+            bytes = await ReadLimitedAsync(response, cancel);
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException)
         {
@@ -112,6 +112,24 @@ public sealed class SourceOpener(string cacheFolder, HttpClient http)
         }
         Store(file, bytes);
         return new SourceOpening(SourceTarget.Viewer, CachePath(file), file.Url, page, SourceNotice.None);
+    }
+
+    // The body up to MaxBytes, also when the server sends no Content-Length.
+    private static async Task<byte[]> ReadLimitedAsync(HttpResponseMessage response, CancellationToken cancel)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(cancel);
+        using var buffer = new MemoryStream();
+        var chunk = new byte[81920];
+        int read;
+        while ((read = await stream.ReadAsync(chunk, cancel)) > 0)
+        {
+            if (buffer.Length + read > MaxBytes)
+            {
+                throw new HttpRequestException($"larger than {MaxBytes / 1024 / 1024} MB");
+            }
+            buffer.Write(chunk, 0, read);
+        }
+        return buffer.ToArray();
     }
 
     /// <summary>The file starts with <c>%PDF</c>.</summary>
