@@ -7,11 +7,13 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using UsbHelper.App.Resources;
 using UsbHelper.App.Settings;
 using UsbHelper.App.Sources;
 using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Diagnostics;
 
 namespace UsbHelper.App;
 
@@ -41,6 +43,13 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
                 viewModel.Theme = ThemeOf(ActualThemeVariant);
             }
         };
+        // Sleep and long sessions (#341): a tick every 30 s notices a clock jump, and activating the window notices an
+        // earlier day.
+        var sessionTimer = new DispatcherTimer { Interval = SessionWatch.Tick };
+        sessionTimer.Tick += (_, _) => (DataContext as MainViewModel)?.SessionTick();
+        Opened += (_, _) => sessionTimer.Start();
+        Closed += (_, _) => sessionTimer.Stop();
+        Activated += (_, _) => (DataContext as MainViewModel)?.SessionActivated();
         // The menu and the top bar buttons run the view model's commands, which call back here.
         DataContextChanged += (_, _) =>
         {
@@ -54,6 +63,10 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
                     if (e.PropertyName == nameof(MainViewModel.BrandingLogo))
                     {
                         ShowBrandingLogo(viewModel);
+                    }
+                    if (e.PropertyName == nameof(MainViewModel.SessionOffer) && viewModel.SessionOffer is { } offer)
+                    {
+                        ShowSessionOffer(viewModel, offer);
                     }
                 };
                 if (OperatingSystem.IsMacOS())
@@ -145,6 +158,41 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         if (DataContext is MainViewModel viewModel)
         {
             UnlockWindow.Open(this, viewModel.Unlock);
+        }
+    }
+
+    // The session popup (#341): modal, once per break. "Save the log first" opens the usual Save log before clearing it.
+    private async void ShowSessionOffer(MainViewModel viewModel, SessionOffer offer)
+    {
+        var choice = await new SessionWindow(offer).ShowDialog<SessionChoice?>(this);
+        if (viewModel.SessionOffer != offer)
+        {
+            return;
+        }
+        switch (choice)
+        {
+            case SessionChoice.SaveThenNewSession:
+                // The log is cleared only once it is saved: a cancelled or failed save keeps the session.
+                var (message, saved) = await LogWindow.TrySaveLog(this, viewModel.Log);
+                ExportResult.Text = saved ? message : message ?? Strings.SessionNotSaved;
+                if (saved)
+                {
+                    viewModel.StartNewSession();
+                }
+                else
+                {
+                    viewModel.KeepSession();
+                }
+                break;
+            case SessionChoice.NewSession:
+                viewModel.StartNewSession();
+                break;
+            case SessionChoice.Restart:
+                viewModel.Restart();
+                break;
+            default:
+                viewModel.KeepSession();
+                break;
         }
     }
 

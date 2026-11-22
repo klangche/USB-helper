@@ -41,7 +41,10 @@ public partial class LogWindow : Window
     /// File > Export log. Returns the message to show, or null when the user cancelled. Same style as the profile export
     /// in MainWindow: any failure is shown instead of ending the app.
     /// </summary>
-    internal static async Task<string?> SaveLog(TopLevel owner, LogViewModel viewModel)
+    internal static async Task<string?> SaveLog(TopLevel owner, LogViewModel viewModel) => (await TrySaveLog(owner, viewModel)).Message;
+
+    /// <summary>As <see cref="SaveLog"/>, and whether the log was written: false when cancelled or failed (#341).</summary>
+    internal static async Task<(string? Message, bool Saved)> TrySaveLog(TopLevel owner, LogViewModel viewModel)
     {
         try
         {
@@ -54,16 +57,16 @@ public partial class LogWindow : Window
             });
             if (file == null)
             {
-                return null;
+                return (null, false);
             }
             await using var stream = await file.OpenWriteAsync();
             await using var writer = new StreamWriter(stream);
             await writer.WriteAsync(viewModel.Export());
-            return string.Format(CultureInfo.CurrentCulture, Strings.LogExportSaved, file.Name);
+            return (string.Format(CultureInfo.CurrentCulture, Strings.LogExportSaved, file.Name), true);
         }
         catch (Exception ex)
         {
-            return string.Format(CultureInfo.CurrentCulture, Strings.LogExportFailed, ex.Message);
+            return (string.Format(CultureInfo.CurrentCulture, Strings.LogExportFailed, ex.Message), false);
         }
     }
 }

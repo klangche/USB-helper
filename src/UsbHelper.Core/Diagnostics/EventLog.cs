@@ -31,6 +31,8 @@ public sealed class EventLog(TimeProvider? clock = null)
     // The company name and licensed email set now (#230); they head the export and survive Clear.
     private string? companyName;
     private string? licensedTo;
+    // The line that names this session's instance (#341); it heads the export.
+    private string? sessionLine;
     private string? portsTested;
     private IReadOnlyList<string> portDifferences = [];
 
@@ -54,6 +56,17 @@ public sealed class EventLog(TimeProvider? clock = null)
         displaysLogged = false;
         links = [];
         Cleared?.Invoke();
+    }
+
+    /// <summary>
+    /// The first line of a session (#341): "USB-helper 0.11.0 started 2026-11-22 09:30" at launch, or "New session
+    /// 2026-11-22 09:30 (USB-helper 0.11.0)" after "New session". The exported log's header has the same line.
+    /// </summary>
+    public void SessionStarted(string version, bool newSession = false)
+    {
+        var now = clock.GetLocalNow().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        sessionLine = newSession ? $"New session {now} (USB-helper {version})" : $"USB-helper {version} started {now}";
+        Add(sessionLine);
     }
 
     public void Add(string text)
@@ -287,11 +300,16 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     /// <summary>
-    /// The whole log as plain text, one line per entry, after the company and the licensed email when they are set.
+    /// The whole log as plain text, one line per entry, after the session line (#341) and the company and the licensed
+    /// email when they are set.
     /// </summary>
     public string Export()
     {
         var text = new StringBuilder();
+        if (sessionLine != null)
+        {
+            text.AppendLine(sessionLine);
+        }
         if (companyName != null)
         {
             text.AppendLine($"Company: {companyName}");

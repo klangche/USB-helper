@@ -341,8 +341,35 @@ computer's file, one per USB entry under `ports` (MacBook Neo: 2). When the
 system shows more ports than the file has entries, one entry stands for several
 ports (the MacBook Pro has one `thunderbolt4` entry for three), so the ports
 seen this session count instead, as they do without a file; on macOS, which
-does not say which ports are built in, the summary then says so. Nothing is saved; "Refresh and clear log" starts
-over.
+does not say which ports are built in, the summary then says so. Nothing is
+saved; "Refresh and clear log" starts over.
+
+## Sessions
+
+A session lasts from the start of USB-helper, or from "New session", until it
+closes. Its log, its disconnected and reconnected devices and its findings are
+kept in memory only. The log's first line, and the exported log's header, name
+the instance: "USB-helper 0.11.0 started 2026-11-22 09:30", or after a new
+session "New session 2026-11-22 21:30 (USB-helper 0.11.0)".
+
+An app left open through sleep or for days would otherwise keep an old session
+(#341). So when the computer slept (the clock jumped more than 5 minutes
+between two checks, made every 30 seconds), or when the window is activated on
+a later day than the session started, USB-helper asks once: "The computer
+slept. Start a new session?" or "USB-helper has been open since Sunday 22
+November. Start a new session?"
+
+- "New session" clears the log, the disconnected and reconnected devices and
+  the findings, and reads the USB tree again, as "Refresh and clear log" does.
+  "Save the log first" opens Save log before; when that is cancelled or fails,
+  the session is kept and nothing is cleared. Cable marks and settings stay.
+- "Keep this session" clears nothing; the log says "Kept the session after
+  sleep (12 h)". It is not asked again until the next sleep, or the next day.
+
+When a newer version has been installed while this window stayed open, it
+asks instead, for example "USB-helper 0.12.0 is installed; this window is
+0.11.0. Restart now?": "Restart" starts the installed version and closes this
+one, "Later" keeps this window.
 
 ## Unlock
 

@@ -49,7 +49,7 @@ public partial class App : Application
     private static MainViewModel Start(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var log = new EventLog();
-        log.Add("USB-helper started");
+        log.SessionStarted(AppVersion.Current);
         var settings = SettingsViewModel.Load(SettingsFile.Default, log);
         var cache = new DatabaseCache(DatabaseCache.NextTo(SettingsFile.Default.Path));
         var platform = PlatformServices.Current();
@@ -70,6 +70,8 @@ public partial class App : Application
             Update = new UpdateViewModel(http, AppVersion.Current, kind, UpdateFolder,
                 msi => InstallMsi(msi, desktop), page => OpenPage(page, desktop, log), log, UpdateCheckTimeout, settings),
         };
+        // #341: "Restart" starts the installed version, then this one closes.
+        viewModel.RestartRequested = () => Restart(desktop, log);
         var databaseUpdate = new DatabaseUpdate(http, AppVersion.Current, cache, viewModel, log, DatabaseUpdateTimeout, settings, EmbeddedDatabase.Version());
         _ = LoadInBackground(viewModel, log, desktop, platform, cache, databaseUpdate);
         return viewModel;
@@ -101,6 +103,26 @@ public partial class App : Application
     {
         Process.Start(MsiInstall.StartInfo(msi))!.Dispose();
         desktop.Shutdown();
+    }
+
+    // The app as installed now: its own executable, which a newer install has replaced. When it cannot start, this one
+    // stays open and the log says why.
+    private static void Restart(IClassicDesktopStyleApplicationLifetime desktop, EventLog log)
+    {
+        try
+        {
+            if (Environment.ProcessPath is not { } path)
+            {
+                log.Add("The installed version could not be started: the app's own path is unknown");
+                return;
+            }
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = false })!.Dispose();
+            desktop.Shutdown();
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            log.Add($"The installed version could not be started: {e.Message}");
+        }
     }
 
     private static async Task LoadUnavailable(MainViewModel viewModel, EventLog log, PlatformServices platform, DatabaseCache cache)
