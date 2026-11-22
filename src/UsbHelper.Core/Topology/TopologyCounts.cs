@@ -101,6 +101,13 @@ public static class TopologyCounts
         Counted(tree, marks).ToDictionary(entry => entry.Node.Id, entry => entry.Depth);
 
     /// <summary>
+    /// The path of every connected hub and device, by id (#326): the external hubs in front of it and the marks on the way.
+    /// </summary>
+    /// <param name="marks">The user's marks per port id, for active cables and extenders the operating system does not show.</param>
+    public static IReadOnlyDictionary<string, DevicePath> Paths(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark>? marks = null) =>
+        Counted(tree, marks).ToDictionary(entry => entry.Node.Id, entry => entry.Path);
+
+    /// <summary>
     /// The connected USB devices (#307): every counted node that is not a hub, once, on whichever bus. Root hubs, hubs
     /// (both halves of a USB 3 hub), controllers and ports are not devices.
     /// </summary>
@@ -138,40 +145,41 @@ public static class TopologyCounts
         tree.SelectMany(controller => controller.Children).SelectMany(PossiblyBuiltInBelow);
 
     // The hubs added by the marks on the ports of the counted hubs and devices that match.
-    private static int MarkedHubs(IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port)> entries,
+    private static int MarkedHubs(IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port, DevicePath Path)> entries,
         IReadOnlyDictionary<string, CableMark>? marks, Func<UsbNode, bool> match) =>
         marks == null ? 0
         : entries.Select(entry => entry.Port).DistinctBy(port => port.Id).Where(match).Sum(port => marks.GetValueOrDefault(port.Id)?.Hubs ?? 0);
 
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark>? marks) =>
-        tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks));
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port, DevicePath Path)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark>? marks) =>
+        tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks, new DevicePath([], [])));
 
     // hubsAbove counts the hub itself, every counted hub above it, root hub included, and every tier marked above it.
     // inFront counts the external hubs above the hub's ports, the hub itself included unless it is built in, and every
     // hub marked above them.
     // builtIn: the hub is the root hub or built into the computer, so its ports may be the computer's own.
-    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port)> Below(
-        UsbNode hub, int hubsAbove, int inFront, bool builtIn, IReadOnlyDictionary<string, CableMark>? marks)
+    private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port, DevicePath Path)> Below(
+        UsbNode hub, int hubsAbove, int inFront, bool builtIn, IReadOnlyDictionary<string, CableMark>? marks, DevicePath path)
     {
         foreach (var port in hub.Children)
         {
             var mark = marks?.GetValueOrDefault(port.Id);
             var above = hubsAbove + (mark?.Tiers ?? 0);
             var hubs = inFront + (mark?.Hubs ?? 0);
+            var portPath = mark == null ? path : path with { Marks = [.. path.Marks, (PortName(hub, port), mark)] };
             foreach (var connected in port.Children)
             {
                 if (connected.Kind == UsbNodeKind.Hub && builtIn && port.UserConnectable == false)
                 {
-                    foreach (var entry in Below(connected, above, hubs, builtIn: true, marks))
+                    foreach (var entry in Below(connected, above, hubs, builtIn: true, marks, portPath))
                     {
                         yield return entry;
                     }
                     continue;
                 }
-                yield return (connected, new ConnectionDepth(Tier: above + 1, HubsInFront: hubs), port.Bus, port);
+                yield return (connected, new ConnectionDepth(Tier: above + 1, HubsInFront: hubs), port.Bus, port, portPath);
                 if (connected.Kind == UsbNodeKind.Hub)
                 {
-                    foreach (var entry in Below(connected, above + 1, hubs + 1, builtIn: false, marks))
+                    foreach (var entry in Below(connected, above + 1, hubs + 1, builtIn: false, marks, portPath with { Hubs = [.. portPath.Hubs, connected.Name] }))
                     {
                         yield return entry;
                     }
@@ -179,6 +187,9 @@ public static class TopologyCounts
             }
         }
     }
+
+    // "Port 2 of HUB1", as the user sees the port the mark is on.
+    private static string PortName(UsbNode hub, UsbNode port) => $"{port.Name} of {hub.Name}";
 
     private static IEnumerable<UsbNode> PossiblyBuiltInBelow(UsbNode builtInHub) =>
         builtInHub.Children.SelectMany(port => port.Children.Where(node => node.Kind == UsbNodeKind.Hub).SelectMany(hub =>
