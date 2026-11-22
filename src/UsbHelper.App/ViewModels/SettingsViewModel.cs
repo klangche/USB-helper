@@ -169,7 +169,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     /// <summary>The company name and logo for reports, or null when branding is locked or empty; see <see cref="Settings.Branding"/>.</summary>
-    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, BrandingUnlocked, themes, Luminance());
+    public Branding? Branding => Settings.Branding.Read(current.CompanyName, logo, BrandingUnlocked, themes, Luminance);
 
     /// <summary>The offers for a logo that is hard to see on the light and on the dark theme (#340), in that order.</summary>
     public IReadOnlyList<ThemeLogoViewModel> ThemeOffers { get; }

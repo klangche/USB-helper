@@ -36,8 +36,11 @@ public sealed record Branding(string? CompanyName, string? LogoOriginal, IReadOn
 
     /// <summary>The branding stored in <paramref name="companyName"/> and <paramref name="logo"/>; see <see cref="Branding"/>.</summary>
     /// <param name="themes">The theme logos (#340), or null for none.</param>
-    /// <param name="luminance">The uploaded logo's luminance when already known; read from its 128-pixel PNG when null.</param>
-    public static Branding? Read(string companyName, CompanyLogo? logo, bool unlocked, ThemeLogos? themes = null, double? luminance = null)
+    /// <param name="luminance">
+    /// Gives the uploaded logo's luminance, read once by the caller (null when it has no visible pixel); when not given it
+    /// is read from its 128-pixel PNG.
+    /// </param>
+    public static Branding? Read(string companyName, CompanyLogo? logo, bool unlocked, ThemeLogos? themes = null, Func<double?>? luminance = null)
     {
         var original = logo?.Original;
         if (!unlocked || (companyName.Length == 0 && original == null))
@@ -46,7 +49,7 @@ public sealed record Branding(string? CompanyName, string? LogoOriginal, IReadOn
         }
         var pngs = original == null ? new Dictionary<int, string>() : PngsOf(logo!);
         return new Branding(companyName.Length == 0 ? null : companyName, original, pngs, logo?.Svg,
-            original == null ? null : luminance ?? LogoContrast.Luminance(logo!.Png(128)),
+            original == null ? null : luminance != null ? luminance() : LogoContrast.Luminance(logo!.Png(128)),
             original == null ? null : ThemeLogo.Of(themes?.Light), original == null ? null : ThemeLogo.Of(themes?.Dark));
     }
 
