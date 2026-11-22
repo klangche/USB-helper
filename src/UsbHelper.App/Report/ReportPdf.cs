@@ -57,6 +57,7 @@ public static class ReportPdf
         ReportTree.Place(layout, model.Tree);
         Results(layout, model);
         Displays(layout, model);
+        PortsTested(layout, model);
         Findings(layout, model);
 
         var computer = string.Join(" ", new[] { model.Computer.Manufacturer, model.Computer.Model }.OfType<string>());
@@ -377,6 +378,22 @@ public static class ReportPdf
                     Table.Fit(display.ConnectedTo ?? Strings.ReportNotLinked, ReportLayout.Span(4)), connected, baseline);
                 Hairline(canvas, top + TableRow - 0.5f);
             });
+        }
+    }
+
+    // "Ports tested" (#342), only when the setup was tried on a port: the summary, wrapped to the text width. How the
+    // ports differ is listed with the findings.
+    private static void PortsTested(ReportLayout layout, ReportModel model)
+    {
+        if (model.PortsTested is not { } summary)
+        {
+            return;
+        }
+        var lines = Body.Wrap(summary, ReportLayout.Width);
+        Heading(layout, Strings.ReportPortsTested, BodyLine);
+        foreach (var line in lines)
+        {
+            layout.Place(BodyLine, (canvas, top) => Body.Draw(canvas, line, ReportLayout.Left, top + 9));
         }
     }
 

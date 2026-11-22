@@ -781,6 +781,12 @@ This version keeps running.</value>
   <data name="ReportColumnResult" xml:space="preserve">
     <value>Result</value>
   </data>
+  <data name="ReportPortsTested" xml:space="preserve">
+    <value>Ports tested</value>
+  </data>
+  <data name="PortUsbC" xml:space="preserve">
+    <value>USB-C</value>
+  </data>
   <data name="ReportDisplays" xml:space="preserve">
     <value>Displays</value>
   </data>
