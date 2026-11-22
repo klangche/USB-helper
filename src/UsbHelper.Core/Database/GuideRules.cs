@@ -55,4 +55,26 @@ public sealed record GuideRule(
 }
 
 /// <summary>A source of a v4 guide (#327), by its id under <c>sources</c>.</summary>
-public sealed record GuideSource(string Id, string? Link, string? Title, string? Author, string? Version, string? Read);
+/// <param name="Link">The first web link among its entries, for the guide's page; null when it has none.</param>
+public sealed record GuideSource(string Id, string? Link, string? Title, string? Author, string? Version, string? Read)
+{
+    /// <summary>Its PDFs and web links, in the order listed (#333); at least one when the source sets <c>files</c>.</summary>
+    public IReadOnlyList<SourceFile> Files { get; init; } = [];
+
+    /// <summary>Its quotes, each pointing at one of <see cref="Files"/> and a page (#333).</summary>
+    public IReadOnlyList<SourceQuote> Quotes { get; init; } = [];
+}
+
+/// <summary>
+/// One PDF or web link of a source (#333). A PDF may have no URL (an unpublished source): then only its fingerprint is
+/// known, and a user who has the file opens it with "Open local file".
+/// </summary>
+/// <param name="Name">What is shown: the entry's <c>name</c>, or, for a source's only entry, the URL's decoded file name or host.</param>
+/// <param name="Url">The PDF's or page's address; null for a PDF without a public download.</param>
+/// <param name="IsPdf">A <c>pdf</c> entry, opened in the built-in viewer; else a <c>link</c>, opened in the browser.</param>
+/// <param name="Sha256">The PDF's SHA-256 in lowercase hex, when known.</param>
+/// <param name="Size">The PDF's size in bytes, when known.</param>
+public sealed record SourceFile(string Name, Uri? Url, bool IsPdf, string? Sha256, long? Size);
+
+/// <summary>A quote from a source (#333), with the entry it is in and its page there.</summary>
+public sealed record SourceQuote(string Text, string? File, int? Page);

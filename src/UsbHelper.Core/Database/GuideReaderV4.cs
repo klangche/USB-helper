@@ -108,7 +108,7 @@ internal static class GuideReaderV4
             error(value, "Field 'sources': expected a mapping of id to link, title, author, version and read.");
             return sources;
         }
-        string[] fields = ["link", "title", "author", "version", "read"];
+        string[] fields = ["link", "title", "author", "version", "read", "files", "quotes"];
         foreach (var (id, source) in value.Fields)
         {
             if (source.Kind != ValueKind.Mapping)
@@ -122,7 +122,7 @@ internal static class GuideReaderV4
                 {
                     error(field, $"Source '{id}': unknown field '{key}'.");
                 }
-                else if (field.Kind is not (ValueKind.String or ValueKind.Null))
+                else if (key is not ("files" or "quotes") && field.Kind is not (ValueKind.String or ValueKind.Null))
                 {
                     error(field, $"Source '{id}': '{key}' must be text.");
                 }
@@ -131,10 +131,117 @@ internal static class GuideReaderV4
             {
                 error(source.Find("link")!, $"Source '{id}': 'link' must be an http or https address.");
             }
-            sources[id] = new GuideSource(id, source.Find("link")?.Scalar as string, source.Find("title")?.Scalar as string,
-                source.Find("author")?.Scalar as string, source.Find("version")?.Scalar as string, source.Find("read")?.Scalar as string);
+            var files = ReadFiles(id, source.Find("files"), error);
+            // A plain link is one link entry, as before #333.
+            if (files.Count == 0 && Guide.WebLink(source.Find("link")?.Scalar as string) is { } plain)
+            {
+                files = [new SourceFile(DefaultName(plain), plain, IsPdf: false, null, null)];
+            }
+            var quotes = ReadQuotes(id, source.Find("quotes"), files, error);
+            sources[id] = new GuideSource(id, files.FirstOrDefault(file => !file.IsPdf && file.Url != null)?.Url?.ToString() ?? source.Find("link")?.Scalar as string,
+                source.Find("title")?.Scalar as string, source.Find("author")?.Scalar as string, source.Find("version")?.Scalar as string,
+                source.Find("read")?.Scalar as string)
+            { Files = files, Quotes = quotes };
         }
         return sources;
+    }
+
+    // files (#333): at least one entry, each exactly one of pdf or link. Several entries each need a unique name.
+    private static List<SourceFile> ReadFiles(string id, ProfileValue? value, Action<ProfileValue, string> error)
+    {
+        var files = new List<SourceFile>();
+        if (value == null || value.Kind == ValueKind.Null)
+        {
+            return files;
+        }
+        if (value.Kind != ValueKind.List || value.Items.Count == 0)
+        {
+            error(value, $"Source '{id}': 'files' must list at least one entry.");
+            return files;
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in value.Items)
+        {
+            if (entry.Kind != ValueKind.Mapping)
+            {
+                error(entry, $"Source '{id}': each file entry must be a mapping.");
+                continue;
+            }
+            foreach (var (key, field) in entry.Fields.Where(field => field.Key is not ("name" or "pdf" or "link" or "sha256" or "size")))
+            {
+                error(field, $"Source '{id}': unknown file field '{key}'.");
+            }
+            var isPdf = entry.Fields.ContainsKey("pdf");
+            if (isPdf == entry.Fields.ContainsKey("link"))
+            {
+                error(entry, $"Source '{id}': each file entry has exactly one of 'pdf' and 'link'.");
+                continue;
+            }
+            var address = entry.Find(isPdf ? "pdf" : "link")?.Scalar as string;
+            var url = Guide.WebLink(address);
+            if ((address != null && url == null) || (!isPdf && url == null))
+            {
+                error(entry, $"Source '{id}': '{(isPdf ? "pdf" : "link")}' must be an http or https address{(isPdf ? ", or empty for a PDF without a public download" : "")}.");
+                continue;
+            }
+            var sha256 = entry.Find("sha256")?.Scalar as string;
+            if (sha256 != null && !System.Text.RegularExpressions.Regex.IsMatch(sha256, "^[0-9a-f]{64}$"))
+            {
+                error(entry.Find("sha256")!, $"Source '{id}': 'sha256' must be 64 lowercase hex digits.");
+            }
+            if (isPdf && url == null && sha256 == null)
+            {
+                error(entry, $"Source '{id}': a PDF without a URL needs its 'sha256', so a local copy can be checked.");
+            }
+            var name = entry.Find("name")?.Scalar as string;
+            if (value.Items.Count > 1 && string.IsNullOrWhiteSpace(name))
+            {
+                error(entry, $"Source '{id}': with several entries, every entry needs its own 'name'.");
+                continue;
+            }
+            name ??= url != null ? DefaultName(url) : id;
+            if (!names.Add(name))
+            {
+                error(entry, $"Source '{id}': the name '{name}' is used twice.");
+                continue;
+            }
+            files.Add(new SourceFile(name, url, isPdf, sha256, entry.Find("size")?.Scalar as long?));
+        }
+        return files;
+    }
+
+    // quotes (#333): each text with the entry's name and an optional page; with a single PDF, file may be left out.
+    private static List<SourceQuote> ReadQuotes(string id, ProfileValue? value, IReadOnlyList<SourceFile> files, Action<ProfileValue, string> error)
+    {
+        var quotes = new List<SourceQuote>();
+        foreach (var quote in value?.Items ?? [])
+        {
+            var text = quote.Find("text")?.Scalar as string;
+            var file = quote.Find("file")?.Scalar as string;
+            if (string.IsNullOrEmpty(text))
+            {
+                error(quote, $"Source '{id}': a quote needs 'text'.");
+                continue;
+            }
+            var pdfs = files.Where(each => each.IsPdf).ToList();
+            if (file == null && pdfs.Count == 1)
+            {
+                file = pdfs[0].Name;
+            }
+            if (file != null && files.All(each => each.Name != file))
+            {
+                error(quote.Find("file") ?? quote, $"Source '{id}': the quote's file '{file}' is not one of its entries.");
+            }
+            quotes.Add(new SourceQuote(text, file, quote.Find("page")?.Scalar is long page ? (int)page : null));
+        }
+        return quotes;
+    }
+
+    /// <summary>The name of a source's only entry without one (#333): the URL's last path part, decoded, or else its host.</summary>
+    internal static string DefaultName(Uri url)
+    {
+        var last = url.AbsolutePath.TrimEnd('/').Split('/')[^1];
+        return last.Length == 0 ? url.Host : Uri.UnescapeDataString(last).Replace('+', ' ');
     }
 
     private static Dictionary<string, GuideMeasure> ReadMeasures(
