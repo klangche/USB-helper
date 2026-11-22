@@ -2,6 +2,8 @@
 # USB Standard  –  general purpose, format v4 (#329)
 # =============================================================================
 # The USB specification: at most 7 tiers on a path, host included.
+# Setups: a known computer gives exact tiers; an unknown one leaves them "at
+# least"; marked hubs and active cables add tiers.
 # =============================================================================
 
 name: USB Standard

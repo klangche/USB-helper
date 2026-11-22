@@ -6,6 +6,8 @@
 # the computer's hubs are unknown Crestron assumes one; the database value wins
 # where it is known. An active cable adds a tier per extra 5 m (USB 2) or 3 m
 # (USB 3), marked by the user. No separate rule for cameras or audio.
+# Setups: a known computer gives exact tiers; an unknown one counts one
+# computer hub (unknown: 1); marked hubs and active cables add tiers.
 # =============================================================================
 
 name: Crestron

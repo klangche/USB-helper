@@ -6,6 +6,8 @@
 # computer file (a model); from a chip value they stay unknown and the result
 # is "at least". No camera or audio rule: "more important than tier count
 # alone". USB4 routers and logical layers are not counted as hubs.
+# Setups: a computer file with computer_hubs gives exact tiers; a chip value
+# or none leaves them "at least"; marked hubs and active cables add tiers.
 # =============================================================================
 
 name: PureLink
@@ -65,8 +67,9 @@ platforms:
       tablet-exynos: { mst: 0 }
 
 notes:
+  - "Quote (PureLink V6, supplied by the owner 2026-11-22), the rule's max 7: \"USB supports a maximum of seven tiers along any individual connection path. Tier 1 is the host and its integrated root hub, Tiers 2–6 can contain up to five additional hubs, and Tier 7 is reserved for the final USB device.\" One rule holds both numbers, so its quote is the recommendation."
   - "Quotes (PureLink V6): \"ideally within four tiers … a conservative design preference\"; \"Avoid fixed per-chip-family tier figures unless backed by reproducible model/OS measurements\"; \"Scheduling, sufficient bandwidth, power and compatibility are more important than tier count alone\" (so no camera or audio rule)."
-  - "Converted to v4 on 2026-11-19 (#329), following V6, which replaced the v3 whitepaper source below. The max 7 is the USB-IF limit PureLink V6 cites (#325); its exact sentence was not supplied, so the rule quotes the recommendation."
+  - "Converted to v4 on 2026-11-19 (#329), following V6, which replaced the v3 whitepaper source below."
   - "v3 source line, kept: PureLink, USB-C Technology whitepaper v3 (Robin Cullen, 8 Oct 2025), not published yet"
   - "v3 source line, kept: PureLink: maximum seven tiers on a connection path; the limit is hubs in series, not the total number of hubs"
   - "v3 source line, kept: PureLink: ideally within four tiers in ProAV; webcams and audio interfaces 3–4 tiers at most"
