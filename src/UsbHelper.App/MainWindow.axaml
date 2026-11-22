@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="using:UsbHelper.App"
         xmlns:vm="using:UsbHelper.App.ViewModels"
+        xmlns:sources="using:UsbHelper.App.Sources"
         xmlns:res="using:UsbHelper.App.Resources"
         x:Class="UsbHelper.App.MainWindow"
         x:DataType="vm:MainViewModel"
@@ -281,6 +282,20 @@
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[3]}" Command="{Binding SetMark}" CommandParameter="3" />
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[4]}" Command="{Binding SetMark}" CommandParameter="4" />
                         <MenuItem Header="{Binding Source={x:Static vm:NodeViewModel.MarkChoices}, Path=[5]}" Command="{Binding SetMark}" CommandParameter="5" />
+                        <!-- An active cable with its length and bus (#331): each guide works out its tiers. -->
+                        <Separator />
+                        <MenuItem StaysOpenOnClick="True">
+                          <MenuItem.Header>
+                            <StackPanel Spacing="4">
+                              <TextBlock Text="{x:Static res:Strings.MarkCableTitle}" />
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <NumericUpDown Value="{Binding CableMetres}" Minimum="0.5" Maximum="100" Increment="0.5" FormatString="0.#" Width="110" />
+                                <ComboBox ItemsSource="{x:Static vm:NodeViewModel.CableBuses}" SelectedIndex="{Binding CableBusIndex}" />
+                                <Button Content="{x:Static res:Strings.MarkCableSet}" Command="{Binding SetCable}" CommandParameter="0" />
+                              </StackPanel>
+                            </StackPanel>
+                          </MenuItem.Header>
+                        </MenuItem>
                       </MenuFlyout>
                     </Button.Flyout>
                   </Button>
@@ -387,6 +402,27 @@
                              Padding="0" VerticalAlignment="Center" ToolTip.Tip="{Binding GuideLink}" />
             <TextBlock Text="{Binding GuideName}" IsVisible="{Binding HasGuideNoLink}" VerticalAlignment="Center" />
             <TextBlock Text="{Binding GuideTextAfter}" VerticalAlignment="Center" />
+          </WrapPanel>
+          <!-- Every PDF and link of the guide's sources (#333): a PDF opens in the built-in viewer, a link in the browser. -->
+          <WrapPanel Opacity="0.7" IsVisible="{Binding HasGuideSources}">
+            <TextBlock Text="{x:Static res:Strings.SourcesLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ItemsControl ItemsSource="{Binding GuideSources}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="sources:SourceEntry">
+                  <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,10,0">
+                    <Border IsVisible="{Binding IsPdf}" Background="#B03A2E" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                      <TextBlock Text="{x:Static res:Strings.PdfMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
+                    </Border>
+                    <HyperlinkButton Content="{Binding Name}" ToolTip.Tip="{Binding Tip}" Padding="0" VerticalAlignment="Center" Click="OpenSource" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </WrapPanel>
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding StatusRows}">

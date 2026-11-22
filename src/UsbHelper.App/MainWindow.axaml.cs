@@ -8,12 +8,17 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using UsbHelper.App.Resources;
+using UsbHelper.App.Settings;
+using UsbHelper.App.Sources;
 using UsbHelper.App.ViewModels;
 
 namespace UsbHelper.App;
 
-public partial class MainWindow : Window, IMainWindowActions
+public partial class MainWindow : Window, IMainWindowActions, ISourceShell
 {
+    // Source PDFs are fetched only when an entry is clicked (#333), into sources-cache/ next to settings.json.
+    private UsbHelper.Core.Database.SourceOpener? sourceOpener;
+
     private LogWindow? logWindow;
     private UpdateWindow? updateWindow;
 
@@ -305,5 +310,53 @@ public partial class MainWindow : Window, IMainWindowActions
         {
             ExportResult.Text = string.Format(CultureInfo.CurrentCulture, Strings.ExportFailed, ex.Message);
         }
+    }
+
+    // A source entry was clicked (#333).
+    private async void OpenSource(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is SourceEntry entry)
+        {
+            sourceOpener ??= new UsbHelper.Core.Database.SourceOpener(UsbHelper.Core.Database.SourceOpener.NextTo(SettingsFile.Default.Path), new System.Net.Http.HttpClient());
+            await SourceRouter.OpenAsync(sourceOpener, this, entry);
+        }
+    }
+
+    public async Task ShowPdfAsync(string path, string title, int? page, string? notice)
+    {
+        if (!PdfViewerWindow.TryOpen(this, path, title, page, notice))
+        {
+            await ShowMessageAsync(Strings.PdfViewerFailed);
+            await Launcher.LaunchFileInfoAsync(new FileInfo(path));
+        }
+    }
+
+    public async Task OpenBrowserAsync(Uri url, string? message)
+    {
+        if (message != null)
+        {
+            await ShowMessageAsync(message);
+        }
+        await Launcher.LaunchUriAsync(url);
+    }
+
+    public async Task<string?> PickPdfAsync(string message)
+    {
+        await ShowMessageAsync(message);
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Strings.SourceOpenLocal,
+            FileTypeFilter = [new FilePickerFileType("PDF") { Patterns = ["*.pdf"] }],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+    }
+
+    public Task ShowMessageAsync(string message)
+    {
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.Notice = message;
+        }
+        return Task.CompletedTask;
     }
 }
