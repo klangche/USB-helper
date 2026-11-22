@@ -70,6 +70,20 @@ public sealed class SourceFilesTests : IDisposable
         Assert.Contains(message, Error("  other:\n    files:\n" + entries), StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("    quotes:\n      - { text: \"five\" }\n", "a quote needs 'file'")]
+    [InlineData("    quotes:\n      - { text: \"five\", file: Paper, page: twelve }\n", "'page' must be a page number")]
+    public void AQuoteWithoutItsFileOrWithABadPageIsAnError(string quotes, string message)
+    {
+        Assert.Contains(message, Error("  other:\n    files:\n      - { name: Paper, pdf: https://example.com/p.pdf }\n      - { name: Notes, pdf: https://example.com/n.pdf }\n" + quotes), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ASizeThatIsNotANumberIsAnError()
+    {
+        Assert.Contains("'size' must be a whole number", Error("  other:\n    files:\n      - { pdf: https://example.com/p.pdf, size: big }\n"), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AQuotePointsAtItsEntryAndPage()
     {

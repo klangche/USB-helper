@@ -100,12 +100,30 @@ public sealed class SourceRouterTests : IDisposable
         Assert.Equal(["pick", "message This file is not the source's PDF: its size or fingerprint does not match.", "pick", "viewer Paper page 12 notice "], shell.Calls);
     }
 
+    // From a guide written here, not the real database, so this test needs no particular database data.
     [Fact]
     public void TheEntriesOfAGuideAreListedInOrderWithTheirQuotePages()
     {
-        var db = DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]);
+        const string Base = "schema_version: 4\nusb: { max_tiers: 7 }\npath_elements:\n"
+            + "  root_hub: { found_by: r }\n  computer_hub: { found_by: c }\n  hub: { found_by: h }\n  marked_hub: { found_by: m }\n"
+            + "  cable_length: { found_by: l }\n  usb4_router: { found_by: u }\n  device: { found_by: d }\n"
+            + "device_kinds:\n  camera: { usb_class: 14 }\n  audio: { usb_class: 1 }\n  hid: { usb_class: 3 }\n";
+        const string Guide = "name: USB Standard\nselectable: true\nproav: 0\nsources:\n  paper:\n    files:\n"
+            + "      - { name: Page, link: https://example.com/page }\n      - { name: Paper, pdf: https://example.com/p.pdf }\n"
+            + "      - { name: Notes, pdf: https://example.com/n.pdf }\n    quotes:\n      - { text: \"five\", file: Paper, page: 12 }\n"
+            + "  site:\n    files:\n      - link: https://example.com/\n"
+            + "measures:\n  tiers: { counts: [root_hub, hub, device] }\nrules:\n  - { measure: tiers, max: 7 }\n";
+        var db = HardwareDatabase.LoadV4(new Dictionary<string, string>
+        {
+            ["base.yaml"] = Base,
+            ["platforms/windows.yaml"] = "name: Windows\nchips:\n  intel: { name: Intel, computer_hubs: 0 }\n",
+            ["guides/usb-helper.yaml"] = Guide,
+        });
 
-        Assert.NotEmpty(SourceRouter.EntriesOf(db.Guides["ochno"]));
-        Assert.Empty(SourceRouter.EntriesOf(EmbeddedDatabaseTests.V3().Guides["ochno"]));
+        var entries = SourceRouter.EntriesOf(db.DefaultGuide);
+
+        Assert.Equal([("Page", false, (int?)null), ("Paper", true, 12), ("Notes", true, null), ("example.com", false, null)],
+            entries.Select(entry => (entry.Name, entry.IsPdf, entry.Page)));
+        Assert.Empty(SourceRouter.EntriesOf(EmbeddedDatabaseTests.V3().DefaultGuide));
     }
 }
