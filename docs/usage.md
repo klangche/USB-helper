@@ -316,6 +316,33 @@ you have, checks it against the fingerprint, and keeps it. The viewer scrolls,
 zooms, shows the page number and saves a copy; when it cannot start, the
 system's PDF app opens the file.
 
+## Testing several ports
+
+To test a setup on more than one of the computer's ports, unplug it and plug it
+into another port (#342). When the same hubs and devices, by vendor and product
+id, come back behind another of the computer's own ports, the app sees a move,
+not a disconnect, also when the unplug and the plug-in arrive as two changes:
+the tree follows the setup, nothing turns purple for "reconnected", and the
+status field says, for example, "The setup moved from Port 1 (USB-C, USB 3) to
+Port 2 (USB 2)." What did not come back is listed as missing, as usual. Two of
+the computer's ports with the same name are told apart by their hub, for
+example "Port 1 on Root hub 2".
+
+Each port tried keeps its last result. How the ports differ is listed with the
+findings, in the log and in the PDF report: a device that did not connect on
+one port ("On Port 3 the Camera did not connect; on Port 1 it did."), that has
+an error on one only, that runs on USB 2 on one ("On Port 2 the Camera runs on
+USB 2 (USB 3 on Port 1).") or a setup within the limits on one port and over
+one on another. The exported log ends with, and the PDF report has, "Ports
+tested": "Tested on 2 of 3 ports: Port 1 stable, Port 2 potentially unstable
+(Camera on USB 2). Port 3 not tested." The number of ports comes from the checked
+computer's file, one per USB entry under `ports` (MacBook Neo: 2). When the
+system shows more ports than the file has entries, one entry stands for several
+ports (the MacBook Pro has one `thunderbolt4` entry for three), so the ports
+seen this session count instead, as they do without a file; on macOS, which
+does not say which ports are built in, the summary then says so. Nothing is saved; "Refresh and clear log" starts
+over.
+
 ## Unlock
 
 An unlock code adds company branding, the PDF report and beta updates. Codes

@@ -75,6 +75,23 @@ public sealed class SessionHistory
     public IReadOnlyList<MissingDevice> Reconnected(IReadOnlyList<UsbNode> tree) =>
         seen.Values.Where(device => reconnected.Contains(device.Node.Id) && UsbTree.Find(tree, device.Node.Id) != null).ToList();
 
+    /// <summary>
+    /// The setup moved to another of the computer's ports (#342): what came back is neither missing nor reconnected; what
+    /// did not come back stays missing. Call after <see cref="Record"/> of the tree after the move.
+    /// </summary>
+    public void ApplyMove(SetupMove move)
+    {
+        foreach (var (before, after) in move.Pairs)
+        {
+            if (before != after)
+            {
+                Clear(before);
+            }
+            reconnected.Remove(after);
+            gone.Remove(after);
+        }
+    }
+
     /// <summary>Forgets everything (#206, "Refresh and clear log"), as if the session had just started.</summary>
     public void Reset()
     {

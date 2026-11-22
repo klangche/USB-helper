@@ -41,6 +41,9 @@ public sealed record ReportModel(
     /// their place (#247).
     /// </summary>
     public IReadOnlyList<string> DatabaseFiles { get; init; } = [];
+
+    /// <summary>"Ports tested" (#342): the summary of the ports the setup was tried on, or null when it was tried on none.</summary>
+    public string? PortsTested { get; init; }
 }
 
 /// <summary>The setup's counts over all controllers.</summary>

@@ -631,6 +631,12 @@ This version keeps running.</value>
   <data name="GuideMeasureRoom" xml:space="preserve">
     <value>hubs in the room</value>
   </data>
+  <data name="SetupMoved" xml:space="preserve">
+    <value>The setup moved from {0} to {1}.</value>
+  </data>
+  <data name="PortOnBus" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
   <data name="SettingsDatabaseFormat" xml:space="preserve">
     <value>Database format (beta only, used from the next start):</value>
   </data>
@@ -822,6 +828,12 @@ This version keeps running.</value>
   </data>
   <data name="ReportColumnResult" xml:space="preserve">
     <value>Result</value>
+  </data>
+  <data name="ReportPortsTested" xml:space="preserve">
+    <value>Ports tested</value>
+  </data>
+  <data name="PortUsbC" xml:space="preserve">
+    <value>USB-C</value>
   </data>
   <data name="ReportDisplays" xml:space="preserve">
     <value>Displays</value>
