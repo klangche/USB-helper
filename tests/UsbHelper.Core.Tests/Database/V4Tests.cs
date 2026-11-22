@@ -263,6 +263,21 @@ public class V4Tests
         Assert.Single(db.Guides["mine"].Rules);
     }
 
+    // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.
+    [Fact]
+    public void AMeasureThatCountsUsb4RoutersIsAtLeast()
+    {
+        var routers = "name: Routers\nselectable: true\nproav: 0\nmeasures:\n  routers: { counts: [usb4_router, hub] }\nrules:\n  - { measure: routers, max: 5 }\n";
+        var db = HardwareDatabase.LoadV4(Files(("guides/routers.yaml", routers)));
+        DiagnosticReport With(int hubs) =>
+            DiagnosticEvaluator.Evaluate(Chain(hubs, Device("KEYBOARD")), db.Platforms["windows-intel"], [], externalDisplays: 0, guide: db.Guides["routers"]);
+
+        Assert.Equal(ConnectionStatus.Grey, With(5).Connections["KEYBOARD"]);
+        var over = Assert.Single(With(6).Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Kind == FactKind.PredictedRisk);
+        Assert.StartsWith("Routers: routers at least 6 exceeds the maximum 5.", over.Message, StringComparison.Ordinal);
+        Assert.Contains(new CountPart(PathElements.Usb4Router, null, "not measured yet (#267)"), over.CountParts);
+    }
+
     // A guide's number for an unknown computer_hub is used, with the guide as its origin.
     [Fact]
     public void AnAssumedComputerHubComesFromTheGuide()

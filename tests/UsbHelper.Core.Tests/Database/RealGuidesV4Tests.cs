@@ -103,6 +103,13 @@ public class RealGuidesV4Tests
         Assert.Equal(ConnectionStatus.Purple, With(CableMark.OfHubs(1)).Connections["KEYBOARD"]);
     }
 
+    // usb4_router is not measured yet (#332): no guide counts it, so no result depends on it.
+    [Fact]
+    public void NoGuideCountsUsb4RoutersYet()
+    {
+        Assert.All(Db.Guides.Values, guide => Assert.All(guide.MeasureDefinitions.Values, measure => Assert.DoesNotContain(PathElements.Usb4Router, measure.Counts)));
+    }
+
     // Every rule of a manufacturer guide quotes words that are in its notes or basis.
     [Fact]
     public void EveryManufacturerQuoteIsInTheNotesOrBasis()
