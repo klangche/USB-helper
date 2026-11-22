@@ -377,6 +377,8 @@
           <!-- Status field: every checked profile with its result word in its colour, for the selected controller. -->
           <TextBlock Text="{x:Static res:Strings.StatusField}" FontWeight="Bold" Margin="0,8,0,0" />
           <TextBlock Text="{Binding StatusScope}" TextWrapping="Wrap" />
+          <!-- The setup moved to another of the computer's ports (#342). -->
+          <TextBlock Text="{Binding PortStatus}" IsVisible="{Binding HasPortStatus}" TextWrapping="Wrap" FontStyle="Italic" />
           <!-- Which guide every result is judged by (#286). -->
           <!-- The guide's name links to its page when its file lists one. -->
           <WrapPanel Opacity="0.7" IsVisible="{Binding Guide, Converter={x:Static ObjectConverters.IsNotNull}}">

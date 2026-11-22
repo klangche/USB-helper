@@ -137,6 +137,9 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
+
+    // The setup on each of the computer's ports this session (#342).
+    private readonly PortTesting ports = new();
     private readonly EventLog log;
     private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
@@ -263,6 +266,8 @@ public sealed class MainViewModel : ObservableObject
         {
             log.Clear();
             history.Reset();
+            ports.Reset();
+            PortStatus = null;
             log.Add("Refresh: log and disconnected devices cleared");
         }
         else
@@ -925,6 +930,42 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>The last move of the setup to another of the computer's ports (#342), in the status field; null for none.</summary>
+    public string? PortStatus
+    {
+        get => portStatus;
+        private set
+        {
+            if (SetField(ref portStatus, value))
+            {
+                OnPropertyChanged(nameof(HasPortStatus));
+            }
+        }
+    }
+
+    private string? portStatus;
+
+    public bool HasPortStatus => PortStatus != null;
+
+    // The same setup on another of the computer's ports (#342): a move, not a disconnect and a reconnect.
+    private void NoteMove(IReadOnlyList<UsbNode> before)
+    {
+        if (PortTesting.Detect(before, tree) is { } move)
+        {
+            history.ApplyMove(move);
+            PortStatus = string.Format(CultureInfo.CurrentCulture, Strings.SetupMoved, PortLabel(move.From), PortLabel(move.To));
+            log.Add($"The setup moved from {move.From.Label} to {move.To.Label}.");
+        }
+    }
+
+    // "Port 2 (USB 2)" in the user's language.
+    private static string PortLabel(ComputerPort port) => port.Bus switch
+    {
+        UsbBus.Usb2 => string.Format(CultureInfo.CurrentCulture, Strings.PortOnBus, port.Name, Strings.GuideLineUsb2),
+        UsbBus.Usb3 => string.Format(CultureInfo.CurrentCulture, Strings.PortOnBus, port.Name, Strings.GuideLineUsb3),
+        _ => port.Name,
+    };
+
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>
     public string? Notice
     {
@@ -1050,8 +1091,10 @@ public sealed class MainViewModel : ObservableObject
     {
         IsLoading = false;
         log.TreeRead(detected);
+        var before = tree;
         tree = detected;
         history.Record(tree);
+        NoteMove(before);
         Refresh(monitors);
         LogTree();
         CopyTreeCommand.Refresh();
@@ -1062,8 +1105,10 @@ public sealed class MainViewModel : ObservableObject
     public void Apply(IReadOnlyList<UsbChange> changes)
     {
         log.Changes(tree, changes);
+        var before = tree;
         tree = UsbTree.Apply(tree, changes);
         history.Record(tree);
+        NoteMove(before);
         foreach (var change in changes.Where(change => change.Kind == UsbChangeKind.Reconnected))
         {
             foreach (var node in change.Node.Children)
@@ -1107,6 +1152,11 @@ public sealed class MainViewModel : ObservableObject
         var missing = history.Missing(tree);
         var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
         lastReport = all;
+        // Each port tried keeps its last result (#342); how the ports differ goes to the log, and the summary to the export.
+        ports.Update(tree, all.Connections);
+        var differences = ports.Differences();
+        log.PortsTested(PortTesting.LogText(ports.Summary(profiles.FirstOrDefault(profile => profile.Find("ports") != null)), differences),
+            [.. differences.Select(PortTesting.DifferenceText)]);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))

@@ -583,6 +583,12 @@ This version keeps running.</value>
   <data name="GuideMeasureRoom" xml:space="preserve">
     <value>hubs in the room</value>
   </data>
+  <data name="SetupMoved" xml:space="preserve">
+    <value>The setup moved from {0} to {1}.</value>
+  </data>
+  <data name="PortOnBus" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
   <data name="SettingsDatabaseFormat" xml:space="preserve">
     <value>Database format (beta only, used from the next start):</value>
   </data>
