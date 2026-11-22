@@ -10,4 +10,9 @@
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 
+  <!-- RuleJudge's count parts per path, read by the detection tests (#330). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="UsbHelper.Core.Tests" />
+  </ItemGroup>
+
 </Project>

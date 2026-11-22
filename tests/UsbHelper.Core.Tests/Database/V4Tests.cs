@@ -304,6 +304,19 @@ public class V4Tests
         Assert.Empty(TopologyCounts.Paths(InternalHubTree)["KEYBOARD"].Hubs);
     }
 
+    // An internal hub that serves only a built-in webcam, next to an external port on the root hub.
+    private static IReadOnlyList<UsbNode> WebcamOnlyTree => [Controller("C1",
+        Hub("ROOT", Hub("INTERNAL", Device("WEBCAM")).Connectable(false), Device("KEYBOARD")).Connectable(false, true))];
+
+    [Fact]
+    public void AnInternalHubThatServesOnlyAWebcamIsNotADetectedComputerHub()
+    {
+        Assert.Empty(TopologyCounts.Paths(WebcamOnlyTree)["WEBCAM"].ComputerHubs);
+        Assert.Empty(TopologyCounts.Paths(WebcamOnlyTree)["KEYBOARD"].ComputerHubs);
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 0, "platforms/windows.yaml intel"), ComputerHubOf("windows-intel", WebcamOnlyTree, "WEBCAM"));
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 0, "platforms/windows.yaml intel"), ComputerHubOf("windows-intel", WebcamOnlyTree, "KEYBOARD"));
+    }
+
     // A built-in device behind it (a webcam on an internal port), and a device on the root's own port, get no detected hub.
     [Fact]
     public void AnInternalHubWithoutAnExternalPortBehindItIsNotCounted()

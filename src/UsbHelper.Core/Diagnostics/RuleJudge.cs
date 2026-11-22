@@ -10,7 +10,7 @@ namespace UsbHelper.Core.Diagnostics;
 /// kinds and platform); the strictest result wins. A count with an unknown part is "at least": over a limit it is
 /// exceeded, within one it is unknown. Nothing comes from another guide.
 /// </summary>
-public static class RuleJudge
+internal static class RuleJudge
 {
     /// <summary>The device kinds of a node as base.yaml names them (#274): camera, audio or both. Never guessed.</summary>
     public static IReadOnlyList<string> KindsOf(UsbNode node) => node.DeviceKind switch
