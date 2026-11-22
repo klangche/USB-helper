@@ -34,10 +34,12 @@ notes:
   - "usb4.max_router_depth 5: the Linux Thunderbolt/USB4 driver (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview (#267)."
   - "A device's tier is counted as the USB specification does: a device in the computer's own port is on tier 2, each hub adds one, and the chip's built_in_hub_levels (platforms/) add theirs."
   - "The note above on built_in_hub_levels was replaced on 2026-11-19 (#328): in v4 a count is a sum of path_elements, and the computer's own hubs are computer_hubs in platforms/ and computers/."
+  - "usb4.max_router_depth 5, checked on 2026-11-22 (#332): Linux drivers/thunderbolt/tb.h, lines 75–76 at commit 4843f6873f7c, defines TB_SWITCH_MAX_DEPTH 6 (Thunderbolt) and USB4_SWITCH_MAX_DEPTH 5 (USB4). The USB-IF USB4 System Overview was seen on #267 only in search snippets (\"up to 6 routers\", \"up to 5 hops\"), not read; it, the USB4 specification and Microsoft's USB4 documentation are still to be checked, with exact sections. usb4_router is not measured yet: no guide counts it, and one that did would get \"at least\"."
 
 sources:
   - "USB 2.0 specification, section 4.1.1 (bus topology: seven tiers at most) and section 9.6.1 (7-bit device address)"
   - "https://github.com/torvalds/linux/blob/master/drivers/thunderbolt/tb.h (USB4_SWITCH_MAX_DEPTH) and the USB-IF USB4 System Overview, as found on #267"
+  - "https://github.com/torvalds/linux/blob/4843f6873f7c4835e62f2c73ba0fd538e57a2f22/drivers/thunderbolt/tb.h#L75-L76 (TB_SWITCH_MAX_DEPTH 6, USB4_SWITCH_MAX_DEPTH 5; read 2026-11-22, #332)"
   - "PureLink, USB-C whitepaper (not yet published; the link follows in #259): seven USB tiers on a path"
 
 verification:
