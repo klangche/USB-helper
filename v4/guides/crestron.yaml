@@ -11,7 +11,6 @@
 name: Crestron
 selectable: true
 proav: 1
-requires: [cable_length]
 basis: { source: crestron, quote: "never more than 7 tiers" }
 
 sources:
