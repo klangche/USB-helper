@@ -56,6 +56,8 @@ public class SessionTests
     {
         var (window, log, clock, reads) = Running();
         Assert.NotEmpty(window.Disconnected);
+        // Both ports were tried: the mouse's port keeps its result after the unplug (#342).
+        Assert.StartsWith("Tested on 2 of 2 ports", window.Report(clock.Now.DateTime, null, null, "0.11.0").PortsTested, StringComparison.Ordinal);
         clock.Now += TimeSpan.FromHours(12);
 
         window.SessionTick();
@@ -68,6 +70,8 @@ public class SessionTests
         Assert.Equal("New session 2026-11-22 21:30 (USB-helper 0.11.0)", log.Entries[0].Text);
         Assert.DoesNotContain(log.Entries, entry => entry.Text.StartsWith("USB-helper 0.11.0 started", StringComparison.Ordinal));
         Assert.Empty(window.Disconnected);
+        // The ports tested start over: only the port in use now.
+        Assert.StartsWith("Tested on 1 of 2 ports", window.Report(clock.Now.DateTime, null, null, "0.11.0").PortsTested, StringComparison.Ordinal);
         Assert.Equal(1, reads());
         window.Load(Desk, []);
         Assert.Equal(new CableMark(1, 1), Find(window.Roots, "HUB")!.Mark); // The marks stay.

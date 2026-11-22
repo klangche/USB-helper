@@ -33,6 +33,8 @@ public sealed class EventLog(TimeProvider? clock = null)
     private string? licensedTo;
     // The line that names this session's instance (#341); it heads the export.
     private string? sessionLine;
+    private string? portsTested;
+    private IReadOnlyList<string> portDifferences = [];
 
     public IReadOnlyList<LogEntry> Entries => entries;
 
@@ -284,6 +286,20 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     /// <summary>
+    /// "Ports tested" (#342): the summary and how the ports differ, for the end of <see cref="Export"/>. Each new
+    /// difference is logged once when it appears.
+    /// </summary>
+    public void PortsTested(string summary, IReadOnlyList<string> differences)
+    {
+        foreach (var difference in differences.Where(difference => !portDifferences.Contains(difference)))
+        {
+            Add(difference);
+        }
+        portsTested = summary;
+        portDifferences = differences;
+    }
+
+    /// <summary>
     /// The whole log as plain text, one line per entry, after the session line (#341) and the company and the licensed
     /// email when they are set.
     /// </summary>
@@ -309,6 +325,14 @@ public sealed class EventLog(TimeProvider? clock = null)
         foreach (var entry in entries)
         {
             text.AppendLine(entry.ToString());
+        }
+        if (portsTested != null)
+        {
+            text.AppendLine().AppendLine("Ports tested").AppendLine(portsTested);
+            foreach (var difference in portDifferences)
+            {
+                text.AppendLine(difference);
+            }
         }
         return text.ToString();
     }

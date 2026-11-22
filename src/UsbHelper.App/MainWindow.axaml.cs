@@ -6,6 +6,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using UsbHelper.App.Resources;
@@ -34,6 +35,14 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
         Screens.Changed += (_, _) => (DataContext as MainViewModel)?.DisplaysChanged();
         Closed += (_, _) => (BrandingLogo.Source as Bitmap)?.Dispose();
+        // The system theme changed while the app runs (#340): the top bar takes that theme's logo, or the name, at once.
+        ActualThemeVariantChanged += (_, _) =>
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.Theme = ThemeOf(ActualThemeVariant);
+            }
+        };
         // Sleep and long sessions (#341): a tick every 30 s notices a clock jump, and activating the window notices an
         // earlier day.
         var sessionTimer = new DispatcherTimer { Interval = SessionWatch.Tick };
@@ -47,6 +56,7 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
             if (DataContext is MainViewModel viewModel)
             {
                 viewModel.Window = this;
+                viewModel.Theme = ThemeOf(ActualThemeVariant);
                 ShowBrandingLogo(viewModel);
                 viewModel.PropertyChanged += (_, e) =>
                 {
@@ -78,6 +88,9 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
             }
         };
     }
+
+    /// <summary>The logo theme of <paramref name="variant"/>: dark for the dark variant, light for anything else (#340).</summary>
+    internal static LogoTheme ThemeOf(ThemeVariant variant) => variant == ThemeVariant.Dark ? LogoTheme.Dark : LogoTheme.Light;
 
     // Read into memory, so the file is not held open and the next logo import can replace it. A file that cannot be
     // read shows no logo.

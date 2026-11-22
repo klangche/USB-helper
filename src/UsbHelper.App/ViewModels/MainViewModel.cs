@@ -142,6 +142,10 @@ public sealed record DisconnectedItem(string Text, RelayCommand Clear);
 public sealed class MainViewModel : ObservableObject
 {
     private readonly SessionHistory history = new();
+
+    // The setup on each of the computer's ports this session (#342).
+    private readonly PortTesting ports = new();
+    private IReadOnlyList<Finding> portFindings = [];
     private readonly EventLog log;
     private readonly Func<IReadOnlyList<DisplayMonitor>?> readMonitors;
     private readonly ComputerIdentity identity;
@@ -284,11 +288,15 @@ public sealed class MainViewModel : ObservableObject
         RefreshRequested();
     }
 
-    // What a fresh session forgets (#206, #341): the log and the disconnected and reconnected devices.
+    // What a fresh session forgets (#206, #341): the log, the disconnected and reconnected devices and the ports
+    // tested (#342).
     private void ClearSession()
     {
         log.Clear();
         history.Reset();
+        ports.Reset();
+        portFindings = [];
+        PortStatus = null;
     }
 
     /// <summary>Notices sleep and long sessions (#341); tests give it their own clock.</summary>
@@ -879,7 +887,9 @@ public sealed class MainViewModel : ObservableObject
         Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
 
     /// <summary>The logo for the PDF report (#232): the cropped vector logo when there is one, else the 512 pixel PNG.</summary>
-    public static string? ReportLogo(Branding? branding) => branding?.LogoSvg ?? branding?.LogoPngs.GetValueOrDefault(512);
+    /// <remarks>The report has a white page, so it takes the light theme's choice (#340); null means the name is shown.</remarks>
+    public static string? ReportLogo(Branding? branding) =>
+        branding?.Logo(LogoTheme.Light) is { } logo ? logo.Svg ?? logo.Pngs.GetValueOrDefault(512) : null;
 
     // Everything detected and found, for all controllers: each checked profile's result with every finding, the unknown
     // ones included.
@@ -925,6 +935,7 @@ public sealed class MainViewModel : ObservableObject
         var findings = setup.Results
             .SelectMany(result => result.Findings.Select(finding => new ReportFinding(finding.Kind,
                 several && finding.Kind != FactKind.DetectedFact ? result.Label : null, finding.Subject, finding.Message)))
+            .Concat(portFindings.Select(finding => new ReportFinding(finding.Kind, null, finding.SubjectName, finding.Message)))
             .Distinct()
             .ToList();
         var counts = lastReport.Counts;
@@ -946,6 +957,7 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
+            PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(PortsProfile(Checked.Select(option => option.Profile))), ports.Differences()),
             DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
     }
@@ -992,10 +1004,29 @@ public sealed class MainViewModel : ObservableObject
     public bool ShowsBranding => Settings.Branding != null;
 
     /// <summary>The company name in the top bar, only when there is no logo: never both. Null when locked or none.</summary>
-    public string? BrandingName => Settings.Branding is { LogoOriginal: null } branding ? branding.CompanyName : null;
+    public string? BrandingName => Settings.Branding is { } branding && branding.Logo(Theme) == null ? branding.CompanyName : null;
 
-    /// <summary>The logo 64 pixels high for the top bar (32 high at 200% scale), or null when locked or there is no logo.</summary>
-    public string? BrandingLogo => Settings.Branding?.LogoPngs.GetValueOrDefault(64);
+    /// <summary>
+    /// The logo 64 pixels high for the top bar (32 high at 200% scale), chosen for <see cref="Theme"/> (#340); null when
+    /// locked, when there is no logo, or when it would be too hard to see there.
+    /// </summary>
+    public string? BrandingLogo => Settings.Branding?.Logo(Theme)?.Pngs.GetValueOrDefault(64);
+
+    /// <summary>The app's theme now, set by the main window when the system theme changes (#340).</summary>
+    public LogoTheme Theme
+    {
+        get => theme;
+        set
+        {
+            if (SetField(ref theme, value))
+            {
+                OnPropertyChanged(nameof(BrandingName));
+                OnPropertyChanged(nameof(BrandingLogo));
+            }
+        }
+    }
+
+    private LogoTheme theme;
 
     /// <summary>The unlock popup's content and the unlock text of the top bar and the status line (#238).</summary>
     public UnlockViewModel Unlock { get; }
@@ -1024,6 +1055,53 @@ public sealed class MainViewModel : ObservableObject
             }
         }
     }
+
+    /// <summary>The last move of the setup to another of the computer's ports (#342), in the status field; null for none.</summary>
+    public string? PortStatus
+    {
+        get => portStatus;
+        private set
+        {
+            if (SetField(ref portStatus, value))
+            {
+                OnPropertyChanged(nameof(HasPortStatus));
+            }
+        }
+    }
+
+    private string? portStatus;
+
+    public bool HasPortStatus => PortStatus != null;
+
+    // The same setup on another of the computer's ports (#342): a move, not a disconnect and a reconnect.
+    private void NoteMove(IReadOnlyList<UsbNode> before)
+    {
+        if (ports.Note(before, tree) is { } move)
+        {
+            history.ApplyMove(move);
+            PortStatus = string.Format(CultureInfo.CurrentCulture, Strings.SetupMoved, PortLabel(move.From), PortLabel(move.To));
+            log.Add($"The setup moved from {move.From.Label} to {move.To.Label}.");
+        }
+    }
+
+    // "Port 2 (USB-C, USB 2)" in the user's language.
+    private static string PortLabel(ComputerPort port) =>
+        ComputerPort.Details(port.UsbC == true ? Strings.PortUsbC : null, port.Bus switch
+        {
+            UsbBus.Usb2 => Strings.GuideLineUsb2,
+            UsbBus.Usb3 => Strings.GuideLineUsb3,
+            _ => null,
+        }) is { } details
+            ? string.Format(CultureInfo.CurrentCulture, Strings.PortOnBus, port.Name, details)
+            : port.Name;
+
+    // The checked computer whose file lists its ports, for the "Ports tested" total (#342).
+    private static ResolvedProfile? PortsProfile(IEnumerable<ResolvedProfile> profiles) => profiles.FirstOrDefault(profile => profile.Find("ports") != null);
+
+    // How the ports tried differ (#342), as detected facts: listed with the findings, in the log and in the report.
+    private IReadOnlyList<Finding> PortFindings() =>
+        [.. ports.Differences().Select(difference => new Finding(FactKind.DetectedFact, "ports-tested", Strings.ReportPortsTested,
+            PortTesting.DifferenceText(difference)) { IsProblem = true })];
 
     /// <summary>A message shown instead of the tree, for example when detection is not available.</summary>
     public string? Notice
@@ -1150,8 +1228,10 @@ public sealed class MainViewModel : ObservableObject
     {
         IsLoading = false;
         log.TreeRead(detected);
+        var before = tree;
         tree = detected;
         history.Record(tree);
+        NoteMove(before);
         Refresh(monitors);
         LogTree();
         CopyTreeCommand.Refresh();
@@ -1162,8 +1242,10 @@ public sealed class MainViewModel : ObservableObject
     public void Apply(IReadOnlyList<UsbChange> changes)
     {
         log.Changes(tree, changes);
+        var before = tree;
         tree = UsbTree.Apply(tree, changes);
         history.Record(tree);
+        NoteMove(before);
         foreach (var change in changes.Where(change => change.Kind == UsbChangeKind.Reconnected))
         {
             foreach (var node in change.Node.Children)
@@ -1207,6 +1289,11 @@ public sealed class MainViewModel : ObservableObject
         var missing = history.Missing(tree);
         var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
         lastReport = all;
+        // Each port tried keeps its last result (#342); how the ports differ is a finding, and the summary goes to the
+        // exported log and the report.
+        ports.Update(tree, all.Connections);
+        portFindings = PortFindings();
+        log.PortsTested(PortTesting.LogText(ports.Summary(PortsProfile(profiles)), ports.Differences()), [.. portFindings.Select(finding => finding.Message)]);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
@@ -1312,7 +1399,7 @@ public sealed class MainViewModel : ObservableObject
         Findings.Clear();
         if (options.Count == 0)
         {
-            foreach (var finding in report.Counts.Findings.Where(finding => finding.IsReal))
+            foreach (var finding in report.Counts.Findings.Where(finding => finding.IsReal).Concat(portFindings))
             {
                 Findings.Add(new FindingItem(FindingHeader(finding), finding.Brief));
             }
@@ -1325,6 +1412,7 @@ public sealed class MainViewModel : ObservableObject
         var findings = report.Profiles[strictest].Report.Findings
             .Concat(report.Profiles.SelectMany(result => result.Report.Findings).Where(finding => finding.Kind == FactKind.DetectedFact))
             .Where(finding => finding.IsReal)
+            .Concat(portFindings)
             .Distinct();
         foreach (var finding in findings)
         {

@@ -101,6 +101,36 @@ public partial class SettingsWindow : Window
 
     private void RemoveLogo(object? sender, RoutedEventArgs e) => Settings.RemoveLogo();
 
+    // The theme logo offers (#340): each button's data context is its theme's offer.
+    private static ThemeLogoViewModel? Offer(object? sender) => (sender as Control)?.DataContext as ThemeLogoViewModel;
+
+    private void InvertThemeLogo(object? sender, RoutedEventArgs e) => Offer(sender)?.Invert();
+
+    private void KeepInvertedLogo(object? sender, RoutedEventArgs e) => Offer(sender)?.KeepInverted();
+
+    private void CancelInvertedLogo(object? sender, RoutedEventArgs e) => Offer(sender)?.CancelInvert();
+
+    private void RemoveThemeLogo(object? sender, RoutedEventArgs e) => Offer(sender)?.Remove();
+
+    // The same file picker and crop window as the logo (#241), saved as that theme's logo.
+    private async void UploadThemeLogo(object? sender, RoutedEventArgs e)
+    {
+        if (Offer(sender) is not { } offer)
+        {
+            return;
+        }
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = offer.UploadLabel,
+            FileTypeFilter = [new FilePickerFileType(Strings.LogoFileType) { Patterns = ["*.svg", "*.png", "*.webp", "*.SVG", "*.PNG", "*.WEBP"] }],
+        });
+        var path = files.Count == 0 ? null : files[0].TryGetLocalPath();
+        if (path != null && Settings.StartCrop(path) is { } crop && await Crop(crop))
+        {
+            offer.Upload(path, crop.Crop);
+        }
+    }
+
     private void OpenUnlock(object? sender, RoutedEventArgs e)
     {
         if (Unlock != null)
