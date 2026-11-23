@@ -196,7 +196,8 @@ public class SetupExportTests
         Assert.Equal(["os-p", known.Computers.Single().Profile.Id], setup.CheckedProfiles);
         Assert.Equal(Monitors().Select(monitor => (monitor.Name, monitor.Output)), setup.Displays!.Select(monitor => (monitor.Name, monitor.Output)));
         Assert.Single(setup.Marks);
-        Assert.Equal(2, setup.Results.Count);
+        Assert.Equal(3, setup.Results.Count); // The two checked profiles, then this computer, measured (#368).
+        Assert.EndsWith(", measured", setup.Results[^1].Label, StringComparison.Ordinal);
         Assert.Contains(setup.Results.SelectMany(result => result.Findings), finding => finding.Kind == FactKind.Unknown);
         Assert.DoesNotContain("SERIAL123", Text(Export(KnownSetup())["setup.json"]));
     }

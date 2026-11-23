@@ -32,7 +32,11 @@ internal static class RuleJudge
         guide.Rules.Any(rule => rule.AppliesOn(profile.Platform, profile.Chip) && (rule.Max ?? rule.Recommended) != null);
 
     /// <summary>The parts of <paramref name="measure"/> for a node, each with its origin (#326), weighted as the measure says.</summary>
-    public static IReadOnlyList<CountPart> Parts(GuideMeasure measure, Guide guide, ResolvedProfile profile, DevicePath path, UsbBus? bus)
+    /// <param name="measured">
+    /// True for the connected computer (#368): the hubs the system reports inside it replace the database value where the
+    /// measure accepts <c>detected</c>. False for a ticked profile, which is judged with database values only.
+    /// </param>
+    public static IReadOnlyList<CountPart> Parts(GuideMeasure measure, Guide guide, ResolvedProfile profile, DevicePath path, UsbBus? bus, bool measured)
     {
         var parts = new List<CountPart>();
         void Add(string element, int? count, string origin)
@@ -48,7 +52,7 @@ internal static class RuleJudge
         {
             // Hubs the system reports inside the computer (#330) take the place of the database value on this path, so
             // they are never counted twice.
-            var computerHub = (path.ComputerHubs.Count > 0 || path.ComputerHubsMeasured) && measure.ComputerHubFrom.Contains("detected")
+            var computerHub = measured && (path.ComputerHubs.Count > 0 || path.ComputerHubsMeasured) && measure.ComputerHubFrom.Contains("detected")
                 ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, path.ComputerHubs.Count > 0
                     ? $"detected: {string.Join(", ", path.ComputerHubs)}"
                     : "detected: none, the device is outside the computer")
@@ -116,7 +120,7 @@ internal static class RuleJudge
 
     /// <summary>The node's status by every matching rule, and a finding for each limit it exceeds.</summary>
     public static ConnectionStatus Judge(
-        Guide guide, ResolvedProfile profile, UsbNode node, UsbBus? bus, DevicePath path, List<Finding> findings)
+        Guide guide, ResolvedProfile profile, UsbNode node, UsbBus? bus, DevicePath path, List<Finding> findings, bool measured)
     {
         var status = ConnectionStatus.Green;
         var overMax = new List<Finding>();
@@ -124,7 +128,7 @@ internal static class RuleJudge
         foreach (var rule in Matching(guide, profile, node, bus))
         {
             var measure = guide.MeasureDefinitions[rule.Measure];
-            var parts = Parts(measure, guide, profile, path, bus);
+            var parts = Parts(measure, guide, profile, path, bus, measured);
             var actual = parts.Sum(part => part.Count ?? 0);
             var open = parts.Any(part => part.Count == null);
             var atLeast = open ? "at least " : "";

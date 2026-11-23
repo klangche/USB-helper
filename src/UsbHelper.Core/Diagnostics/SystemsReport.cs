@@ -18,4 +18,12 @@ public sealed record SystemsReport(
     ConnectionStatus Overall,
     IReadOnlyDictionary<string, ConnectionStatus> Connections,
     IReadOnlyList<ProfileResult> Profiles,
-    DiagnosticReport Counts);
+    DiagnosticReport Counts)
+{
+    /// <summary>
+    /// The connected computer judged with its measured values (#368): its own computer file if the database has one,
+    /// else its operating system and chip; null when it is not known. Not part of <see cref="Overall"/> or
+    /// <see cref="Connections"/>, which stay the ticked profiles'.
+    /// </summary>
+    public ProfileResult? ThisComputer { get; init; }
+}

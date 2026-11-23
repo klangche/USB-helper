@@ -478,6 +478,40 @@ public class UsbTreeBuilderTests
         Assert.Contains(parts, each => each.Sum(part => part.Count ?? 0) == 5 && each.All(part => part.Element != "usb4_router"));
     }
 
+    // #368 on the recorded M1 Max with the dock: this computer is judged with its measured hidden hub (tier limit 6);
+    // a ticked system only with the database. Setup numbers are the same for both: hubs in front 2, router 1.
+    [Fact]
+    public void ThisMacIsJudgedWithItsMeasuredHubAndATickedSystemWithTheDatabase()
+    {
+        var db = DockDatabase(DockGuide(0, 0, 0));
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        var wpp20 = Find(tree, "WPP20").Id;
+        IReadOnlyList<UsbHelper.Core.Topology.CountPart> PartsOf(DiagnosticReport report, string measure) => report.Findings
+            .Single(finding => finding.SubjectId == wpp20 && finding.Message.StartsWith($"Routers test: {measure}", StringComparison.Ordinal)).CountParts;
+
+        var all = DiagnosticEvaluator.EvaluateAll(tree, [db.Platforms["windows-intel"]], [], externalDisplays: 0, guide: db.Guides["routers-test"],
+            thisComputer: db.Platforms["macos-apple-silicon"]);
+        var mac = all.ThisComputer!.Report;
+        var windows = all.Profiles.Single().Report;
+
+        Assert.Equal(3, PartsOf(mac, "chain").Sum(part => part.Count ?? 0)); // Measured hidden hub 1 + dock hubs 2.
+        Assert.Equal(5, PartsOf(mac, "tiers").Sum(part => part.Count ?? 0)); // Root 1 + hidden hub 1 + hubs 2 + device 1.
+        Assert.Contains(PartsOf(mac, "chain"), part => part.Element == "computer_hub" && part.Count == 1 && part.Origin.StartsWith("detected", StringComparison.Ordinal));
+        // Windows Intel's own hubs are unknown in the database: "at least", never the Mac's measured 1.
+        Assert.Contains(PartsOf(windows, "chain"), part => part.Element == "computer_hub" && part.Count == null);
+        Assert.Equal(2, PartsOf(windows, "chain").Sum(part => part.Count ?? 0));
+        Assert.Equal(PartsOf(mac, "routers"), PartsOf(windows, "routers"));
+
+        // PureLink does not accept a chip's value: ticked macOS M-series is "at least", this Mac uses its measured hub.
+        var purelink = DiagnosticEvaluator.EvaluateAll(tree, [db.Platforms["macos-apple-silicon"]], [], externalDisplays: 0, guide: db.Guides["purelink"],
+            thisComputer: db.Platforms["macos-apple-silicon"]);
+        Assert.Contains(purelink.ThisComputer!.Report.Findings, finding => finding.SubjectId == wpp20
+            && finding.Message.StartsWith("PureLink: tiers 5 exceeds the recommended 4.", StringComparison.Ordinal));
+        // Ticked: at least 4 (root 1 + hubs 2 + device 1, the hidden hub unknown), within the recommended 4, so unknown.
+        Assert.DoesNotContain(purelink.Profiles.Single().Report.Findings, finding => finding.SubjectId == wpp20 && finding.Kind == FactKind.PredictedRisk);
+        Assert.Equal(ConnectionStatus.Grey, purelink.Profiles.Single().Report.Connections[wpp20]);
+    }
+
     // A bus with no router (0): no usb4_router part, and the count is exact, not "at least".
     [Fact]
     public void ABusWithNoRouterAddsNoRouterPart()
