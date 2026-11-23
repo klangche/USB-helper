@@ -98,6 +98,8 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     /// dock and what is behind it). Null when not read, as on a Mac.
     /// </summary>
     public bool? InLocalMachine { get; init; }
+
+    /// <summary>
     /// For a controller: the USB4 device routers on the USB4 link of its port (#332), as their deepest depth from the
     /// computer's host router (a dock is 1, a dock behind it 2); 0 when the link has none. Null when not read: Windows,
     /// a Mac without the reading, or a controller no USB4 bus is linked to. Routers are not USB hubs and add no tier.

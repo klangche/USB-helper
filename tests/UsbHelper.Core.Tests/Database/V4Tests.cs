@@ -369,6 +369,20 @@ public class V4Tests
         Assert.False(TopologyCounts.Paths(Chain(2, Device("KEYBOARD")))["KEYBOARD"].ComputerHubsMeasured);
     }
 
+    // When an internal port has a device outside the PC on it, the container reading wins: it describes the device.
+    // And the v3 "possibly built in" finding follows the same readings.
+    [Fact]
+    public void TheContainerReadingWinsOverAnInternalPort()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", Hub("ROOT",
+            Hub("DOCK", Device("KEYBOARD") with { InLocalMachine = false }) with { InLocalMachine = false }).Connectable(false))];
+
+        Assert.Equal(["DOCK"], TopologyCounts.Paths(tree)["KEYBOARD"].Hubs);
+        Assert.True(TopologyCounts.Paths(tree)["KEYBOARD"].ComputerHubsMeasured);
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(OutsideTree)); // Known to be outside.
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(LocalHubTree)); // Known to be inside.
+    }
+
     // An internal hub that serves only a built-in webcam, next to an external port on the root hub.
     private static IReadOnlyList<UsbNode> WebcamOnlyTree => [Controller("C1",
         Hub("ROOT", Hub("INTERNAL", Device("WEBCAM")).Connectable(false), Device("KEYBOARD")).Connectable(false, true))];
