@@ -198,9 +198,11 @@ public static class ReportPdf
             : value.ToString(CultureInfo.InvariantCulture);
         var figures = new (string Label, string Value, string? Note)[]
         {
-            // #298: "3", and below it "(2+1+0): USB 2, USB 3, USB 4".
-            (Strings.LimitHubs, Number(counts.Hubs), counts.Usb2Hubs is { } usb2 && counts.Usb3Hubs is { } usb3 && counts.Usb4Hubs is { } usb4
-                ? string.Format(CultureInfo.InvariantCulture, Strings.ReportPerBus, usb2, usb3, usb4) : null),
+            // #298, #359: "3", and below it "(2+1): USB 2, USB 3", then " · USB4 routers: 1" when there are any.
+            (Strings.LimitHubs, Number(counts.Hubs), counts.Usb2Hubs is { } usb2 && counts.Usb3Hubs is { } usb3
+                ? string.Format(CultureInfo.InvariantCulture, Strings.ReportPerBus, usb2, usb3)
+                    + (counts.Usb4Routers is > 0 and var routers ? string.Format(CultureInfo.InvariantCulture, Strings.CountsRouters, routers) : "")
+                : null),
             (Strings.ReportDevices, Number(counts.Devices), null),
             (Strings.LimitTiers, Number(counts.DeepestTier), null),
             (Strings.LimitDisplays, counts.ExternalDisplays?.ToString(CultureInfo.InvariantCulture) ?? Strings.WordUnknown, null),

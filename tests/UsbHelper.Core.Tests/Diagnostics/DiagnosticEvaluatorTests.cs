@@ -779,7 +779,7 @@ public class DiagnosticEvaluatorTests
         Assert.Equal((6, LimitState.Exceeded), (report.Hubs.Actual, report.Hubs.State));
         Assert.Equal(UsbBus.Usb2, report.HubsBus);
         Assert.Contains(report.Findings, finding =>
-            finding.Message == "6 hubs are on the USB 2 bus; limits.max_hubs is 5. Hubs: 8 (6+2+0): USB 2, USB 3, USB 4.");
+            finding.Message == "6 hubs are on the USB 2 bus; limits.max_hubs is 5. Hubs: 8 (6+2): USB 2, USB 3.");
     }
 
     [Fact]

@@ -52,7 +52,7 @@ public sealed record ReportModel(
 /// <param name="Devices">The connected USB devices, hubs not counted (#307).</param>
 /// <param name="AtLeast">A hub could not be read, so the real counts may be higher.</param>
 /// <param name="ExternalDisplays">Null when unknown.</param>
-public sealed record ReportCounts(int Hubs, int? Usb2Hubs, int? Usb3Hubs, int? Usb4Hubs, int Devices, int DeepestTier, bool AtLeast, int? ExternalDisplays);
+public sealed record ReportCounts(int Hubs, int? Usb2Hubs, int? Usb3Hubs, int? Usb4Routers, int Devices, int DeepestTier, bool AtLeast, int? ExternalDisplays);
 
 /// <summary>One checked profile: its result and its hub, tier and display checks; no checks without a profile.</summary>
 public sealed record ReportProfile(string Label, ConnectionStatus Overall, IReadOnlyList<ReportCheck> Checks);

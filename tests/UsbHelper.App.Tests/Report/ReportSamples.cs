@@ -77,8 +77,8 @@ internal static class ReportSamples
     // touch panel on an active cable, and the Displays group. Ports are rows of their own, as in the window.
     private static IReadOnlyList<ReportRow> DeskTree() =>
     [
-        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 4 (3+1+0), devices: 7, deepest tier: 4"]),
-        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 4 (3+1+0), devices: 7, deepest tier: 4"]),
+        Row(0, [], true, "Dell Inc. Latitude 7450", notes: ["Hubs: 4 (3+1), devices: 7, deepest tier: 4"]),
+        Row(1, [], false, "Intel USB 3.20 eXtensible Host Controller", notes: ["Hubs: 4 (3+1), devices: 7, deepest tier: 4"]),
         Row(2, [true], true, "USB Root Hub (USB 3.0)", notes: ["has a display"]),
         Row(3, [true, false], false, "Port 1", portType: "USB-C"),
         Row(4, [true, false, true], true, "Dell WD22TB4 dock", ConnectionStatus.Green, notes: ["has a display"]),

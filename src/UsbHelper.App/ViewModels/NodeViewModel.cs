@@ -418,8 +418,8 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// As text: for a controller, its hub count, with the hubs per bus in brackets (USB 2, USB 3, USB 4), and its deepest
-    /// tier (#217, #298). For the host: the same over all controllers, hubs summed (#208). Null for everything else
+    /// As text: for a controller, its hub count, with the hubs per bus in brackets (USB 2, USB 3), any USB4 routers, and its deepest
+    /// tier (#217, #298, #359). For the host: the same over all controllers, hubs summed (#208). Null for everything else
     /// and for a controller with nothing connected.
     /// </summary>
     public string? Counts => counts?.ToString();
@@ -433,8 +433,6 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>The USB3 hub count in the brackets; null when no bus is known.</summary>
     public string? CountsUsb3 => counts?.Usb3;
 
-    /// <summary>The USB4 hub count in the brackets, 0 until USB 4 is detected (#267); null when no bus is known.</summary>
-    public string? CountsUsb4 => counts?.Usb4;
 
     /// <summary>The text, and which bus each number in the brackets is.</summary>
     public string? CountsTip => counts?.Tip;
@@ -451,7 +449,7 @@ public sealed class NodeViewModel : ObservableObject
             return;
         }
         counts = value;
-        foreach (var name in new[] { nameof(Counts), nameof(CountsHead), nameof(CountsUsb2), nameof(CountsUsb3), nameof(CountsUsb4), nameof(CountsTip), nameof(CountsTail), nameof(HasCountsPerBus) })
+        foreach (var name in new[] { nameof(Counts), nameof(CountsHead), nameof(CountsUsb2), nameof(CountsUsb3), nameof(CountsTip), nameof(CountsTail), nameof(HasCountsPerBus) })
         {
             OnPropertyChanged(name);
         }
@@ -748,8 +746,8 @@ public sealed class NodeViewModel : ObservableObject
         }
     }
 
-    // "Hubs: 4 (3+1+0), devices: 7, deepest tier: 4" (#217, #298, #307): the sum of the hubs on each bus and, in brackets, per bus in a
-    // fixed order, USB 2, USB 3, USB 4 (#195). The deepest tier is of any bus. Without any known bus there are no brackets. "At least" when a hub, port or bus could not be read; a hub on a port whose bus is unknown
+    // "Hubs: 4 (3+1), devices: 7, deepest tier: 4" (#217, #298, #307): the sum of the hubs on each bus and, in brackets, per bus in a
+    // fixed order, USB 2, USB 3 (#195), then any USB4 routers (#359). The deepest tier is of any bus. Without any known bus there are no brackets. "At least" when a hub, port or bus could not be read; a hub on a port whose bus is unknown
     // is in the total but on neither bus. Null when nothing is connected.
     private static CountsText? TreeCounts(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark> marks)
     {
@@ -763,23 +761,29 @@ public sealed class NodeViewModel : ObservableObject
             + string.Format(CultureInfo.CurrentCulture, atLeast ? Strings.CountsDepthAtLeast : Strings.CountsDepth, all.DeepestTier);
         if (!perBus.AnyBusKnown)
         {
-            return new CountsText(hubs, HubsText(counted), null, null, null, depth);
+            return new CountsText(hubs, HubsText(counted), RoutersText(perBus), null, null, depth);
         }
         string Number(BusCounts bus) => bus.Hubs.ToString(CultureInfo.CurrentCulture);
-        return new CountsText(hubs, HubsText(counted), Number(perBus.Usb2), Number(perBus.Usb3), Number(perBus.Usb4), depth);
+        return new CountsText(hubs, HubsText(counted), RoutersText(perBus), Number(perBus.Usb2), Number(perBus.Usb3), depth);
     }
 
     /// <summary>
-    /// "Hubs: 3 (2+1+0)" (#298): the sum of the hubs on each bus, then in brackets those on USB 2, USB 3 and USB 4;
+    /// "Hubs: 3 (2+1)" (#298, #359): the sum of the hubs on each bus, then in brackets those on USB 2 and USB 3, then any USB4 routers;
     /// "Hubs: 3" when no bus is known; "at least" as in <see cref="CountedTree.AtLeast"/>.
     /// </summary>
     internal static string HubsText(CountedTree counted) =>
-        string.Format(CultureInfo.CurrentCulture, counted.AtLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, HubsNumbers(counted));
+        string.Format(CultureInfo.CurrentCulture, counted.AtLeast ? Strings.CountsHubsAtLeast : Strings.CountsHubs, HubsNumbers(counted))
+        + RoutersText(counted.PerBus);
 
-    /// <summary>The numbers of <see cref="HubsText"/> without the label and without "at least": "3 (2+1+0)" or "3".</summary>
+    /// <summary>" · USB4 routers: 1" when a controller reports a USB4 router (#359); empty otherwise.</summary>
+    internal static string RoutersText(PerBusCounts perBus) => perBus.Usb4Routers is > 0 and var routers
+        ? string.Format(CultureInfo.CurrentCulture, Strings.CountsRouters, routers)
+        : "";
+
+    /// <summary>The numbers of <see cref="HubsText"/> without the label and without "at least": "3 (2+1)" or "3".</summary>
     internal static string HubsNumbers(CountedTree counted) => counted.PerBus.AnyBusKnown
         ? string.Format(CultureInfo.CurrentCulture, Strings.CountsHubsPerBus, counted.All.Hubs,
-            counted.PerBus.Usb2.Hubs, counted.PerBus.Usb3.Hubs, counted.PerBus.Usb4.Hubs)
+            counted.PerBus.Usb2.Hubs, counted.PerBus.Usb3.Hubs)
         : counted.All.Hubs.ToString(CultureInfo.CurrentCulture);
 
     /// <summary>The counts of a tree, as the row counter and the side panel's table (#265) show them.</summary>
@@ -811,17 +815,18 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// The counts in pieces, so the window can show "(3+1+0)" with the hubs of each bus in bold; hovering shows the text
-    /// and which bus is which. The text (tree as text, report) is the same: "Hubs: 4 (3+1+0), ..." (#298).
+    /// The counts in pieces, so the window can show "(3+1)" with the hubs of each bus in bold; hovering shows the text
+    /// and which bus is which. The text (tree as text, report) is the same: "Hubs: 4 (3+1), ..." (#298).
     /// </summary>
     /// <param name="Hubs">The hubs label with the total only: "Hubs: 4".</param>
-    /// <param name="HubsText">The same with the hubs per bus: "Hubs: 4 (3+1+0)".</param>
+    /// <param name="HubsText">The same with the hubs per bus and any routers: "Hubs: 4 (3+1) · USB4 routers: 1".</param>
+    /// <param name="Routers">The routers part, " · USB4 routers: 1", or empty (#359).</param>
     /// <param name="Depth">What follows the hubs: ", devices: 7, deepest tier: 4".</param>
-    private sealed record CountsText(string Hubs, string HubsText, string? Usb2, string? Usb3, string? Usb4, string Depth)
+    private sealed record CountsText(string Hubs, string HubsText, string Routers, string? Usb2, string? Usb3, string Depth)
     {
         public string Head => Usb2 == null ? Hubs : Hubs + " (";
 
-        public string Tail => Usb2 == null ? Depth : ")" + Depth;
+        public string Tail => (Usb2 == null ? "" : ")") + Routers + Depth;
 
         public string Tip => Usb2 == null ? ToString() : ToString() + Environment.NewLine + Strings.CountsPerBusTip;
 
@@ -836,6 +841,13 @@ public sealed class NodeViewModel : ObservableObject
         if (isDisconnected)
         {
             return string.Format(CultureInfo.CurrentCulture, Strings.NodeDisconnected, name);
+        }
+        // #359: a USB4 dock is a router, not a hub; it shows on the controller of its port, named as the system names it.
+        if (node.Kind == UsbNodeKind.Controller && node.Usb4Routers is > 0 and var depth)
+        {
+            name += node.Usb4Link?.IndexOf(": ", StringComparison.Ordinal) is >= 0 and var at
+                ? string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Dock, node.Usb4Link[(at + 2)..], depth)
+                : string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Router, depth);
         }
         return node.Problem == null ? name : string.Format(CultureInfo.CurrentCulture, Strings.NodeProblem, name, node.Problem);
     }

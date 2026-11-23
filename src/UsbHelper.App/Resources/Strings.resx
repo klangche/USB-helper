@@ -279,10 +279,10 @@
     <value>, deepest tier: at least {0}</value>
   </data>
   <data name="CountsHubsPerBus" xml:space="preserve">
-    <value>{0} ({1}+{2}+{3})</value>
+    <value>{0} ({1}+{2})</value>
   </data>
   <data name="CountsPerBusTip" xml:space="preserve">
-    <value>In brackets: the hubs on USB 2, USB 3 and USB 4.</value>
+    <value>In brackets: the hubs on USB 2 and USB 3. A USB4 dock is a USB4 router, not a hub.</value>
   </data>
   <data name="CountsTable" xml:space="preserve">
     <value>Hubs, devices and tiers</value>
@@ -293,8 +293,8 @@
   <data name="CountsBusUsb3" xml:space="preserve">
     <value>USB 3</value>
   </data>
-  <data name="CountsBusUsb4" xml:space="preserve">
-    <value>USB 4</value>
+  <data name="CountsRouters" xml:space="preserve">
+    <value> · USB4 routers: {0}</value>
   </data>
   <data name="CountsBusAll" xml:space="preserve">
     <value>All buses together</value>
@@ -806,7 +806,7 @@ This version keeps running.</value>
     <value>No profile checked</value>
   </data>
   <data name="ReportPerBus" xml:space="preserve">
-    <value>({0}+{1}+{2}): USB 2, USB 3, USB 4</value>
+    <value>({0}+{1}): USB 2, USB 3</value>
   </data>
   <data name="ReportAtLeast" xml:space="preserve">
     <value>at least {0}</value>
@@ -1002,5 +1002,11 @@ This version keeps running.</value>
   </data>
   <data name="SetupReplugged" xml:space="preserve">
     <value>The setup was plugged back into {0}.</value>
+  </data>
+  <data name="NodeUsb4Dock" xml:space="preserve">
+    <value> · USB4 dock: {0} (router depth {1})</value>
+  </data>
+  <data name="NodeUsb4Router" xml:space="preserve">
+    <value> · USB4 router (depth {0})</value>
   </data>
 </root>

@@ -958,7 +958,7 @@ public sealed class MainViewModel : ObservableObject
         return new ReportModel(companyName, logoPath, string.IsNullOrWhiteSpace(RoomName) ? null : RoomName.Trim(), appVersion, created,
             setup.Computer, lastReport.Overall,
             new ReportCounts(perBus.Hubs, perBus.AnyBusKnown ? perBus.Usb2.Hubs : null, perBus.AnyBusKnown ? perBus.Usb3.Hubs : null,
-                perBus.AnyBusKnown ? perBus.Usb4.Hubs : null, TopologyCounts.DeviceCount(tree), counts.Tiers.Actual, atLeast,
+                perBus.Usb4Routers, TopologyCounts.DeviceCount(tree), counts.Tiers.Actual, atLeast,
                 counts.Displays.ExternalDisplays),
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
@@ -1187,15 +1187,15 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<StatusRow> StatusRows { get; } = [];
 
     /// <summary>
-    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2, USB 3, then USB 4
-    /// (#298), each with its own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when
+    /// The counts table (#265) for what <see cref="StatusScope"/> names: one line per bus, USB 2 and USB 3
+    /// (#298, #359), each with its own hubs and deepest tier; a bus with nothing on it shows zeros. One combined line when
     /// the operating system reports no bus at all. Empty when nothing is connected.
     /// </summary>
     public ObservableCollection<BusCountsRow> BusCountsRows { get; } = [];
 
     public bool HasBusCounts => BusCountsRows.Count > 0;
 
-    /// <summary>Above the table: "Hubs: 3 (2+1+0)", the same as the row counter (#298); null when nothing is connected.</summary>
+    /// <summary>Above the table: "Hubs: 3 (2+1)", the same as the row counter (#298), with any USB4 routers (#359); null when nothing is connected.</summary>
     public string? BusCountsHubs { get; private set; }
 
     /// <summary>Below <see cref="BusCountsHubs"/>: "Devices: 7" (#307), with "at least" as the row counter; null when nothing is connected.</summary>
@@ -1219,7 +1219,6 @@ public sealed class MainViewModel : ObservableObject
             {
                 BusCountsRows.Add(Row(Strings.CountsBusUsb2, counted.PerBus.Usb2));
                 BusCountsRows.Add(Row(Strings.CountsBusUsb3, counted.PerBus.Usb3));
-                BusCountsRows.Add(Row(Strings.CountsBusUsb4, counted.PerBus.Usb4));
             }
             else
             {
@@ -1454,7 +1453,7 @@ public sealed class MainViewModel : ObservableObject
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
     // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
-    // #298: the hubs as everywhere, "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
+    // #298: the hubs as everywhere, "External hubs: 3 (2+1), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
     private static IReadOnlyList<string> ExceededLines(DiagnosticReport result, string? hubs)
     {
         var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]

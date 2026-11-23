@@ -122,13 +122,21 @@ internal static class UsbTreeBuilder
         {
             ports = [first with { CompanionPortId = second.Id }, second with { CompanionPortId = first.Id }];
         }
+        var tierLimit = controller.GetNumber("UsbHostControllerTierLimit") is { } limit and > 0 and < 128 ? (int)limit : (int?)null;
+        // #359: an Apple silicon controller (AppleT…USBXHCI, with its tier limit) drives the Mac's own receptacles, so its
+        // root ports are the computer's own ports. Other controllers (Intel Macs, unknown classes) stay unknown.
+        if (tierLimit != null && controller.ClassName.StartsWith("AppleT", StringComparison.Ordinal)
+            && controller.ClassName.EndsWith("USBXHCI", StringComparison.Ordinal))
+        {
+            ports = [.. ports.Select(port => port.UserConnectable == null ? port with { UserConnectable = true } : port)];
+        }
         var problem = controller.Error != null ? $"Could not read the controller: {controller.Error}"
             : unplaced > 0 ? $"{unplaced} USB device(s) could not be placed because they report no location."
             : null;
         return new UsbNode(id, UsbNodeKind.Controller, controller.Name, [new UsbNode(rootHubId, UsbNodeKind.Hub, "USB root hub", ports)])
         {
             Problem = problem,
-            TierLimit = controller.GetNumber("UsbHostControllerTierLimit") is { } limit and > 0 and < 128 ? (int)limit : null,
+            TierLimit = tierLimit,
         };
     }
 

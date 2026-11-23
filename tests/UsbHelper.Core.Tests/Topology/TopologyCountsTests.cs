@@ -424,7 +424,7 @@ public class TopologyCountsTests
         Assert.Equal(new BusCounts(0, 0), TopologyCounts.PerBus(tree, marks).Usb2);
     }
 
-    // #298: the hubs shown are the sum over the buses, "Hubs 2 (1+1+0)" for one USB 3 hub: USB 2, USB 3, USB 4.
+    // #298: the hubs shown are the sum over the buses, "Hubs 2 (1+1)" for one USB 3 hub: USB 2, USB 3.
     [Fact]
     public void UsbThreeHubShowsOneHubOnEachOfItsBuses()
     {
@@ -433,8 +433,9 @@ public class TopologyCountsTests
         var counts = TopologyCounts.PerBus(tree);
 
         Assert.Equal(2, counts.Hubs);
-        Assert.Equal("2 (1+1+0)", counts.HubsText);
-        Assert.Equal(new BusCounts(0, 0), counts.Usb4); // Not detected yet (#267).
+        Assert.Equal("2 (1+1)", counts.HubsText);
+        Assert.Null(counts.Usb4Routers); // No controller measures USB4 routers here (#359).
+        Assert.Null(counts.RoutersText);
         Assert.Equal(counts.Hubs, TopologyCounts.HubCount(tree));
     }
 
@@ -443,7 +444,7 @@ public class TopologyCountsTests
     {
         IReadOnlyList<UsbNode> tree = [Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Device("DISK")))];
 
-        Assert.Equal("1 (1+0+0)", TopologyCounts.PerBus(tree).HubsText);
+        Assert.Equal("1 (1+0)", TopologyCounts.PerBus(tree).HubsText);
     }
 
     [Fact]
@@ -456,7 +457,7 @@ public class TopologyCountsTests
         var counts = TopologyCounts.PerBus(tree);
 
         Assert.Equal(1, counts.UnknownBusHubs);
-        Assert.Equal("3 (1+1+0)", counts.HubsText);
+        Assert.Equal("3 (1+1)", counts.HubsText);
         Assert.Equal(3, TopologyCounts.HubCount(tree));
     }
 
@@ -477,6 +478,6 @@ public class TopologyCountsTests
         var counts = TopologyCounts.PerBus(tree, marks);
 
         Assert.Equal(new BusCounts(4, 6), counts.Usb3);
-        Assert.Equal("5 (1+4+0)", counts.HubsText);
+        Assert.Equal("5 (1+4)", counts.HubsText);
     }
 }

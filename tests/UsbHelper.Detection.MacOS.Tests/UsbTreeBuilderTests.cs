@@ -177,7 +177,7 @@ public class UsbTreeBuilderTests
         Assert.All(hub3.Children, port => Assert.Equal(UsbBus.Usb3, port.Bus));
         Assert.Equal("USB 10/100/1000 LAN", hub3.Children[3].Children[0].Name);
         // #298: the two halves of the USB 3 hub count once on each bus, the USB 2 hub on its USB 2 half on USB 2.
-        Assert.Equal("3 (2+1+0)", TopologyCounts.PerBus(tree).HubsText);
+        Assert.Equal("3 (2+1)", TopologyCounts.PerBus(tree).HubsText);
     }
 
     [Fact]
@@ -309,6 +309,24 @@ public class UsbTreeBuilderTests
         public IReadOnlyList<RegistryEntry> ReadControllers() => controllers;
     }
 
+    // #359: only an Apple silicon controller with its tier limit makes its root ports the Mac's own; without the limit,
+    // or with another class, nothing is assumed and a hub there may be built in.
+    [Fact]
+    public void OnlyAppleSiliconControllersWithATierLimitHaveTheMacsOwnPorts()
+    {
+        RegistryEntry WithHub(string className, bool limit) => new(className, $"{className}@01000000", false,
+            limit ? new Dictionary<string, object> { ["locationID"] = 0x01000000L, ["UsbHostControllerTierLimit"] = 6L }
+                : new Dictionary<string, object> { ["locationID"] = 0x01000000L },
+            [Port("hs", 1, Device(0x01100000, 0x05AC, 0x1234, "Hub", deviceClass: 9))]);
+
+        Assert.True(UsbTreeBuilder.Build([WithHub("AppleT6000USBXHCI", limit: true)])[0].Children[0].Children[0].UserConnectable);
+        foreach (var tree in new[] { UsbTreeBuilder.Build([WithHub("AppleT6000USBXHCI", limit: false)]), UsbTreeBuilder.Build([WithHub("AppleUSBXHCIPPT", limit: true)]) })
+        {
+            Assert.Null(tree[0].Children[0].Children[0].UserConnectable);
+            Assert.Single(TopologyCounts.PossiblyBuiltIn(tree));
+        }
+    }
+
     // #330: an M1 Max controller reports UsbHostControllerTierLimit 6 (the owner's probe on #267), so one hub inside the
     // computer is hidden in front of every port. Without the property nothing is assumed.
     [Fact]
@@ -390,6 +408,27 @@ public class UsbTreeBuilderTests
         Assert.Equal(1, Of("WPP20").Usb4Routers);
         // Without the reading, nothing is assumed.
         Assert.Null(UsbTreeBuilder.Build(DockControllers, null)[0].Usb4Routers);
+    }
+
+    // #359: the counts show the dock as a USB4 router, not a "+0" USB 4 hub; the Apple silicon root ports are the Mac's
+    // own, so no dock hub is "possibly built in"; the log names the router.
+    [Fact]
+    public void TheDockIsAUsb4RouterAndTheMacsRootPortsAreItsOwn()
+    {
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(1, counts.Usb4Routers);
+        Assert.Equal("USB4 routers: 1", counts.RoutersText);
+        Assert.DoesNotContain("+0", counts.HubsText);
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
+        Assert.All(tree[0].Children[0].Children, port => Assert.True(port.UserConnectable));
+        var log = new UsbHelper.Core.Diagnostics.EventLog();
+        log.TreeRead(tree);
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("USB4 routers of ", StringComparison.Ordinal)
+            && entry.Text.EndsWith(": 1 (thunderboltusb4_bus_0: PS9010)", StringComparison.Ordinal));
+        // Without the reading there is no USB4 line.
+        Assert.Null(TopologyCounts.PerBus(UsbTreeBuilder.Build(DockControllers, null)).RoutersText);
     }
 
     // The issue's check (#332) on the recorded dock: a guide with routers max 5, a hub chain and tiers. The router counts

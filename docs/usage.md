@@ -62,15 +62,19 @@ device on a port that Windows reports as a USB-C connector (from its port connec
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
 reports it for. Each controller shows its hub count, device count and deepest
-tier, for example "Hubs: 3 (2+1+0), devices: 7, deepest tier: 4". The devices are
+tier, for example "Hubs: 3 (2+1), devices: 7, deepest tier: 4". The devices are
 the connected USB devices, each counted once whatever its bus; hubs (both halves
 of a USB 3 hub), root hubs, controllers and ports are not devices. The
 numbers in brackets are the hubs per bus, always in the same order: USB 2
-(the USB 2.0 tree), USB 3 (the SuperSpeed tree, USB 3.0 to 3.2), then USB 4.
-USB 4 is not detected yet, so its number is always 0 for now. The first number is
+(the USB 2.0 tree), then USB 3 (the SuperSpeed tree, USB 3.0 to 3.2). USB4 has
+no hubs: a USB4 dock is a USB4 router, and its USB hubs count on USB 2 and USB 3
+(#359). When a controller reports a USB4 router, the counts add it, for example
+"Hubs: 4 (2+2) · USB4 routers: 1", and the controller's row names the dock, for
+example "USB4 dock: PS9010 (router depth 1)"; the log says "USB4 routers of …: 1"
+with what reports it. Without a router there is no USB4 part. The first number is
 the sum of the hubs on each bus. A USB 3 hub has a half on each bus and the
 operating system reports each half as a hub, so one USB 3 hub counts once on USB 2
-and once on USB 3: "Hubs: 2 (1+1+0)". A USB 2 hub counts on USB 2 only. Each bus
+and once on USB 3: "Hubs: 2 (1+1)". A USB 2 hub counts on USB 2 only. Each bus
 has its own chain and its own limits: the hub limits are judged per bus, not on
 the sum. The deepest tier is that of any bus. Hovering the counts shows which bus
 is which. The computer's row shows the same over all controllers, and a controller
@@ -81,8 +85,8 @@ could not be read; a hub on a port whose bus is not reported is in the total but
 on no bus.
 The side panel has a small table, "Hubs, devices and tiers", for what the status
 field covers (the selected controller, or all controllers when the computer's
-row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1+0)", and the
-devices, "Devices: 7", then one line each for USB 2, USB 3 and USB 4, each with that bus's
+row is selected): first the hubs as in the row counts, "Hubs: 3 (2+1)", and the
+devices, "Devices: 7", then one line each for USB 2 and USB 3, each with that bus's
 own hub count and deepest tier, the marked active cables counted.
 A bus with nothing on it shows zeros; when nothing is connected there is no
 table. The numbers say "at least" in the same cases as the row counts, and
@@ -125,7 +129,7 @@ status field has one row per checked profile with its result (stable,
 potentially unstable, unstable or unknown, in its colour). Below it are only
 the checks that are exceeded: hubs, tiers and external displays, each with its count and
 limit. The hubs line shows the hubs as in the row counts and the bus that is over
-its limit, for example "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)". A check that is within its limit, or whose limit or count is unknown,
+its limit, for example "External hubs: 3 (2+1), limit 1 on USB 2 (exceeded)". A check that is within its limit, or whose limit or count is unknown,
 is not shown there; it is in the log. A stable profile shows only "stable".
 With several profiles checked, the findings come from
 the strictest one only and name it (see the [diagnostic rules](database.md#diagnostic-rules)). Plug and unplug
@@ -154,8 +158,8 @@ Click the "+" again to change the mark, or pick "None" to remove it. Marks last 
 Click "Log" in the top bar to open the log: every event of this session with
 its time, newest at the bottom. It lists the start and loading stages, the
 database load result and which database is in use ("Database in use: built in,
-2026-11-18 (9c92cfe)"), the database update check, per controller its hubs per bus ("Hubs of ...: 3 (2+1+0)
-(USB 2+USB 3+USB 4)", with how many are on ports whose bus is not reported), per
+2026-11-18 (9c92cfe)"), the database update check, per controller its hubs per bus ("Hubs of ...: 3 (2+1)
+(USB 2+USB 3)", and "USB4 routers of ...: 1" when a USB4 dock is connected, with how many are on ports whose bus is not reported), per
 hub which ports Windows reports as USB-C or not
 (ports it says nothing about are left out), every connect, disconnect,
 reconnect and error the operating system reports, every profile you check or
@@ -214,7 +218,7 @@ order:
 
 - **Summary**: the computer, the checked profiles, the overall result and the
   hub, USB device, tier and display counts; below the hub count, the hubs per bus, for
-  example "(2+1+0): USB 2, USB 3, USB 4".
+  example "(2+1): USB 2, USB 3", then "· USB4 routers: 1" when there are any.
 - **USB tree**: the tree as in the window, with its status colours.
 - **Results**: each checked profile with its result, then each check that is
   not stable with its measured value, limit, result and the profiles it
@@ -354,8 +358,10 @@ tested": "Tested on 2 of 3 ports: Port 1 stable, Port 2 potentially unstable
 computer's file, one per USB entry under `ports` (MacBook Neo: 2). When the
 system shows more ports than the file has entries, one entry stands for several
 ports (the MacBook Pro has one `thunderbolt4` entry for three), so the ports
-seen this session count instead, as they do without a file; on macOS, which
-does not say which ports are built in, the summary then says so. Nothing is
+seen this session count instead, as they do without a file; on a Mac whose
+controllers do not say which ports are its own (Intel Macs), the summary then
+says so. On Apple silicon each USB controller drives the Mac's own USB-C
+receptacles, so its root ports are the Mac's own (#359). Nothing is
 saved; "Refresh and clear log" starts over.
 
 ## Sessions

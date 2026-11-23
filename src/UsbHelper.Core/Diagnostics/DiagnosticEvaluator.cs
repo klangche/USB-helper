@@ -201,8 +201,8 @@ public static class DiagnosticEvaluator
             findings.Add(LimitFinding(limit, computer));
         }
         string Note(LimitCheck limit) => notes.GetValueOrDefault(limit.Field) is { } note ? $" {note}" : "";
-        // #298: the hubs of all buses as the app shows them, "Hubs: 3 (2+1+0)", after a bus's own count.
-        var allHubs = $"Hubs: {(computerOpen ? "at least " : "")}{perBus.HubsText}: USB 2, USB 3, USB 4.";
+        // #298: the hubs of all buses as the app shows them, "Hubs: 3 (2+1)", after a bus's own count.
+        var allHubs = $"Hubs: {(computerOpen ? "at least " : "")}{perBus.HubsText}: USB 2, USB 3.{(perBus.RoutersText is { } routers ? $" {routers}." : "")}";
         // The parts of a hub count (#326): the detected hubs and the hubs the user's marks add, on the bus (null: all buses).
         var countedNodes = AllNodes(computerTree).Where(node => nodeBuses.ContainsKey(node.Id)).ToList();
         IReadOnlyList<CountPart> HubParts(UsbBus? bus)
