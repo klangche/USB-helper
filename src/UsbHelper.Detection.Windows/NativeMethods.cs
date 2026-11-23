@@ -43,6 +43,9 @@ internal static class NativeMethods
 
     public const uint DevpropTypeStringList = 0x2012;
 
+    // CR_BUFFER_SMALL from cfgmgr32.h: the property is larger than the buffer; the call returns the size it needs.
+    public const uint CR_BUFFER_SMALL = 0x1A;
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 

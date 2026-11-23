@@ -98,7 +98,8 @@ rules:
   PCI device, which carries its USB 3 tunnel: on the owner's Asus with the PS9010 dock (#354), the host routers and the
   Type-C controller are PCI device 13. A USB 2 controller with no host router on its PCI device (the dock's USB 2 half
   runs on the PCH, not through a router) stays unknown, as does every controller without Microsoft's connection manager.
-  Seen on one PC so far.
+  Two ports on one controller cannot be told apart, so the count is the deepest router of either: for a device in the
+  shallower port it can be too high, never too low. Seen on one PC so far.
 - Unknown is never guessed as 0: a measure that counts `usb4_router` without a reading gets an unknown part ("not
   measured yet"), so its count is "at least": over a limit it is exceeded, within one it is unknown.
 

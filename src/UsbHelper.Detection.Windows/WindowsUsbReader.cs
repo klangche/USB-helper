@@ -83,34 +83,19 @@ internal static class WindowsUsbReader
     }
 
     // The USB4 routers on each controller's link (#332), see Usb4RouterLinks. A system without Microsoft's USB4
-    // connection manager lists no USB4 nodes, and its controllers stay "not measured". A failed read changes nothing.
+    // connection manager lists no USB4 nodes, and its controllers stay "not measured".
     private static IReadOnlyList<RawController> WithUsb4Routers(List<RawController> controllers)
     {
-        try
-        {
-            var hosts = Usb4RouterLinks.Depths(ReadUsb4Nodes());
-            if (hosts.Count == 0)
-            {
-                return controllers;
-            }
-            var hostSlots = hosts.Select(host => (Slot: Usb4RouterLinks.Slot(LocationPaths(host.Key)), host.Value))
-                .Where(host => host.Slot != null).ToList();
-            return [.. controllers.Select(controller =>
-                Usb4RouterLinks.Slot(LocationPaths(controller.Node.InstanceId)) is { } slot
-                    && hostSlots.Where(host => host.Slot == slot).ToList() is { Count: > 0 } linked
-                    ? controller with
-                    {
-                        Usb4Routers = linked.Max(host => host.Value.Depth),
-                        Usb4Link = linked.SelectMany(host => host.Value.Names).ToList() is { Count: > 0 } names
-                            ? $"USB4: {string.Join(", ", names)}"
-                            : "USB4: no routers",
-                    }
-                    : controller)];
-        }
-        catch (Win32Exception)
+        var hosts = Usb4RouterLinks.Depths(ReadUsb4Nodes());
+        if (hosts.Count == 0)
         {
             return controllers;
         }
+        var hostSlots = hosts.Select(host => (Usb4RouterLinks.Slot(LocationPaths(host.Key)), host.Value)).ToList();
+        return [.. controllers.Select(controller =>
+            Usb4RouterLinks.Link(hostSlots, Usb4RouterLinks.Slot(LocationPaths(controller.Node.InstanceId))) is ({ } routers, var link)
+                ? controller with { Usb4Routers = routers, Usb4Link = link }
+                : controller)];
     }
 
     // Every present node of the USB4 enumerator, with its parent.
@@ -146,19 +131,22 @@ internal static class WindowsUsbReader
         return nodes;
     }
 
-    // DEVPKEY_Device_LocationPaths of a device node, or none.
+    // DEVPKEY_Device_LocationPaths of a device node, or none. A longer value than the buffer is read again at its size.
     private static IReadOnlyList<string> LocationPaths(string instanceId)
     {
         if (CM_Locate_DevNode(out var devInst, instanceId, 0) != CR_SUCCESS)
         {
             return [];
         }
-        var buffer = new byte[2048];
-        var size = (uint)buffer.Length;
-        return CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out var type, buffer, ref size, 0) == CR_SUCCESS
-            && type == DevpropTypeStringList && size <= buffer.Length
-                ? System.Text.Encoding.Unicode.GetString(buffer, 0, (int)size).Split('\0', StringSplitOptions.RemoveEmptyEntries)
-                : [];
+        var size = (uint)NameBufferSize;
+        var buffer = new byte[size];
+        var result = CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out var type, buffer, ref size, 0);
+        if (result == CR_BUFFER_SMALL)
+        {
+            buffer = new byte[size];
+            result = CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out type, buffer, ref size, 0);
+        }
+        return result == CR_SUCCESS && type == DevpropTypeStringList ? CompatibleIds.Parse(buffer, size) : [];
     }
 
     /// <summary>Reads one hub and everything below it again.</summary>

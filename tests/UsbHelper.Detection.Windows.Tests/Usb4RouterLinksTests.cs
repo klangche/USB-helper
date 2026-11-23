@@ -65,4 +65,30 @@ public class Usb4RouterLinksTests
         Assert.Equal(1, node.Usb4Routers);
         Assert.Equal($"USB4: {Dock}", node.Usb4Link);
     }
+
+    // The link on the Asus: the Type-C xHCI (PCI device 13) gets the dock's router, the PCH xHCI (device 20), where the
+    // dock's USB 2 half is, gets none: unknown, not 0.
+    [Fact]
+    public void TheTypeCControllerGetsTheDockAndThePchStaysUnknown()
+    {
+        var hosts = Usb4RouterLinks.Depths(Asus);
+        IReadOnlyList<(string?, (int, IReadOnlyList<string>))> slots =
+        [
+            (Usb4RouterLinks.Slot(["PCIROOT(0)#PCI(0D02)"]), hosts[Host0]),
+            (Usb4RouterLinks.Slot(["PCIROOT(0)#PCI(0D03)"]), hosts[Host1]),
+        ];
+
+        Assert.Equal((1, $"USB4 link: {Dock}"), Usb4RouterLinks.Link(slots, Usb4RouterLinks.Slot(["PCIROOT(0)#PCI(0D00)"])));
+        Assert.Equal(((int?)null, (string?)null), Usb4RouterLinks.Link(slots, Usb4RouterLinks.Slot(["PCIROOT(0)#PCI(1400)"])));
+        Assert.Equal(((int?)null, (string?)null), Usb4RouterLinks.Link(slots, null));
+    }
+
+    // Only USB4\VID_ nodes are routers: a USB4 node of an unseen kind does not deepen the count.
+    [Fact]
+    public void AnUnknownUsb4NodeIsNotARouter()
+    {
+        IReadOnlyList<Usb4Node> withOther = [.. Asus, new(@"USB4\SOMETHING_ELSE\1", @"USB4\VID_1DA0&PID_9010\5&11B78259&0&1", "Other")];
+
+        Assert.Equal(1, Usb4RouterLinks.Depths(withOther)[Host0].Depth);
+    }
 }
