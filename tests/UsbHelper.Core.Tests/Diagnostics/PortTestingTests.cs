@@ -101,17 +101,30 @@ public class PortTestingTests
         Assert.Null(testing.Note(withoutCamera3, Computer(3)));
     }
 
-    // What a move left behind is not claimed by a later arrival once the rest of the setup stopped arriving.
+    // What a move left behind is not claimed once something else arrived in between (#358 review).
     [Fact]
-    public void WhatAMoveLeftBehindIsForgotten()
+    public void WhatAMoveLeftBehindIsForgottenWhenSomethingElseArrives()
     {
         var testing = new PortTesting();
         var withoutCamera3 = Computer(3, Dock("P3", withCamera: false));
+        var renumbered = Computer(3, Dock("P3B", withCamera: false)); // The hub and speaker enumerated again.
         testing.Note(Computer(1), Empty);
         Assert.Single(testing.Note(Empty, withoutCamera3)!.NotBack); // The camera stayed behind.
-        testing.Note(withoutCamera3, withoutCamera3); // A change with nothing new.
+        testing.Note(withoutCamera3, renumbered);
 
-        Assert.Null(testing.Note(withoutCamera3, Computer(3))); // The camera plugged in later is not a move from port 1.
+        Assert.Null(testing.Note(renumbered, Computer(3, Dock("P3B")))); // The camera plugged in later is not a move from port 1.
+    }
+
+    // A quiet change between the two halves of a move keeps the USB 3 half waiting, so no ghost hub is left.
+    [Fact]
+    public void AQuietChangeBetweenTheHalvesKeepsTheMove()
+    {
+        var testing = new PortTesting();
+        testing.Note(Asus(dock: true), Asus(dock: false));
+        Assert.NotNull(testing.Note(Asus(dock: false), AsusUsb2Only()));
+        testing.Note(AsusUsb2Only(), AsusUsb2Only());
+
+        Assert.NotNull(testing.Note(AsusUsb2Only(), Asus(dock: true)));
     }
 
     // The halves of a USB-C port arrive as two changes (#358): the USB 2 half first, then the USB 3 half; both join the

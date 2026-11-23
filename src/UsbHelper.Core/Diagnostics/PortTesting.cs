@@ -78,12 +78,11 @@ public sealed class PortTesting
     // The two halves of each connector seen this session (#342), by port id both ways.
     private readonly Dictionary<string, string> pairs = [];
 
-    // Ports that had a setup and are empty now, with what was behind them: a later change may bring it to another port.
     // What left each computer port this session, and whether the port emptied since (#358).
     private readonly Dictionary<string, Departed> departed = [];
 
     // What left a computer port and has not come back: whether the port then emptied, and, for what a move left
-    // behind, the port it moved to; such leftovers wait only while that port keeps receiving the rest of the setup.
+    // behind, the port it moved to; such leftovers wait until that port empties or something else arrives.
     private sealed record Departed(ComputerPort Port, List<UsbNode> Nodes, bool Emptied, string? MovedTo = null);
 
     /// <summary>The computer's own ports in <paramref name="tree"/>, in tree order: user-connectable, or not said, on a root hub or a built-in hub.</summary>
@@ -117,6 +116,7 @@ public sealed class PortTesting
         }
         SetupMove? move = null;
         var fed = new HashSet<string>(); // Ports whose leftovers received more of their setup in this change.
+        var anyArrived = false;
         foreach (var (id, (to, nodes)) in portsAfter)
         {
             var was = portsBefore.TryGetValue(id, out var earlier) ? earlier.Nodes.Select(node => node.Id).ToHashSet() : [];
@@ -125,6 +125,7 @@ public sealed class PortTesting
             {
                 continue;
             }
+            anyArrived = true;
             SetupMove? found = null;
             foreach (var (sourceId, source) in departed.Where(each => each.Value.Emptied).OrderBy(each => each.Key == id ? 0 : 1).ToList())
             {
@@ -162,8 +163,10 @@ public sealed class PortTesting
             }
             move ??= found;
         }
-        // What a move left behind waits only while the rest of the setup keeps arriving; then it is not back.
-        foreach (var (sourceId, source) in departed.Where(each => each.Value.MovedTo != null && !fed.Contains(each.Key)).ToList())
+        // What a move left behind waits through quiet changes, so a late USB 3 half still joins the move; it is not back
+        // once the port it moved to empties or something else arrives.
+        foreach (var (sourceId, source) in departed.Where(each => each.Value.MovedTo is { } movedTo && !fed.Contains(each.Key)
+            && (!portsAfter.ContainsKey(movedTo) || anyArrived)).ToList())
         {
             departed.Remove(sourceId);
         }
