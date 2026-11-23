@@ -320,7 +320,7 @@ public sealed class NodeViewModel : ObservableObject
     public string? RowStatusWord => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Word(value) : null;
 
     /// <summary>The light background of the window's row of an item that is not stable, in its status colour; none otherwise.</summary>
-    public string RowTint => Status is { } value && value != ConnectionStatus.Green ? StatusColors.Tint(value) : StatusColors.None;
+    public string RowTint => IsOnHoveredPath ? StatusColors.HoveredPath : Status is { } value && value != ConnectionStatus.Green ? StatusColors.Tint(value) : StatusColors.None;
 
     /// <summary>
     /// The elbow from the parent: the item's own status colour for a hub or device; for a controller, root hub or port
@@ -406,6 +406,41 @@ public sealed class NodeViewModel : ObservableObject
         get => portName;
         private set => SetField(ref portName, value);
     }
+
+    /// <summary>
+    /// The port this row's port box stands for (#266): the folded port of a hub or device on one; null otherwise. Hovering it shows <see cref="PortHover"/> and highlights the path.
+    /// </summary>
+    public string? HoverPortId
+    {
+        get => hoverPortId;
+        private set => SetField(ref hoverPortId, value);
+    }
+
+    private string? hoverPortId;
+
+    /// <summary>The hover of <see cref="HoverPortId"/>, made when the pointer enters it (#266).</summary>
+    public PortHover? PortHover
+    {
+        get => portHover;
+        internal set => SetField(ref portHover, value);
+    }
+
+    private PortHover? portHover;
+
+    /// <summary>True while a hovered port box is on or below this row: the line from the computer to that port (#266).</summary>
+    public bool IsOnHoveredPath
+    {
+        get => isOnHoveredPath;
+        internal set
+        {
+            if (SetField(ref isOnHoveredPath, value))
+            {
+                OnPropertyChanged(nameof(RowTint));
+            }
+        }
+    }
+
+    private bool isOnHoveredPath;
 
     /// <summary>
     /// "USB-C" on the window's row: on a hub or device whose folded port the operating system calls USB-C, and on such a
@@ -691,6 +726,7 @@ public sealed class NodeViewModel : ObservableObject
             PortBadge = PortType;
             foreach (var child in Children)
             {
+                child.HoverPortId = isFolded ? node.Id : null;
                 child.PortNumber = isFolded ? node.PortNumber?.ToString(CultureInfo.CurrentCulture) ?? node.Name : null;
                 child.PortName = isFolded ? node.Name : null;
                 child.PortBadge = isFolded ? PortType : null;

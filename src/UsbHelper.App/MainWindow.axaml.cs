@@ -89,6 +89,17 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         };
     }
 
+    // #266: hovering a port box shows its connector and highlights the path to it; leaving clears the highlight.
+    private void PortBoxEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is Control { DataContext: NodeViewModel item } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.HoverPort(item);
+        }
+    }
+
+    private void PortBoxExited(object? sender, PointerEventArgs e) => (DataContext as MainViewModel)?.HoverPort(null);
+
     /// <summary>The logo theme of <paramref name="variant"/>: dark for the dark variant, light for anything else (#340).</summary>
     internal static LogoTheme ThemeOf(ThemeVariant variant) => variant == ThemeVariant.Dark ? LogoTheme.Dark : LogoTheme.Light;
 

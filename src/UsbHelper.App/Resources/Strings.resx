@@ -1009,4 +1009,52 @@ This version keeps running.</value>
   <data name="NodeUsb4Router" xml:space="preserve">
     <value> · USB4 router (depth {0})</value>
   </data>
+  <data name="PortHoverTitle" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="PortConnectorUsbC" xml:space="preserve">
+    <value>Connector: USB-C</value>
+  </data>
+  <data name="PortConnectorNotUsbC" xml:space="preserve">
+    <value>Connector: not USB-C; USB-A or USB-B is not detected</value>
+  </data>
+  <data name="PortConnectorUnknown" xml:space="preserve">
+    <value>Connector: not detected (the system does not say whether it is USB-C)</value>
+  </data>
+  <data name="PortUsb2Pair" xml:space="preserve">
+    <value>USB 2 pair: {0}</value>
+  </data>
+  <data name="PortUsb3Lanes" xml:space="preserve">
+    <value>USB 3 lanes: {0}</value>
+  </data>
+  <data name="PortLinesInUse" xml:space="preserve">
+    <value>in use</value>
+  </data>
+  <data name="PortLinesNotInUse" xml:space="preserve">
+    <value>not in use</value>
+  </data>
+  <data name="PortNotDetected" xml:space="preserve">
+    <value>not detected</value>
+  </data>
+  <data name="PortOtherHalf" xml:space="preserve">
+    <value>Other half of this connector: {0} ({1})</value>
+  </data>
+  <data name="PortOtherHalfUnknown" xml:space="preserve">
+    <value>Other half of this connector: not known</value>
+  </data>
+  <data name="PortPlaceComputer" xml:space="preserve">
+    <value>One of the computer's own ports</value>
+  </data>
+  <data name="PortPlaceInternal" xml:space="preserve">
+    <value>Inside the computer, not reachable from outside</value>
+  </data>
+  <data name="PortPlaceNotSaid" xml:space="preserve">
+    <value>On the computer's root hub; the system does not say whether it is one of its own ports</value>
+  </data>
+  <data name="PortPlaceHub" xml:space="preserve">
+    <value>On a hub</value>
+  </data>
+  <data name="PortNeverDetected" xml:space="preserve">
+    <value>Not detected: DisplayPort lanes, power and the cable's e-marker.</value>
+  </data>
 </root>

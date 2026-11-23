@@ -998,6 +998,24 @@ public sealed class MainViewModel : ObservableObject
         return checks;
     }
 
+    /// <summary>
+    /// The pointer entered (<paramref name="item"/>) or left (null) a port box (#266): the item gets the port's hover, and
+    /// the rows from the computer to that port are highlighted; leaving clears the highlight.
+    /// </summary>
+    public void HoverPort(NodeViewModel? item)
+    {
+        var path = item?.HoverPortId is { } portId ? PortConnector.PathTo(tree, portId).Append(item.Id).ToHashSet() : [];
+        foreach (var row in Flat(Roots[0]))
+        {
+            row.IsOnHoveredPath = path.Contains(row.Id);
+        }
+        if (item?.HoverPortId is { } id)
+        {
+            // A port gone since the last refresh has no hover, never a stale one.
+            item.PortHover = PortConnector.Of(tree, id, ports.PartnerOf(id)) is { } connector ? PortHover.Of(connector) : null;
+        }
+    }
+
     private static IEnumerable<NodeViewModel> Flat(NodeViewModel item) => item.Children.SelectMany(Flat).Prepend(item);
 
     /// <summary>The settings window's content; also read by the update check.</summary>

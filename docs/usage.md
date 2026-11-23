@@ -20,8 +20,17 @@ the name only when the item is not stable, and such a row has a light
 background in its status colour; a stable row shows no word. Hubs and devices show
 the product name they report, falling back to the Windows name. A port is not
 a row of its own: the hub or device on it shows the port number in a small box
-in front of its name (hover the box for the port's name), and a disconnected
-device keeps the number of its last port. Empty ports are left
+in front of its name, and a disconnected
+device keeps the number of its last port. Hovering the box shows the port
+(#266): its name and bus, a small connector drawing (rounded for USB-C, with
+the USB 2 pair and the USB 3 lanes green when in use, grey when not, an empty
+outline when not detected), whether it is USB-C, the other half of the
+connector on the other bus when it is known (the companion port, or the halves
+paired while testing ports), and whether it is one of the computer's own ports,
+inside the computer or on a hub. USB-A versus USB-B, the DisplayPort lanes,
+power and the cable's e-marker are never read, so the hover says they are not
+detected. While hovering, the rows from the computer to that port are
+highlighted in light blue. Empty ports are left
 out. A port with a problem keeps its own row, "Port 2: ...", with what is on
 it below. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show

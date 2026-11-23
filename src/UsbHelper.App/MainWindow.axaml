@@ -308,7 +308,33 @@
                   <!-- The number of the port this hub or device is on. -->
                   <Border Background="#339E9E9E" CornerRadius="3" Padding="4,0" MinWidth="16" VerticalAlignment="Center"
                           IsVisible="{Binding PortNumber, Converter={x:Static ObjectConverters.IsNotNull}}"
-                          ToolTip.Tip="{Binding PortName}">
+                          PointerEntered="PortBoxEntered" PointerExited="PortBoxExited">
+                    <!-- #266: hovering the port shows its connector and the lines in use, and highlights its path. -->
+                    <ToolTip.Tip>
+                      <StackPanel x:DataType="vm:PortHover" DataContext="{Binding PortHover}" Spacing="4" MaxWidth="360">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                        <!-- The connector: rounded for USB-C; the USB 2 pair and the USB 3 lanes, green when in use, grey when
+                             not, an empty outline when not detected. -->
+                        <Border Width="64" Height="22" BorderThickness="1.5" HorizontalAlignment="Left"
+                                CornerRadius="{Binding CornerRadius}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                          <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Border Width="20" Height="8" CornerRadius="2" BorderThickness="1"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                    Background="{Binding Usb2Fill, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                            <Border Width="20" Height="8" CornerRadius="2" BorderThickness="1"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                    Background="{Binding Usb3Fill, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                          </StackPanel>
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding Lines}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                              <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </ToolTip.Tip>
                     <TextBlock Text="{Binding PortNumber}" FontWeight="SemiBold" HorizontalAlignment="Center" />
                   </Border>
                   <!-- A marked line's "+2 hubs" or "+1 tier" badge, in the line's colour, so it is clear the user added it. -->

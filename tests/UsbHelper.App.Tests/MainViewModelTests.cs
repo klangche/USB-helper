@@ -706,6 +706,30 @@ public class MainViewModelTests
         Assert.Contains(" · USB4 routers: 1", controller.CountsTail);
     }
 
+    // #266: hovering a port box shows the port's connector and highlights the rows from the computer to it; leaving clears it.
+    [Fact]
+    public void HoveringAPortShowsItsConnectorAndHighlightsItsPath()
+    {
+        var viewModel = NewViewModel();
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK")))])]);
+        var keyboard = Item(viewModel, "KEYBOARD");
+
+        viewModel.HoverPort(keyboard);
+
+        Assert.Equal("HUB-USB2|port1", keyboard.HoverPortId);
+        Assert.Equal("Port 1 (USB 2)", keyboard.PortHover!.Title);
+        Assert.Contains(string.Format(CultureInfo.CurrentCulture, Strings.PortUsb2Pair, Strings.PortLinesInUse), keyboard.PortHover.Lines);
+        Assert.Contains(Strings.PortNeverDetected, keyboard.PortHover.Lines);
+        Assert.True(keyboard.IsOnHoveredPath);
+        Assert.True(Item(viewModel, "HUB-USB2").IsOnHoveredPath);
+        Assert.True(Item(viewModel, "C1").IsOnHoveredPath);
+        Assert.Equal(StatusColors.HoveredPath, keyboard.RowTint);
+
+        viewModel.HoverPort(null);
+        Assert.False(keyboard.IsOnHoveredPath);
+        Assert.False(Item(viewModel, "C1").IsOnHoveredPath);
+    }
+
     [Fact]
     public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
     {

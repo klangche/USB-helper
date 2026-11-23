@@ -85,6 +85,9 @@ public sealed class PortTesting
     // behind, the port it moved to; such leftovers wait until that port empties or something else arrives.
     private sealed record Departed(ComputerPort Port, List<UsbNode> Nodes, bool Emptied, string? MovedTo = null);
 
+    /// <summary>The other half of <paramref name="portId"/>'s connector, as learned this session (#266), or null.</summary>
+    public string? PartnerOf(string portId) => pairs.GetValueOrDefault(portId);
+
     /// <summary>The computer's own ports in <paramref name="tree"/>, in tree order: user-connectable, or not said, on a root hub or a built-in hub.</summary>
     public static IReadOnlyList<ComputerPort> PortsOf(IReadOnlyList<UsbNode> tree) => [.. Ports(tree).Select(each => each.Port)];
 
