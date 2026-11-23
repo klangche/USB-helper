@@ -87,6 +87,10 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     public string? Problem { get; init; }
 
     /// <summary>
+    /// For a hub or device: the physical location Windows gives its connector (DEVPKEY_Device_PhysicalDeviceLocation, the
+    /// ACPI <c>_PLD</c> buffer) as hex, or null. Both halves of one USB-C port have the same one (#342, the owner's Asus on #354).
+    /// </summary>
+    public string? PhysicalLocation { get; init; }
     /// For a controller: the USB4 device routers on the USB4 link of its port (#332), as their deepest depth from the
     /// computer's host router (a dock is 1, a dock behind it 2); 0 when the link has none. Null when not read: Windows,
     /// a Mac without the reading, or a controller no USB4 bus is linked to. Routers are not USB hubs and add no tier.

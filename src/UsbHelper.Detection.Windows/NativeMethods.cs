@@ -27,6 +27,12 @@ internal static class NativeMethods
     // DEVPKEY_Device_ContainerId from devpkey.h: the physical device a device node belongs to (#143).
     public static readonly DEVPROPKEY DevpkeyDeviceContainerId = new(new Guid("8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c"), 2);
 
+    // DEVPKEY_Device_PhysicalDeviceLocation from devpkey.h: the ACPI _PLD buffer of the device's connector (#342).
+    public static readonly DEVPROPKEY DevpkeyDevicePhysicalDeviceLocation = new(new Guid("540b947e-8b40-45bc-a8a2-6a0b894cbda2"), 9);
+
+    // DEVPROP_TYPE_BINARY from devpropdef.h: the type of DEVPKEY_Device_PhysicalDeviceLocation.
+    public const uint DevpropTypeBinary = 0x1003;
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 
