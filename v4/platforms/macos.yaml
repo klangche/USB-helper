@@ -1,5 +1,8 @@
 name: macOS
 
+displays:
+  mst: false  # macOS does not extend the desktop over DisplayPort MST (owner decision 2026-11-17)
+
 chips:
   intel:
     name: Intel
@@ -15,6 +18,7 @@ chips:
     computer_hubs: null
 
 notes:
+  - "displays.mst moved here from the philosophy files on 2026-11-23 (#367): MST is a fact about the computer. The values are unchanged; every philosophy had the same ones."
   - "Generic macOS platform profile, one entry per chip family."
   - "intel, built_in_hub_levels 0: five hubs fit in a row (PureLink). Until 2026-11-16 this profile had max_hops 7 from the usb-script config, which is above the USB maximum."
   - "apple-silicon, built_in_hub_levels 1: M-series Macs use two of the seven tiers themselves, a built-in hub level per port, which leaves four hubs (Lightware; owner decision 2026-11-16)."

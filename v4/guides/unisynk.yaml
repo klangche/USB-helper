@@ -28,43 +28,9 @@ rules:
   - { measure: tiers, on: [ubuntu/arm], recommended: 3, max: 4 }
   - { measure: tiers, on: [debian/arm], recommended: 3, max: 4 }
 
-platforms:
-  windows:
-    mst: 1
-    chips:
-      intel: { mst: 1 }
-      amd: { mst: 1 }
-      arm: { mst: 0 }
-  macos:
-    mst: 0
-    chips:
-      intel: { mst: 0 }
-      apple-silicon: { mst: 0 }
-      a-series: { mst: 0 }
-  ubuntu:
-    mst: 0
-    chips:
-      intel: { mst: 0 }
-      amd: { mst: 0 }
-      arm: { mst: 0 }
-  debian:
-    mst: 0
-    chips:
-      intel: { mst: 0 }
-      amd: { mst: 0 }
-      arm: { mst: 0 }
-  apple-mobile:
-    mst: 0
-    chips:
-      a-series: { mst: 0 }
-      m-series: { mst: 0 }
-  android:
-    mst: 0
-    chips:
-      phone-qualcomm: { mst: 0 }
-      tablet-exynos: { mst: 0 }
-
 notes:
+  - "The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23)."
+  - "mst moved to the OS files on 2026-11-23 (#367): it is a fact about the computer, not a rule of this philosophy."
   - "Moved to v4 on 2026-11-19 (#329): the tiers values one to one. v3's hubs per bus (3 / 5; Apple mobile and Android 1 / 2) are not a path measure in v4 and are not carried over. Not verified: Unisynk's numbers come from practical experience, not a published source."
   - "v3 source line, kept: USB-Helper base limits + Ochno-style conservatism on tiers"
   - "v3 source line, kept: Unisynk practical experience with switcher and extension topologies"
