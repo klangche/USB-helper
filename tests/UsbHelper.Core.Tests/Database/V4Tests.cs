@@ -304,6 +304,21 @@ public class V4Tests
         Assert.Empty(TopologyCounts.Paths(InternalHubTree)["KEYBOARD"].Hubs);
     }
 
+    // macOS (#330): an M1 Max controller has tier limit 6 and shows no internal hub; the hidden hub is counted once, as
+    // detected, in place of the chip's value of 1, not as 2.
+    private static IReadOnlyList<UsbNode> LimitedControllerTree => [Controller("C1", Hub("ROOT", Device("KEYBOARD"))) with { Name = "AppleT6000USBXHCI", TierLimit = 6 }];
+
+    [Fact]
+    public void AControllerTierLimitBelowSevenIsADetectedComputerHubCountedOnce()
+    {
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 1, "detected: AppleT6000USBXHCI tier limit 6"),
+            ComputerHubOf("macos-apple-silicon", LimitedControllerTree, "KEYBOARD"));
+        Assert.Empty(TopologyCounts.Paths(LimitedControllerTree)["KEYBOARD"].Hubs);
+        // Limit 7, or none: nothing hidden, so the database value applies.
+        Assert.Empty(TopologyCounts.Paths([LimitedControllerTree[0] with { TierLimit = 7 }])["KEYBOARD"].ComputerHubs);
+        Assert.Empty(TopologyCounts.Paths([LimitedControllerTree[0] with { TierLimit = null }])["KEYBOARD"].ComputerHubs);
+    }
+
     // An internal hub that serves only a built-in webcam, next to an external port on the root hub.
     private static IReadOnlyList<UsbNode> WebcamOnlyTree => [Controller("C1",
         Hub("ROOT", Hub("INTERNAL", Device("WEBCAM")).Connectable(false), Device("KEYBOARD")).Connectable(false, true))];

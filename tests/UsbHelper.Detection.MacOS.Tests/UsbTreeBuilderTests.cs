@@ -306,4 +306,24 @@ public class UsbTreeBuilderTests
     {
         public IReadOnlyList<RegistryEntry> ReadControllers() => controllers;
     }
+
+    // #330: an M1 Max controller reports UsbHostControllerTierLimit 6 (the owner's probe on #267), so one hub inside the
+    // computer is hidden in front of every port. Without the property nothing is assumed.
+    [Fact]
+    public void TheControllerTierLimitGivesItsHiddenHubs()
+    {
+        var limited = new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@01000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0x01000000L, ["UsbHostControllerTierLimit"] = 6L },
+            [Port("hs", 1, Device(0x01100000, 0x05AC, 0x1234, "Keyboard"))]);
+
+        var tree = UsbTreeBuilder.Build([limited, Controller(0x02000000, Port("hs", 1))]);
+
+        Assert.Equal(6, tree[0].TierLimit);
+        Assert.Equal(1, tree[0].HiddenHubs);
+        Assert.Null(tree[1].TierLimit);
+        Assert.Equal(0, tree[1].HiddenHubs);
+        // The keyboard, the only device: behind the hidden hub of its controller.
+        var keyboard = Assert.Single(TopologyCounts.Paths(tree).Values);
+        Assert.Equal(["AppleT6000USBXHCI@01000000 tier limit 6"], keyboard.ComputerHubs);
+    }
 }

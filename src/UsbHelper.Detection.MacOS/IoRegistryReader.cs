@@ -13,7 +13,9 @@ internal sealed class IoRegistryReader : IIoRegistryReader
 
     // Only these properties are read; a serial number or UUID is never touched.
     private static readonly string[] Keys =
-        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber", "port", "bInterfaceClass"];
+        ["locationID", "idVendor", "idProduct", "bDeviceClass", "USB Product Name", "kUSBProductString", "PortNumber", "port", "bInterfaceClass",
+        // On the controller (#330): the tiers it allows, 6 on an M1 Max, which hides one hub inside the computer.
+        "UsbHostControllerTierLimit"];
 
     public IReadOnlyList<RegistryEntry> ReadControllers()
     {

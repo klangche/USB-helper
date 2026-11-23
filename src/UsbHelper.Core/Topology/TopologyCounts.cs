@@ -151,7 +151,12 @@ public static class TopologyCounts
         : entries.Select(entry => entry.Port).DistinctBy(port => port.Id).Where(match).Sum(port => marks.GetValueOrDefault(port.Id)?.Hubs ?? 0);
 
     private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port, DevicePath Path)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark>? marks) =>
-        tree.SelectMany(controller => controller.Children).SelectMany(rootHub => Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks, new DevicePath([], [])));
+        tree.SelectMany(controller => controller.Children.SelectMany(rootHub =>
+            Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks, new DevicePath([], []) { ComputerHubs = Hidden(controller) })));
+
+    // The hubs a controller does not show, from its tier limit (#330), as detected computer hubs in front of every port.
+    private static IReadOnlyList<string> Hidden(UsbNode controller) =>
+        [.. Enumerable.Repeat(string.Create(CultureInfo.InvariantCulture, $"{controller.Name} tier limit {controller.TierLimit}"), controller.HiddenHubs)];
 
     // hubsAbove counts the hub itself, every counted hub above it, root hub included, and every tier marked above it.
     // inFront counts the external hubs above the hub's ports, the hub itself included unless it is built in, and every

@@ -107,6 +107,7 @@ internal static class UsbTreeBuilder
         return new UsbNode(id, UsbNodeKind.Controller, controller.Name, [new UsbNode(rootHubId, UsbNodeKind.Hub, "USB root hub", ports)])
         {
             Problem = problem,
+            TierLimit = controller.GetNumber("UsbHostControllerTierLimit") is { } limit and > 0 and < 128 ? (int)limit : null,
         };
     }
 

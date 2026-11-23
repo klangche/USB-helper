@@ -85,4 +85,21 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
 
     /// <summary>A problem the operating system reports for this element, or null when it reports none.</summary>
     public string? Problem { get; init; }
+
+    /// <summary>
+    /// For a controller: how many tiers it allows from its root hub, when the system reports it (#330). macOS gives
+    /// <c>UsbHostControllerTierLimit</c> on each controller, 6 on an M1 Max: the USB specification's 7 tiers less the
+    /// hubs inside the computer that the tree does not show. Null when not reported.
+    /// </summary>
+    public int? TierLimit { get; init; }
+
+    /// <summary>The tiers of the USB specification (USB 2.0 section 4.1.1, USB 3.2 the same): a controller with fewer has hidden hubs.</summary>
+    public const int SpecificationTiers = 7;
+
+    /// <summary>
+    /// For a controller: the hubs inside the computer it does not show, from <see cref="TierLimit"/> (#330):
+    /// <see cref="SpecificationTiers"/> less the limit, or 0 when the limit is unknown or not below 7.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore] // Follows from TierLimit, which is written.
+    public int HiddenHubs => TierLimit is { } limit and > 0 and < SpecificationTiers ? SpecificationTiers - limit : 0;
 }
