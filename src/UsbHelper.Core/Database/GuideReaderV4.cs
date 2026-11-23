@@ -20,7 +20,10 @@ internal static class GuideReaderV4
     public static readonly IReadOnlyList<string> ComputerHubEvidence = ["detected", "computer", "chip"];
 
     private static readonly string[] TopFields =
-        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "requires", "platforms", "notes", "verification"];
+        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "requires", "notes", "verification"];
+
+    // Facts about computers (#367): they live in base, OS, chip and computer files, never in a philosophy.
+    private static readonly string[] ComputerFacts = ["platforms", "mst", "computer_hubs", "displays", "ports", "usb", "usb4", "chips"];
 
     /// <param name="baseElements">The path elements base.yaml lists.</param>
     /// <param name="baseKinds">The device kinds base.yaml lists.</param>
@@ -62,7 +65,9 @@ internal static class GuideReaderV4
 
         foreach (var (key, value) in root.Fields.Where(field => !TopFields.Contains(field.Key)))
         {
-            Error(value, $"Unknown field '{key}'.");
+            Error(value, ComputerFacts.Contains(key)
+                ? $"Field '{key}' is a fact about the computer, not a rule of this philosophy: it belongs in base.yaml, platforms/<os>.yaml or a computer file (#367)."
+                : $"Unknown field '{key}'.");
         }
         // A ProAV guide states a manufacturer's limits, so each rule quotes its source; own: true marks the owner's own
         // numbers (USB-Helper, Unisynk), which have no source to quote. A general-purpose guide (proav: 0) quotes where it can.
@@ -86,7 +91,6 @@ internal static class GuideReaderV4
         }
         var measures = ReadMeasures(root.Find("measures"), baseElements, Error);
         var rules = ReadRules(root.Find("rules"), measures, baseKinds, chips, sources, manufacturer, Error);
-        CheckPlatforms(root.Find("platforms"), chips, Error);
         return new Guide(id, name, selectable.Value, root, null)
         {
             Format = 4,
@@ -437,60 +441,6 @@ internal static class GuideReaderV4
             default:
                 error(value, $"Rule: '{key}' must be a whole number or none.");
                 return (null, false);
-        }
-    }
-
-    // platforms.<platform>.mst and platforms.<platform>.chips.<chip>.mst, 1 or 0.
-    private static void CheckPlatforms(ProfileValue? value, IReadOnlyDictionary<string, List<string>> chips, Action<ProfileValue, string> error)
-    {
-        foreach (var (platform, settings) in value?.Fields ?? new Dictionary<string, ProfileValue>())
-        {
-            if (!chips.TryGetValue(platform, out var platformChips))
-            {
-                error(settings, $"Unknown key 'platforms.{platform}'.");
-                continue;
-            }
-            foreach (var (key, field) in settings.Fields)
-            {
-                if (key == "mst")
-                {
-                    CheckMst(field, error);
-                }
-                else if (key == "chips")
-                {
-                    foreach (var (chip, chipSettings) in field.Fields)
-                    {
-                        if (!platformChips.Contains(chip))
-                        {
-                            error(chipSettings, $"Unknown key 'platforms.{platform}.chips.{chip}'.");
-                            continue;
-                        }
-                        foreach (var (chipKey, chipField) in chipSettings.Fields)
-                        {
-                            if (chipKey == "mst")
-                            {
-                                CheckMst(chipField, error);
-                            }
-                            else
-                            {
-                                error(chipField, $"Unknown key 'platforms.{platform}.chips.{chip}.{chipKey}'.");
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    error(field, $"Unknown key 'platforms.{platform}.{key}'.");
-                }
-            }
-        }
-    }
-
-    private static void CheckMst(ProfileValue value, Action<ProfileValue, string> error)
-    {
-        if (value.Scalar is not (null or 0L or 1L))
-        {
-            error(value, "Field 'mst' must be 1, 0 or empty.");
         }
     }
 

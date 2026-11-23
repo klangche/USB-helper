@@ -60,4 +60,17 @@ public class RealDatabaseV4Tests
             Assert.Contains(SourceNames, name => note.Contains(name, StringComparison.Ordinal));
         }
     }
+
+    // #367: MST comes from the OS files, with the values every philosophy had: Windows yes except ARM, nowhere else.
+    [Fact]
+    public void MstComesFromTheOsFiles()
+    {
+        var db = HardwareDatabase.LoadV4(Files());
+
+        foreach (var (id, profile) in db.Platforms)
+        {
+            Assert.Equal(id is "windows-intel" or "windows-amd", profile.Find("displays.mst")!.Scalar);
+        }
+        Assert.All(db.Guides.Values, guide => Assert.Null(guide.Mst("windows", "intel")));
+    }
 }

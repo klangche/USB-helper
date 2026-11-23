@@ -291,15 +291,28 @@ public class V4Tests
         Assert.Equal(false, db.Platforms["windows-amd"].Find("displays.mst")!.Scalar);
     }
 
-    // #367 review: the OS file's MST reaches the display check and wins over a guide's mst; the OS file is verified, so
+    // #367: a philosophy holds only its own rules; a computer fact in it is a load error with the file and line.
+    [Theory]
+    [InlineData("mst: 1")]
+    [InlineData("computer_hubs: 1")]
+    [InlineData("platforms:\n  windows:\n    mst: 1")]
+    public void AComputerFactInAPhilosophyIsRejected(string fact)
+    {
+        var error = Error(Files(("guides/room.yaml", Room + "\n" + fact + "\n")));
+
+        Assert.Equal("guides/room.yaml", error.File);
+        Assert.True(error.Line > 0);
+        Assert.Contains("is a fact about the computer", error.Message, StringComparison.Ordinal);
+    }
+
+    // #367 review: the OS file's MST reaches the display check (a guide can no longer state one); the OS file is verified, so
     // the warning has no "unverified" note.
     [Fact]
     public void TheOsFilesMstDecidesTheNoMstWarning()
     {
         var windows = Windows.Replace("  amd: { name: AMD, computer_hubs: null }", "  amd: { name: AMD, computer_hubs: null, displays: { mst: false } }",
             StringComparison.Ordinal);
-        var room = Room + "\nplatforms:\n  windows:\n    mst: 1\n";
-        var db = HardwareDatabase.LoadV4(Files(("platforms/windows.yaml", windows), ("guides/room.yaml", room)));
+        var db = HardwareDatabase.LoadV4(Files(("platforms/windows.yaml", windows)));
         DisplayMonitor[] monitors = [new("L", "Left", MonitorOutput.DisplayPort), new("R", "Right", MonitorOutput.DisplayPort)];
 
         var report = DiagnosticEvaluator.Evaluate([Controller("C1", Hub("ROOT", Device("MOUSE")))], db.Platforms["windows-amd"], [], 2,
