@@ -36,7 +36,7 @@ internal static class RuleJudge
     /// True for the connected computer (#368): the hubs the system reports inside it replace the database value where the
     /// measure accepts <c>detected</c>. False for a ticked profile, which is judged with database values only.
     /// </param>
-    public static IReadOnlyList<CountPart> Parts(GuideMeasure measure, Guide guide, ResolvedProfile profile, DevicePath path, UsbBus? bus, bool measured = true)
+    public static IReadOnlyList<CountPart> Parts(GuideMeasure measure, Guide guide, ResolvedProfile profile, DevicePath path, UsbBus? bus, bool measured)
     {
         var parts = new List<CountPart>();
         void Add(string element, int? count, string origin)
@@ -120,7 +120,7 @@ internal static class RuleJudge
 
     /// <summary>The node's status by every matching rule, and a finding for each limit it exceeds.</summary>
     public static ConnectionStatus Judge(
-        Guide guide, ResolvedProfile profile, UsbNode node, UsbBus? bus, DevicePath path, List<Finding> findings, bool measured = true)
+        Guide guide, ResolvedProfile profile, UsbNode node, UsbBus? bus, DevicePath path, List<Finding> findings, bool measured)
     {
         var status = ConnectionStatus.Green;
         var overMax = new List<Finding>();

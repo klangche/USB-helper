@@ -531,7 +531,7 @@ public class ReportPdfTests
         Assert.Equal("Latitude 7450", model.Computer.Model);
         Assert.Equal(1, model.Counts.Hubs);
         Assert.Equal(2, model.Counts.Devices); // The keyboard and the mouse; the dock is a hub (#307).
-        Assert.Equal(2, model.Profiles.Count); // The detected platform's profile is checked at start.
+        Assert.Equal(3, model.Profiles.Count); // The detected platform's profile is checked at start; then this computer, measured (#368).
         Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "External displays"],
             profile.Checks.Take(3).Select(check => check.Name)));
         Assert.Equal(new ReportDisplay("DELL U2723QE", "HDMI", null), Assert.Single(model.Displays!));

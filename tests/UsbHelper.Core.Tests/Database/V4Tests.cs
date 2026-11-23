@@ -322,7 +322,7 @@ public class V4Tests
         var db = HardwareDatabase.LoadV4(Files(("guides/detected.yaml", Detected)));
         var guide = db.Guides["detected"];
         var path = TopologyCounts.Paths(tree)[id];
-        return RuleJudge.Parts(guide.MeasureDefinitions["chain"], guide, db.Platforms[profile], path, null)[0];
+        return RuleJudge.Parts(guide.MeasureDefinitions["chain"], guide, db.Platforms[profile], path, null, measured: true)[0];
     }
 
     // Windows: an internal hub on a root port that is not user-connectable, with an external port behind it.

@@ -61,7 +61,10 @@ public static class DiagnosticEvaluator
     /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
     /// </param>
     /// <param name="monitors">The active monitors, for the MST rule (#144); their statuses join the connections by monitor id.</param>
-    /// <param name="measured">True for the connected computer (#368): the hubs it reports inside itself count where a measure accepts <c>detected</c>.</param>
+    /// <param name="measured">
+    /// True for the connected computer (#368): the hubs it reports inside itself count where a measure accepts
+    /// <c>detected</c>. A caller judging a ticked profile must pass false; <see cref="EvaluateAll"/> does.
+    /// </param>
     /// <param name="guide">
     /// The guide whose limits and recommendations apply (#285); null for none: every limit is in the guides, so then
     /// nothing is judged by a limit.

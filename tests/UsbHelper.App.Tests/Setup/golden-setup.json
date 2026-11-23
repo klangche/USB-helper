@@ -186,6 +186,43 @@
           "message": "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."
         }
       ]
+    },
+    {
+      "profile": "y98inr",
+      "label": "Dell Inc. Latitude 7450, measured",
+      "overall": "green",
+      "findings": [
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "limits.max_hubs = 5 (USB-Helper: limits.buses.usb2.hubs.max 5 in guides/usb-helper.yaml)."
+        },
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "limits.max_tiers = 7 (USB-Helper: limits.tiers.max 7 in guides/usb-helper.yaml)."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "Latitude 7450",
+          "message": "1 external displays are active (DisplayLink and wireless displays not counted)."
+        },
+        {
+          "kind": "verified_database_fact",
+          "subject": "Latitude 7450",
+          "message": "displays.max_external = 2 (computers/c.yaml)."
+        },
+        {
+          "kind": "detected_fact",
+          "subject": "DL",
+          "message": "DisplayLink adapter: its displays use the DisplayLink driver, not the computer's own video outputs."
+        },
+        {
+          "kind": "unknown",
+          "subject": "Latitude 7450",
+          "message": "A DisplayLink adapter is connected; whether this computer supports DisplayLink is unknown."
+        }
+      ]
     }
   ]
 }

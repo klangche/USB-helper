@@ -653,6 +653,9 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public StatusRow? ThisComputerRow { get; private set; }
 
+    /// <summary>"MacBook Pro (16-inch, 2021), measured" (#368): this computer's result, wherever it is listed.</summary>
+    private string ThisComputerLabel => string.Format(CultureInfo.CurrentCulture, Strings.ThisComputerMeasured, HostName);
+
     /// <summary><see cref="ThisComputerRow"/> as a list of none or one, for the panel.</summary>
     public IReadOnlyList<StatusRow> ThisComputerRows => ThisComputerRow is { } row ? [row] : [];
 
@@ -927,6 +930,11 @@ public sealed class MainViewModel : ObservableObject
             ? [new SetupResult(null, "No profile checked", lastReport.Overall, Exported(lastReport.Counts.Findings))]
             : [.. options.Select((option, i) => new SetupResult(option.Profile.Id, option.Label, lastReport.Profiles[i].Report.Overall,
                 Exported(lastReport.Profiles[i].Report.Findings)))];
+        // #368: this computer's measured result, after the ticked ones.
+        if (lastReport.ThisComputer is { } here)
+        {
+            results = [.. results, new SetupResult(here.Profile.Id, ThisComputerLabel, here.Report.Overall, Exported(here.Report.Findings))];
+        }
         // No computer name: it is often an asset or service tag, a serial number. Manufacturer and model find the profile.
         return new SetupFile(appVersion, date, identity with { MachineName = null }, [.. options.Select(option => option.Profile.Id)], controllers, anonymousMarks, displays, results)
         {
@@ -970,6 +978,10 @@ public sealed class MainViewModel : ObservableObject
         var profiles = reports.Select((result, i) => setup.Results[i].Profile == null
             ? new ReportProfile(Strings.ReportNoProfile, result.Overall, [])
             : new ReportProfile(setup.Results[i].Label, result.Overall, ReportChecks(result))).ToList();
+        if (lastReport.ThisComputer is { } measuredHere)
+        {
+            profiles.Add(new ReportProfile(ThisComputerLabel, measuredHere.Report.Overall, ReportChecks(measuredHere.Report)));
+        }
         var placement = MonitorPlacement.Place(tree, monitors ?? []);
         var items = Flat(Roots[0]).ToDictionary(item => item.Id, item => item.Text);
         var displays = monitors?.Select(monitor => new ReportDisplay(monitor.Name ?? Strings.MonitorUnnamed, NodeViewModel.OutputText(monitor.Output),
@@ -1397,9 +1409,13 @@ public sealed class MainViewModel : ObservableObject
         portFindings = PortFindings();
         log.PortsTested(PortTesting.LogText(ports.Summary(PortsProfile(profiles)), ports.Differences()), [.. portFindings.Select(finding => finding.Message)]);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
-        log.Findings(options.Count == 0
+        // #368: this computer's measured result is logged too, under its own name.
+        var thisComputerFindings = all.ThisComputer is { } measured
+            ? measured.Report.Findings.Select(finding => ((string?)ThisComputerLabel, finding)) : [];
+        log.Findings((options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
-            : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
+            : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))))
+            .Concat(thisComputerFindings));
         // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
         // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the tree.
         var lines = all.Counts with
@@ -1488,7 +1504,7 @@ public sealed class MainViewModel : ObservableObject
             : null;
         // #368: this computer, always, judged with what it measures; the ticked systems below use database values.
         ThisComputerRow = report.ThisComputer is { } here
-            ? new StatusRow(string.Format(CultureInfo.CurrentCulture, Strings.ThisComputerMeasured, HostName),
+            ? new StatusRow(ThisComputerLabel,
                 StatusColors.Word(here.Report.Overall), StatusColors.Hex(here.Report.Overall), ExceededLines(here.Report, hubs))
             : null;
         OnPropertyChanged(nameof(ThisComputerRow));
