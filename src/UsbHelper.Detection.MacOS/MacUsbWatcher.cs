@@ -87,7 +87,8 @@ internal sealed class MacUsbWatcher : IDisposable
     }
 
     public void Dispose()
-    {
+        // Stop the source first so no new signal arrives, then wait for a running change callback via the lock. A read in
+        // progress is not waited for: its flush sees _disposed and drops what it read.
         // Stop the source first so no new signal arrives, then wait for a running batch via the lock.
         _subscription.Dispose();
         lock (_gate)
