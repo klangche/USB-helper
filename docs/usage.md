@@ -147,9 +147,15 @@ and iPad, Android). "Known issues" holds the computer profiles: machines with kn
 and computers can be checked. Each line then shows the worst result over the
 checked profiles, judged by the picked philosophy; the status field says
 "Judged by the PureLink philosophy". The
-status field has one row per checked profile with its result (stable,
-potentially unstable, unstable or unknown, in its colour). Above them, always,
-is this computer, for example "MacBook Pro (16-inch, 2021), measured" (#368):
+status field groups the results by outcome (#369): every system, this
+computer and each checked profile, is in exactly one group, by its whole set of
+findings. "Same issue on:" names the systems with the same issues, then each
+issue once ("Cam Link 4K: tiers 5 exceeds the recommended 3"); clicking an issue
+selects its device in the tree. "Unknown on:" holds the systems whose counts are
+only "at least" or whose limits are unknown, and "Good on:" those with no
+finding. The worst groups come first. The exported log ends with the same
+groups under "Results by outcome", and the PDF report lists them too. This
+computer is always one of the systems, for example "MacBook Pro (16-inch, 2021), measured" (#368):
 its own computer file if there is one, else its operating system and chip,
 judged with what it measures, such as the hub an M1 Max hides inside itself
 (its tier limit) or Windows saying a hub is part of the computer, wherever the

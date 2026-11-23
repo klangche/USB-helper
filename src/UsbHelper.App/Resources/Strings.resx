@@ -1114,4 +1114,7 @@ This version keeps running.</value>
   <data name="ThisComputerMeasured" xml:space="preserve">
     <value>{0}, measured</value>
   </data>
+  <data name="ReportOutcomes" xml:space="preserve">
+    <value>Results by outcome</value>
+  </data>
 </root>

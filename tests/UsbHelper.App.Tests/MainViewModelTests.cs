@@ -764,6 +764,23 @@ public class MainViewModelTests
         Assert.Contains(log.Entries, entry => entry.Text == "Device kind of MYSTERY selected by hand removed");
     }
 
+    // #369: the panel, the exported log and the report show the same groups, each system in exactly one.
+    [Fact]
+    public void TheResultsAreGroupedByOutcomeInThePanelTheLogAndTheReport()
+    {
+        var log = new EventLog();
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
+        viewModel.Load(Desk);
+        viewModel.Computers.Single().IsChecked = true;
+
+        var systems = viewModel.OutcomeRows.SelectMany(row => row.Systems.Split(", ")).ToList();
+        Assert.Equal(systems.Distinct().Count(), systems.Count);
+        Assert.Contains(viewModel.OutcomeRows, row => row.Title is "Good on:" or "Same issue on:" or "Unknown on:");
+        Assert.Contains("Results by outcome", log.Export(), StringComparison.Ordinal);
+        Assert.Contains(viewModel.OutcomeRows[0].Title + " " + viewModel.OutcomeRows[0].Systems, log.Export(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
     {
@@ -2408,7 +2425,9 @@ public class LogViewModelTests
         Assert.Contains(log.Entries, entry => entry.Text == "USB devices read: 1 controllers");
         Assert.Contains(log.Entries, entry => entry.Text == "Disconnected: MOUSE from Port 2 of ROOT");
         Assert.Contains(log.Entries, entry => entry.Text == "Profile checked: os-p");
-        Assert.Equal("Profile checked: os-p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)).Text);
+        // Findings and the grouped results (#369) follow from the check.
+        Assert.Equal("Profile checked: os-p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)
+            && !entry.Text.StartsWith("Results: ", StringComparison.Ordinal)).Text);
     }
 
     [Fact]
