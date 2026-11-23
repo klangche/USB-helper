@@ -34,6 +34,7 @@ public sealed class EventLog(TimeProvider? clock = null)
     // The line that names this session's instance (#341); it heads the export.
     private string? sessionLine;
     private string? portsTested;
+    private readonly HashSet<string> loggedDifferences = [];
     private IReadOnlyList<string> portDifferences = [];
 
     public IReadOnlyList<LogEntry> Entries => entries;
@@ -55,6 +56,7 @@ public sealed class EventLog(TimeProvider? clock = null)
         displays = null;
         displaysLogged = false;
         links = [];
+        loggedDifferences.Clear();
         Cleared?.Invoke();
     }
 
@@ -291,7 +293,8 @@ public sealed class EventLog(TimeProvider? clock = null)
     /// </summary>
     public void PortsTested(string summary, IReadOnlyList<string> differences)
     {
-        foreach (var difference in differences.Where(difference => !portDifferences.Contains(difference)))
+        // Each difference is logged once per session (#358), even if it goes and comes back.
+        foreach (var difference in differences.Where(loggedDifferences.Add))
         {
             Add(difference);
         }

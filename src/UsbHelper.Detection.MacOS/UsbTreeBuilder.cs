@@ -116,6 +116,12 @@ internal static class UsbTreeBuilder
         var usbC = UsbCPorts(controller.Children);
         var ports = portNumbers.Select(number => Port(rootHubId, [], number, devices, hubPorts, buses))
             .Select(port => usbC.Contains(port.PortNumber ?? 0) ? port with { UsbC = true } : port).ToList();
+        // #358: a dual-role controller's one USB 2 and one USB 3 root port are the two halves of one USB-C connector.
+        if (ports is [var first, var second] && first.UsbC == true && second.UsbC == true
+            && new[] { first.Bus, second.Bus }.Order().SequenceEqual(new UsbBus?[] { UsbBus.Usb2, UsbBus.Usb3 }))
+        {
+            ports = [first with { CompanionPortId = second.Id }, second with { CompanionPortId = first.Id }];
+        }
         var problem = controller.Error != null ? $"Could not read the controller: {controller.Error}"
             : unplaced > 0 ? $"{unplaced} USB device(s) could not be placed because they report no location."
             : null;

@@ -1000,4 +1000,7 @@ This version keeps running.</value>
   <data name="SessionNotSaved" xml:space="preserve">
     <value>The log was not saved, so the session was kept.</value>
   </data>
+  <data name="SetupReplugged" xml:space="preserve">
+    <value>The setup was plugged back into {0}.</value>
+  </data>
 </root>

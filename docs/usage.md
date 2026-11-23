@@ -333,9 +333,18 @@ they are seen together: when the devices on them have the same physical
 location (the connector's ACPI `_PLD`, which a USB-C port shares even when its
 halves are on two controllers), or when the hub reports them as companions.
 Until then, an empty USB-C port whose halves are on two controllers shows as
-two ports.
+two ports. On a Mac, the USB 2 and USB 3 root ports of one dual-role (USB-C)
+controller are one connector from the start (#358). A connector with both halves
+on USB-C is named "USB-C port 1", "USB-C port 2" and so on. A move takes both
+halves along, also when the USB 2 hubs arrive in one change and the USB 3 hubs
+in the next. Plugging the whole setup back into the port it left is a replug,
+not a reconnect: the status says "The setup was plugged back into USB-C port
+1." A single device that drops and comes back while the rest of the port stays
+connected is still marked "reconnected".
 
-Each port tried keeps its last result. How the ports differ is listed with the
+Each port tried keeps its last result. Only ports that had the same hubs and
+devices are compared, so a device that was not plugged in on one port is not a
+difference, and each difference is logged once. How the ports differ is listed with the
 findings, in the log and in the PDF report: a device that did not connect on
 one port ("On Port 3 the Camera did not connect; on Port 1 it did."), that has
 an error on one only, that runs on USB 2 on one ("On Port 2 the Camera runs on
