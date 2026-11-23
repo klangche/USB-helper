@@ -41,11 +41,23 @@ detach() {
   attached "$1" || return 0
   hdiutil detach -force "$1"
 }
-# Attaches an image, retried, and keeps its whole-disk device in $device: the first column of attach's first line.
+# Attaches an image, retried, and keeps its whole-disk device in $device: the first /dev/diskN that attach prints. A
+# compressed image prints its checksum lines first, so the first line is not always the device.
 attach() {
-  local output
+  local output line
   output=$(retry hdiutil attach "$@")
-  device=${output%%[[:space:]]*}
+  device=""
+  while IFS= read -r line; do
+    if [[ $line =~ ^(/dev/disk[0-9]+)[[:space:]] ]]; then
+      device=${BASH_REMATCH[1]}
+      break
+    fi
+  done <<< "$output"
+  if [[ -z $device ]]; then
+    echo "hdiutil attach printed no /dev/disk device:" >&2
+    echo "$output" >&2
+    return 1
+  fi
 }
 # hdiutil on the build runners also answers "Resource busy" for a moment to create, attach or convert, for example right
 # after another disk image was detached (#282). Retry such a step, 3 seconds apart; the last failure stops the script.
