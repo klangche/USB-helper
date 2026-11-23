@@ -152,7 +152,12 @@ public static class TopologyCounts
 
     private static IEnumerable<(UsbNode Node, ConnectionDepth Depth, UsbBus? Bus, UsbNode Port, DevicePath Path)> Counted(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, CableMark>? marks) =>
         tree.SelectMany(controller => controller.Children.SelectMany(rootHub =>
-            Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks, new DevicePath([], []) { ComputerHubs = Hidden(controller) })));
+            Below(rootHub, hubsAbove: 1, inFront: 0, builtIn: true, marks, new DevicePath([], [])
+            {
+                ComputerHubs = Hidden(controller),
+                Usb4Routers = controller.Usb4Routers,
+                Usb4Link = controller.Usb4Link,
+            })));
 
     // The hubs a controller does not show, from its tier limit (#330), as detected computer hubs in front of every port.
     private static IReadOnlyList<string> Hidden(UsbNode controller) =>

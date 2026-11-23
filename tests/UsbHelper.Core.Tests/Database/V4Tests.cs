@@ -278,6 +278,25 @@ public class V4Tests
         Assert.Contains(new CountPart(PathElements.Usb4Router, null, "not measured yet (#267)"), over.CountParts);
     }
 
+    // Routers read on the USB4 link (#332): judged only by a measure that counts them; the hubs still count only as hubs.
+    [Fact]
+    public void DetectedUsb4RoutersAreJudgedOnlyWhereAMeasureCountsThem()
+    {
+        var routers = "name: Routers\nselectable: true\nproav: 0\nmeasures:\n  routers: { counts: [usb4_router] }\n  chain: { counts: [hub] }\n"
+            + "rules:\n  - { measure: routers, max: 5 }\n  - { measure: chain, max: 2 }\n";
+        var db = HardwareDatabase.LoadV4(Files(("guides/routers.yaml", routers)));
+        DiagnosticReport With(int depth) => DiagnosticEvaluator.Evaluate(
+            [Chain(2, Device("KEYBOARD"))[0] with { Usb4Routers = depth, Usb4Link = "thunderboltusb4_bus_0: PS9010" }],
+            db.Platforms["macos-apple-silicon"], [], externalDisplays: 0, guide: db.Guides["routers"]);
+
+        // A dock (one router) with its two hubs: within both limits, the hubs not counted as routers or the other way.
+        Assert.Equal(ConnectionStatus.Green, With(1).Connections["KEYBOARD"]);
+        var over = Assert.Single(With(6).Findings, finding => finding.SubjectId == "KEYBOARD" && finding.Kind == FactKind.PredictedRisk);
+        Assert.StartsWith("Routers: routers 6 exceeds the maximum 5.", over.Message, StringComparison.Ordinal);
+        Assert.Contains(new CountPart(PathElements.Usb4Router, 6, "detected: thunderboltusb4_bus_0: PS9010"), over.CountParts);
+        Assert.DoesNotContain(over.CountParts, part => part.Element == PathElements.Hub);
+    }
+
     // A guide that accepts hubs the system reports inside the computer (#330).
     private const string Detected = "name: Detected\nselectable: true\nproav: 0\nmeasures:\n  chain:\n    counts: [computer_hub, hub, marked_hub]\n"
         + "    computer_hub: { from: [detected, computer, chip], unknown: open }\nrules:\n  - { measure: chain, max: 5 }\n";

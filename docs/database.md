@@ -34,7 +34,7 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
 `schema_version: 4`.
 
 - `base.yaml` lists the **path elements** once, each with `found_by` (how the app finds it): `root_hub`,
-  `computer_hub`, `hub`, `marked_hub`, `cable_length`, `usb4_router` (not measured yet) and `device`. It also lists the
+  `computer_hub`, `hub`, `marked_hub`, `cable_length`, `usb4_router` (read on macOS, #332) and `device`. It also lists the
   **device kinds** by USB class: `camera` (14, 0x0E), `audio` (1) and `hid` (3).
 - Platform chips and computer files have `computer_hubs` instead of `built_in_hub_levels`: the computer's own hubs
   that the operating system does not show. It is a number, `null` (unknown) or one per bus, `{ usb2: 1, usb3: 1 }`.
@@ -83,10 +83,17 @@ rules:
 
 ### USB4 routers (#332)
 
-`usb4_router` is a path element, but it is **not measured yet** in 0.11.0: no USB4 or Thunderbolt dock was available
-to test detection with (owner, 2026-11-19). No current guide counts it, so no result depends on it. A guide whose
-measure counts `usb4_router` gets an unknown part ("not measured yet"), so its count is "at least": over a limit it is
-exceeded, within one it is unknown. It is never guessed as 0.
+`usb4_router` is a path element. No current guide counts it, so no result depends on it yet.
+
+- **macOS:** read from `system_profiler SPThunderboltDataType` with the USB tree. Each USB4 or Thunderbolt device on a
+  bus (`thunderboltusb4_bus_N`) is a router, one level deeper than the one it hangs on, and a path's count is the
+  deepest router on its bus. The owner's M1 Max with a Parade PS9010 dock shows one router at depth 1 on bus 0, and the
+  dock's USB hubs stay on the Mac's own controller (#267, 2026-11-23). Bus N is linked to the controller whose
+  locationID is `0xN000000`; that is seen on one port so far, and a controller without a bus of its number stays
+  unknown.
+- **Windows:** not measured yet. The Asus's runs with the dock are still to come (#267).
+- Unknown is never guessed as 0: a measure that counts `usb4_router` without a reading gets an unknown part ("not
+  measured yet"), so its count is "at least": over a limit it is exceeded, within one it is unknown.
 
 - Routers are not hubs: PureLink V6 says to "distinguish USB hub tiers from USB4 routers and PCIe/DisplayPort tunnels".
   Hubs behind a USB4 dock stay hubs on the USB 3 bus.
@@ -134,7 +141,7 @@ usb:
   max_tiers: 7                     # seven tiers on a path (USB 2.0 specification)
   max_devices_per_controller: 127  # a 7-bit device address; above it is unstable
 usb4:
-  max_router_depth: 5              # loaded, not judged yet: USB4 links are not detected yet (#267)
+  max_router_depth: 5              # judged by a measure that counts usb4_router; read on macOS (#332)
 ```
 
 ### Platform files
@@ -253,8 +260,8 @@ How to read a value:
 - Each limit is checked on its own; nothing is worked out between hubs, tiers and chain. Above any `max` is unstable
   (purple), above any `recommended` potentially unstable (orange). Only what the guide's `count` lists is judged.
 - Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
-  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked but not judged yet: USB4
-  links are not detected yet (#267).
+  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked; a guide judges routers only
+  with a measure that counts `usb4_router` (#332).
 - A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
   the computer's own port is on tier 4.
 - Findings and the log name the guide, the key and the file, for example
