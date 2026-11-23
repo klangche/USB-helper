@@ -69,7 +69,15 @@ internal static class RuleJudge
         }
         if (measure.Weight(PathElements.Usb4Router) > 0)
         {
-            parts.Add(new CountPart(PathElements.Usb4Router, null, "not measured yet (#267)"));
+            // USB4 routers (#332): counted only where a measure counts them, never as hubs or tiers. Unknown stays "at least".
+            if (path.Usb4Routers is { } routers)
+            {
+                Add(PathElements.Usb4Router, routers, $"detected: {path.Usb4Link ?? "USB4 link"}");
+            }
+            else
+            {
+                parts.Add(new CountPart(PathElements.Usb4Router, null, "not measured yet (#267)"));
+            }
         }
         Add(PathElements.Device, 1, "detected");
         return parts;

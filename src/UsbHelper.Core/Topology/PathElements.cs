@@ -22,7 +22,7 @@ public static class PathElements
     /// <summary>The tiers an active cable adds, marked by the user.</summary>
     public const string CableLength = "cable_length";
 
-    /// <summary>A USB4 router. Not measured yet (#267).</summary>
+    /// <summary>A USB4 device router (#332): a USB4 dock or hub. Read on macOS; not measured yet on Windows (#267).</summary>
     public const string Usb4Router = "usb4_router";
 
     /// <summary>The hub or device itself.</summary>
@@ -54,6 +54,12 @@ public sealed record DevicePath(IReadOnlyList<string> Hubs, IReadOnlyList<(strin
     /// built-in webcam, and when the system reports none.
     /// </summary>
     public IReadOnlyList<string> ComputerHubs { get; init; } = [];
+
+    /// <summary>The USB4 device routers in front of this node (#332), from its controller; null when not read.</summary>
+    public int? Usb4Routers { get; init; }
+
+    /// <summary>Where <see cref="Usb4Routers"/> comes from, for the count's origin.</summary>
+    public string? Usb4Link { get; init; }
 
     /// <summary>The detected and marked parts: hub, marked_hub and, for tiers, cable_length. Empty parts are left out.</summary>
     /// <param name="tiers">True for the tier count, which also counts the tiers an active cable adds.</param>

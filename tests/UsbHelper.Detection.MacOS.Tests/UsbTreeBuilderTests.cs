@@ -1,4 +1,6 @@
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Topology;
 using UsbHelper.Detection.MacOS;
 
@@ -326,4 +328,155 @@ public class UsbTreeBuilderTests
         var keyboard = Assert.Single(TopologyCounts.Paths(tree).Values);
         Assert.Equal(["AppleT6000USBXHCI@01000000 tier limit 6"], keyboard.ComputerHubs);
     }
+
+    // #332: the owner's M1 Max with a Parade PS9010 USB4 dock in receptacle 1 (Mac run B on #267, 2026-11-23). The dock
+    // is one router at depth 1 on thunderboltusb4_bus_0; its USB hubs sit on the Mac's own controller @00000000.
+    // system_profiler's output as recorded, without the uid and uuid keys, which the parser never reads.
+    internal const string DockThunderbolt = """
+        {"SPThunderboltDataType":[
+          {"_name":"thunderboltusb4_bus_2","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"Up to 40 Gb/s","receptacle_id_key":"3","receptacle_status_key":"receptacle_no_devices_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."},
+          {"_name":"thunderboltusb4_bus_1","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"Up to 40 Gb/s","receptacle_id_key":"2","receptacle_status_key":"receptacle_no_devices_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."},
+          {"_items":[{"_name":"PS9010","device_id_key":"0x9010","device_name_key":"PS9010","mode_key":"usb_four","receptacle_2_tag":{"current_speed_key":"Up to 40 Gb/s","receptacle_status_key":"receptacle_no_devices_connected"},"route_string_key":"1","switch_version_key":"1.3","vendor_id_key":"0x1DA0","vendor_name_key":"Parade Technologies"}],
+           "_name":"thunderboltusb4_bus_0","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"40 Gb/s","receptacle_id_key":"1","receptacle_status_key":"receptacle_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."}]}
+        """;
+
+    // The dock's USB as the IOUSB plane showed it, by locationID: two hubs in a row on each bus and a USB 2-only third
+    // hub as a branch. Names and locations are recorded; vendor and product ids are placeholders.
+    private static RegistryEntry Hub(long location, string name, params RegistryEntry[] children) =>
+        Device(location, 0x1DA0, 0x5411, name, deviceClass: 9) with { Children = children };
+
+    private static IReadOnlyList<RegistryEntry> DockControllers =>
+    [
+        new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@00000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0L, ["UsbHostControllerTierLimit"] = 6L },
+            [
+                Port("usb-drd0-port-hs", 1, Hub(0x00100000, "USB2.0 Hub",
+                    Device(0x00140000, 0x1DA0, 0x0001, "Billboard Device"),
+                    Device(0x00150000, 0x1DA0, 0x0002, "HID device"),
+                    Hub(0x00120000, "USB2.1 Hub", Device(0x00122000, 0x2A28, 0x0020, "WPP20")),
+                    Hub(0x00130000, "Parade Tech USB2.0 HUB"))),
+                Port("usb-drd0-port-ss", 2, Hub(0x00200000, "USB3.2 Hub",
+                    Hub(0x00220000, "USB3.1 Hub", Device(0x00224000, 0x0BDA, 0x8153, "USB 10/100/1000 LAN")))),
+            ]),
+        new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@01000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0x01000000L, ["UsbHostControllerTierLimit"] = 6L }, [Port("usb-drd1-port-hs", 1)]),
+    ];
+
+    [Fact]
+    public void TheDockIsOneRouterOnItsBus()
+    {
+        var buses = MacThunderbolt.Parse(DockThunderbolt);
+
+        var dock = Assert.Single(buses, bus => bus.Index == 0);
+        Assert.Equal(1, dock.RouterDepth);
+        Assert.Equal(["PS9010"], dock.Devices);
+        Assert.Equal(0, buses.Single(bus => bus.Index == 1).RouterDepth);
+    }
+
+    // The router counts only as usb4_router; the dock's hubs stay hubs on the Mac's controller, after its hidden hub.
+    [Fact]
+    public void DevicesBehindTheDockHaveItsRouterAndItsHubsSeparately()
+    {
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        var paths = TopologyCounts.Paths(tree);
+        DevicePath Of(string name) => paths[Find(tree, name).Id];
+
+        Assert.Equal(1, tree[0].Usb4Routers);
+        Assert.Equal("thunderboltusb4_bus_0: PS9010", tree[0].Usb4Link);
+        Assert.Equal(0, tree[1].Usb4Routers); // Bus 1: nothing connected.
+        Assert.Equal(["USB2.0 Hub", "USB2.1 Hub"], Of("WPP20").Hubs);
+        Assert.Equal(["USB3.2 Hub", "USB3.1 Hub"], Of("USB 10/100/1000 LAN").Hubs);
+        Assert.Single(Of("WPP20").ComputerHubs);
+        Assert.Equal(1, Of("WPP20").Usb4Routers);
+        // Without the reading, nothing is assumed.
+        Assert.Null(UsbTreeBuilder.Build(DockControllers, null)[0].Usb4Routers);
+    }
+
+    // The issue's check (#332) on the recorded dock: a guide with routers max 5, a hub chain and tiers. The router counts
+    // only in the routers measure; the hubs and tiers are what they are without it.
+    private static HardwareDatabase DockDatabase(string guide)
+    {
+        var folder = new DirectoryInfo(AppContext.BaseDirectory);
+        while (folder != null && !File.Exists(Path.Combine(folder.FullName, "database", "v4", "base.yaml")))
+        {
+            folder = folder.Parent;
+        }
+        var root = Path.Combine(folder!.FullName, "database", "v4");
+        var files = Directory.EnumerateFiles(root, "*.yaml", SearchOption.AllDirectories)
+            .ToDictionary(file => Path.GetRelativePath(root, file).Replace('\\', '/'), File.ReadAllText);
+        files["guides/routers-test.yaml"] = guide;
+        return HardwareDatabase.LoadV4(files);
+    }
+
+    private static string DockGuide(int routers, int chain, int tiers) =>
+        "name: Routers test\nselectable: true\nproav: 0\nmeasures:\n  routers: { counts: [usb4_router] }\n  chain:\n    counts: [computer_hub, hub]\n"
+        + "    computer_hub: { from: [detected, chip], unknown: open }\n  tiers:\n    counts: [root_hub, computer_hub, hub, device]\n"
+        + "    computer_hub: { from: [detected, chip], unknown: open }\n"
+        + $"rules:\n  - {{ measure: routers, max: {routers} }}\n  - {{ measure: chain, max: {chain} }}\n  - {{ measure: tiers, max: {tiers} }}\n";
+
+    private static DiagnosticReport JudgeDock(string guide)
+    {
+        var db = DockDatabase(guide);
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        return DiagnosticEvaluator.Evaluate(tree, db.Platforms["macos-apple-silicon"], [], externalDisplays: 0, guide: db.Guides["routers-test"]);
+    }
+
+    [Fact]
+    public void TheRecordedDockIsJudgedWithItsRouterOnlyInTheRoutersMeasure()
+    {
+        var wpp20 = Find(UsbTreeBuilder.Build(DockControllers, null), "WPP20").Id;
+
+        // Within routers max 5, chain 5 and tiers 7: the dock passes.
+        Assert.Equal(ConnectionStatus.Green, JudgeDock(DockGuide(5, 5, 7)).Connections[wpp20]);
+
+        // Limits below each count, to see the parts of each: routers 1; chain computer_hub 1 + hubs 2; tiers
+        // root 1 + computer_hub 1 + hubs 2 + device 1. No measure but routers has a router part.
+        var parts = JudgeDock(DockGuide(0, 0, 0)).Findings.Where(finding => finding.SubjectId == wpp20 && finding.Kind == FactKind.PredictedRisk)
+            .Select(finding => finding.CountParts).ToList();
+        var routers = Assert.Single(parts, each => each.Any(part => part.Element == "usb4_router"));
+        Assert.Equal([new UsbHelper.Core.Topology.CountPart("usb4_router", 1, "detected: thunderboltusb4_bus_0: PS9010")], routers);
+        Assert.Contains(parts, each => each.Sum(part => part.Count ?? 0) == 3 && each.All(part => part.Element is "computer_hub" or "hub"));
+        Assert.Contains(parts, each => each.Sum(part => part.Count ?? 0) == 5 && each.All(part => part.Element != "usb4_router"));
+    }
+
+    // A bus with no router (0): no usb4_router part, and the count is exact, not "at least".
+    [Fact]
+    public void ABusWithNoRouterAddsNoRouterPart()
+    {
+        var db = DockDatabase(DockGuide(0, 5, 7));
+        var buses = MacThunderbolt.Parse(DockThunderbolt).Select(bus => bus with { RouterDepth = 0, Devices = [] }).ToList();
+        var tree = UsbTreeBuilder.Build(DockControllers, buses);
+        var report = DiagnosticEvaluator.Evaluate(tree, db.Platforms["macos-apple-silicon"], [], externalDisplays: 0, guide: db.Guides["routers-test"]);
+
+        Assert.Equal(0, tree[0].Usb4Routers);
+        Assert.DoesNotContain(report.Findings, finding => finding.CountParts.Any(part => part.Element == "usb4_router"));
+        Assert.Equal(ConnectionStatus.Green, report.Connections[Find(tree, "WPP20").Id]);
+    }
+
+    // Only Apple silicon's thunderboltusb4_bus_N is linked to a controller; an Intel Mac's bus stays not measured.
+    [Fact]
+    public void OnlyUsb4BusesAreLinkedToAController()
+    {
+        Assert.Equal(0, new ThunderboltBus("thunderboltusb4_bus_0", null, null, null, null, []).Index);
+        Assert.Null(new ThunderboltBus("thunderbolt_bus_0", null, null, null, null, []).Index);
+        var intel = new ThunderboltBus("thunderbolt_bus_0", null, null, null, true, ["Dock"], RouterDepth: 1);
+        Assert.Null(UsbTreeBuilder.Build(DockControllers, [intel])[0].Usb4Routers);
+    }
+
+    // The detector reads the buses with the tree; a failed reading (null) leaves the routers unknown.
+    [Fact]
+    public void TheDetectorReadsTheBusesWithTheTree()
+    {
+        var withBuses = new MacUsbDetector(new FakeReader(DockControllers), readBuses: () => MacThunderbolt.Parse(DockThunderbolt));
+        var failed = new MacUsbDetector(new FakeReader(DockControllers), readBuses: () => null);
+
+        Assert.Equal(1, withBuses.Enumerate()[0].Usb4Routers);
+        Assert.Null(failed.Enumerate()[0].Usb4Routers);
+    }
+
+    private static UsbNode Find(IEnumerable<UsbNode> nodes, string name) =>
+        nodes.Select(node => node.Name == name ? node : FindOrNull(node.Children, name)).First(found => found != null)!;
+
+    private static UsbNode? FindOrNull(IEnumerable<UsbNode> nodes, string name) =>
+        nodes.Select(node => node.Name == name ? node : FindOrNull(node.Children, name)).FirstOrDefault(found => found != null);
 }

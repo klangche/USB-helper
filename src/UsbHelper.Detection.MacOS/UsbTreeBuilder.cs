@@ -25,6 +25,19 @@ internal static class UsbTreeBuilder
     public static IReadOnlyList<UsbNode> Build(IReadOnlyList<RegistryEntry> controllers) =>
         controllers.Select(Controller).ToList();
 
+    /// <summary>
+    /// The tree with the USB4 routers of each bus on the controller of that bus's port (#332). On Apple silicon each USB-C
+    /// port has its own controller, and a USB4 dock's USB stays on it (the owner's M1 Max probe on #267). The link is
+    /// by number: <c>thunderboltusb4_bus_N</c> belongs to the controller whose locationID is N in its top byte
+    /// (<c>@0N000000</c>). That mapping is seen on one port of one Mac so far; a controller with no bus of its number
+    /// gets no reading, so its routers stay "not measured".
+    /// </summary>
+    public static IReadOnlyList<UsbNode> Build(IReadOnlyList<RegistryEntry> controllers, IReadOnlyList<ThunderboltBus>? buses) =>
+        [.. controllers.Select((controller, index) => (Node: Controller(controller, index), Location: controller.GetNumber("locationID")))
+            .Select(each => each.Location is { } location && buses?.FirstOrDefault(bus => bus.Index == (int)((location >> 24) & 0xFF)) is { } bus
+                ? each.Node with { Usb4Routers = bus.RouterDepth, Usb4Link = bus.Devices.Count > 0 ? $"{bus.Name}: {string.Join(", ", bus.Devices)}" : bus.Name }
+                : each.Node)];
+
     /// <summary>Port numbers from the nibbles of a locationID, ending at the first zero nibble.</summary>
     internal static IReadOnlyList<int> PortPath(long locationId)
     {
