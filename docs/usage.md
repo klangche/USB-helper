@@ -150,8 +150,10 @@ checked profiles, judged by the picked philosophy; the status field says
 status field groups the results by outcome (#369): every system, this
 computer and each checked profile, is in exactly one group, by its whole set of
 findings. "Same issue on:" names the systems with the same issues, then each
-issue once ("Cam Link 4K: tiers 5 exceeds the recommended 3"); clicking an issue
-selects its device in the tree. "Unknown on:" holds the systems whose counts are
+issue once ("Cam Link 4K: tiers 5 exceeds the recommended 3") with what was
+counted below it, part by part with its origin (#326). Clicking an issue
+selects its device in the tree, as a click in the tree does, so the status field
+then covers that device's controller. "Unknown on:" holds the systems whose counts are
 only "at least" or whose limits are unknown, and "Good on:" those with no
 finding. The worst groups come first. The exported log ends with the same
 groups under "Results by outcome", and the PDF report lists them too. This

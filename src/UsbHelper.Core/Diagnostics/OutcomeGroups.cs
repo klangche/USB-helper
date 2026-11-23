@@ -17,9 +17,11 @@ public enum OutcomeKind
 }
 
 /// <summary>One system's result, named as the panel names it: "MacBook Pro (16-inch, 2021), measured" or "Windows Intel".</summary>
-public sealed record SystemOutcome(string Name, IReadOnlyDictionary<string, ConnectionStatus> Connections, IReadOnlyList<Finding> Findings)
+/// <param name="Overall">The system's overall result, which also holds the hub, tier, chain and display limits.</param>
+public sealed record SystemOutcome(
+    string Name, ConnectionStatus Overall, IReadOnlyDictionary<string, ConnectionStatus> Connections, IReadOnlyList<Finding> Findings)
 {
-    public static SystemOutcome From(string name, DiagnosticReport report) => new(name, report.Connections, report.Findings);
+    public static SystemOutcome From(string name, DiagnosticReport report) => new(name, report.Overall, report.Connections, report.Findings);
 }
 
 /// <summary>Systems with the same outcome (#369): their names, and the findings they share, said once.</summary>
@@ -44,11 +46,13 @@ public static class OutcomeGroups
     /// finding indented once; "Unknown on: C", the same; "Good on: D, E".
     /// </summary>
     /// <param name="message">How a finding's message is written; as it is when not given.</param>
-    public static IReadOnlyList<string> Lines(IReadOnlyList<OutcomeGroup> groups, Func<string, string>? message = null) =>
+    /// <param name="title">A group's title; the English <see cref="Title"/> when not given (the app passes its own text).</param>
+    public static IReadOnlyList<string> Lines(
+        IReadOnlyList<OutcomeGroup> groups, Func<string, string>? message = null, Func<OutcomeKind, string>? title = null) =>
         [.. groups.SelectMany(group => group.Findings.Select(finding => $"  {(message ?? (text => text))(finding.Message)}")
-            .Prepend($"{Title(group.Kind)} {string.Join(", ", group.Systems)}"))];
+            .Prepend($"{(title ?? Title)(group.Kind)} {string.Join(", ", group.Systems)}"))];
 
-    /// <summary>"Same issue on:", "Unknown on:" or "Good on:".</summary>
+    /// <summary>"Same issue on:", "Unknown on:" or "Good on:", in English for the log.</summary>
     public static string Title(OutcomeKind kind) => kind switch
     {
         OutcomeKind.Good => "Good on:",
@@ -57,11 +61,11 @@ public static class OutcomeGroups
     };
 
     /// <summary>
-    /// The group a result belongs to, from its worst connection. A disconnected device (red) is the same on every system,
-    /// so it does not decide the group.
+    /// The group a result belongs to, from its overall result, which also holds the hub and display limits. A disconnected
+    /// device (red) is the same on every system, so it does not decide the group: then the worst other connection does,
+    /// and a limit exceeded (a predicted risk) makes it at least potentially unstable.
     /// </summary>
-    public static OutcomeKind KindOf(SystemOutcome system) => system.Connections.Values
-        .Where(status => status != ConnectionStatus.Red).DefaultIfEmpty(ConnectionStatus.Green).Max() switch
+    public static OutcomeKind KindOf(SystemOutcome system) => Status(system) switch
     {
         ConnectionStatus.Purple => OutcomeKind.Unstable,
         ConnectionStatus.Orange => OutcomeKind.PotentiallyUnstable,
@@ -69,10 +73,21 @@ public static class OutcomeGroups
         _ => Judging(system.Findings).Count > 0 ? OutcomeKind.Unknown : OutcomeKind.Good,
     };
 
+    private static ConnectionStatus Status(SystemOutcome system)
+    {
+        if (system.Overall != ConnectionStatus.Red)
+        {
+            return system.Overall;
+        }
+        var worst = system.Connections.Values.Where(status => status != ConnectionStatus.Red).DefaultIfEmpty(ConnectionStatus.Green).Max();
+        return worst < ConnectionStatus.Orange && system.Findings.Any(finding => finding.Kind == FactKind.PredictedRisk) ? ConnectionStatus.Orange : worst;
+    }
+
     // The findings that judge the setup, in a fixed order so that two systems with the same findings get the same key.
     private static List<Finding> Judging(IReadOnlyList<Finding> findings) =>
         [.. findings.Where(finding => finding.Kind is FactKind.PredictedRisk or FactKind.Unknown)
             .DistinctBy(Key).OrderBy(Key, StringComparer.Ordinal)];
 
-    private static string Key(Finding finding) => $"{finding.Kind}|{finding.SubjectId}|{finding.Message}";
+    // The text the panel shows, so two groups never show the same issue.
+    private static string Key(Finding finding) => $"{finding.Kind}|{finding.SubjectId}|{finding.Brief}";
 }

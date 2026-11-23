@@ -10,7 +10,7 @@ public class OutcomeGroupsTests
     private static readonly Finding Note = new(FactKind.DetectedFact, "computer", "PC", "2 external displays are active.");
 
     private static SystemOutcome System(string name, ConnectionStatus status, params Finding[] findings) =>
-        new(name, new Dictionary<string, ConnectionStatus> { ["CAM"] = status, ["GONE"] = ConnectionStatus.Red }, findings);
+        new(name, ConnectionStatus.Red, new Dictionary<string, ConnectionStatus> { ["CAM"] = status, ["GONE"] = ConnectionStatus.Red }, findings);
 
     [Fact]
     public void SystemsWithTheSameFindingsFormOneGroupAndTheOrderIsBySeverity()
@@ -35,7 +35,7 @@ public class OutcomeGroupsTests
     [Fact]
     public void DifferentFindingsAreDifferentGroups()
     {
-        var other = CamLink with { Message = "Cam Link 4K: tiers 6 exceeds the recommended 3." };
+        var other = new Finding(FactKind.PredictedRisk, "CAM", "Cam Link 4K", "Cam Link 4K: tiers 6 exceeds the recommended 3.");
 
         var groups = OutcomeGroups.Group([System("A", ConnectionStatus.Orange, CamLink), System("B", ConnectionStatus.Orange, other)]);
 
@@ -55,4 +55,15 @@ public class OutcomeGroupsTests
     [Fact]
     public void ADisconnectedDeviceDoesNotDecideTheGroup() =>
         Assert.Equal(OutcomeKind.Good, OutcomeGroups.Group([System("A", ConnectionStatus.Green)]).Single().Kind);
+
+    // A hub count over its maximum is in the overall result, not in the connections: the system is unstable, not unknown.
+    [Fact]
+    public void AHubLimitOverItsMaximumIsUnstable()
+    {
+        var hubs = new Finding(FactKind.PredictedRisk, "computer", "PC", "6 hubs are on the USB 2 bus; limits.max_hubs is 5.");
+
+        var group = OutcomeGroups.Group([new SystemOutcome("A", ConnectionStatus.Purple, new Dictionary<string, ConnectionStatus> { ["CAM"] = ConnectionStatus.Green }, [hubs])]).Single();
+
+        Assert.Equal(OutcomeKind.Unstable, group.Kind);
+    }
 }

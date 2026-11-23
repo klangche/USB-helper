@@ -778,7 +778,12 @@ public class MainViewModelTests
         Assert.Equal(systems.Distinct().Count(), systems.Count);
         Assert.Contains(viewModel.OutcomeRows, row => row.Title is "Good on:" or "Same issue on:" or "Unknown on:");
         Assert.Contains("Results by outcome", log.Export(), StringComparison.Ordinal);
-        Assert.Contains(viewModel.OutcomeRows[0].Title + " " + viewModel.OutcomeRows[0].Systems, log.Export(), StringComparison.Ordinal);
+        // The report and the export hold the same groups, title and systems, in the same order.
+        var report = viewModel.Report(new DateTime(2026, 11, 23, 18, 0, 0), null, null, "0.11.0");
+        var titles = viewModel.OutcomeRows.Select(row => row.Title + " " + row.Systems).ToList();
+        Assert.Equal(titles, report.Outcomes.Where(line => !line.StartsWith(' ')));
+        Assert.Equal(titles, log.Export().Split('\n').SkipWhile(line => line.Trim() != "Results by outcome").Skip(1)
+            .TakeWhile(line => line.Trim().Length > 0).Select(line => line.TrimEnd('\r')).Where(line => !line.StartsWith(' ')));
     }
 
     [Fact]

@@ -126,7 +126,8 @@ public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 public sealed record FindingItem(string Header, string Message);
 
 /// <summary>One issue of an outcome group (#369), said once; clicking it selects <see cref="SubjectId"/> in the tree.</summary>
-public sealed record OutcomeIssue(string Text, string SubjectId);
+/// <param name="Counted">What was counted, part by part with its origin (#326); null when the finding counts nothing.</param>
+public sealed record OutcomeIssue(string Text, string SubjectId, string? Counted = null);
 
 /// <summary>
 /// A group of systems with the same outcome (#369): "Same issue on:", "Unknown on:" or "Good on:", the systems, and
@@ -670,6 +671,13 @@ public sealed class MainViewModel : ObservableObject
         [.. (result.ThisComputer is { } here ? [SystemOutcome.From(ThisComputerLabel, here.Report)] : Array.Empty<SystemOutcome>())
             .Concat(result.Profiles.Select((profile, i) => SystemOutcome.From(options[i].Label, profile.Report)))];
 
+    private static string OutcomeTitle(OutcomeKind kind) => kind switch
+    {
+        OutcomeKind.Good => Strings.OutcomeGood,
+        OutcomeKind.Unknown => Strings.OutcomeUnknown,
+        _ => Strings.OutcomeSameIssue,
+    };
+
     private static string OutcomeColor(OutcomeKind kind) => StatusColors.Hex(kind switch
     {
         OutcomeKind.Unstable => ConnectionStatus.Purple,
@@ -1030,7 +1038,8 @@ public sealed class MainViewModel : ObservableObject
             LicensedTo = Entitlements.LicensedTo,
             // The issues read as the findings do in the report: check names and "Hardware database", no files (#247).
             Outcomes = OutcomeGroups.Lines(OutcomeGroups.Group(Systems(lastReport, Checked)),
-                message => ReportFindings.Readable(message, [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()])),
+                message => ReportFindings.Readable(message, [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()]),
+                OutcomeTitle),
             PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(PortsProfile(Checked.Select(option => option.Profile))), ports.Differences()),
             DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
@@ -1558,8 +1567,9 @@ public sealed class MainViewModel : ObservableObject
         OutcomeRows.Clear();
         foreach (var group in OutcomeGroups.Group(Systems(report, options)))
         {
-            OutcomeRows.Add(new OutcomeRow(OutcomeGroups.Title(group.Kind), string.Join(", ", group.Systems), OutcomeColor(group.Kind),
-                [.. group.Findings.Select(finding => new OutcomeIssue(finding.Brief, finding.SubjectId))]));
+            OutcomeRows.Add(new OutcomeRow(OutcomeTitle(group.Kind), string.Join(", ", group.Systems), OutcomeColor(group.Kind),
+                [.. group.Findings.Select(finding => new OutcomeIssue(finding.Brief, finding.SubjectId, finding.CountParts.Count == 0 ? null
+                    : string.Format(CultureInfo.CurrentCulture, Strings.OutcomeCounted, string.Join(" + ", finding.CountParts))))]));
         }
         log.Outcomes(OutcomeGroups.Lines(OutcomeGroups.Group(Systems(all, options))));
 
