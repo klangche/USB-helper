@@ -22,6 +22,7 @@ public partial class SettingsWindow : Window
         };
         Closed += (_, _) =>
         {
+            (DataContext as SettingsViewModel)?.KeepPreviewedLogos(); // #360: an inverted copy shown is kept.
             Watch(null);
             ShowLogo(); // No view model watched: disposes the bitmap.
         };

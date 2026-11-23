@@ -216,6 +216,18 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Keeps every inverted copy still previewed (#360): closing Settings after "Invert it" keeps the copy shown, as
+    /// "Keep" would; only "Cancel" discards it.
+    /// </summary>
+    public void KeepPreviewedLogos()
+    {
+        foreach (var offer in ThemeOffers.Where(offer => offer.Previewing))
+        {
+            offer.KeepInverted();
+        }
+    }
+
     /// <summary>Removes the logo of <paramref name="theme"/>; that theme goes back to the uploaded logo or the company name.</summary>
     public void RemoveThemeLogo(LogoTheme theme) => ChangeThemeLogo(theme, () => themes?.For(theme).Remove());
 

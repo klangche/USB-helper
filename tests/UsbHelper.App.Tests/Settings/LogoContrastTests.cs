@@ -146,6 +146,37 @@ public sealed class LogoContrastTests : IDisposable
     }
 
     [Fact]
+    public void AnInvertedDarkLogoIsShownAfterARestart()
+    {
+        var (settings, _) = BlackLogo();
+        settings.ThemeOffer(LogoTheme.Dark).Invert();
+        settings.ThemeOffer(LogoTheme.Dark).KeepInverted();
+
+        var again = SettingsViewModel.Load(new SettingsFile(Path.Combine(folder, "USB-helper", "settings.json")), log);
+        var main = new MainViewModel(new Core.Detection.ComputerIdentity(null, null), log: log, settings: again,
+            entitlements: new CodeEntitlements(TestKeys, again, log))
+        { Theme = LogoTheme.Dark };
+
+        Assert.Equal(Path.Combine(folder, "USB-helper", "branding-dark", "logo-64.png"), main.BrandingLogo);
+        Assert.Null(main.BrandingName);
+    }
+
+    // #360: "Invert it" and then closing Settings without "Keep" keeps the copy shown; "Cancel" is the way to discard it.
+    [Fact]
+    public void ClosingSettingsKeepsThePreviewedInvertedLogo()
+    {
+        var (settings, main) = BlackLogo();
+        main.Theme = LogoTheme.Dark;
+        settings.ThemeOffer(LogoTheme.Dark).Invert();
+
+        settings.KeepPreviewedLogos();
+
+        Assert.Equal(Path.Combine(folder, "USB-helper", "branding-dark", "logo-64.png"), main.BrandingLogo);
+        Assert.Null(main.BrandingName);
+        Assert.False(settings.ThemeOffer(LogoTheme.Dark).Previewing);
+    }
+
+    [Fact]
     public void AThemeChangeUpdatesTheTopBar()
     {
         var (_, main) = BlackLogo();
