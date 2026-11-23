@@ -1,5 +1,8 @@
 name: iPhone and iPad
 
+displays:
+  mst: false
+
 chips:
   a-series:
     name: A-series
@@ -11,6 +14,7 @@ chips:
     computer_hubs: null
 
 notes:
+  - "displays.mst moved here from the philosophy files on 2026-11-23 (#367): MST is a fact about the computer. The values are unchanged; every philosophy had the same ones."
   - "Generic Apple A-series mobile device profile (iOS, iPadOS). Not a Mac computer profile."
   - "File name apple-mobile matches the guide files (owner decision 2026-11-17)."
   - "m-series, built_in_hub_levels null: not measured yet on an M-series iPad, so unknown."

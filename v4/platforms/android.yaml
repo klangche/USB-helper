@@ -1,5 +1,8 @@
 name: Android
 
+displays:
+  mst: false
+
 chips:
   phone-qualcomm:
     name: Phone (Qualcomm)
@@ -11,6 +14,7 @@ chips:
     computer_hubs: null
 
 notes:
+  - "displays.mst moved here from the philosophy files on 2026-11-23 (#367): MST is a fact about the computer. The values are unchanged; every philosophy had the same ones."
   - "Generic Android profiles: a phone with a Qualcomm chip and a tablet with an Exynos chip."
   - "phone-qualcomm, built_in_hub_levels 0: the usb-script config (Android Phone (Qualcomm)) has max_hops 5, tested in practice, not a manufacturer specification. That is the USB maximum (PureLink)."
   - "tablet-exynos, built_in_hub_levels 1: the usb-script config (Android Tablet (Exynos)) has max_hops 4, tested in practice, not a manufacturer specification. Kept as one built-in hub level, which gives the same 4 hubs; it is not a measured tier count (owner decision 2026-11-16)."

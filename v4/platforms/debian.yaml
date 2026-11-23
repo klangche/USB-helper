@@ -1,5 +1,8 @@
 name: Debian
 
+displays:
+  mst: false
+
 chips:
   intel:
     name: Intel
@@ -15,6 +18,7 @@ chips:
     computer_hubs: null
 
 notes:
+  - "displays.mst moved here from the philosophy files on 2026-11-23 (#367): MST is a fact about the computer. The values are unchanged; every philosophy had the same ones."
   - "Debian, one entry per processor (owner decision 2026-11-17: Ubuntu and Debian are separate operating systems in the menu)."
   - "built_in_hub_levels 0 for all chips, as the generic Linux profile before it: five hubs fit in a row (PureLink)."
   - "computer_hubs null for all chips: no source establishes the hubs of a Linux computer, and PureLink V6 gives no distribution-specific limits (2026-11-19, #325)."
