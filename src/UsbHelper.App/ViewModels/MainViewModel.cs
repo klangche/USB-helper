@@ -125,6 +125,16 @@ public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 /// </param>
 public sealed record FindingItem(string Header, string Message);
 
+/// <summary>One issue of an outcome group (#369), said once; clicking it selects <see cref="SubjectId"/> in the tree.</summary>
+/// <param name="Counted">What was counted, part by part with its origin (#326); null when the finding counts nothing.</param>
+public sealed record OutcomeIssue(string Text, string SubjectId, string? Counted = null);
+
+/// <summary>
+/// A group of systems with the same outcome (#369): "Same issue on:", "Unknown on:" or "Good on:", the systems, and
+/// the issues they share.
+/// </summary>
+public sealed record OutcomeRow(string Title, string Systems, string Color, IReadOnlyList<OutcomeIssue> Issues);
+
 /// <summary>The session popup (#341): a new session after a break, or a restart into a newer installed version.</summary>
 /// <param name="Text">What the popup asks.</param>
 /// <param name="Restart">True for the restart question ("Restart" or "Later"), false for "New session" or "Keep this session".</param>
@@ -653,6 +663,38 @@ public sealed class MainViewModel : ObservableObject
     /// </summary>
     public StatusRow? ThisComputerRow { get; private set; }
 
+    /// <summary>The results grouped by outcome (#369), worst first, for the right panel.</summary>
+    public ObservableCollection<OutcomeRow> OutcomeRows { get; } = [];
+
+    // This computer, measured, then each ticked system: what #369 groups.
+    private List<SystemOutcome> Systems(SystemsReport result, IReadOnlyList<ProfileOption> options) =>
+        [.. (result.ThisComputer is { } here ? [SystemOutcome.From(ThisComputerLabel, here.Report)] : Array.Empty<SystemOutcome>())
+            .Concat(result.Profiles.Select((profile, i) => SystemOutcome.From(options[i].Label, profile.Report)))];
+
+    private static string OutcomeTitle(OutcomeKind kind) => kind switch
+    {
+        OutcomeKind.Good => Strings.OutcomeGood,
+        OutcomeKind.Unknown => Strings.OutcomeUnknown,
+        _ => Strings.OutcomeSameIssue,
+    };
+
+    private static string OutcomeColor(OutcomeKind kind) => StatusColors.Hex(kind switch
+    {
+        OutcomeKind.Unstable => ConnectionStatus.Purple,
+        OutcomeKind.PotentiallyUnstable => ConnectionStatus.Orange,
+        OutcomeKind.Unknown => ConnectionStatus.Grey,
+        _ => ConnectionStatus.Green,
+    });
+
+    /// <summary>Selects the hub or device with <paramref name="id"/> in the tree, from an outcome issue (#369).</summary>
+    public void SelectDevice(string id)
+    {
+        if (Roots.Count > 0 && Flat(Roots[0]).FirstOrDefault(item => item.Id == id) is { } item)
+        {
+            SelectedNode = item;
+        }
+    }
+
     /// <summary>"MacBook Pro (16-inch, 2021), measured" (#368): this computer's result, wherever it is listed.</summary>
     private string ThisComputerLabel => string.Format(CultureInfo.CurrentCulture, Strings.ThisComputerMeasured, HostName);
 
@@ -994,6 +1036,10 @@ public sealed class MainViewModel : ObservableObject
             profiles, displays, ReportRow.Of(Roots[0]), findings)
         {
             LicensedTo = Entitlements.LicensedTo,
+            // The issues read as the findings do in the report: check names and "Hardware database", no files (#247).
+            Outcomes = OutcomeGroups.Lines(OutcomeGroups.Group(Systems(lastReport, Checked)),
+                message => ReportFindings.Readable(message, [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()]),
+                OutcomeTitle),
             PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(PortsProfile(Checked.Select(option => option.Profile))), ports.Differences()),
             DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
         };
@@ -1515,6 +1561,17 @@ public sealed class MainViewModel : ObservableObject
             StatusRows.Add(new StatusRow(options[i].Label, StatusColors.Word(result.Overall), StatusColors.Hex(result.Overall), ExceededLines(result, hubs)));
         }
         OnPropertyChanged(nameof(NothingChecked));
+
+        // #369: every system in exactly one group, by its whole set of findings; the log and the report get the whole
+        // computer's groups, the panel those of what the status field covers.
+        OutcomeRows.Clear();
+        foreach (var group in OutcomeGroups.Group(Systems(report, options)))
+        {
+            OutcomeRows.Add(new OutcomeRow(OutcomeTitle(group.Kind), string.Join(", ", group.Systems), OutcomeColor(group.Kind),
+                [.. group.Findings.Select(finding => new OutcomeIssue(finding.Brief, finding.SubjectId, finding.CountParts.Count == 0 ? null
+                    : string.Format(CultureInfo.CurrentCulture, Strings.OutcomeCounted, string.Join(" + ", finding.CountParts))))]));
+        }
+        log.Outcomes(OutcomeGroups.Lines(OutcomeGroups.Group(Systems(all, options))));
 
         Disconnected.Clear();
         foreach (var device in all.Counts.Missing)

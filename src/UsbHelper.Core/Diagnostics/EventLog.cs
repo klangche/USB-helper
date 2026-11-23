@@ -37,6 +37,8 @@ public sealed class EventLog(TimeProvider? clock = null)
     private readonly HashSet<string> loggedDifferences = [];
     private IReadOnlyList<string> portDifferences = [];
 
+    private IReadOnlyList<string> outcomes = [];
+
     public IReadOnlyList<LogEntry> Entries => entries;
 
     /// <summary>Raised on the caller's thread for every new entry.</summary>
@@ -57,6 +59,7 @@ public sealed class EventLog(TimeProvider? clock = null)
         displaysLogged = false;
         links = [];
         loggedDifferences.Clear();
+        outcomes = [];
         Cleared?.Invoke();
     }
 
@@ -299,6 +302,18 @@ public sealed class EventLog(TimeProvider? clock = null)
     }
 
     /// <summary>
+    /// The results grouped by outcome (#369), for the end of <see cref="Export"/>; logged when they change.
+    /// </summary>
+    public void Outcomes(IReadOnlyList<string> lines)
+    {
+        if (!lines.SequenceEqual(outcomes))
+        {
+            Add($"Results: {string.Join("; ", lines.Where(line => !line.StartsWith(' ')))}");
+        }
+        outcomes = lines;
+    }
+
+    /// <summary>
     /// "Ports tested" (#342): the summary and how the ports differ, for the end of <see cref="Export"/>. Each new
     /// difference is logged once when it appears.
     /// </summary>
@@ -339,6 +354,14 @@ public sealed class EventLog(TimeProvider? clock = null)
         foreach (var entry in entries)
         {
             text.AppendLine(entry.ToString());
+        }
+        if (outcomes.Count > 0)
+        {
+            text.AppendLine().AppendLine("Results by outcome");
+            foreach (var line in outcomes)
+            {
+                text.AppendLine(line);
+            }
         }
         if (portsTested != null)
         {

@@ -20,6 +20,12 @@ public sealed record DiagnosticReport(
     IReadOnlyList<MissingDevice> Missing,
     IReadOnlyList<Finding> Findings)
 {
+    /// <summary>
+    /// The overall result without the disconnected devices (#369): what the setup is judged to be on this system. A
+    /// disconnected device is the same on every system, so it does not decide the outcome group.
+    /// </summary>
+    public ConnectionStatus Judged { get; init; }
+
     /// <summary>Tier of every counted hub and device, by id (see <see cref="Topology.TopologyCounts.Depths"/>).</summary>
     public IReadOnlyDictionary<string, Topology.ConnectionDepth> Depths { get; init; } = new Dictionary<string, Topology.ConnectionDepth>();
 

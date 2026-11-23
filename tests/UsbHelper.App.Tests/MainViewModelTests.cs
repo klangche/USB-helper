@@ -764,6 +764,28 @@ public class MainViewModelTests
         Assert.Contains(log.Entries, entry => entry.Text == "Device kind of MYSTERY selected by hand removed");
     }
 
+    // #369: the panel, the exported log and the report show the same groups, each system in exactly one.
+    [Fact]
+    public void TheResultsAreGroupedByOutcomeInThePanelTheLogAndTheReport()
+    {
+        var log = new EventLog();
+        var database = DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified", platformLimits: "max_tiers: 2");
+        var viewModel = new MainViewModel(database, [], new ComputerIdentity("Dell Inc.", "Latitude 7450"), log: log);
+        viewModel.Load(Desk);
+        viewModel.Computers.Single().IsChecked = true;
+
+        var systems = viewModel.OutcomeRows.SelectMany(row => row.Systems.Split(", ")).ToList();
+        Assert.Equal(systems.Distinct().Count(), systems.Count);
+        Assert.Contains(viewModel.OutcomeRows, row => row.Title is "Good on:" or "Same issue on:" or "Unknown on:");
+        Assert.Contains("Results by outcome", log.Export(), StringComparison.Ordinal);
+        // The report and the export hold the same groups, title and systems, in the same order.
+        var report = viewModel.Report(new DateTime(2026, 11, 23, 18, 0, 0), null, null, "0.11.0");
+        var titles = viewModel.OutcomeRows.Select(row => row.Title + " " + row.Systems).ToList();
+        Assert.Equal(titles, report.Outcomes.Where(line => !line.StartsWith(' ')));
+        Assert.Equal(titles, log.Export().Split('\n').SkipWhile(line => line.Trim() != "Results by outcome").Skip(1)
+            .TakeWhile(line => line.Trim().Length > 0).Select(line => line.TrimEnd('\r')).Where(line => !line.StartsWith(' ')));
+    }
+
     [Fact]
     public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
     {
@@ -2408,7 +2430,9 @@ public class LogViewModelTests
         Assert.Contains(log.Entries, entry => entry.Text == "USB devices read: 1 controllers");
         Assert.Contains(log.Entries, entry => entry.Text == "Disconnected: MOUSE from Port 2 of ROOT");
         Assert.Contains(log.Entries, entry => entry.Text == "Profile checked: os-p");
-        Assert.Equal("Profile checked: os-p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)).Text);
+        // Findings and the grouped results (#369) follow from the check.
+        Assert.Equal("Profile checked: os-p", log.Entries.Last(entry => !entry.Text.StartsWith("Finding", StringComparison.Ordinal)
+            && !entry.Text.StartsWith("Results: ", StringComparison.Ordinal)).Text);
     }
 
     [Fact]

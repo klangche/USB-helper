@@ -57,6 +57,7 @@ public static class ReportPdf
         ReportTree.Place(layout, model.Tree);
         Results(layout, model);
         Displays(layout, model);
+        Outcomes(layout, model);
         PortsTested(layout, model);
         Findings(layout, model);
 
@@ -380,6 +381,20 @@ public static class ReportPdf
                     Table.Fit(display.ConnectedTo ?? Strings.ReportNotLinked, ReportLayout.Span(4)), connected, baseline);
                 Hairline(canvas, top + TableRow - 0.5f);
             });
+        }
+    }
+
+    // The results grouped by outcome (#369), the same lines as the exported log; issues indented under their group.
+    private static void Outcomes(ReportLayout layout, ReportModel model)
+    {
+        if (model.Outcomes.Count == 0)
+        {
+            return;
+        }
+        Heading(layout, Strings.ReportOutcomes, BodyLine);
+        foreach (var line in model.Outcomes.SelectMany(text => Body.Wrap(text, ReportLayout.Width)))
+        {
+            layout.Place(BodyLine, (canvas, top) => Body.Draw(canvas, line, ReportLayout.Left, top + 9));
         }
     }
 

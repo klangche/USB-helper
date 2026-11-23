@@ -92,6 +92,15 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         };
     }
 
+    // #369: an outcome issue selects its device in the tree.
+    private void SelectOutcomeIssue(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control { DataContext: OutcomeIssue issue } && DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectDevice(issue.SubjectId);
+        }
+    }
+
     // #276: the kind menu of the device row the request came from; built each time, so only device rows have one.
     private void OpenKindMenu(object? sender, ContextRequestedEventArgs e)
     {

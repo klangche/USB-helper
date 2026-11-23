@@ -42,6 +42,9 @@ public sealed record ReportModel(
     /// </summary>
     public IReadOnlyList<string> DatabaseFiles { get; init; } = [];
 
+    /// <summary>The results grouped by outcome (#369), as lines: a group's title and systems, then its issues indented.</summary>
+    public IReadOnlyList<string> Outcomes { get; init; } = [];
+
     /// <summary>"Ports tested" (#342): the summary of the ports the setup was tried on, or null when it was tried on none.</summary>
     public string? PortsTested { get; init; }
 }
