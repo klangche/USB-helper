@@ -74,8 +74,8 @@ public class TreeTextTests
 
         var lines = TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine);
 
-        Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1+0), devices: 2, deepest tier: 3)", lines[0]);
-        Assert.Equal("|-- Controller (Hubs: 2 (1+1+0), devices: 2, deepest tier: 3)", lines[1]);
+        Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1), devices: 2, deepest tier: 3)", lines[0]);
+        Assert.Equal("|-- Controller (Hubs: 2 (1+1), devices: 2, deepest tier: 3)", lines[1]);
     }
 
     // #230: a header names the company, the room and the licensed email when any is set.

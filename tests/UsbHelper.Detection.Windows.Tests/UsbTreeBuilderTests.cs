@@ -272,7 +272,7 @@ public class UsbTreeBuilderTests
     }
 
     // #298: Windows reports a USB 3 hub as two hubs, the USB 2 half on a USB 2 port and the SuperSpeed half on a USB 3
-    // port, each with its port's bus, so it counts once on each bus: "2 (1+1+0)", as on macOS.
+    // port, each with its port's bus, so it counts once on each bus: "2 (1+1)", as on macOS.
     [Fact]
     public void AUsbThreeHubIsOneHubOnEachBus()
     {
@@ -285,7 +285,7 @@ public class UsbTreeBuilderTests
 
         Assert.Equal([UsbBus.Usb2, UsbBus.Usb3], controller.Children[0].Children.Select(port => port.Bus));
         Assert.All(controller.Children[0].Children, port => Assert.Equal(UsbNodeKind.Hub, Assert.Single(port.Children).Kind));
-        Assert.Equal("2 (1+1+0)", TopologyCounts.PerBus([controller]).HubsText);
+        Assert.Equal("2 (1+1)", TopologyCounts.PerBus([controller]).HubsText);
     }
 
     // #342: the device's physical location (_PLD) reaches its node, so the two halves of a USB-C port can be paired.

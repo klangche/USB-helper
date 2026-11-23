@@ -348,7 +348,7 @@
                              IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
-                  <!-- "Hubs: 4 (3+1+0), ...": the hubs per bus in brackets, USB 2, USB 3, USB 4 (#217, #298); hovering
+                  <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB 2, USB 3 (#217, #298), then any USB4 routers (#359); hovering
                        shows the text and which bus is which. -->
                   <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding CountsTip}"
                               IsVisible="{Binding Counts, Converter={x:Static ObjectConverters.IsNotNull}}">
@@ -357,8 +357,6 @@
                       <TextBlock Text="{Binding CountsUsb2}" FontWeight="SemiBold" />
                       <TextBlock Text="+" />
                       <TextBlock Text="{Binding CountsUsb3}" FontWeight="SemiBold" />
-                      <TextBlock Text="+" />
-                      <TextBlock Text="{Binding CountsUsb4}" FontWeight="SemiBold" />
                     </StackPanel>
                     <TextBlock Text="{Binding CountsTail}" />
                   </StackPanel>

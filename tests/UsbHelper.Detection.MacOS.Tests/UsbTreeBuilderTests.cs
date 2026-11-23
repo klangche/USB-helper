@@ -177,7 +177,7 @@ public class UsbTreeBuilderTests
         Assert.All(hub3.Children, port => Assert.Equal(UsbBus.Usb3, port.Bus));
         Assert.Equal("USB 10/100/1000 LAN", hub3.Children[3].Children[0].Name);
         // #298: the two halves of the USB 3 hub count once on each bus, the USB 2 hub on its USB 2 half on USB 2.
-        Assert.Equal("3 (2+1+0)", TopologyCounts.PerBus(tree).HubsText);
+        Assert.Equal("3 (2+1)", TopologyCounts.PerBus(tree).HubsText);
     }
 
     [Fact]
@@ -390,6 +390,27 @@ public class UsbTreeBuilderTests
         Assert.Equal(1, Of("WPP20").Usb4Routers);
         // Without the reading, nothing is assumed.
         Assert.Null(UsbTreeBuilder.Build(DockControllers, null)[0].Usb4Routers);
+    }
+
+    // #359: the counts show the dock as a USB4 router, not a "+0" USB 4 hub; the Apple silicon root ports are the Mac's
+    // own, so no dock hub is "possibly built in"; the log names the router.
+    [Fact]
+    public void TheDockIsAUsb4RouterAndTheMacsRootPortsAreItsOwn()
+    {
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        var counts = TopologyCounts.PerBus(tree);
+
+        Assert.Equal(1, counts.Usb4Routers);
+        Assert.Equal("USB4 routers: 1", counts.RoutersText);
+        Assert.DoesNotContain("+0", counts.HubsText);
+        Assert.Empty(TopologyCounts.PossiblyBuiltIn(tree));
+        Assert.All(tree[0].Children[0].Children, port => Assert.True(port.UserConnectable));
+        var log = new UsbHelper.Core.Diagnostics.EventLog();
+        log.TreeRead(tree);
+        Assert.Contains(log.Entries, entry => entry.Text.StartsWith("USB4 routers of ", StringComparison.Ordinal)
+            && entry.Text.EndsWith(": 1 (thunderboltusb4_bus_0: PS9010)", StringComparison.Ordinal));
+        // Without the reading there is no USB4 line.
+        Assert.Null(TopologyCounts.PerBus(UsbTreeBuilder.Build(DockControllers, null)).RoutersText);
     }
 
     // The issue's check (#332) on the recorded dock: a guide with routers max 5, a hub chain and tiers. The router counts

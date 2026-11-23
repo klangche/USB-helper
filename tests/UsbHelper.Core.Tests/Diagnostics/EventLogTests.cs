@@ -389,7 +389,7 @@ public class EventLogTests
 
         log.TreeRead([Controller("C1", RootWithBuses("ROOT", Hub("HUB-USB2", Device("KEYBOARD")), Hub("HUB-USB3", Device("DISK"))))]);
 
-        Assert.Equal(["USB devices read: 1 controllers", "Hubs of C1: 2 (1+1+0) (USB 2+USB 3+USB 4)"], Texts(log));
+        Assert.Equal(["USB devices read: 1 controllers", "Hubs of C1: 2 (1+1) (USB 2+USB 3)"], Texts(log));
     }
 
     // #358: a difference is logged once per session, also when it goes away and comes back; the export keeps the current ones.

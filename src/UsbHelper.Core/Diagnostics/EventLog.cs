@@ -103,7 +103,12 @@ public sealed class EventLog(TimeProvider? clock = null)
             if (Topology.TopologyCounts.PerBus([controller]) is { Hubs: > 0 } perBus)
             {
                 var unknown = perBus.UnknownBusHubs > 0 ? $"; {perBus.UnknownBusHubs} on ports whose bus is not reported" : "";
-                Add($"Hubs of {controller.Name}: {perBus.HubsText}{(perBus.AnyBusKnown ? " (USB 2+USB 3+USB 4)" : "")}{unknown}");
+                Add($"Hubs of {controller.Name}: {perBus.HubsText}{(perBus.AnyBusKnown ? " (USB 2+USB 3)" : "")}{unknown}");
+            }
+            // #359: a USB4 dock is a router, not a hub; say so, with what reports it.
+            if (controller.Usb4Routers is > 0 and var routers)
+            {
+                Add($"USB4 routers of {controller.Name}: {routers}{(controller.Usb4Link is { } link ? $" ({link})" : "")}");
             }
             // So the owner can check that the firmware reports its USB-C ports (#114).
             foreach (var hub in Below(controller, location: null).Select(item => item.Node).Where(node => node.Kind == UsbNodeKind.Hub))
