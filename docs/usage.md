@@ -31,7 +31,20 @@ inside the computer or on a hub. USB-A versus USB-B, the DisplayPort lanes,
 power and the cable's e-marker are never read, so the hover says they are not
 detected. While hovering, the rows from the computer to that port are
 highlighted in light blue. Empty ports are left
-out. A port with a problem keeps its own row, "Port 2: ...", with what is on
+out.
+
+A camera or an audio device has a symbol in front of its name (#276): 📷 for a
+camera, 🎙 for a microphone or speaker, both for a webcam with a microphone.
+Hovering the symbol says what the device is, how the app knows (reported by the
+operating system, or selected by you), why it is judged more strictly (cameras
+and audio devices send a steady stream, so they get a lower depth), and the
+limits of the guide in use for that kind with their source. When the system
+does not say, select the kind by hand: right-click a device row (or press
+Shift+F10 or the menu key) and choose Camera, Audio, Camera and audio, or
+Neither; "Use what the system reports" removes it. A kind selected by hand has
+"✎" after its symbol, is judged by the same stricter rules, is noted in the log
+("Device kind of … selected by hand: camera") and is carried in the setup export.
+Like the cable marks, it lasts until the app closes. A port with a problem keeps its own row, "Port 2: ...", with what is on
 it below. Only the USB controller rows can be collapsed: click a controller's
 chevron, double-click it, or use the left and right arrow keys to hide or show
 its tree; while it is hidden the controller's name is bold. Only the

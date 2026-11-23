@@ -235,6 +235,86 @@ public sealed class NodeViewModel : ObservableObject
     public bool ShowsChildren => HasChildren && IsExpanded;
 
     /// <summary>A connected DisplayLink device: the view shows it as a display.</summary>
+    /// <summary>True for a connected device: its kind can be selected by hand (#276).</summary>
+    public bool IsDevice
+    {
+        get => isDevice;
+        private set => SetField(ref isDevice, value);
+    }
+
+    private bool isDevice;
+
+    /// <summary>The device's kind, reported by the system or selected by hand (#276); null for everything else.</summary>
+    public UsbDeviceKind? DeviceKind
+    {
+        get => deviceKind;
+        private set
+        {
+            if (SetField(ref deviceKind, value))
+            {
+                OnPropertyChanged(nameof(KindSymbol));
+                OnPropertyChanged(nameof(KindTip));
+            }
+        }
+    }
+
+    private UsbDeviceKind? deviceKind;
+
+    /// <summary>True when <see cref="DeviceKind"/> was selected by hand, not reported by the system (#276).</summary>
+    public bool KindByUser
+    {
+        get => kindByUser;
+        private set
+        {
+            if (SetField(ref kindByUser, value))
+            {
+                OnPropertyChanged(nameof(KindSymbol));
+                OnPropertyChanged(nameof(KindTip));
+            }
+        }
+    }
+
+    private bool kindByUser;
+
+    /// <summary>
+    /// The symbol in front of a camera's or audio device's name (#276): a camera, a microphone, or both; a hand-selected
+    /// kind is marked with "✎". Null for every other row.
+    /// </summary>
+    public string? KindSymbol => DeviceKind switch
+    {
+        UsbDeviceKind.Camera => "📷",
+        UsbDeviceKind.Audio => "🎙",
+        UsbDeviceKind.CameraAndAudio => "📷🎙",
+        _ => null,
+    } is { } symbol ? KindByUser ? symbol + "✎" : symbol : null;
+
+    /// <summary>The limits that apply to this kind and their source, from the guide in use (#276); set by the main view model.</summary>
+    public string? KindLimits
+    {
+        get => kindLimits;
+        internal set
+        {
+            if (SetField(ref kindLimits, value))
+            {
+                OnPropertyChanged(nameof(KindTip));
+            }
+        }
+    }
+
+    private string? kindLimits;
+
+    /// <summary>
+    /// Hovering the symbol (#276): what the device is, how the app knows, why it is judged more strictly, then the limits
+    /// that apply and their source.
+    /// </summary>
+    public string? KindTip => KindSymbol == null ? null : string.Join(Environment.NewLine, new[]
+    {
+        DeviceKind switch { UsbDeviceKind.Camera => Strings.KindCamera, UsbDeviceKind.Audio => Strings.KindAudio, _ => Strings.KindCameraAndAudio },
+        KindByUser ? Strings.KindSelectedByHand : Strings.KindReported,
+        Strings.KindWhyStricter,
+        KindLimits,
+    }.Where(line => line != null));
+
     public bool IsDisplay
     {
         get => isDisplay;
@@ -683,6 +763,9 @@ public sealed class NodeViewModel : ObservableObject
     {
         IsLast = last;
         Text = Describe(node, IsDisconnected);
+        IsDevice = node.Kind == UsbNodeKind.Device && !IsDisconnected;
+        DeviceKind = node.DeviceKind;
+        KindByUser = node.KindByUser;
         isHub = node.Kind == UsbNodeKind.Hub;
         isController = node.Kind == UsbNodeKind.Controller;
         // An unplugged device is no display now.

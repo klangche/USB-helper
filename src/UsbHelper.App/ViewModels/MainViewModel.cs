@@ -901,7 +901,7 @@ public sealed class MainViewModel : ObservableObject
     // ones included.
     private SetupFile Setup(DateOnly date, string appVersion)
     {
-        var (containerFree, displays) = SetupFile.AnonymizeContainers(tree, monitors);
+        var (containerFree, displays) = SetupFile.AnonymizeContainers(Judged, monitors);
         var (controllers, anonymousMarks) = SetupFile.Anonymize(containerFree, marks);
         var options = Checked;
         IReadOnlyList<SetupResult> results = options.Count == 0
@@ -1181,6 +1181,54 @@ public sealed class MainViewModel : ObservableObject
     public string StatusScope => string.Format(CultureInfo.CurrentCulture, Strings.StatusFor,
         tree.FirstOrDefault(controller => controller.Id == SelectedControllerId)?.Name ?? Strings.AllControllers);
 
+    // The device kinds selected by hand, per device id (#276): camera, audio, both or neither. Like the cable marks they
+    // last until the app closes.
+    private readonly Dictionary<string, UsbDeviceKind> kinds = [];
+
+    // The guide's rules for a camera or audio device (#276), with their numbers and source, for the symbol's hover.
+    private string KindLimits(UsbDeviceKind? kind)
+    {
+        string[] names = kind switch { UsbDeviceKind.Camera => ["camera"], UsbDeviceKind.Audio => ["audio"], UsbDeviceKind.CameraAndAudio => ["camera", "audio"], _ => [] };
+        var rules = Guide?.Rules.Where(rule => rule.Devices.Intersect(names).Any()).ToList() ?? [];
+        if (rules.Count == 0)
+        {
+            return Strings.KindLimitsNone;
+        }
+        string Number(long? value, bool none) => none ? "none" : value?.ToString(CultureInfo.CurrentCulture) ?? "–";
+        return string.Join(Environment.NewLine, rules.Select(rule =>
+            $"• {rule.Measure}{(rule.Bus is { } bus ? $" ({bus})" : "")}: recommended {Number(rule.Recommended, rule.RecommendedNone)}, "
+            + $"max {Number(rule.Max, rule.MaxNone)}{(rule.Source is { } source ? $" — {source}" : "")}").Prepend(Strings.KindLimitsTitle));
+    }
+
+    /// <summary>The tree as judged: each device kind selected by hand replaces what the system reports (#276).</summary>
+    private IReadOnlyList<UsbNode> Judged => kinds.Count == 0 ? tree : WithKinds(tree);
+
+    private IReadOnlyList<UsbNode> WithKinds(IReadOnlyList<UsbNode> nodes) =>
+        [.. nodes.Select(node => (kinds.TryGetValue(node.Id, out var kind) && node.Kind == UsbNodeKind.Device
+            ? node with { DeviceKind = kind, KindByUser = true } : node) with { Children = WithKinds(node.Children) })];
+
+    /// <summary>
+    /// Selects the kind of device <paramref name="deviceId"/> by hand (#276), or removes the selection (null): the device
+    /// then has the kind the system reports. Logged, and judged at once.
+    /// </summary>
+    public void SelectKind(string deviceId, UsbDeviceKind? kind)
+    {
+        if (UsbTree.Find(tree, deviceId) is not { Kind: UsbNodeKind.Device } device)
+        {
+            return;
+        }
+        log.DeviceKindSelected(device.Name, kind);
+        if (kind is { } selected)
+        {
+            kinds[deviceId] = selected;
+        }
+        else
+        {
+            kinds.Remove(deviceId);
+        }
+        Refresh();
+    }
+
     // A mark for an active cable or extender the operating system does not show, on the line from a port: it adds its
     // tiers to everything behind the port and its hubs on the port's bus (#307). Null removes the mark.
     private void Mark(string portId, CableMark? mark)
@@ -1311,34 +1359,35 @@ public sealed class MainViewModel : ObservableObject
 
     private void Refresh(IReadOnlyList<DisplayMonitor>? monitors)
     {
+        var judged = Judged; // The tree with the device kinds selected by hand (#276).
         this.monitors = monitors;
         log.Displays(monitors);
         var displays = DisplayMonitor.ExternalCount(monitors);
         var options = Checked;
         var profiles = options.Select(option => option.Profile).ToList();
-        var reconnected = history.Reconnected(tree);
+        var reconnected = history.Reconnected(judged);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
-        var missing = history.Missing(tree);
-        var all = DiagnosticEvaluator.EvaluateAll(tree, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
+        var missing = history.Missing(judged);
+        var all = DiagnosticEvaluator.EvaluateAll(judged, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
         lastReport = all;
         // Each port tried keeps its last result (#342); how the ports differ is a finding, and the summary goes to the
         // exported log and the report.
-        ports.Update(tree, all.Connections);
+        ports.Update(judged, all.Connections);
         portFindings = PortFindings();
         log.PortsTested(PortTesting.LogText(ports.Summary(PortsProfile(profiles)), ports.Differences()), [.. portFindings.Select(finding => finding.Message)]);
         // The log gets every finding of every checked profile for all controllers, the unknown ones included.
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
             : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
-        // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
-        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the tree.
+        // The judged needs only each line's worst status and the missing devices, which are the same for every profile.
+        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the judged.
         var lines = all.Counts with
         {
             Connections = all.Connections,
             NoMstMonitors = all.Profiles.SelectMany(each => each.Report.NoMstMonitors).ToHashSet(),
         };
 
-        // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
+        // Owner decision in #68: the status and findings cover the selected controller's judged. At start, and when it is
         // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a
         // tie the first.
         // Owner decision in #208: while following, a controller that grew and now has strictly more connected hubs and
@@ -1346,39 +1395,43 @@ public sealed class MainViewModel : ObservableObject
         // stays when it shrinks, so a brief drop does not jump away and its disconnected devices stay in view.
         // #212: for following, a controller's size counts its disconnected devices too, so a dropped dock keeps its place
         // against a small device plugged in elsewhere. The busiest pick above (#68) counts connected ones only.
-        var connected = tree.ToDictionary(controller => controller.Id, controller => TopologyCounts.Depths([controller]).Count);
-        var sizes = tree.ToDictionary(controller => controller.Id,
+        var connected = judged.ToDictionary(controller => controller.Id, controller => TopologyCounts.Depths([controller]).Count);
+        var sizes = judged.ToDictionary(controller => controller.Id,
             controller => connected[controller.Id] + missing.Count(device => device.AncestorIds.Contains(controller.Id)));
-        if (!allControllers && tree.All(controller => controller.Id != selectedControllerId))
+        if (!allControllers && judged.All(controller => controller.Id != selectedControllerId))
         {
-            selectedControllerId = tree.MaxBy(controller => connected[controller.Id])?.Id;
+            selectedControllerId = judged.MaxBy(controller => connected[controller.Id])?.Id;
         }
         else if (following && selectedControllerId != null)
         {
             var current = sizes[selectedControllerId];
-            selectedControllerId = tree
+            selectedControllerId = judged
                 .Where(controller => sizes[controller.Id] > controllerSizes.GetValueOrDefault(controller.Id) && sizes[controller.Id] > current)
                 .MaxBy(controller => sizes[controller.Id])?.Id ?? selectedControllerId;
         }
         controllerSizes = sizes;
-        var selected = tree.FirstOrDefault(controller => controller.Id == SelectedControllerId);
+        var selected = judged.FirstOrDefault(controller => controller.Id == SelectedControllerId);
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, marks, tree, monitors, Guide);
+                reconnectedIds, marks, judged, monitors, Guide);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
-        UpdateBusCounts(selected == null ? tree : [selected]);
+        UpdateBusCounts(selected == null ? judged : [selected]);
 
-        var placement = MonitorPlacement.Place(tree, monitors ?? []);
-        log.DisplayLinks(placement, tree);
+        var placement = MonitorPlacement.Place(judged, monitors ?? []);
+        log.DisplayLinks(placement, judged);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, tree, lines, marks, Mark, placement));
+            Roots.Add(NodeViewModel.Host(HostName, judged, lines, marks, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, tree, lines, marks, placement);
+            Roots[0].UpdateHost(HostName, judged, lines, marks, placement);
+        }
+        foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null))
+        {
+            row.KindLimits = KindLimits(row.DeviceKind);
         }
         // Owner decisions in #142 and #208: while following, only the selected controller is open, and only when it has
         // devices, connected or disconnected. Once the user opens or closes a controller, their choices are kept.
@@ -1407,7 +1460,7 @@ public sealed class MainViewModel : ObservableObject
 
         StatusRows.Clear();
         // The profiles judge the hubs of the whole computer.
-        var hubs = NodeViewModel.Count(tree, marks) is { } counted
+        var hubs = NodeViewModel.Count(judged, marks) is { } counted
             ? counted.AtLeast
                 ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, NodeViewModel.HubsNumbers(counted))
                 : NodeViewModel.HubsNumbers(counted)

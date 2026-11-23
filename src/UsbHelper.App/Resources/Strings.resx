@@ -1057,4 +1057,46 @@ This version keeps running.</value>
   <data name="PortNeverDetected" xml:space="preserve">
     <value>Not detected: DisplayPort lanes, power and the cable's e-marker.</value>
   </data>
+  <data name="KindCamera" xml:space="preserve">
+    <value>A camera.</value>
+  </data>
+  <data name="KindAudio" xml:space="preserve">
+    <value>An audio device (microphone or speaker).</value>
+  </data>
+  <data name="KindCameraAndAudio" xml:space="preserve">
+    <value>A camera with audio (microphone or speaker).</value>
+  </data>
+  <data name="KindReported" xml:space="preserve">
+    <value>Reported by the operating system.</value>
+  </data>
+  <data name="KindSelectedByHand" xml:space="preserve">
+    <value>Selected by you, not reported by the operating system. Right-click the row to change or remove it.</value>
+  </data>
+  <data name="KindWhyStricter" xml:space="preserve">
+    <value>Cameras and audio devices send a steady stream, so they are judged more strictly: they get a lower depth.</value>
+  </data>
+  <data name="KindLimitsNone" xml:space="preserve">
+    <value>The guide in use has no stricter limit for this kind.</value>
+  </data>
+  <data name="KindLimitsTitle" xml:space="preserve">
+    <value>Limits for this kind:</value>
+  </data>
+  <data name="KindMenu" xml:space="preserve">
+    <value>Device kind</value>
+  </data>
+  <data name="KindMenuCamera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="KindMenuAudio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="KindMenuBoth" xml:space="preserve">
+    <value>Camera and audio</value>
+  </data>
+  <data name="KindMenuNeither" xml:space="preserve">
+    <value>Neither</value>
+  </data>
+  <data name="KindMenuRemove" xml:space="preserve">
+    <value>Use what the system reports</value>
+  </data>
 </root>

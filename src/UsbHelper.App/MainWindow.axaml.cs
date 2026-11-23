@@ -89,6 +89,15 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         };
     }
 
+    // #276: a kind from the row's context menu; the item without a tag removes the hand-selected kind.
+    private void SelectKind(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { DataContext: NodeViewModel item } menuItem && DataContext is MainViewModel viewModel)
+        {
+            viewModel.SelectKind(item.Id, menuItem.Tag is string tag && Enum.TryParse<UsbHelper.Core.Detection.UsbDeviceKind>(tag, out var kind) ? kind : null);
+        }
+    }
+
     // #266: hovering a port box shows its connector and highlights the path to it; leaving clears the highlight.
     private void PortBoxEntered(object? sender, PointerEventArgs e)
     {

@@ -251,6 +251,11 @@ public sealed class EventLog(TimeProvider? clock = null)
 
     /// <param name="name">The hub or device the marked line leads to.</param>
     /// <param name="mark">The mark, as the menu offers it (#307); null when the mark was removed.</param>
+    /// <summary>A device kind selected by hand (#276), or removed (null): the device goes back to what the system reports.</summary>
+    public void DeviceKindSelected(string name, UsbDeviceKind? kind) =>
+        Add(kind is { } selected ? $"Device kind of {name} selected by hand: {DeviceKindText(selected)}"
+            : $"Device kind of {name} selected by hand removed");
+
     public void CableMark(string name, Topology.CableMark? mark) =>
         Add(mark == null ? $"Cable mark removed from the line to {name}"
             : $"Cable mark: {mark}{(mark.IsActiveExtension ? " (active extension)" : "")} on the line to {name}");
