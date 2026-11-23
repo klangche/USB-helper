@@ -342,12 +342,11 @@ not a reconnect: the status says "The setup was plugged back into USB-C port
 1." A single device that drops and comes back while the rest of the port stays
 connected is still marked "reconnected".
 
-Each port tried keeps its last result. Only ports that had the same hubs and
-devices are compared, so a device that was not plugged in on one port is not a
+Each port tried keeps its last result. Only ports that had the same devices
+are compared, so a device that was not plugged in on one port is not a
 difference, and each difference is logged once. How the ports differ is listed with the
-findings, in the log and in the PDF report: a device that did not connect on
-one port ("On Port 3 the Camera did not connect; on Port 1 it did."), that has
-an error on one only, that runs on USB 2 on one ("On Port 2 the Camera runs on
+findings, in the log and in the PDF report: a device that has an error on one
+port only, that runs on USB 2 on one ("On Port 2 the Camera runs on
 USB 2 (USB 3 on Port 1).") or a setup within the limits on one port and over
 one on another. The exported log ends with, and the PDF report has, "Ports
 tested": "Tested on 2 of 3 ports: Port 1 stable, Port 2 potentially unstable

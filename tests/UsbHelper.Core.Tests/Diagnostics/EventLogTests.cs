@@ -391,4 +391,19 @@ public class EventLogTests
 
         Assert.Equal(["USB devices read: 1 controllers", "Hubs of C1: 2 (1+1+0) (USB 2+USB 3+USB 4)"], Texts(log));
     }
+
+    // #358: a difference is logged once per session, also when it goes away and comes back; the export keeps the current ones.
+    [Fact]
+    public void EachPortDifferenceIsLoggedOnce()
+    {
+        var log = NewLog();
+        const string usb2 = "On Port 2 the Camera runs on USB 2 (USB 3 on Port 1).";
+
+        log.PortsTested("Tested on 2 of 3 ports.", [usb2]);
+        log.PortsTested("Tested on 2 of 3 ports.", []);
+        log.PortsTested("Tested on 2 of 3 ports.", [usb2]);
+
+        Assert.Equal([usb2], Texts(log));
+        Assert.EndsWith(usb2 + Environment.NewLine, log.Export());
+    }
 }

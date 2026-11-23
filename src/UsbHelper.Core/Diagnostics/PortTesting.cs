@@ -41,9 +41,6 @@ public sealed record PortResult(ComputerPort Port, ConnectionStatus Status, IRea
 /// <summary>How a port was worse than another with the same setup (#342).</summary>
 public enum PortDifferenceKind
 {
-    /// <summary>A device that connected on the better port did not on the worse one.</summary>
-    Missing,
-
     /// <summary>A device had an error on the worse port and none on the better one.</summary>
     Error,
 
@@ -83,7 +80,11 @@ public sealed class PortTesting
 
     // Ports that had a setup and are empty now, with what was behind them: a later change may bring it to another port.
     // What left each computer port this session, and whether the port emptied since (#358).
-    private readonly Dictionary<string, (ComputerPort Port, List<UsbNode> Nodes, bool Emptied)> departed = [];
+    private readonly Dictionary<string, Departed> departed = [];
+
+    // What left a computer port and has not come back: whether the port then emptied, and, for what a move left
+    // behind, the port it moved to; such leftovers wait only while that port keeps receiving the rest of the setup.
+    private sealed record Departed(ComputerPort Port, List<UsbNode> Nodes, bool Emptied, string? MovedTo = null);
 
     /// <summary>The computer's own ports in <paramref name="tree"/>, in tree order: user-connectable, or not said, on a root hub or a built-in hub.</summary>
     public static IReadOnlyList<ComputerPort> PortsOf(IReadOnlyList<UsbNode> tree) => [.. Ports(tree).Select(each => each.Port)];
@@ -111,10 +112,11 @@ public sealed class PortTesting
             if (left.Count > 0)
             {
                 var known = departed.GetValueOrDefault(id);
-                departed[id] = (port, [.. known.Nodes ?? [], .. left], known.Emptied || !portsAfter.ContainsKey(id));
+                departed[id] = new Departed(port, [.. known?.Nodes ?? [], .. left], known?.Emptied == true || !portsAfter.ContainsKey(id));
             }
         }
         SetupMove? move = null;
+        var fed = new HashSet<string>(); // Ports whose leftovers received more of their setup in this change.
         foreach (var (id, (to, nodes)) in portsAfter)
         {
             var was = portsBefore.TryGetValue(id, out var earlier) ? earlier.Nodes.Select(node => node.Id).ToHashSet() : [];
@@ -132,18 +134,52 @@ public sealed class PortTesting
                     {
                         departed.Remove(sourceId);
                     }
+                    else
+                    {
+                        departed[sourceId] = source with { MovedTo = to.Id };
+                        fed.Add(sourceId);
+                    }
                     found = new SetupMove(source.Port, to, matched, [.. source.Nodes]);
                     break;
                 }
             }
-            // Something else on a port that had emptied: what left it is not looked for any more.
-            if (found == null && departed.TryGetValue(id, out var gone) && gone.Emptied)
+            if (found == null && departed.TryGetValue(id, out var gone))
             {
-                departed.Remove(id);
+                if (gone.Emptied)
+                {
+                    // Something else on a port that had emptied: what left it is not looked for any more.
+                    departed.Remove(id);
+                }
+                else
+                {
+                    // Back on a port that stayed connected (#54, "reconnected"): no longer waiting.
+                    Forget(gone.Nodes, arrived);
+                    if (gone.Nodes.Count == 0)
+                    {
+                        departed.Remove(id);
+                    }
+                }
             }
             move ??= found;
         }
+        // What a move left behind waits only while the rest of the setup keeps arriving; then it is not back.
+        foreach (var (sourceId, source) in departed.Where(each => each.Value.MovedTo != null && !fed.Contains(each.Key)).ToList())
+        {
+            departed.Remove(sourceId);
+        }
         return move;
+    }
+
+    // Takes one waiting node of the same vendor and product id for each arrived node that has one.
+    private static void Forget(List<UsbNode> waiting, IReadOnlyList<UsbNode> arrived)
+    {
+        foreach (var node in arrived)
+        {
+            if (Key(node) is { } key && waiting.FirstOrDefault(old => Key(old) == key) is { } match)
+            {
+                waiting.Remove(match);
+            }
+        }
     }
 
     // Pairs every arrived node with a waiting one of the same vendor and product id, and takes those from the waiting
@@ -227,8 +263,8 @@ public sealed class PortTesting
         var tried = Tried;
         foreach (var better in tried)
         {
-            // Like with like (#358): only ports where the same hubs and devices were connected, so a device that was not
-            // plugged in on one port is no difference, and a limit is compared only for the same setup.
+            // Like with like (#358): only ports where the same devices were connected, so a device that was not plugged in
+            // on one port is no difference, and a limit is compared only for the same setup.
             foreach (var worse in tried.Where(other => other != better && SameSetup(other, better)))
             {
                 var found = differences.Count;
@@ -296,7 +332,6 @@ public sealed class PortTesting
     /// <summary>A difference as a finding's text, in English: "On Port 2 the Camera runs on USB 2 (USB 3 on Port 1)."</summary>
     public static string DifferenceText(PortDifference difference) => difference.Kind switch
     {
-        PortDifferenceKind.Missing => $"On {difference.Worse.Name} the {difference.Device} did not connect; on {difference.Better.Name} it did.",
         PortDifferenceKind.Error => $"On {difference.Worse.Name} the {difference.Device} has an error; on {difference.Better.Name} it has none.",
         PortDifferenceKind.Usb2 => $"On {difference.Worse.Name} the {difference.Device} runs on USB 2 (USB 3 on {difference.Better.Name}).",
         _ => $"On {difference.Worse.Name} the setup is over a limit ({Word(difference.Status)}); on {difference.Better.Name} it is within.",
@@ -317,7 +352,6 @@ public sealed class PortTesting
         differences.FirstOrDefault(difference => difference.Worse.Id == result.Port.Id && difference.Kind != PortDifferenceKind.Limit) is { } worse
             ? worse.Kind switch
             {
-                PortDifferenceKind.Missing => $" ({worse.Device} did not connect)",
                 PortDifferenceKind.Error => $" ({worse.Device} has an error)",
                 _ => $" ({worse.Device} on USB 2)",
             }

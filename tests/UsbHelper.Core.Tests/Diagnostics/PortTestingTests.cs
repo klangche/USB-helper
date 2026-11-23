@@ -83,6 +83,37 @@ public class PortTestingTests
         Assert.Null(testing.Note(withoutCamera, Computer(1)));
     }
 
+    // A device that dropped and came back on a port that stayed connected is no longer waiting (#358 review): after the
+    // setup moves, the same device dropping on the new port is still "reconnected", not a move from the old one.
+    [Fact]
+    public void ADeviceThatCameBackIsNotLeftWaiting()
+    {
+        var testing = new PortTesting();
+        var withoutCamera1 = Computer(1, Dock("P1", withCamera: false));
+        var withoutCamera3 = Computer(3, Dock("P3", withCamera: false));
+        testing.Note(Computer(1), withoutCamera1);
+        testing.Note(withoutCamera1, Computer(1));
+        testing.Note(Computer(1), Empty);
+        var move = testing.Note(Empty, Computer(3))!;
+        Assert.Empty(move.NotBack);
+
+        testing.Note(Computer(3), withoutCamera3);
+        Assert.Null(testing.Note(withoutCamera3, Computer(3)));
+    }
+
+    // What a move left behind is not claimed by a later arrival once the rest of the setup stopped arriving.
+    [Fact]
+    public void WhatAMoveLeftBehindIsForgotten()
+    {
+        var testing = new PortTesting();
+        var withoutCamera3 = Computer(3, Dock("P3", withCamera: false));
+        testing.Note(Computer(1), Empty);
+        Assert.Single(testing.Note(Empty, withoutCamera3)!.NotBack); // The camera stayed behind.
+        testing.Note(withoutCamera3, withoutCamera3); // A change with nothing new.
+
+        Assert.Null(testing.Note(withoutCamera3, Computer(3))); // The camera plugged in later is not a move from port 1.
+    }
+
     // The halves of a USB-C port arrive as two changes (#358): the USB 2 half first, then the USB 3 half; both join the
     // move from the empty port, and nothing is left behind.
     [Fact]
