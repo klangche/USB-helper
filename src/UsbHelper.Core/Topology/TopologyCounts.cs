@@ -180,7 +180,9 @@ public static class TopologyCounts
             {
                 // Inside the computer (#330): on a port that is not user-connectable, or a node Windows puts in the
                 // computer's own container (InLocalMachineContainer). Outside: a node Windows puts in another container.
-                var inside = builtIn && (port.UserConnectable == false || connected.InLocalMachine == true);
+                // The container is the stronger evidence: it describes the device itself, not the port, so when the two
+                // disagree (an internal port with a device outside the PC on it), the node counts as outside.
+                var inside = builtIn && connected.InLocalMachine != false && (port.UserConnectable == false || connected.InLocalMachine == true);
                 var outside = builtIn && connected.InLocalMachine == false;
                 if (connected.Kind == UsbNodeKind.Hub && inside)
                 {
@@ -210,9 +212,12 @@ public static class TopologyCounts
     // "Port 2 of HUB1", as the user sees the port the mark is on.
     private static string PortName(UsbNode hub, UsbNode port) => $"{port.Name} of {hub.Name}";
 
+    // A hub in the computer's own container is built in, and one outside it is known to be external (#330), as Below
+    // counts them; only a hub with neither reading on a port of unknown kind is possibly built in.
     private static IEnumerable<UsbNode> PossiblyBuiltInBelow(UsbNode builtInHub) =>
         builtInHub.Children.SelectMany(port => port.Children.Where(node => node.Kind == UsbNodeKind.Hub).SelectMany(hub =>
-            port.UserConnectable == false ? PossiblyBuiltInBelow(hub)
+            hub.InLocalMachine == false ? []
+            : port.UserConnectable == false || hub.InLocalMachine == true ? PossiblyBuiltInBelow(hub)
             : port.UserConnectable == null ? [hub]
             : []));
 }

@@ -292,11 +292,26 @@ public class UsbTreeBuilderTests
     [Fact]
     public void ThePhysicalLocationOfADeviceIsOnItsNode()
     {
-        var dock = new RawDevNode(@"USB\VID_1DA0&PID_901B\5&242A2F40&0&2", "USB2.0 Hub", null) { PhysicalLocation = "01000000080003000104000100000000FFFFFFFF", InLocalMachine = false };
+        var dock = new RawDevNode(@"USB\VID_1DA0&PID_901B\5&242A2F40&0&2", "USB2.0 Hub", null) { PhysicalLocation = "01000000080003000104000100000000FFFFFFFF" };
 
         var root = BuildSingle(DevicePort(2, dock));
 
         Assert.Equal("01000000080003000104000100000000FFFFFFFF", root.Children[0].Children[0].Children[0].PhysicalLocation);
-        Assert.False(root.Children[0].Children[0].Children[0].InLocalMachine); // #330: outside the PC.
+    }
+
+    // #330: InLocalMachineContainer reaches a hub's node and a device's node, and stays null where Windows gives none.
+    [Fact]
+    public void TheLocalMachineContainerOfANodeIsOnItsNode()
+    {
+        var hubNode = new RawDevNode(@"USB\VID_8087&PID_0033\5&1&0&3", "Internal hub", null) { InLocalMachine = true };
+        var inside = new RawHub(hubNode, [DevicePort(1, new RawDevNode(@"USB\VID_1DA0&PID_901B\6&1&0&1", "Dock hub", null) { InLocalMachine = false })], null);
+        var unknown = new RawDevNode(@"USB\VID_046D&PID_C52B\5&1&0&4", "Receiver", null);
+
+        var root = BuildSingle(new RawPort(3, 1, true, 0x8087, 0x0033, hubNode, inside), DevicePort(4, unknown));
+
+        var hub = root.Children[0].Children[0].Children[0];
+        Assert.True(hub.InLocalMachine);
+        Assert.False(hub.Children[0].Children[0].InLocalMachine);
+        Assert.Null(root.Children[0].Children[1].Children[0].InLocalMachine);
     }
 }
