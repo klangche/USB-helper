@@ -268,4 +268,64 @@ public class PortTestingTests
         testing.Update(tree, new Dictionary<string, ConnectionStatus>());
         Assert.Equal(["Port 1 on Root hub 1", "Port 2", "Port 10", "Port 1 on Root hub 2"], testing.Summary().NotTried.Select(port => port.Name));
     }
+
+    // The owner's Asus with the USB4 dock (#354): one USB-C connector, its USB 3 half on the Type-C controller (TXHC,
+    // SS01) and its USB 2 half on the PCH controller (XHCI, HS02). The dock hubs on both have the same _PLD.
+    private const string DockPld = "01000000080003000104000100000000FFFFFFFF";
+
+    private static UsbNode RootPort(string hub, int number, UsbBus bus, UsbNode? child, bool? userConnectable = true, string? companion = null) =>
+        new($"{hub}|port{number}", UsbNodeKind.Port, $"Port {number}", child == null ? [] : [child])
+        {
+            PortNumber = number,
+            Bus = bus,
+            UserConnectable = userConnectable,
+            CompanionPortId = companion,
+        };
+
+    private static IReadOnlyList<UsbNode> Asus(bool dock)
+    {
+        var usb3 = dock ? Ids(Hub("DOCK3", Ids(Hub("GENESYS3", Ids(Device("LAN") with { Name = "USB 10/100/1000 LAN" }, 0x0BDA, 0x8153)), 0x05E3, 0x0626)), 0x1DA0, 0x901A)
+            with
+        { PhysicalLocation = DockPld } : null;
+        var usb2 = dock ? Ids(Hub("DOCK2", Ids(Hub("GENESYS2", Ids(Device("WPP20") with { Name = "WPP20" }, 0x6993, 0xB022)), 0x05E3, 0x0610)), 0x1DA0, 0x901B)
+            with
+        { PhysicalLocation = DockPld } : null;
+        var webcam = Ids(Device("WEBCAM"), 0x13D3, 0x56EB) with { PhysicalLocation = "01000000000000000000800300000000FFFFFFFF" };
+        return
+        [
+            Controller("PCH", new UsbNode("XHCI", UsbNodeKind.Hub, "XHCI root hub",
+                [RootPort("XHCI", 2, UsbBus.Usb2, usb2), RootPort("XHCI", 7, UsbBus.Usb2, webcam, userConnectable: false)])),
+            Controller("TYPEC", new UsbNode("TXHC", UsbNodeKind.Hub, "TXHC root hub", [RootPort("TXHC", 1, UsbBus.Usb3, usb3)])),
+        ];
+    }
+
+    [Fact]
+    public void TheTwoHalvesOfAUsbCPortOnTwoControllersAreOnePort()
+    {
+        var port = Assert.Single(PortTesting.PortsOf(Asus(dock: true)));
+        Assert.Equal("TXHC|port1", port.Id); // The USB 3 half names it.
+        Assert.Equal(UsbBus.Usb3, port.Bus);
+
+        var testing = new PortTesting();
+        testing.Update(Asus(dock: true), Green(Asus(dock: true)));
+        var tried = Assert.Single(testing.Tried);
+        Assert.Equal(["USB 10/100/1000 LAN", "WPP20"], tried.Devices.Values.Select(device => device.Name).Order()); // Both halves' devices.
+        Assert.Equal("Tested on 1 of 1 ports, all stable.", PortTesting.LogText(testing.Summary(), testing.Differences()));
+    }
+
+    // An empty port has no device and so no _PLD: the hub's companion pairs the halves instead.
+    [Fact]
+    public void EmptyCompanionPortsAreOnePort()
+    {
+        IReadOnlyList<UsbNode> tree = [Controller("C1", new UsbNode("ROOT", UsbNodeKind.Hub, "Root hub",
+            [RootPort("ROOT", 1, UsbBus.Usb2, null, companion: "ROOT|port15"), RootPort("ROOT", 15, UsbBus.Usb3, null, companion: "ROOT|port1")]))];
+
+        var port = Assert.Single(PortTesting.PortsOf(tree));
+        Assert.Equal("ROOT|port15", port.Id);
+        Assert.Equal("Port 15", port.Name);
+    }
+
+    // Without either, ports stay separate (the Mac, and the tests above).
+    [Fact]
+    public void PortsWithoutALocationOrACompanionStaySeparate() => Assert.Equal(2, PortTesting.PortsOf(Asus(dock: false)).Count);
 }

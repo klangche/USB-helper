@@ -312,7 +312,13 @@ internal static class WindowsUsbReader
         var compatibleIds = SetupDiGetDeviceRegistryProperty(set, ref info, SPDRP_COMPATIBLEIDS, out _, ids, NameBufferSize, out var idsSize)
             ? CompatibleIds.Parse(ids, idsSize)
             : [];
-        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId, CompatibleIds = compatibleIds };
+        // The ACPI _PLD of the device's connector (#342); a few dozen bytes, binary.
+        var location = new byte[256];
+        var physicalLocation = SetupDiGetDeviceProperty(set, ref info, DevpkeyDevicePhysicalDeviceLocation, out _, location, (uint)location.Length, out var locationSize, 0)
+            && locationSize > 0 && locationSize <= location.Length
+                ? Convert.ToHexString(location, 0, (int)locationSize)
+                : null;
+        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId, CompatibleIds = compatibleIds, PhysicalLocation = physicalLocation };
     }
 
     private static string? StringProperty(IntPtr set, ref SP_DEVINFO_DATA info, uint property)

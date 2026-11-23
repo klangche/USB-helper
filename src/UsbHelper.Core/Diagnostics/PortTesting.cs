@@ -148,10 +148,10 @@ public sealed class PortTesting
     /// <summary>Remembers the result on every computer port that has a setup now (call after each evaluation).</summary>
     public void Update(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, ConnectionStatus> connections)
     {
-        foreach (var (port, node) in Ports(tree))
+        foreach (var (port, halves) in Ports(tree))
         {
             seen[port.Id] = port;
-            SeenPortsUnknown |= node.UserConnectable == null;
+            SeenPortsUnknown |= halves.Any(half => half.UserConnectable == null);
         }
         var buses = Topology.TopologyCounts.Buses(tree);
         foreach (var (port, nodes) in Occupied(tree).Values)
@@ -281,13 +281,14 @@ public sealed class PortTesting
             }
             : "";
 
-    // The hubs and devices behind each occupied computer port, top first, in tree order, by port id.
+    // The hubs and devices behind each occupied computer port, top first, in tree order, by port id. A connector with
+    // two halves (#342) gives its USB 3 half's nodes first, then its USB 2 half's.
     private static Dictionary<string, (ComputerPort Port, IReadOnlyList<UsbNode> Nodes)> Occupied(IReadOnlyList<UsbNode> tree)
     {
         var occupied = new Dictionary<string, (ComputerPort, IReadOnlyList<UsbNode>)>();
-        foreach (var (port, node) in Ports(tree))
+        foreach (var (port, halves) in Ports(tree))
         {
-            var nodes = node.Children.SelectMany(Flatten).ToList();
+            var nodes = halves.SelectMany(half => half.Children).SelectMany(Flatten).ToList();
             if (nodes.Count > 0)
             {
                 occupied[port.Id] = (port, nodes);
@@ -296,12 +297,13 @@ public sealed class PortTesting
         return occupied;
     }
 
-    // The computer's ports in tree order, each with its port node. A name that two ports share gets the hub it is on.
-    private static List<(ComputerPort Port, UsbNode Node)> Ports(IReadOnlyList<UsbNode> tree)
+    // The computer's ports in tree order, each with its port nodes: one, or the two halves of one connector. A name that
+    // two ports share gets the hub it is on.
+    private static List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> Ports(IReadOnlyList<UsbNode> tree)
     {
-        var found = tree.SelectMany(controller => controller.Children).SelectMany(rootHub => OwnPortNodes(rootHub)).ToList();
-        var shared = found.GroupBy(each => each.Port.Name).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
-        var names = found.Select(each => shared.Contains(each.Port.Name) ? $"{each.Port.Name} on {each.Hub.Name}" : each.Port.Name).ToList();
+        var found = Connectors(tree.SelectMany(controller => controller.Children).SelectMany(rootHub => OwnPortNodes(rootHub)).ToList());
+        var shared = found.GroupBy(each => each.Halves[0].Name).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
+        var names = found.Select(each => shared.Contains(each.Halves[0].Name) ? $"{each.Halves[0].Name} on {each.Hub.Name}" : each.Halves[0].Name).ToList();
         // Still the same (two hubs of one name): numbered in tree order.
         var still = names.GroupBy(name => name).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
         var numbered = new Dictionary<string, int>();
@@ -313,8 +315,58 @@ public sealed class PortTesting
                 numbered[name] = numbered.GetValueOrDefault(name) + 1;
                 name = string.Create(CultureInfo.InvariantCulture, $"{name} ({numbered[name]})");
             }
-            return (new ComputerPort(each.Port.Id, name, each.Port.Bus, each.Port.UsbC, i), each.Port);
+            var main = each.Halves[0];
+            var bus = each.Halves.Any(half => half.Bus == UsbBus.Usb3) ? UsbBus.Usb3 : main.Bus;
+            var usbC = each.Halves.Any(half => half.UsbC == true) ? true : main.UsbC;
+            return (new ComputerPort(main.Id, name, bus, usbC, i), (IReadOnlyList<UsbNode>)each.Halves);
         })];
+    }
+
+    /// <summary>
+    /// The computer's connectors (#342): a USB 2 port and a USB 3 port are one connector when the devices on them have the
+    /// same physical location (Windows' ACPI <c>_PLD</c>, which names the connector across controllers: on the owner's
+    /// Asus the USB-C port's USB 3 half is on the Type-C controller and its USB 2 half on the PCH), or else when the hub
+    /// reports them as companions. The USB 3 half comes first. Every other port is a connector of its own.
+    /// </summary>
+    private static List<(IReadOnlyList<UsbNode> Halves, UsbNode Hub)> Connectors(List<(UsbNode Port, UsbNode Hub)> ports)
+    {
+        var partner = new Dictionary<int, int>();
+        void Pair(int a, int b)
+        {
+            if (a != b && !partner.ContainsKey(a) && !partner.ContainsKey(b))
+            {
+                partner[a] = b;
+                partner[b] = a;
+            }
+        }
+        var located = ports.Select((each, i) => (Location: each.Port.Children.FirstOrDefault()?.PhysicalLocation, Index: i))
+            .Where(each => each.Location != null).GroupBy(each => each.Location!).Where(group => group.Count() == 2);
+        foreach (var group in located)
+        {
+            Pair(group.First().Index, group.Last().Index);
+        }
+        var byId = ports.Select((each, i) => (each.Port.Id, Index: i)).GroupBy(each => each.Id).ToDictionary(group => group.Key, group => group.First().Index);
+        for (var i = 0; i < ports.Count; i++)
+        {
+            if (ports[i].Port.CompanionPortId is { } companion && byId.TryGetValue(companion, out var other))
+            {
+                Pair(i, other);
+            }
+        }
+        var connectors = new List<(IReadOnlyList<UsbNode>, UsbNode)>();
+        for (var i = 0; i < ports.Count; i++)
+        {
+            if (!partner.TryGetValue(i, out var other))
+            {
+                connectors.Add(([ports[i].Port], ports[i].Hub));
+            }
+            else if (other > i)
+            {
+                var (first, second) = ports[other].Port.Bus == UsbBus.Usb3 && ports[i].Port.Bus != UsbBus.Usb3 ? (other, i) : (i, other);
+                connectors.Add(([ports[first].Port, ports[second].Port], ports[first].Hub));
+            }
+        }
+        return connectors;
     }
 
     private static IEnumerable<UsbNode> Flatten(UsbNode node) =>

@@ -87,6 +87,12 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     public string? Problem { get; init; }
 
     /// <summary>
+    /// For a hub or device: the physical location Windows gives its connector (DEVPKEY_Device_PhysicalDeviceLocation, the
+    /// ACPI <c>_PLD</c> buffer) as hex, or null. Both halves of one USB-C port have the same one (#342, the owner's Asus on #354).
+    /// </summary>
+    public string? PhysicalLocation { get; init; }
+
+    /// <summary>
     /// For a controller: how many tiers it allows from its root hub, when the system reports it (#330). macOS gives
     /// <c>UsbHostControllerTierLimit</c> on each controller, 6 on an M1 Max: the USB specification's 7 tiers less the
     /// hubs inside the computer that the tree does not show. Null when not reported.

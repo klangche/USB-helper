@@ -287,4 +287,15 @@ public class UsbTreeBuilderTests
         Assert.All(controller.Children[0].Children, port => Assert.Equal(UsbNodeKind.Hub, Assert.Single(port.Children).Kind));
         Assert.Equal("2 (1+1+0)", TopologyCounts.PerBus([controller]).HubsText);
     }
+
+    // #342: the device's physical location (_PLD) reaches its node, so the two halves of a USB-C port can be paired.
+    [Fact]
+    public void ThePhysicalLocationOfADeviceIsOnItsNode()
+    {
+        var dock = new RawDevNode(@"USB\VID_1DA0&PID_901B\5&242A2F40&0&2", "USB2.0 Hub", null) { PhysicalLocation = "01000000080003000104000100000000FFFFFFFF" };
+
+        var root = BuildSingle(DevicePort(2, dock));
+
+        Assert.Equal("01000000080003000104000100000000FFFFFFFF", root.Children[0].Children[0].Children[0].PhysicalLocation);
+    }
 }

@@ -327,7 +327,11 @@ the tree follows the setup, nothing turns purple for "reconnected", and the
 status field says, for example, "The setup moved from Port 1 (USB-C, USB 3) to
 Port 2 (USB 2)." What did not come back is listed as missing, as usual. Two of
 the computer's ports with the same name are told apart by their hub, for
-example "Port 1 on Root hub 2".
+example "Port 1 on Root hub 2". On Windows the USB 2 and USB 3 halves of one connector
+count as one port, named after the USB 3 half: they are paired when the devices
+on them have the same physical location (the connector's ACPI `_PLD`, which a
+USB-C port shares even when its halves are on two controllers), or else when
+the hub reports them as companions.
 
 Each port tried keeps its last result. How the ports differ is listed with the
 findings, in the log and in the PDF report: a device that did not connect on
