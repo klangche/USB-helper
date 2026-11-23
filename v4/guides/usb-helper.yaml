@@ -15,7 +15,7 @@ own: true                             # USB-Helper's own numbers: no source to q
 measures:
   tiers:
     counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
-    computer_hub: { from: [computer, chip], unknown: open }
+    computer_hub: { from: [detected, computer, chip], unknown: open }
 
 rules:
   - { measure: tiers, recommended: 5, max: 7 }
@@ -26,6 +26,7 @@ rules:
   - { measure: tiers, on: [android/tablet-exynos], recommended: 3, max: 4 }
 
 notes:
+  - "computer_hub from detected first (owner, #366 D2, 2026-11-23): the connected computer is judged with the hubs it reports inside itself; a ticked system uses the computer and chip files only (#368)."
   - "The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23)."
   - "mst moved to the OS files on 2026-11-23 (#367): it is a fact about the computer, not a rule of this philosophy."
   - "Converted from v3/guides/usb-helper.yaml on 2026-11-19 (#328): tiers 5 recommended / 7 max, cameras and audio 3 / 5, Apple mobile and Android phones 2 / 3, Android tablets 3 / 4."
