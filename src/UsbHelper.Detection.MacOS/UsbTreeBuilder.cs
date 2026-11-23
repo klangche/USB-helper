@@ -113,7 +113,9 @@ internal static class UsbTreeBuilder
         }
 
         var rootHubId = id + "|roothub";
-        var ports = portNumbers.Select(number => Port(rootHubId, [], number, devices, hubPorts, buses)).ToList();
+        var usbC = UsbCPorts(controller.Children);
+        var ports = portNumbers.Select(number => Port(rootHubId, [], number, devices, hubPorts, buses))
+            .Select(port => usbC.Contains(port.PortNumber ?? 0) ? port with { UsbC = true } : port).ToList();
         var problem = controller.Error != null ? $"Could not read the controller: {controller.Error}"
             : unplaced > 0 ? $"{unplaced} USB device(s) could not be placed because they report no location."
             : null;
@@ -123,6 +125,15 @@ internal static class UsbTreeBuilder
             TierLimit = controller.GetNumber("UsbHostControllerTierLimit") is { } limit and > 0 and < 128 ? (int)limit : null,
         };
     }
+
+    // #268: the root ports of a dual-role controller, named usb-drd<N>-port-hs/ss, are USB-C. On the owner's M1 Max the
+    // three usb-drd controllers are the three USB-C receptacles system_profiler lists (#267), and only a USB-C port can
+    // swap roles. Other port names (a Mac mini's USB-A ports) stay unknown, never a guess.
+    private static HashSet<int> UsbCPorts(IReadOnlyList<RegistryEntry> rootEntries) =>
+        [.. rootEntries.Where(entry => !entry.IsUsbDevice && entry.Name.StartsWith("usb-drd", StringComparison.Ordinal))
+            .Select(entry => PortNumberOf(entry) is { } number and > 0 ? (int)number
+                : entry.GetNumber("locationID") is { } location && PortPath(location) is [var fromLocation] ? fromLocation : 0)
+            .Where(number => number > 0)];
 
     private static void Collect(
         IReadOnlyList<RegistryEntry> entries, List<Placed> devices, List<IReadOnlyList<int>> hubPorts, SortedSet<int> portNumbers,

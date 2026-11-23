@@ -479,4 +479,29 @@ public class UsbTreeBuilderTests
 
     private static UsbNode? FindOrNull(IEnumerable<UsbNode> nodes, string name) =>
         nodes.Select(node => node.Name == name ? node : FindOrNull(node.Children, name)).FirstOrDefault(found => found != null);
+
+    // #268: the owner's M1 Max (#267): each usb-drd controller's root ports are a USB-C receptacle, and the device in
+    // the Mac's own port has no hub in front and a known bus. A port with another name stays unknown.
+    [Fact]
+    public void DualRolePortsAreUsbCAndADeviceInTheMacsPortHasNoHops()
+    {
+        RegistryEntry RootPort(string name, string className, long location, params RegistryEntry[] children) =>
+            new(className, name, false, new Dictionary<string, object> { ["locationID"] = location, ["PortNumber"] = (location >> 20) & 0xF }, children);
+        var mac = new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@00000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0L, ["UsbHostControllerTierLimit"] = 6L },
+            [
+                RootPort("usb-drd0-port-hs", "AppleUSB20XHCIARMPort", 0x00100000, Device(0x00100000, 0x046D, 0xC52B, "Receiver")),
+                RootPort("usb-drd0-port-ss", "AppleT8103USB30XHCIPort", 0x00200000),
+            ]);
+        var other = new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@03000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0x03000000L }, [RootPort("usb-port-a", "AppleUSB20XHCIARMPort", 0x03100000)]);
+
+        var tree = UsbTreeBuilder.Build([mac, other]);
+
+        Assert.All(tree[0].Children[0].Children, port => Assert.True(port.UsbC));
+        Assert.Null(Assert.Single(tree[1].Children[0].Children).UsbC);
+        var receiver = Assert.Single(TopologyCounts.Paths(tree).Values, path => path.ComputerHubs.Count > 0);
+        Assert.Empty(receiver.Hubs); // 0 hops: nothing between the Mac's port and the device.
+        Assert.Equal(UsbBus.Usb2, tree[0].Children[0].Children[0].Bus);
+    }
 }
