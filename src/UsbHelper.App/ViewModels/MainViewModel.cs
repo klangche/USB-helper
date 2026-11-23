@@ -624,6 +624,16 @@ public sealed class MainViewModel : ObservableObject
         return profile.Find("name")?.Scalar is string name ? $"{name} ({reported})" : $"{reported} ({profile.Id})";
     }
 
+    /// <summary>
+    /// The connected computer's profile (#368): its own computer file when the database has one, else its operating
+    /// system and chip; null when neither is known. It is judged with what this computer measures.
+    /// </summary>
+    private ResolvedProfile? ThisComputerProfile =>
+        database == null ? null
+        : !string.IsNullOrWhiteSpace(identity.Manufacturer) && !string.IsNullOrWhiteSpace(identity.Model)
+            && database.Computers.TryGetValue(ComputerProfileId.From(identity.Manufacturer, identity.Model), out var computer) ? computer
+        : identity.Platform != null ? database.Platforms.GetValueOrDefault(identity.Platform) : null;
+
     // The matching computer profile's readable name, else manufacturer and model as reported, else the machine name.
     private static string HostNameFor(HardwareDatabase? database, ComputerIdentity identity)
     {
@@ -636,6 +646,15 @@ public sealed class MainViewModel : ObservableObject
         }
         return reported.Length > 0 ? reported : identity.MachineName ?? Strings.ThisComputer;
     }
+
+    /// <summary>
+    /// The connected computer's result (#368), judged with its measured values, shown above the ticked systems; null when
+    /// the database knows neither the computer nor its operating system.
+    /// </summary>
+    public StatusRow? ThisComputerRow { get; private set; }
+
+    /// <summary><see cref="ThisComputerRow"/> as a list of none or one, for the panel.</summary>
+    public IReadOnlyList<StatusRow> ThisComputerRows => ThisComputerRow is { } row ? [row] : [];
 
     /// <summary>The name of the tree's top item, this computer.</summary>
     public string HostName
@@ -1368,7 +1387,9 @@ public sealed class MainViewModel : ObservableObject
         var reconnected = history.Reconnected(judged);
         var reconnectedIds = reconnected.Select(device => device.Node.Id).ToList();
         var missing = history.Missing(judged);
-        var all = DiagnosticEvaluator.EvaluateAll(judged, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide);
+        var thisComputer = ThisComputerProfile;
+        var all = DiagnosticEvaluator.EvaluateAll(judged, profiles, missing, displays, reconnectedIds, marks, monitors: monitors, guide: Guide,
+            thisComputer: thisComputer);
         lastReport = all;
         // Each port tried keeps its last result (#342); how the ports differ is a finding, and the summary goes to the
         // exported log and the report.
@@ -1414,7 +1435,7 @@ public sealed class MainViewModel : ObservableObject
         report = selected == null
             ? all
             : DiagnosticEvaluator.EvaluateAll([selected], profiles, [.. missing.Where(device => device.AncestorIds.Contains(selected.Id))], displays,
-                reconnectedIds, marks, judged, monitors, Guide);
+                reconnectedIds, marks, judged, monitors, Guide, thisComputer);
         OnPropertyChanged(nameof(SelectedControllerId));
         OnPropertyChanged(nameof(StatusScope));
         UpdateBusCounts(selected == null ? judged : [selected]);
@@ -1465,6 +1486,13 @@ public sealed class MainViewModel : ObservableObject
                 ? string.Format(CultureInfo.CurrentCulture, Strings.ReportAtLeast, NodeViewModel.HubsNumbers(counted))
                 : NodeViewModel.HubsNumbers(counted)
             : null;
+        // #368: this computer, always, judged with what it measures; the ticked systems below use database values.
+        ThisComputerRow = report.ThisComputer is { } here
+            ? new StatusRow(string.Format(CultureInfo.CurrentCulture, Strings.ThisComputerMeasured, HostName),
+                StatusColors.Word(here.Report.Overall), StatusColors.Hex(here.Report.Overall), ExceededLines(here.Report, hubs))
+            : null;
+        OnPropertyChanged(nameof(ThisComputerRow));
+        OnPropertyChanged(nameof(ThisComputerRows));
         for (var i = 0; i < options.Count; i++)
         {
             var result = report.Profiles[i].Report;

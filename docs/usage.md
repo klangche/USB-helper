@@ -148,7 +148,14 @@ and computers can be checked. Each line then shows the worst result over the
 checked profiles, judged by the picked philosophy; the status field says
 "Judged by the PureLink philosophy". The
 status field has one row per checked profile with its result (stable,
-potentially unstable, unstable or unknown, in its colour). Below it are only
+potentially unstable, unstable or unknown, in its colour). Above them, always,
+is this computer, for example "MacBook Pro (16-inch, 2021), measured" (#368):
+its own computer file if there is one, else its operating system and chip,
+judged with what it measures, such as the hub an M1 Max hides inside itself
+(its tier limit) or Windows saying a hub is part of the computer, wherever the
+philosophy accepts `detected`. Each checked profile is judged with the
+database's values only, never with what this computer measures, so a Mac
+with "Windows Intel" checked judges Windows as Windows is in the database. Below it are only
 the checks that are exceeded: hubs, tiers and external displays, each with its count and
 limit. The hubs line shows the hubs as in the row counts and the bus that is over
 its limit, for example "External hubs: 3 (2+1), limit 1 on USB 2 (exceeded)". A check that is within its limit, or whose limit or count is unknown,

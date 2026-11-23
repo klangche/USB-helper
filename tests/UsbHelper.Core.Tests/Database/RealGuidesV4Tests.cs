@@ -120,4 +120,24 @@ public class RealGuidesV4Tests
             Assert.All(guide.Rules, rule => Assert.Contains(rule.Quote!, text, StringComparison.Ordinal));
         }
     }
+
+    // #368: the connected computer is judged with what it measures (an M1 Max's tier limit 6: one hidden hub); a ticked
+    // system only with database values, so Windows Intel's own hubs stay unknown and its count is "at least".
+    [Fact]
+    public void ThisComputerUsesItsMeasuredHubsAndATickedSystemOnlyTheDatabase()
+    {
+        UsbNode[] tree = [Controller("C1", Hub("ROOT", Behind(6, Device("KEYBOARD"))).Connectable(true)) with { TierLimit = 6 }];
+        var all = DiagnosticEvaluator.EvaluateAll(tree, [Db.Platforms["windows-intel"]], [], externalDisplays: 0, guide: Db.Guides["ochno"],
+            thisComputer: Db.Platforms["macos-apple-silicon"]);
+        CountPart ComputerHubOf(DiagnosticReport report) => report.Findings
+            .First(finding => finding.SubjectId == "KEYBOARD" && finding.CountParts.Count > 0).CountParts
+            .Single(part => part.Element == PathElements.ComputerHub);
+
+        var measured = ComputerHubOf(all.ThisComputer!.Report);
+        Assert.Equal(1, measured.Count);
+        Assert.StartsWith("detected", measured.Origin, StringComparison.Ordinal);
+        var ticked = ComputerHubOf(all.Profiles.Single().Report);
+        Assert.Null(ticked.Count);
+        Assert.DoesNotContain("detected", ticked.Origin, StringComparison.Ordinal);
+    }
 }

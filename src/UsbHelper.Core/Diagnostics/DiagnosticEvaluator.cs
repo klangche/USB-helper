@@ -22,22 +22,30 @@ public static class DiagnosticEvaluator
     /// </summary>
     /// <param name="wholeTree">See <see cref="Evaluate"/>.</param>
     /// <param name="guide">See <see cref="Evaluate"/>; the same guide for every profile.</param>
+    /// <param name="thisComputer">
+    /// The connected computer's profile (#368), judged with its measured values into <see cref="SystemsReport.ThisComputer"/>;
+    /// the ticked <paramref name="profiles"/> are judged with database values only.
+    /// </param>
     public static SystemsReport EvaluateAll(
         IReadOnlyList<UsbNode> tree, IReadOnlyList<ResolvedProfile> profiles, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
         IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, CableMark>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
-        IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
+        IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null, ResolvedProfile? thisComputer = null)
     {
+        // #368: the connected computer is judged with what it measures; each ticked profile with database values only.
+        var here = thisComputer == null ? null
+            : new ProfileResult(thisComputer, Evaluate(tree, thisComputer, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide, measured: true));
         if (profiles.Count == 0)
         {
             var unknown = Evaluate(tree, null, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide);
-            return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown);
+            return new SystemsReport(unknown.Overall, unknown.Connections, [], unknown) { ThisComputer = here };
         }
-        var results = profiles.Select(profile => new ProfileResult(profile, Evaluate(tree, profile, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide))).ToList();
+        var results = profiles.Select(profile => new ProfileResult(profile,
+            Evaluate(tree, profile, missing, externalDisplays, reconnected, marks, wholeTree, monitors, guide, measured: false))).ToList();
         var connections = results
             .SelectMany(result => result.Report.Connections)
             .GroupBy(line => line.Key, line => line.Value)
             .ToDictionary(group => group.Key, group => group.Max());
-        return new SystemsReport(results.Max(result => result.Report.Overall), connections, results, results[0].Report);
+        return new SystemsReport(results.Max(result => result.Report.Overall), connections, results, results[0].Report) { ThisComputer = here };
     }
 
     /// <param name="profile">The resolved computer or platform profile, or null when none is selected.</param>
@@ -53,6 +61,7 @@ public static class DiagnosticEvaluator
     /// decision on #73). Everything else is judged on <paramref name="tree"/>. Null: <paramref name="tree"/> is all.
     /// </param>
     /// <param name="monitors">The active monitors, for the MST rule (#144); their statuses join the connections by monitor id.</param>
+    /// <param name="measured">True for the connected computer (#368): the hubs it reports inside itself count where a measure accepts <c>detected</c>.</param>
     /// <param name="guide">
     /// The guide whose limits and recommendations apply (#285); null for none: every limit is in the guides, so then
     /// nothing is judged by a limit.
@@ -60,7 +69,7 @@ public static class DiagnosticEvaluator
     public static DiagnosticReport Evaluate(
         IReadOnlyList<UsbNode> tree, ResolvedProfile? profile, IReadOnlyList<MissingDevice> missing, int? externalDisplays = null,
         IReadOnlyCollection<string>? reconnected = null, IReadOnlyDictionary<string, CableMark>? marks = null, IReadOnlyList<UsbNode>? wholeTree = null,
-        IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null)
+        IReadOnlyList<DisplayMonitor>? monitors = null, Guide? guide = null, bool measured = true)
     {
         var findings = new List<Finding>();
         var computer = profile?.Find("name")?.Scalar as string ?? profile?.Find("model")?.Scalar as string ?? "This computer";
@@ -277,7 +286,7 @@ public static class DiagnosticEvaluator
                     status = Max(status, JudgeDepth(node, BusKey(bus), IsCameraOrAudio(node)));
                     if (rulesGuide != null && profile != null)
                     {
-                        status = Max(status, RuleJudge.Judge(rulesGuide, profile, node, bus, paths[node.Id], findings));
+                        status = Max(status, RuleJudge.Judge(rulesGuide, profile, node, bus, paths[node.Id], findings, measured));
                     }
                 }
                 // Only hubs on a bus over a hub limit; a hub whose bus is unknown may be on any of them.

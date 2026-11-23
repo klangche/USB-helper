@@ -1111,4 +1111,7 @@ This version keeps running.</value>
   <data name="KindLimitSource" xml:space="preserve">
     <value> — {0}</value>
   </data>
+  <data name="ThisComputerMeasured" xml:space="preserve">
+    <value>{0}, measured</value>
+  </data>
 </root>
