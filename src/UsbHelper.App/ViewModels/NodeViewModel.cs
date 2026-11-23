@@ -408,12 +408,7 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>
-    /// "USB-C" on the window's row: on a hub or device whose folded port the operating system calls USB-C, and on such a
-    /// port that keeps its own row. Null otherwise.
-    /// </summary>
-    /// <summary>
-    /// The port this row's port box stands for (#266): the port itself for a port row, the folded port for a hub or device
-    /// on one; null otherwise. Hovering it shows <see cref="PortHover"/> and highlights the path.
+    /// The port this row's port box stands for (#266): the folded port of a hub or device on one; null otherwise. Hovering it shows <see cref="PortHover"/> and highlights the path.
     /// </summary>
     public string? HoverPortId
     {
@@ -447,6 +442,10 @@ public sealed class NodeViewModel : ObservableObject
 
     private bool isOnHoveredPath;
 
+    /// <summary>
+    /// "USB-C" on the window's row: on a hub or device whose folded port the operating system calls USB-C, and on such a
+    /// port that keeps its own row. Null otherwise.
+    /// </summary>
     public string? PortBadge
     {
         get => portBadge;
@@ -725,7 +724,6 @@ public sealed class NodeViewModel : ObservableObject
             // disconnected devices kept at it. A port with a problem keeps its own row, with them below it.
             isFolded = node.Problem == null && Children.Count > 0;
             PortBadge = PortType;
-            HoverPortId = node.Id;
             foreach (var child in Children)
             {
                 child.HoverPortId = isFolded ? node.Id : null;
