@@ -279,6 +279,38 @@ public class V4Tests
         Assert.NotEqual(ConnectionStatus.Green, With(unknown with { DeviceKind = UsbDeviceKind.Camera, KindByUser = true }));
     }
 
+    // #367: MST is a fact about the computer, in the OS file: the operating system's value, and a chip's own where it differs.
+    [Fact]
+    public void MstIsReadFromTheOsFilePerChip()
+    {
+        var windows = Windows.Replace("  amd: { name: AMD, computer_hubs: null }", "  amd: { name: AMD, computer_hubs: null, displays: { mst: false } }",
+            StringComparison.Ordinal).Replace("chips:", "displays: { mst: true }\nchips:", StringComparison.Ordinal);
+        var db = HardwareDatabase.LoadV4(Files(("platforms/windows.yaml", windows)));
+
+        Assert.Equal(true, db.Platforms["windows-intel"].Find("displays.mst")!.Scalar);
+        Assert.Equal(false, db.Platforms["windows-amd"].Find("displays.mst")!.Scalar);
+    }
+
+    // #367 review: the OS file's MST reaches the display check and wins over a guide's mst; the OS file is verified, so
+    // the warning has no "unverified" note.
+    [Fact]
+    public void TheOsFilesMstDecidesTheNoMstWarning()
+    {
+        var windows = Windows.Replace("  amd: { name: AMD, computer_hubs: null }", "  amd: { name: AMD, computer_hubs: null, displays: { mst: false } }",
+            StringComparison.Ordinal);
+        var room = Room + "\nplatforms:\n  windows:\n    mst: 1\n";
+        var db = HardwareDatabase.LoadV4(Files(("platforms/windows.yaml", windows), ("guides/room.yaml", room)));
+        DisplayMonitor[] monitors = [new("L", "Left", MonitorOutput.DisplayPort), new("R", "Right", MonitorOutput.DisplayPort)];
+
+        var report = DiagnosticEvaluator.Evaluate([Controller("C1", Hub("ROOT", Device("MOUSE")))], db.Platforms["windows-amd"], [], 2,
+            monitors: monitors, guide: db.Guides["room"]);
+
+        var warning = Assert.Single(report.Findings, finding => finding.SubjectId == "R");
+        Assert.StartsWith("⚠ No MST on ", warning.Message, StringComparison.Ordinal);
+        Assert.EndsWith("this display is duplicated. Use a second USB-C port or DisplayLink to extend it.", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(report.Findings, finding => finding.SubjectId == "L");
+    }
+
     // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.
     [Fact]
     public void AMeasureThatCountsUsb4RoutersIsAtLeast()
