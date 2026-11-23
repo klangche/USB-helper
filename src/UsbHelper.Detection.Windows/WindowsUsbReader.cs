@@ -314,8 +314,8 @@ internal static class WindowsUsbReader
             : [];
         // The ACPI _PLD of the device's connector (#342); a few dozen bytes, binary.
         var location = new byte[256];
-        var physicalLocation = SetupDiGetDeviceProperty(set, ref info, DevpkeyDevicePhysicalDeviceLocation, out _, location, (uint)location.Length, out var locationSize, 0)
-            && locationSize > 0 && locationSize <= location.Length
+        var physicalLocation = SetupDiGetDeviceProperty(set, ref info, DevpkeyDevicePhysicalDeviceLocation, out var locationType, location, (uint)location.Length, out var locationSize, 0)
+            && locationType == DevpropTypeBinary && locationSize > 0
                 ? Convert.ToHexString(location, 0, (int)locationSize)
                 : null;
         return new RawDevNode(instanceId, name, problem) { ContainerId = containerId, CompatibleIds = compatibleIds, PhysicalLocation = physicalLocation };

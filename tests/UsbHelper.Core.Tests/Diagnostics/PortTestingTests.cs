@@ -328,4 +328,59 @@ public class PortTestingTests
     // Without either, ports stay separate (the Mac, and the tests above).
     [Fact]
     public void PortsWithoutALocationOrACompanionStaySeparate() => Assert.Equal(2, PortTesting.PortsOf(Asus(dock: false)).Count);
+
+    // The Asus with only the dock's USB 2 half enumerated yet (its USB 3 hub comes a moment later).
+    private static IReadOnlyList<UsbNode> AsusUsb2Only()
+    {
+        var full = Asus(dock: true);
+        return [full[0], full[1] with { Children = [full[1].Children[0] with { Children = [RootPort("TXHC", 1, UsbBus.Usb3, null)] }] }];
+    }
+
+    // The session order on the Asus (#342 review): no dock, then the dock. The empty halves looked like two ports;
+    // once seen together they are one, and nothing is left under the USB 2 half's id.
+    [Fact]
+    public void AConnectorSeenTogetherOnceStaysOneForTheSession()
+    {
+        var testing = new PortTesting();
+        testing.Update(Asus(dock: false), Green(Asus(dock: false)));
+        Assert.Equal(2, testing.Summary().NotTried.Count);
+
+        testing.Update(AsusUsb2Only(), Green(AsusUsb2Only())); // USB 2 first: still looks like a port of its own.
+        testing.Update(Asus(dock: true), Green(Asus(dock: true)));
+        testing.Update(Asus(dock: false), Green(Asus(dock: false))); // Unplugged again: still one connector.
+
+        var tested = testing.Summary();
+        Assert.Equal(["TXHC|port1"], tested.Tried.Select(result => result.Port.Id));
+        Assert.Empty(tested.NotTried);
+        Assert.Equal(1, tested.Total);
+        Assert.Empty(testing.Differences());
+        Assert.Single(PortTesting.PortsOf(Asus(dock: false)), port => port.Id == "XHCI|port2"); // Without the session: two.
+    }
+
+    private static IReadOnlyList<UsbNode> Root(params UsbNode[] ports) =>
+        [Controller("C1", new UsbNode("ROOT", UsbNodeKind.Hub, "Root hub", ports))];
+
+    private static UsbNode Located(string id, string pld) => Ids(Device(id), 0x046D, 0xC077) with { PhysicalLocation = pld };
+
+    // Firmware that gives several ports one _PLD: two USB 2 ports are never one connector, and three ports with one
+    // _PLD are not paired by it (the companion still can).
+    [Fact]
+    public void ASharedLocationPairsOnlyOneUsb3AndOneOtherPort()
+    {
+        Assert.Equal(2, PortTesting.PortsOf(Root(RootPort("ROOT", 1, UsbBus.Usb2, Located("A", "AA")), RootPort("ROOT", 2, UsbBus.Usb2, Located("B", "AA")))).Count);
+        Assert.Equal(2, PortTesting.PortsOf(Root(RootPort("ROOT", 1, UsbBus.Usb2, Located("A", "AA"), companion: "ROOT|port15"),
+            RootPort("ROOT", 2, UsbBus.Usb2, Located("B", "AA")), RootPort("ROOT", 15, UsbBus.Usb3, Located("C", "AA"), companion: "ROOT|port1"))).Count);
+    }
+
+    // The _PLD comes first: a companion that points elsewhere does not undo it.
+    [Fact]
+    public void ALocationPairComesBeforeAConflictingCompanion()
+    {
+        var ports = PortTesting.PortsOf(Root(
+            RootPort("ROOT", 1, UsbBus.Usb2, Located("A", "AA"), companion: "ROOT|port16"),
+            RootPort("ROOT", 15, UsbBus.Usb3, Located("B", "AA")),
+            RootPort("ROOT", 16, UsbBus.Usb3, null, companion: "ROOT|port1")));
+
+        Assert.Equal(["ROOT|port15", "ROOT|port16"], ports.Select(port => port.Id));
+    }
 }

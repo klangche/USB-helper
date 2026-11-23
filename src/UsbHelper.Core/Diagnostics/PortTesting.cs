@@ -78,6 +78,9 @@ public sealed class PortTesting
     private readonly Dictionary<string, PortResult> results = [];
     private readonly Dictionary<string, ComputerPort> seen = [];
 
+    // The two halves of each connector seen this session (#342), by port id both ways.
+    private readonly Dictionary<string, string> pairs = [];
+
     // Ports that had a setup and are empty now, with what was behind them: a later change may bring it to another port.
     private readonly Dictionary<string, (ComputerPort Port, IReadOnlyList<UsbNode> Nodes)> emptied = [];
 
@@ -93,8 +96,10 @@ public sealed class PortTesting
     /// </summary>
     public SetupMove? Note(IReadOnlyList<UsbNode> before, IReadOnlyList<UsbNode> after)
     {
-        var portsBefore = Occupied(before);
-        var portsAfter = Occupied(after);
+        Learn(Ports(before, pairs));
+        Learn(Ports(after, pairs));
+        var portsBefore = Occupied(before, pairs);
+        var portsAfter = Occupied(after, pairs);
         foreach (var (port, nodes) in portsBefore.Values.Where(each => !portsAfter.ContainsKey(each.Port.Id)))
         {
             emptied[port.Id] = (port, nodes);
@@ -148,13 +153,15 @@ public sealed class PortTesting
     /// <summary>Remembers the result on every computer port that has a setup now (call after each evaluation).</summary>
     public void Update(IReadOnlyList<UsbNode> tree, IReadOnlyDictionary<string, ConnectionStatus> connections)
     {
-        foreach (var (port, halves) in Ports(tree))
+        var ports = Ports(tree, pairs);
+        Learn(ports);
+        foreach (var (port, halves) in ports)
         {
             seen[port.Id] = port;
             SeenPortsUnknown |= halves.Any(half => half.UserConnectable == null);
         }
         var buses = Topology.TopologyCounts.Buses(tree);
-        foreach (var (port, nodes) in Occupied(tree).Values)
+        foreach (var (port, nodes) in Occupied(tree, pairs).Values)
         {
             results[port.Id] = new PortResult(port,
                 nodes.Select(node => connections.GetValueOrDefault(node.Id, ConnectionStatus.Grey)).Max(),
@@ -164,9 +171,25 @@ public sealed class PortTesting
         }
     }
 
+    // Remembers each connector's halves, and drops what was kept under the other half's id while it looked like a port
+    // of its own: it is the same connector.
+    private void Learn(List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> ports)
+    {
+        foreach (var (port, halves) in ports.Where(each => each.Halves.Count == 2))
+        {
+            var other = halves[1].Id;
+            pairs[port.Id] = other;
+            pairs[other] = port.Id;
+            seen.Remove(other);
+            results.Remove(other);
+            emptied.Remove(other);
+        }
+    }
+
     /// <summary>Forgets every port (Clear).</summary>
     public void Reset()
     {
+        pairs.Clear();
         results.Clear();
         seen.Clear();
         emptied.Clear();
@@ -283,10 +306,11 @@ public sealed class PortTesting
 
     // The hubs and devices behind each occupied computer port, top first, in tree order, by port id. A connector with
     // two halves (#342) gives its USB 3 half's nodes first, then its USB 2 half's.
-    private static Dictionary<string, (ComputerPort Port, IReadOnlyList<UsbNode> Nodes)> Occupied(IReadOnlyList<UsbNode> tree)
+    private static Dictionary<string, (ComputerPort Port, IReadOnlyList<UsbNode> Nodes)> Occupied(IReadOnlyList<UsbNode> tree,
+        IReadOnlyDictionary<string, string>? known = null)
     {
         var occupied = new Dictionary<string, (ComputerPort, IReadOnlyList<UsbNode>)>();
-        foreach (var (port, halves) in Ports(tree))
+        foreach (var (port, halves) in Ports(tree, known))
         {
             var nodes = halves.SelectMany(half => half.Children).SelectMany(Flatten).ToList();
             if (nodes.Count > 0)
@@ -299,9 +323,10 @@ public sealed class PortTesting
 
     // The computer's ports in tree order, each with its port nodes: one, or the two halves of one connector. A name that
     // two ports share gets the hub it is on.
-    private static List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> Ports(IReadOnlyList<UsbNode> tree)
+    private static List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> Ports(IReadOnlyList<UsbNode> tree,
+        IReadOnlyDictionary<string, string>? known = null)
     {
-        var found = Connectors(tree.SelectMany(controller => controller.Children).SelectMany(rootHub => OwnPortNodes(rootHub)).ToList());
+        var found = Connectors(tree.SelectMany(controller => controller.Children).SelectMany(rootHub => OwnPortNodes(rootHub)).ToList(), known);
         var shared = found.GroupBy(each => each.Halves[0].Name).Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
         var names = found.Select(each => shared.Contains(each.Halves[0].Name) ? $"{each.Halves[0].Name} on {each.Hub.Name}" : each.Halves[0].Name).ToList();
         // Still the same (two hubs of one name): numbered in tree order.
@@ -328,15 +353,28 @@ public sealed class PortTesting
     /// Asus the USB-C port's USB 3 half is on the Type-C controller and its USB 2 half on the PCH), or else when the hub
     /// reports them as companions. The USB 3 half comes first. Every other port is a connector of its own.
     /// </summary>
-    private static List<(IReadOnlyList<UsbNode> Halves, UsbNode Hub)> Connectors(List<(UsbNode Port, UsbNode Hub)> ports)
+    /// <param name="known">The pairs seen earlier this session, by port id both ways: they stay one connector when only one
+    /// half is occupied, or none, and no _PLD shows them together.</param>
+    private static List<(IReadOnlyList<UsbNode> Halves, UsbNode Hub)> Connectors(List<(UsbNode Port, UsbNode Hub)> ports,
+        IReadOnlyDictionary<string, string>? known)
     {
         var partner = new Dictionary<int, int>();
+        // One USB 3 half and one that is not: firmware that gives several ports the same _PLD pairs no two USB 2 ports.
         void Pair(int a, int b)
         {
-            if (a != b && !partner.ContainsKey(a) && !partner.ContainsKey(b))
+            if (a != b && !partner.ContainsKey(a) && !partner.ContainsKey(b)
+                && (ports[a].Port.Bus == UsbBus.Usb3) != (ports[b].Port.Bus == UsbBus.Usb3))
             {
                 partner[a] = b;
                 partner[b] = a;
+            }
+        }
+        var byId = ports.Select((each, i) => (each.Port.Id, Index: i)).GroupBy(each => each.Id).ToDictionary(group => group.Key, group => group.First().Index);
+        for (var i = 0; i < ports.Count; i++)
+        {
+            if (known != null && known.TryGetValue(ports[i].Port.Id, out var remembered) && byId.TryGetValue(remembered, out var other))
+            {
+                Pair(i, other);
             }
         }
         var located = ports.Select((each, i) => (Location: each.Port.Children.FirstOrDefault()?.PhysicalLocation, Index: i))
@@ -345,7 +383,6 @@ public sealed class PortTesting
         {
             Pair(group.First().Index, group.Last().Index);
         }
-        var byId = ports.Select((each, i) => (each.Port.Id, Index: i)).GroupBy(each => each.Id).ToDictionary(group => group.Key, group => group.First().Index);
         for (var i = 0; i < ports.Count; i++)
         {
             if (ports[i].Port.CompanionPortId is { } companion && byId.TryGetValue(companion, out var other))
