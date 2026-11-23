@@ -93,7 +93,12 @@ rules:
   dock's USB hubs stay on the Mac's own controller (#267, 2026-11-23). Bus N is linked to the controller whose
   locationID is `0xN000000`; that is seen on one port so far, and a controller without a bus of its number stays
   unknown.
-- **Windows:** not measured yet. The Asus's runs with the dock are still to come (#267).
+- **Windows:** read with the USB tree from Microsoft's USB4 connection manager. Each host router has a root device
+  router, and a dock is a device router below it (depth 1). A host router is linked to the USB controller on the same
+  PCI device, which carries its USB 3 tunnel: on the owner's Asus with the PS9010 dock (#354), the host routers and the
+  Type-C controller are PCI device 13. A USB 2 controller with no host router on its PCI device (the dock's USB 2 half
+  runs on the PCH, not through a router) stays unknown, as does every controller without Microsoft's connection manager.
+  Seen on one PC so far.
 - Unknown is never guessed as 0: a measure that counts `usb4_router` without a reading gets an unknown part ("not
   measured yet"), so its count is "at least": over a limit it is exceeded, within one it is unknown.
 

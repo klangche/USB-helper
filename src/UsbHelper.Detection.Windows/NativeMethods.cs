@@ -38,6 +38,11 @@ internal static class NativeMethods
 
     public const uint DevpropTypeBoolean = 0x11;
 
+    // DEVPKEY_Device_LocationPaths from devpkey.h (#332), a DEVPROP_TYPE_STRING_LIST: not localized, unlike LocationInfo.
+    public static readonly DEVPROPKEY DevpkeyDeviceLocationPaths = new(new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"), 37);
+
+    public const uint DevpropTypeStringList = 0x2012;
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 

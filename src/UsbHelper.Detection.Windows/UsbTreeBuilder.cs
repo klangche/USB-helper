@@ -26,6 +26,8 @@ internal static class UsbTreeBuilder
         {
             Problem = DeviceProblem(controller.Node.ProblemCode)
                 ?? (controller.Error == null ? null : $"Could not read the root hub: {controller.Error}"),
+            Usb4Routers = controller.Usb4Routers,
+            Usb4Link = controller.Usb4Link,
         };
     }
 

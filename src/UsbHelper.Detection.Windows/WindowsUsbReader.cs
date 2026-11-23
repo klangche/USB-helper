@@ -79,7 +79,86 @@ internal static class WindowsUsbReader
         {
             SetupDiDestroyDeviceInfoList(set);
         }
-        return controllers;
+        return WithUsb4Routers(controllers);
+    }
+
+    // The USB4 routers on each controller's link (#332), see Usb4RouterLinks. A system without Microsoft's USB4
+    // connection manager lists no USB4 nodes, and its controllers stay "not measured". A failed read changes nothing.
+    private static IReadOnlyList<RawController> WithUsb4Routers(List<RawController> controllers)
+    {
+        try
+        {
+            var hosts = Usb4RouterLinks.Depths(ReadUsb4Nodes());
+            if (hosts.Count == 0)
+            {
+                return controllers;
+            }
+            var hostSlots = hosts.Select(host => (Slot: Usb4RouterLinks.Slot(LocationPaths(host.Key)), host.Value))
+                .Where(host => host.Slot != null).ToList();
+            return [.. controllers.Select(controller =>
+                Usb4RouterLinks.Slot(LocationPaths(controller.Node.InstanceId)) is { } slot
+                    && hostSlots.Where(host => host.Slot == slot).ToList() is { Count: > 0 } linked
+                    ? controller with
+                    {
+                        Usb4Routers = linked.Max(host => host.Value.Depth),
+                        Usb4Link = linked.SelectMany(host => host.Value.Names).ToList() is { Count: > 0 } names
+                            ? $"USB4: {string.Join(", ", names)}"
+                            : "USB4: no routers",
+                    }
+                    : controller)];
+        }
+        catch (Win32Exception)
+        {
+            return controllers;
+        }
+    }
+
+    // Every present node of the USB4 enumerator, with its parent.
+    private static List<Usb4Node> ReadUsb4Nodes()
+    {
+        var nodes = new List<Usb4Node>();
+        var set = SetupDiGetClassDevs(IntPtr.Zero, "USB4", IntPtr.Zero, DIGCF_ALLCLASSES | DIGCF_PRESENT);
+        if (set == InvalidHandleValue)
+        {
+            return nodes; // No USB4 enumerator on this system.
+        }
+        try
+        {
+            var info = NewDevInfoData();
+            for (uint i = 0; SetupDiEnumDeviceInfo(set, i, ref info); i++)
+            {
+                try
+                {
+                    var node = DevNode(set, ref info);
+                    var parent = CM_Get_Parent(out var up, info.DevInst, 0) == CR_SUCCESS ? InstanceId(up) : null;
+                    nodes.Add(new Usb4Node(node.InstanceId, parent, node.Name));
+                }
+                catch (Win32Exception)
+                {
+                    // A node that cannot be read is left out; its host router then counts what remains.
+                }
+            }
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(set);
+        }
+        return nodes;
+    }
+
+    // DEVPKEY_Device_LocationPaths of a device node, or none.
+    private static IReadOnlyList<string> LocationPaths(string instanceId)
+    {
+        if (CM_Locate_DevNode(out var devInst, instanceId, 0) != CR_SUCCESS)
+        {
+            return [];
+        }
+        var buffer = new byte[2048];
+        var size = (uint)buffer.Length;
+        return CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out var type, buffer, ref size, 0) == CR_SUCCESS
+            && type == DevpropTypeStringList && size <= buffer.Length
+                ? System.Text.Encoding.Unicode.GetString(buffer, 0, (int)size).Split('\0', StringSplitOptions.RemoveEmptyEntries)
+                : [];
     }
 
     /// <summary>Reads one hub and everything below it again.</summary>
