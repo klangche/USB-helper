@@ -445,7 +445,7 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <!-- Counts table (#265), for what the status field covers: "Hubs: 3 (2+1+0)" (#298) and "Devices: 7" (#307), then one line per bus with
+          <!-- Counts table (#265), for what the status field covers: "Hubs: 3 (2+1)" (#298) and "Devices: 7" (#307), then one line per bus with
                its own hubs and deepest tier; one combined line when no bus is reported. Not shown when nothing is connected. -->
           <StackPanel IsVisible="{Binding HasBusCounts}" Spacing="2" Margin="0,8,0,0">
             <TextBlock Text="{x:Static res:Strings.CountsTable}" FontWeight="Bold" />

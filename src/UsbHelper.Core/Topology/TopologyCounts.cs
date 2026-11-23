@@ -24,7 +24,9 @@ public sealed record BusCounts(int Hubs, int DeepestTier);
 /// </param>
 /// <param name="Usb4Routers">
 /// The USB4 routers the controllers report (#332, #359): a USB4 dock is a router, not a hub, and its USB hubs count on
-/// USB 2 and USB 3. Null when no controller measures them.
+/// USB 2 and USB 3. Each controller reports the routers in the chain on its port, the deepest router's depth (one dock:
+/// 1; a dock behind a dock: 2), as the rules count them on a path; this is the sum over the controllers. Docks that
+/// branch from one router are not seen apart, so the number is then a minimum. Null when no controller measures them.
 /// </param>
 /// <param name="UnknownBusHubs">The hubs on ports whose bus is not reported, the hubs their marks add included.</param>
 /// <param name="AnyBusKnown">True when at least one counted hub or device is on a port with a known bus.</param>

@@ -1195,7 +1195,7 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasBusCounts => BusCountsRows.Count > 0;
 
-    /// <summary>Above the table: "Hubs: 3 (2+1+0)", the same as the row counter (#298); null when nothing is connected.</summary>
+    /// <summary>Above the table: "Hubs: 3 (2+1)", the same as the row counter (#298), with any USB4 routers (#359); null when nothing is connected.</summary>
     public string? BusCountsHubs { get; private set; }
 
     /// <summary>Below <see cref="BusCountsHubs"/>: "Devices: 7" (#307), with "at least" as the row counter; null when nothing is connected.</summary>
@@ -1453,7 +1453,7 @@ public sealed class MainViewModel : ObservableObject
         string.Format(CultureInfo.CurrentCulture, Strings.FindingHeader, KindText(finding.Kind), finding.SubjectName);
 
     // Owner decision in #263: the status field lists only what is exceeded; within and unknown are in the log only.
-    // #298: the hubs as everywhere, "External hubs: 3 (2+1+0), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
+    // #298: the hubs as everywhere, "External hubs: 3 (2+1), limit 1 on USB 2 (exceeded)": the limit is judged per bus.
     private static IReadOnlyList<string> ExceededLines(DiagnosticReport result, string? hubs)
     {
         var checks = new (string Label, LimitState? State, long? Actual, long? Limit)[]

@@ -309,6 +309,24 @@ public class UsbTreeBuilderTests
         public IReadOnlyList<RegistryEntry> ReadControllers() => controllers;
     }
 
+    // #359: only an Apple silicon controller with its tier limit makes its root ports the Mac's own; without the limit,
+    // or with another class, nothing is assumed and a hub there may be built in.
+    [Fact]
+    public void OnlyAppleSiliconControllersWithATierLimitHaveTheMacsOwnPorts()
+    {
+        RegistryEntry WithHub(string className, bool limit) => new(className, $"{className}@01000000", false,
+            limit ? new Dictionary<string, object> { ["locationID"] = 0x01000000L, ["UsbHostControllerTierLimit"] = 6L }
+                : new Dictionary<string, object> { ["locationID"] = 0x01000000L },
+            [Port("hs", 1, Device(0x01100000, 0x05AC, 0x1234, "Hub", deviceClass: 9))]);
+
+        Assert.True(UsbTreeBuilder.Build([WithHub("AppleT6000USBXHCI", limit: true)])[0].Children[0].Children[0].UserConnectable);
+        foreach (var tree in new[] { UsbTreeBuilder.Build([WithHub("AppleT6000USBXHCI", limit: false)]), UsbTreeBuilder.Build([WithHub("AppleUSBXHCIPPT", limit: true)]) })
+        {
+            Assert.Null(tree[0].Children[0].Children[0].UserConnectable);
+            Assert.Single(TopologyCounts.PossiblyBuiltIn(tree));
+        }
+    }
+
     // #330: an M1 Max controller reports UsbHostControllerTierLimit 6 (the owner's probe on #267), so one hub inside the
     // computer is hidden in front of every port. Without the property nothing is assumed.
     [Fact]

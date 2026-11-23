@@ -691,6 +691,21 @@ public class MainViewModelTests
         Assert.Equal("Hubs: 2 (1+1) · USB4 routers: 1", viewModel.BusCountsHubs);
     }
 
+    // #359 review: without a known bus the row still shows the routers.
+    [Fact]
+    public void TheRoutersShowAlsoWithoutAKnownBus()
+    {
+        var viewModel = NewViewModel();
+
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "Controller", [Hub("ROOT", Hub("HUB", Device("KEYBOARD")))])
+            { Usb4Routers = 1 }]);
+
+        var controller = Item(viewModel, "C1");
+        Assert.Equal("Controller · USB4 router (depth 1)", controller.Text);
+        Assert.Equal(controller.Counts, controller.CountsHead + controller.CountsTail);
+        Assert.Contains(" · USB4 routers: 1", controller.CountsTail);
+    }
+
     [Fact]
     public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
     {
