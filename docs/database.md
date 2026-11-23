@@ -58,7 +58,10 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
     (`windows` or `windows/amd`), then `recommended` and/or `max` (a number or `none`), `source` and `quote`;
   - `requires`: elements or device kinds the guide needs. A guide that needs one this app does not know is listed
     as "needs a newer USB-Helper" and judges nothing; the rest of the database still loads;
-  - `platforms.<platform>.mst` and `platforms.<platform>.chips.<chip>.mst`, as in v3.
+  - `platforms.<platform>.mst` and `platforms.<platform>.chips.<chip>.mst`, as in v3. Moving out (#367): MST is a
+    fact about the computer, so it moves to the OS files, `displays.mst` for the operating system and
+    `chips.<chip>.displays.mst` where a chip differs (true or false). A value in the OS or computer file wins over a
+    guide's. Once the files have moved, a guide that states `mst` or another computer fact will not load.
 - There is **no fallback** between guides. A hub or device is judged by every rule that matches it, and the strictest
   result wins. A count with an unknown part (an `open` computer_hub, `usb4_router`) is "at least": above a limit it is
   exceeded, within it unknown.
@@ -359,8 +362,9 @@ port a monitor uses cannot be detected, so the port capabilities and
 restrictions are listed, not matched to monitors.
 
 MST (DisplayPort Multi-Stream Transport, several independent displays on one
-DisplayPort output) comes from the selected guide's `mst` for the platform and
-chip (1 or 0), or from a computer file's `displays.mst`, which wins. When a
+DisplayPort output) comes from a computer file's `displays.mst`, else, in v4,
+the OS file's (`displays.mst`, or the chip's own, #367), else the selected
+guide's `mst` for the platform and chip (1 or 0, v3 and older v4 files). When a
 checked profile has no MST and more than one external DisplayPort
 display is active (DisplayPort, DisplayPort Alt Mode, or DisplayPort over
 USB4/Thunderbolt; DisplayLink, HDMI and built-in displays never count), the

@@ -279,6 +279,18 @@ public class V4Tests
         Assert.NotEqual(ConnectionStatus.Green, With(unknown with { DeviceKind = UsbDeviceKind.Camera, KindByUser = true }));
     }
 
+    // #367: MST is a fact about the computer, in the OS file: the operating system's value, and a chip's own where it differs.
+    [Fact]
+    public void MstIsReadFromTheOsFilePerChip()
+    {
+        var windows = Windows.Replace("  amd: { name: AMD, computer_hubs: null }", "  amd: { name: AMD, computer_hubs: null, displays: { mst: false } }",
+            StringComparison.Ordinal).Replace("chips:", "displays: { mst: true }\nchips:", StringComparison.Ordinal);
+        var db = HardwareDatabase.LoadV4(Files(("platforms/windows.yaml", windows)));
+
+        Assert.Equal(true, db.Platforms["windows-intel"].Find("displays.mst")!.Scalar);
+        Assert.Equal(false, db.Platforms["windows-amd"].Find("displays.mst")!.Scalar);
+    }
+
     // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.
     [Fact]
     public void AMeasureThatCountsUsb4RoutersIsAtLeast()

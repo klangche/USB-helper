@@ -86,8 +86,17 @@ internal static class ProfileSchema
         ["device_kinds.*.usb_class"] = FieldType.Integer, // The USB interface class, for example 0x0E (14) for a camera.
     });
 
-    /// <summary>v4 platform files (#327): <c>computer_hubs</c> instead of <c>built_in_hub_levels</c>.</summary>
-    public static readonly IReadOnlyDictionary<string, FieldType> PlatformFieldsV4 = V4(PlatformFields, "chips.*.");
+    /// <summary>
+    /// v4 platform files (#327): <c>computer_hubs</c> instead of <c>built_in_hub_levels</c>; and <c>displays.mst</c> for the
+    /// operating system and per chip (#367), a fact about the computer that moves here from the philosophy files.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, FieldType> PlatformFieldsV4 = With(V4(PlatformFields, "chips.*."), new()
+    {
+        ["displays"] = FieldType.Mapping,
+        ["displays.mst"] = FieldType.Boolean,
+        ["chips.*.displays"] = FieldType.Mapping,
+        ["chips.*.displays.mst"] = FieldType.Boolean,
+    });
 
     /// <summary>v4 computer files (#327): <c>computer_hubs</c> instead of <c>built_in_hub_levels</c>.</summary>
     public static readonly IReadOnlyDictionary<string, FieldType> ComputerFieldsV4 = V4(ComputerFields, "");
