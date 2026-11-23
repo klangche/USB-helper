@@ -474,9 +474,87 @@ public class UsbTreeBuilderTests
         Assert.Null(failed.Enumerate()[0].Usb4Routers);
     }
 
+    // #358, from the owner's beta.10 log on the M1 Max: three USB-C ports, each a usb-drd controller with a USB 2 and a
+    // USB 3 root port. The dock's two hubs per bus sit on the port it is in.
+    private static IReadOnlyList<RegistryEntry> MacWithDock(int? dockOn)
+    {
+        RegistryEntry Controller(int n)
+        {
+            var top = (long)n << 24;
+            RegistryEntry Root(string half, string className, int number, RegistryEntry? child) =>
+                new(className, $"usb-drd{n}-port-{half}", false,
+                    new Dictionary<string, object> { ["locationID"] = top | ((long)number << 20), ["PortNumber"] = (long)number },
+                    child == null ? [] : [child]);
+            var usb2 = dockOn == n ? Hub(top | 0x00100000, "USB2.0 Hub", Hub(top | 0x00120000, "USB2.1 Hub", Device(top | 0x00122000, 0x2A28, 0x0020, "WPP20"))) : null;
+            var usb3 = dockOn == n ? Device(top | 0x00200000, 0x1DA0, 0x901A, "USB3.2 Hub", deviceClass: 9) with
+            {
+                Children = [Device(top | 0x00220000, 0x05E3, 0x0626, "USB3.1 Hub", deviceClass: 9) with { Children = [Device(top | 0x00224000, 0x0BDA, 0x8153, "USB 10/100/1000 LAN")] }],
+            } : null;
+            return new RegistryEntry("AppleT6000USBXHCI", $"AppleT6000USBXHCI@0{n}000000", false,
+                new Dictionary<string, object> { ["locationID"] = top, ["UsbHostControllerTierLimit"] = 6L },
+                [Root("hs", "AppleUSB20XHCIARMPort", 1, usb2), Root("ss", "AppleT8103USB30XHCIPort", 2, usb3)]);
+        }
+        return [Controller(0), Controller(1), Controller(2)];
+    }
+
+    [Fact]
+    public void TheDockMovedFromUsbCPort1ToPort3IsOneMoveWithNoGhost()
+    {
+        var on1 = UsbTreeBuilder.Build(MacWithDock(0));
+        var empty = UsbTreeBuilder.Build(MacWithDock(null));
+        var on3 = UsbTreeBuilder.Build(MacWithDock(2));
+        Dictionary<string, ConnectionStatus> Green(IReadOnlyList<UsbNode> tree) =>
+            TopologyCounts.Paths(tree).Keys.ToDictionary(id => id, _ => ConnectionStatus.Green);
+        var history = new SessionHistory();
+        var testing = new PortTesting();
+
+        Assert.Equal(["USB-C port 1", "USB-C port 2", "USB-C port 3"], PortTesting.PortsOf(on1).Select(port => port.Name));
+        history.Record(on1);
+        testing.Update(on1, Green(on1));
+        testing.Note(on1, empty);
+        history.Record(empty);
+        var move = testing.Note(empty, on3)!;
+        history.Record(on3);
+        history.ApplyMove(move);
+        testing.Update(on3, Green(on3));
+
+        Assert.Equal("USB-C port 1", move.From.Name);
+        Assert.Equal("USB-C port 3", move.To.Name);
+        Assert.Empty(move.NotBack);
+        Assert.Empty(history.Missing(on3)); // No USB 3 hub left behind as "disconnected".
+        Assert.Empty(history.Reconnected(on3));
+        Assert.StartsWith("Tested on 2 of 3 ports, all stable. USB-C port 2 not tested.", PortTesting.LogText(testing.Summary(), testing.Differences()),
+            StringComparison.Ordinal); // The note that macOS does not say which ports are built in goes with #359.
+    }
+
     private static UsbNode Find(IEnumerable<UsbNode> nodes, string name) =>
         nodes.Select(node => node.Name == name ? node : FindOrNull(node.Children, name)).First(found => found != null)!;
 
     private static UsbNode? FindOrNull(IEnumerable<UsbNode> nodes, string name) =>
         nodes.Select(node => node.Name == name ? node : FindOrNull(node.Children, name)).FirstOrDefault(found => found != null);
+
+    // #268: the owner's M1 Max (#267): each usb-drd controller's root ports are a USB-C receptacle, and the device in
+    // the Mac's own port has no hub in front and a known bus. A port with another name stays unknown.
+    [Fact]
+    public void DualRolePortsAreUsbCAndADeviceInTheMacsPortHasNoHops()
+    {
+        RegistryEntry RootPort(string name, string className, long location, params RegistryEntry[] children) =>
+            new(className, name, false, new Dictionary<string, object> { ["locationID"] = location, ["PortNumber"] = (location >> 20) & 0xF }, children);
+        var mac = new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@00000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0L, ["UsbHostControllerTierLimit"] = 6L },
+            [
+                RootPort("usb-drd0-port-hs", "AppleUSB20XHCIARMPort", 0x00100000, Device(0x00100000, 0x046D, 0xC52B, "Receiver")),
+                RootPort("usb-drd0-port-ss", "AppleT8103USB30XHCIPort", 0x00200000),
+            ]);
+        var other = new RegistryEntry("AppleT6000USBXHCI", "AppleT6000USBXHCI@03000000", false,
+            new Dictionary<string, object> { ["locationID"] = 0x03000000L }, [RootPort("usb-port-a", "AppleUSB20XHCIARMPort", 0x03100000)]);
+
+        var tree = UsbTreeBuilder.Build([mac, other]);
+
+        Assert.All(tree[0].Children[0].Children, port => Assert.True(port.UsbC));
+        Assert.Null(Assert.Single(tree[1].Children[0].Children).UsbC);
+        var receiver = Assert.Single(TopologyCounts.Paths(tree).Values, path => path.ComputerHubs.Count > 0);
+        Assert.Empty(receiver.Hubs); // 0 hops: nothing between the Mac's port and the device.
+        Assert.Equal(UsbBus.Usb2, tree[0].Children[0].Children[0].Bus);
+    }
 }

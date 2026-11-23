@@ -1085,8 +1085,17 @@ public sealed class MainViewModel : ObservableObject
         if (ports.Note(before, tree) is { } move)
         {
             history.ApplyMove(move);
-            PortStatus = string.Format(CultureInfo.CurrentCulture, Strings.SetupMoved, PortLabel(move.From), PortLabel(move.To));
-            log.Add($"The setup moved from {move.From.Label} to {move.To.Label}.");
+            // Back into the same port (#358): a replug, not a disconnect and a reconnect.
+            if (move.From.Id == move.To.Id)
+            {
+                PortStatus = string.Format(CultureInfo.CurrentCulture, Strings.SetupReplugged, PortLabel(move.To));
+                log.Add($"The setup was plugged back into {move.To.Label}.");
+            }
+            else
+            {
+                PortStatus = string.Format(CultureInfo.CurrentCulture, Strings.SetupMoved, PortLabel(move.From), PortLabel(move.To));
+                log.Add($"The setup moved from {move.From.Label} to {move.To.Label}.");
+            }
         }
     }
 

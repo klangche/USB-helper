@@ -60,17 +60,97 @@ public class PortTestingTests
     [Fact]
     public void AMoveInOneChangeIsAlsoAMove() => Assert.NotNull(new PortTesting().Note(Computer(1), Computer(2)));
 
-    // Plugged back into the same port: a reconnect, and nothing is left to match later.
+    // Plugged back into the same port: a replug, not a reconnect (#358), and nothing is left to match later.
     [Fact]
-    public void BackOnTheSamePortIsNoMoveAndIsForgotten()
+    public void BackOnTheSamePortIsAReplugAndIsForgotten()
     {
         var testing = new PortTesting();
         testing.Note(Computer(1), Empty);
-        Assert.Null(testing.Note(Empty, Computer(1)));
-        testing.Note(Computer(1), Empty);
-        testing.Note(Empty, Computer(1));
+        var replug = testing.Note(Empty, Computer(1));
+        Assert.Equal(replug!.From.Id, replug.To.Id);
 
         Assert.Null(testing.Note(Empty, Computer(2))); // Port 1 is not empty any more: nothing moved from it.
+    }
+
+    // One device of the setup drops and comes back while the rest stays connected: no replug, still "reconnected" (#54).
+    [Fact]
+    public void ASingleDeviceDroppingIsNotAReplug()
+    {
+        var testing = new PortTesting();
+        var withoutCamera = Computer(1, Dock("P1", withCamera: false));
+        testing.Note(Computer(1), withoutCamera);
+
+        Assert.Null(testing.Note(withoutCamera, Computer(1)));
+    }
+
+    // A device that dropped and came back on a port that stayed connected is no longer waiting (#358 review): after the
+    // setup moves, the same device dropping on the new port is still "reconnected", not a move from the old one.
+    [Fact]
+    public void ADeviceThatCameBackIsNotLeftWaiting()
+    {
+        var testing = new PortTesting();
+        var withoutCamera1 = Computer(1, Dock("P1", withCamera: false));
+        var withoutCamera3 = Computer(3, Dock("P3", withCamera: false));
+        testing.Note(Computer(1), withoutCamera1);
+        testing.Note(withoutCamera1, Computer(1));
+        testing.Note(Computer(1), Empty);
+        var move = testing.Note(Empty, Computer(3))!;
+        Assert.Empty(move.NotBack);
+
+        testing.Note(Computer(3), withoutCamera3);
+        Assert.Null(testing.Note(withoutCamera3, Computer(3)));
+    }
+
+    // What a move left behind is not claimed once something else arrived in between (#358 review).
+    [Fact]
+    public void WhatAMoveLeftBehindIsForgottenWhenSomethingElseArrives()
+    {
+        var testing = new PortTesting();
+        var withoutCamera3 = Computer(3, Dock("P3", withCamera: false));
+        var renumbered = Computer(3, Dock("P3B", withCamera: false)); // The hub and speaker enumerated again.
+        testing.Note(Computer(1), Empty);
+        Assert.Single(testing.Note(Empty, withoutCamera3)!.NotBack); // The camera stayed behind.
+        testing.Note(withoutCamera3, renumbered);
+
+        Assert.Null(testing.Note(renumbered, Computer(3, Dock("P3B")))); // The camera plugged in later is not a move from port 1.
+    }
+
+    // A quiet change between the two halves of a move keeps the USB 3 half waiting, so no ghost hub is left.
+    [Fact]
+    public void AQuietChangeBetweenTheHalvesKeepsTheMove()
+    {
+        var testing = new PortTesting();
+        testing.Note(Asus(dock: true), Asus(dock: false));
+        Assert.NotNull(testing.Note(Asus(dock: false), AsusUsb2Only()));
+        testing.Note(AsusUsb2Only(), AsusUsb2Only());
+
+        Assert.NotNull(testing.Note(AsusUsb2Only(), Asus(dock: true)));
+    }
+
+    // The halves of a USB-C port arrive as two changes (#358): the USB 2 half first, then the USB 3 half; both join the
+    // move from the empty port, and nothing is left behind.
+    [Fact]
+    public void AMoveWhoseHalvesArriveSeparatelyIsOneMove()
+    {
+        var history = new SessionHistory();
+        var testing = new PortTesting();
+        history.Record(Asus(dock: true));
+        testing.Update(Asus(dock: true), Green(Asus(dock: true)));
+        testing.Note(Asus(dock: true), Asus(dock: false));
+        history.Record(Asus(dock: false));
+        // Back on the same connector, the USB 2 half first.
+        var first = testing.Note(Asus(dock: false), AsusUsb2Only())!;
+        history.Record(AsusUsb2Only());
+        history.ApplyMove(first);
+        var second = testing.Note(AsusUsb2Only(), Asus(dock: true))!;
+        history.Record(Asus(dock: true));
+        history.ApplyMove(second);
+
+        Assert.Equal("TXHC|port1", first.To.Id);
+        Assert.Equal(first.From.Id, second.From.Id);
+        Assert.Empty(second.NotBack);
+        Assert.Empty(history.Missing(Asus(dock: true)));
+        Assert.Empty(history.Reconnected(Asus(dock: true)));
     }
 
     [Fact]
@@ -140,17 +220,18 @@ public class PortTestingTests
         Assert.Equal("On Port 2 the Camera runs on USB 2 (USB 3 on Port 1).", PortTesting.DifferenceText(difference));
     }
 
-    // From a poor port (the camera missing) to a good one: the finding says it works on the good port.
+    // Different setups are not compared (#358): the camera was not plugged in on Port 3, which is no difference.
     [Fact]
-    public void FromAPoorPortToAGoodOneSaysWhereItWorks()
+    public void DifferentSetupsAreNotCompared()
     {
         var testing = new PortTesting();
         var poor = Computer(3, Dock("P3", withCamera: false));
-        testing.Update(poor, Green(poor));
+        var statuses = Green(poor);
+        statuses["DOCKP3"] = ConnectionStatus.Orange;
+        testing.Update(poor, statuses);
         testing.Update(Computer(1), Green(Computer(1)));
 
-        var difference = Assert.Single(testing.Differences(), each => each.Kind == PortDifferenceKind.Missing);
-        Assert.Equal("On Port 3 the Camera did not connect; on Port 1 it did.", PortTesting.DifferenceText(difference));
+        Assert.Empty(testing.Differences());
     }
 
     [Fact]
