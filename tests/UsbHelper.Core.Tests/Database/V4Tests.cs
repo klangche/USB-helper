@@ -291,6 +291,20 @@ public class V4Tests
         Assert.Equal(false, db.Platforms["windows-amd"].Find("displays.mst")!.Scalar);
     }
 
+    // #367: a philosophy holds only its own rules; a computer fact in it is a load error with the file and line.
+    [Theory]
+    [InlineData("mst: 1")]
+    [InlineData("computer_hubs: 1")]
+    [InlineData("platforms:\n  windows:\n    mst: 1")]
+    public void AComputerFactInAPhilosophyIsRejected(string fact)
+    {
+        var error = Error(Files(("guides/room.yaml", Room + "\n" + fact + "\n")));
+
+        Assert.Equal("guides/room.yaml", error.File);
+        Assert.True(error.Line > 0);
+        Assert.Contains("is a fact about the computer", error.Message, StringComparison.Ordinal);
+    }
+
     // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.
     [Fact]
     public void AMeasureThatCountsUsb4RoutersIsAtLeast()
