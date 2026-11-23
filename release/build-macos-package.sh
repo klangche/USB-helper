@@ -23,15 +23,29 @@ mounted=0
 mountpoint="$temporary/mounted"
 # A freshly written volume can stay busy for a few seconds (Spotlight, fseventsd), and detach then fails (#278). Retry,
 # then force; never quiet, so a failure says why.
+# hdiutil can unmount the volume and still report "couldn't eject ... Resource busy"; every later attempt then fails
+# with "No such file or directory" because the mount point is gone, and the script stopped although the volume was
+# detached. A mount point that is no longer mounted counts as detached.
+# macOS lists the mount under its real path (/private/var/... for /var/...), so both are matched.
+is_mounted() {
+  local real
+  real=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  mount | grep -qF -e " on $real (" -e " on $1 ("
+}
 detach() {
   local attempt
   for attempt in 1 2 3 4 5; do
     if hdiutil detach "$1"; then
       return 0
     fi
+    if ! is_mounted "$1"; then
+      echo "Detaching $1 reported an error, but it is no longer mounted." >&2
+      return 0
+    fi
     echo "Detaching $1 failed (attempt $attempt of 5); retrying." >&2
     sleep 3
   done
+  is_mounted "$1" || return 0
   hdiutil detach -force "$1"
 }
 # hdiutil on the build runners also answers "Resource busy" for a moment to create, attach or convert, for example right
