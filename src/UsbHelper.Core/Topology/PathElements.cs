@@ -55,6 +55,12 @@ public sealed record DevicePath(IReadOnlyList<string> Hubs, IReadOnlyList<(strin
     /// </summary>
     public IReadOnlyList<string> ComputerHubs { get; init; } = [];
 
+    /// <summary>
+    /// True when <see cref="ComputerHubs"/> is the whole count, possibly none (#330): the system says the node's connector
+    /// is outside the computer (Windows' InLocalMachineContainer), so every hub between it and the root hub was seen.
+    /// </summary>
+    public bool ComputerHubsMeasured { get; init; }
+
     /// <summary>The USB4 device routers in front of this node (#332), from its controller; null when not read.</summary>
     public int? Usb4Routers { get; init; }
 

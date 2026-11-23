@@ -48,10 +48,12 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
   - `measures`: each a sum of path elements (`counts`), with optional `weights`, and which evidence it accepts for
     `computer_hub` (`from: [detected, computer, chip]`) and what to do when that is unknown (`unknown: open`, or a
     number). `detected` hubs (#330) take the place of the computer or chip value on that path, so none is counted
-    twice: on Windows a hub behind a port that is not user-connectable, with an external port behind it; on macOS
-    the hubs a controller hides, 7 less its `UsbHostControllerTierLimit` (6 on an M1 Max, so 1). `cable_length` may
-    give `usb2_metres_per_tier` and `usb3_metres_per_tier`: an active cable marked with its length (#331) then adds
-    a tier per that many metres after the first, so at 5 m per tier a 10 m cable adds 1;
+    twice: on Windows a hub behind a port that is not user-connectable, or one Windows puts in the computer's own
+    container (`InLocalMachineContainer`), with an external port behind it, and a detected 0 when the device is
+    outside the computer on the computer's own port; on macOS the hubs a controller hides, 7 less its
+    `UsbHostControllerTierLimit` (6 on an M1 Max, so 1). `cable_length` may give `usb2_metres_per_tier` and
+    `usb3_metres_per_tier`: an active cable marked with its length (#331) then adds a tier per that many metres
+    after the first, so at 5 m per tier a 10 m cable adds 1;
   - `rules`: each names a `measure`, optionally a `bus` (`usb2`, `usb3`), `devices` (device kinds) and `on`
     (`windows` or `windows/amd`), then `recommended` and/or `max` (a number or `none`), `source` and `quote`;
   - `requires`: elements or device kinds the guide needs. A guide that needs one this app does not know is listed

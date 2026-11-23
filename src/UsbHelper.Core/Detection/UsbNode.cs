@@ -91,6 +91,15 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     /// ACPI <c>_PLD</c> buffer) as hex, or null. Both halves of one USB-C port have the same one (#342, the owner's Asus on #354).
     /// </summary>
     public string? PhysicalLocation { get; init; }
+
+    /// <summary>
+    /// For a hub or device: true when Windows puts it in the computer's own container (DEVPKEY_Device_InLocalMachineContainer),
+    /// false when in another, the device's own (#330, the owner's Asus on #267: true for everything in the PC, false for the
+    /// dock and what is behind it). Null when not read, as on a Mac.
+    /// </summary>
+    public bool? InLocalMachine { get; init; }
+
+    /// <summary>
     /// For a controller: the USB4 device routers on the USB4 link of its port (#332), as their deepest depth from the
     /// computer's host router (a dock is 1, a dock behind it 2); 0 when the link has none. Null when not read: Windows,
     /// a Mac without the reading, or a controller no USB4 bus is linked to. Routers are not USB hubs and add no tier.

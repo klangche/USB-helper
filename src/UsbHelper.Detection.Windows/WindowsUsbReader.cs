@@ -318,7 +318,18 @@ internal static class WindowsUsbReader
             && locationType == DevpropTypeBinary && locationSize > 0
                 ? Convert.ToHexString(location, 0, (int)locationSize)
                 : null;
-        return new RawDevNode(instanceId, name, problem) { ContainerId = containerId, CompatibleIds = compatibleIds, PhysicalLocation = physicalLocation };
+        var local = new byte[1];
+        bool? inLocalMachine = SetupDiGetDeviceProperty(set, ref info, DevpkeyDeviceInLocalMachineContainer, out var localType, local, 1, out var localSize, 0)
+            && localType == DevpropTypeBoolean && localSize == 1
+                ? local[0] != 0
+                : null;
+        return new RawDevNode(instanceId, name, problem)
+        {
+            ContainerId = containerId,
+            CompatibleIds = compatibleIds,
+            PhysicalLocation = physicalLocation,
+            InLocalMachine = inLocalMachine,
+        };
     }
 
     private static string? StringProperty(IntPtr set, ref SP_DEVINFO_DATA info, uint property)

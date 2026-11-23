@@ -38,6 +38,7 @@ internal static class UsbTreeBuilder
             Problem = DeviceProblem(node?.ProblemCode) ?? (hub.Error == null ? null : $"Could not read the hub: {hub.Error}"),
             ContainerId = node?.ContainerId,
             PhysicalLocation = node?.PhysicalLocation,
+            InLocalMachine = node?.InLocalMachine,
         };
     }
 
@@ -71,6 +72,7 @@ internal static class UsbTreeBuilder
             Problem = DeviceProblem(port.Device?.ProblemCode),
             ContainerId = port.Device?.ContainerId,
             PhysicalLocation = port.Device?.PhysicalLocation,
+            InLocalMachine = port.Device?.InLocalMachine,
             DeviceKind = port.IsHub ? null : UsbDeviceKinds.FromInterfaceClasses(port.InterfaceClasses),
         }, port);
 
