@@ -34,9 +34,10 @@ public sealed record PortConnector(string Name, bool? UsbC, UsbBus? Bus, bool In
     /// <summary>True when the USB 3 lanes carry data now, false when they do not, null when no bus is known.</summary>
     public bool? Usb3InUse => LinesInUse(UsbBus.Usb3);
 
-    private bool? LinesInUse(UsbBus bus) => Bus == null && Partner?.Bus == null
-        ? null
-        : (Bus == bus && InUse) || (Partner?.Bus == bus && Partner.Children.Count > 0);
+    // Known only from a half on that bus: a half whose bus is not reported says nothing about either line.
+    private bool? LinesInUse(UsbBus bus) => Bus == bus || Partner?.Bus == bus
+        ? (Bus == bus && InUse) || (Partner?.Bus == bus && Partner.Children.Count > 0)
+        : null;
 
     /// <summary>
     /// The connector of <paramref name="portId"/> in <paramref name="tree"/>, with its other half <paramref name="partnerId"/>

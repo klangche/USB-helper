@@ -1009,9 +1009,10 @@ public sealed class MainViewModel : ObservableObject
         {
             row.IsOnHoveredPath = path.Contains(row.Id);
         }
-        if (item?.HoverPortId is { } id && PortConnector.Of(tree, id, ports.PartnerOf(id)) is { } connector)
+        if (item?.HoverPortId is { } id)
         {
-            item.PortHover = PortHover.Of(connector);
+            // A port gone since the last refresh has no hover, never a stale one.
+            item.PortHover = PortConnector.Of(tree, id, ports.PartnerOf(id)) is { } connector ? PortHover.Of(connector) : null;
         }
     }
 

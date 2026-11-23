@@ -70,4 +70,17 @@ public class PortConnectorTests
         Assert.Equal(["C1", "ROOT", tree[0].Children[0].Children[0].Id, "HUB2", hubPort.Id], PortConnector.PathTo(tree, hubPort.Id));
         Assert.Null(PortConnector.Of(tree, "NOPE", null));
     }
+
+    // #266 review: a device on a half whose bus is not reported, with an empty partner on USB 3: the USB 3 lanes are not in
+    // use, and the USB 2 pair is not detected, never "not in use".
+    [Fact]
+    public void AnUnknownHalfSaysNothingAboutItsLines()
+    {
+        var tree = Tree(null, null, Device("DISK"));
+        var unknown = tree[0].Children[0].Children[2].Id;
+        var connector = PortConnector.Of(tree, unknown, tree[0].Children[0].Children[1].Id)!;
+
+        Assert.Null(connector.Usb2InUse);
+        Assert.Equal(false, connector.Usb3InUse);
+    }
 }
