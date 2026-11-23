@@ -443,7 +443,8 @@ File > Settings opens the settings. Each change is saved at once:
   on a theme (for example a black logo on the dark theme), Settings shows "This
   logo is hard to see on the dark theme" (or light) under the logo, with two
   choices: "Invert it" shows an inverted copy (colours inverted, transparency
-  kept), which "Keep" saves for that theme and "Cancel" drops; "Upload a logo
+  kept), which "Keep" saves for that theme and "Cancel" drops; closing Settings
+  while the copy shows keeps it too (#360); "Upload a logo
   for the dark theme" (or light) uses the same file picker and crop tool. Either
   can be removed again with "Remove". The logo is never put on another
   background. On each theme the top bar shows that theme's own logo, else the
