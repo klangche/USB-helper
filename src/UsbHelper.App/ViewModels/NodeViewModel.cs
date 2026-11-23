@@ -234,7 +234,6 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>The children are visible, so the item's own trunk is drawn below it.</summary>
     public bool ShowsChildren => HasChildren && IsExpanded;
 
-    /// <summary>A connected DisplayLink device: the view shows it as a display.</summary>
     /// <summary>True for a connected device: its kind can be selected by hand (#276).</summary>
     public bool IsDevice
     {
@@ -278,7 +277,7 @@ public sealed class NodeViewModel : ObservableObject
 
     /// <summary>
     /// The symbol in front of a camera's or audio device's name (#276): a camera, a microphone, or both; a hand-selected
-    /// kind is marked with "✎". Null for every other row.
+    /// kind is marked with "✎", also "Neither" on its own. Null for every other row.
     /// </summary>
     public string? KindSymbol => DeviceKind switch
     {
@@ -286,7 +285,7 @@ public sealed class NodeViewModel : ObservableObject
         UsbDeviceKind.Audio => "🎙",
         UsbDeviceKind.CameraAndAudio => "📷🎙",
         _ => null,
-    } is { } symbol ? KindByUser ? symbol + "✎" : symbol : null;
+    } is { } symbol ? KindByUser ? symbol + "✎" : symbol : KindByUser ? "✎" : null;
 
     /// <summary>The limits that apply to this kind and their source, from the guide in use (#276); set by the main view model.</summary>
     public string? KindLimits
@@ -307,14 +306,17 @@ public sealed class NodeViewModel : ObservableObject
     /// Hovering the symbol (#276): what the device is, how the app knows, why it is judged more strictly, then the limits
     /// that apply and their source.
     /// </summary>
-    public string? KindTip => KindSymbol == null ? null : string.Join(Environment.NewLine, new[]
-    {
-        DeviceKind switch { UsbDeviceKind.Camera => Strings.KindCamera, UsbDeviceKind.Audio => Strings.KindAudio, _ => Strings.KindCameraAndAudio },
-        KindByUser ? Strings.KindSelectedByHand : Strings.KindReported,
-        Strings.KindWhyStricter,
-        KindLimits,
-    }.Where(line => line != null));
+    public string? KindTip => KindSymbol == null ? null : DeviceKind == UsbDeviceKind.Neither
+        ? Strings.KindNeither + Environment.NewLine + Strings.KindSelectedByHand
+        : string.Join(Environment.NewLine, new[]
+        {
+            DeviceKind switch { UsbDeviceKind.Camera => Strings.KindCamera, UsbDeviceKind.Audio => Strings.KindAudio, _ => Strings.KindCameraAndAudio },
+            KindByUser ? Strings.KindSelectedByHand : Strings.KindReported,
+            Strings.KindWhyStricter,
+            KindLimits,
+        }.Where(line => line != null));
 
+    /// <summary>A connected DisplayLink device: the view shows it as a display.</summary>
     public bool IsDisplay
     {
         get => isDisplay;

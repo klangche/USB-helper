@@ -753,6 +753,11 @@ public class MainViewModelTests
         Assert.Contains(Strings.KindSelectedByHand, mystery.KindTip);
         Assert.Contains(log.Entries, entry => entry.Text == "Device kind of MYSTERY selected by hand: audio");
 
+        // "Neither" by hand has no kind symbol, but is still marked, so it can be seen and removed.
+        viewModel.SelectKind("MYSTERY", UsbDeviceKind.Neither);
+        Assert.Equal("✎", Item(viewModel, "MYSTERY").KindSymbol);
+        Assert.Equal(Strings.KindNeither + Environment.NewLine + Strings.KindSelectedByHand, Item(viewModel, "MYSTERY").KindTip);
+
         viewModel.SelectKind("MYSTERY", null);
         Assert.Null(Item(viewModel, "MYSTERY").KindSymbol);
         Assert.False(Item(viewModel, "MYSTERY").KindByUser);

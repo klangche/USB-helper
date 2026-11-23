@@ -249,12 +249,13 @@ public sealed class EventLog(TimeProvider? clock = null)
     /// <summary>A guide was picked in the profile menu (#286); null for none.</summary>
     public void GuidePicked(string? name) => Add($"Guide picked: {name ?? "none"}");
 
-    /// <param name="name">The hub or device the marked line leads to.</param>
-    /// <param name="mark">The mark, as the menu offers it (#307); null when the mark was removed.</param>
     /// <summary>A device kind selected by hand (#276), or removed (null): the device goes back to what the system reports.</summary>
     public void DeviceKindSelected(string name, UsbDeviceKind? kind) =>
         Add(kind is { } selected ? $"Device kind of {name} selected by hand: {DeviceKindText(selected)}"
             : $"Device kind of {name} selected by hand removed");
+
+    /// <param name="name">The hub or device the marked line leads to.</param>
+    /// <param name="mark">The mark, as the menu offers it (#307); null when the mark was removed.</param>
 
     public void CableMark(string name, Topology.CableMark? mark) =>
         Add(mark == null ? $"Cable mark removed from the line to {name}"

@@ -1194,10 +1194,10 @@ public sealed class MainViewModel : ObservableObject
         {
             return Strings.KindLimitsNone;
         }
-        string Number(long? value, bool none) => none ? "none" : value?.ToString(CultureInfo.CurrentCulture) ?? "–";
-        return string.Join(Environment.NewLine, rules.Select(rule =>
-            $"• {rule.Measure}{(rule.Bus is { } bus ? $" ({bus})" : "")}: recommended {Number(rule.Recommended, rule.RecommendedNone)}, "
-            + $"max {Number(rule.Max, rule.MaxNone)}{(rule.Source is { } source ? $" — {source}" : "")}").Prepend(Strings.KindLimitsTitle));
+        string Number(long? value, bool none) => none ? Strings.KindLimitNone : value?.ToString(CultureInfo.CurrentCulture) ?? Strings.WordUnknown;
+        return string.Join(Environment.NewLine, rules.Select(rule => string.Format(CultureInfo.CurrentCulture, Strings.KindLimitLine,
+            rule.Bus is { } bus ? $"{rule.Measure} ({bus})" : rule.Measure, Number(rule.Recommended, rule.RecommendedNone), Number(rule.Max, rule.MaxNone))
+            + (rule.Source is { } source ? string.Format(CultureInfo.CurrentCulture, Strings.KindLimitSource, source) : "")).Prepend(Strings.KindLimitsTitle));
     }
 
     /// <summary>The tree as judged: each device kind selected by hand replaces what the system reports (#276).</summary>
@@ -1379,15 +1379,15 @@ public sealed class MainViewModel : ObservableObject
         log.Findings(options.Count == 0
             ? all.Counts.Findings.Select(finding => ((string?)null, finding))
             : all.Profiles.SelectMany((result, i) => result.Report.Findings.Select(finding => ((string?)options[i].Label, finding))));
-        // The judged needs only each line's worst status and the missing devices, which are the same for every profile.
-        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the judged.
+        // The tree needs only each line's worst status and the missing devices, which are the same for every profile.
+        // A display duplicated for lack of MST on any checked system gets the "⚠ no MST" warning in the tree.
         var lines = all.Counts with
         {
             Connections = all.Connections,
             NoMstMonitors = all.Profiles.SelectMany(each => each.Report.NoMstMonitors).ToHashSet(),
         };
 
-        // Owner decision in #68: the status and findings cover the selected controller's judged. At start, and when it is
+        // Owner decision in #68: the status and findings cover the selected controller's tree. At start, and when it is
         // gone, the controller with the most connected hubs and devices (built-in hubs not counted) is selected; on a
         // tie the first.
         // Owner decision in #208: while following, a controller that grew and now has strictly more connected hubs and
@@ -1429,7 +1429,7 @@ public sealed class MainViewModel : ObservableObject
         {
             Roots[0].UpdateHost(HostName, judged, lines, marks, placement);
         }
-        foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null))
+        foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null && row.DeviceKind != UsbDeviceKind.Neither))
         {
             row.KindLimits = KindLimits(row.DeviceKind);
         }

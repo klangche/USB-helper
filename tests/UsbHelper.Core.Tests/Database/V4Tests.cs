@@ -264,7 +264,7 @@ public class V4Tests
     }
 
     // #276: a kind selected by hand is judged like a reported one: an unknown device on tier 4 is within "tiers max 7", and
-    // the same device selected as a camera is over the camera's "max 3"; back to unknown, it is within again.
+    // the same device selected as a camera is over the camera's "max 3". Removal is tested on the main view model.
     [Fact]
     public void AKindSelectedByHandIsJudgedByTheStricterRule()
     {
@@ -277,7 +277,6 @@ public class V4Tests
 
         Assert.Equal(ConnectionStatus.Green, With(unknown));
         Assert.NotEqual(ConnectionStatus.Green, With(unknown with { DeviceKind = UsbDeviceKind.Camera, KindByUser = true }));
-        Assert.Equal(ConnectionStatus.Green, With(unknown));
     }
 
     // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.

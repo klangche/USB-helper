@@ -1099,4 +1099,16 @@ This version keeps running.</value>
   <data name="KindMenuRemove" xml:space="preserve">
     <value>Use what the system reports</value>
   </data>
+  <data name="KindNeither" xml:space="preserve">
+    <value>Neither a camera nor an audio device.</value>
+  </data>
+  <data name="KindLimitLine" xml:space="preserve">
+    <value>• {0}: recommended {1}, max {2}</value>
+  </data>
+  <data name="KindLimitNone" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="KindLimitSource" xml:space="preserve">
+    <value> — {0}</value>
+  </data>
 </root>
