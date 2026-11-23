@@ -35,7 +35,7 @@ internal static class ProfileSchema
         ["usb.max_tiers"] = FieldType.Integer, // Seven tiers on a path: the host with its root hub, up to five hubs, the device.
         ["usb.max_devices_per_controller"] = FieldType.Integer, // A 7-bit device address: 127.
         ["usb4"] = FieldType.Mapping,
-        ["usb4.max_router_depth"] = FieldType.Integer, // Loaded, not judged yet: USB4 links are not detected yet (#267).
+        ["usb4.max_router_depth"] = FieldType.Integer, // A reference, loaded and checked: a guide judges routers with its own rule on a measure that counts usb4_router (#332).
     });
 
     /// <summary><c>platforms/*.yaml</c>: one operating system with its chips. "*" stands for any chip key.</summary>

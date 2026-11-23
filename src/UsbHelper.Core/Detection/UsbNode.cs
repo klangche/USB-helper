@@ -87,6 +87,16 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     public string? Problem { get; init; }
 
     /// <summary>
+    /// For a controller: the USB4 device routers on the USB4 link of its port (#332), as their deepest depth from the
+    /// computer's host router (a dock is 1, a dock behind it 2); 0 when the link has none. Null when not read: Windows,
+    /// a Mac without the reading, or a controller no USB4 bus is linked to. Routers are not USB hubs and add no tier.
+    /// </summary>
+    public int? Usb4Routers { get; init; }
+
+    /// <summary>For a controller with <see cref="Usb4Routers"/>: the USB4 bus and its routers, for the log, e.g. "thunderboltusb4_bus_0: PS9010".</summary>
+    public string? Usb4Link { get; init; }
+
+    /// <summary>
     /// For a controller: how many tiers it allows from its root hub, when the system reports it (#330). macOS gives
     /// <c>UsbHostControllerTierLimit</c> on each controller, 6 on an M1 Max: the USB specification's 7 tiers less the
     /// hubs inside the computer that the tree does not show. Null when not reported.

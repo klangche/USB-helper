@@ -9,7 +9,23 @@ namespace UsbHelper.Detection.MacOS;
 /// <param name="SpeedLabel">The port's capability text, for example "Up to 40 Gb/s". Not a measured speed.</param>
 /// <param name="Connected">False when the system reports no device, true when devices are listed, else null.</param>
 /// <param name="Devices">The names of the attached Thunderbolt/USB4 devices. They are not USB hubs.</param>
-public sealed record ThunderboltBus(string Name, string? ReceptacleId, string? Status, string? SpeedLabel, bool? Connected, IReadOnlyList<string> Devices);
+/// <param name="RouterDepth">
+/// The deepest USB4/Thunderbolt device router on the bus (#332): 1 for a dock on the Mac's port, 2 for one behind it, 0
+/// for none. Each listed device is a router, one level of <c>_items</c> deeper than the one it hangs on.
+/// </param>
+public sealed record ThunderboltBus(string Name, string? ReceptacleId, string? Status, string? SpeedLabel, bool? Connected, IReadOnlyList<string> Devices,
+    int RouterDepth = 0)
+{
+    /// <summary>
+    /// N in <c>thunderboltusb4_bus_N</c>, the name on Apple silicon; null for any other name (an Intel Mac's
+    /// <c>thunderbolt_bus_N</c>), whose link to a USB controller has not been seen, so its routers stay "not measured".
+    /// </summary>
+    public int? Index => Name.StartsWith(Usb4BusPrefix, StringComparison.Ordinal) && int.TryParse(Name.AsSpan(Usb4BusPrefix.Length), out var index)
+        ? index
+        : null;
+
+    private const string Usb4BusPrefix = "thunderboltusb4_bus_";
+}
 
 /// <summary>Parses <c>system_profiler -json SPThunderboltDataType</c>. Missing keys mean unknown; serials and UIDs are never read.</summary>
 internal static class MacThunderbolt
@@ -34,10 +50,15 @@ internal static class MacThunderbolt
                 status,
                 MacDisplays.String(receptacle, "current_speed_key"),
                 devices.Count > 0 ? true : status == NoDevices ? false : null,
-                devices));
+                devices,
+                Depth(bus)));
         }
         return buses;
     }
+
+    // The deepest level of _items below the bus: each level is one router further from the Mac.
+    private static int Depth(JsonElement parent) =>
+        MacDisplays.Items(parent, "_items").Select(item => 1 + Depth(item)).DefaultIfEmpty(0).Max();
 
     private static IEnumerable<string> Devices(JsonElement parent) =>
         MacDisplays.Items(parent, "_items").SelectMany(item =>
