@@ -730,6 +730,40 @@ public class MainViewModelTests
         Assert.False(Item(viewModel, "C1").IsOnHoveredPath);
     }
 
+    // #276: a reported camera has its symbol and a hover that says why; a kind selected by hand is marked as such, logged,
+    // and can be removed.
+    [Fact]
+    public void ADeviceKindShowsItsSymbolAndCanBeSelectedByHand()
+    {
+        var log = new EventLog();
+        var viewModel = new MainViewModel(new ComputerIdentity(null, null), log: log);
+        viewModel.Load([new UsbNode("C1", UsbNodeKind.Controller, "C1", [Hub("ROOT", Device("CAM") with { DeviceKind = UsbDeviceKind.Camera },
+            Device("MYSTERY") with { DeviceKind = UsbDeviceKind.Unknown })])]);
+        var camera = Item(viewModel, "CAM");
+
+        Assert.Equal("📷", camera.KindSymbol);
+        Assert.StartsWith(Strings.KindCamera + Environment.NewLine + Strings.KindReported + Environment.NewLine + Strings.KindWhyStricter,
+            camera.KindTip, StringComparison.Ordinal);
+        Assert.Null(Item(viewModel, "MYSTERY").KindSymbol);
+
+        viewModel.SelectKind("MYSTERY", UsbDeviceKind.Audio);
+        var mystery = Item(viewModel, "MYSTERY");
+        Assert.Equal("🎙✎", mystery.KindSymbol);
+        Assert.True(mystery.KindByUser);
+        Assert.Contains(Strings.KindSelectedByHand, mystery.KindTip);
+        Assert.Contains(log.Entries, entry => entry.Text == "Device kind of MYSTERY selected by hand: audio");
+
+        // "Neither" by hand has no kind symbol, but is still marked, so it can be seen and removed.
+        viewModel.SelectKind("MYSTERY", UsbDeviceKind.Neither);
+        Assert.Equal("✎", Item(viewModel, "MYSTERY").KindSymbol);
+        Assert.Equal(Strings.KindNeither + Environment.NewLine + Strings.KindSelectedByHand, Item(viewModel, "MYSTERY").KindTip);
+
+        viewModel.SelectKind("MYSTERY", null);
+        Assert.Null(Item(viewModel, "MYSTERY").KindSymbol);
+        Assert.False(Item(viewModel, "MYSTERY").KindByUser);
+        Assert.Contains(log.Entries, entry => entry.Text == "Device kind of MYSTERY selected by hand removed");
+    }
+
     [Fact]
     public void ControllerAndHostCountsArePerBusWhenTheBusIsKnown()
     {

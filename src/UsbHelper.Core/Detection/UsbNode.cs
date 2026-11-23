@@ -64,6 +64,13 @@ public sealed record UsbNode(string Id, UsbNodeKind Kind, string Name, IReadOnly
     public UsbDeviceKind? DeviceKind { get; init; }
 
     /// <summary>
+    /// True when the user selected <see cref="DeviceKind"/> by hand (#276), so the operating system did not report it; it is
+    /// judged the same way and lasts until the app closes.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] // Written only when true.
+    public bool KindByUser { get; init; }
+
+    /// <summary>
     /// DisplayLink's USB vendor id, 0x17E9. Sources: the USB ID Repository's usb.ids ("17e9  DisplayLink",
     /// http://www.linux-usb.org/usb.ids, read from its mirror https://github.com/usbids/usbids, version 2026.06.26), and the
     /// Linux DisplayLink driver, which matches on ".idVendor = 0x17e9" (drivers/gpu/drm/udl/udl_drv.c).

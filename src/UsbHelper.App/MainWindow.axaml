@@ -353,6 +353,9 @@
                   <!-- The status dot, in the same colour as the elbow. -->
                   <Ellipse Width="8" Height="8" VerticalAlignment="Center" IsVisible="{Binding HasStatus}"
                            Fill="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                  <!-- A camera's or audio device's symbol (#276); hovering says why it is judged more strictly. -->
+                  <TextBlock Text="{Binding KindSymbol}" ToolTip.Tip="{Binding KindTip}" VerticalAlignment="Center"
+                             IsVisible="{Binding KindSymbol, Converter={x:Static ObjectConverters.IsNotNull}}" />
                   <!-- A collapsed item's name is bold (#100). -->
                   <TextBlock Text="{Binding Text}" Classes.collapsed="{Binding IsCollapsed}" />
                   <!-- A port Windows reports as USB-C (#114). -->

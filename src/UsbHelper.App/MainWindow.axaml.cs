@@ -30,6 +30,9 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         InitializeComponent();
         // Before the tree item, which would otherwise take Enter to expand or collapse.
         Tree.AddHandler(KeyDownEvent, OpenCableMarkByKey, RoutingStrategies.Tunnel);
+        // #276: a device row's kind menu, by right-click and by Shift+F10 or the menu key, which raise ContextRequested on
+        // the focused item; it bubbles here. Other rows get no menu.
+        Tree.AddHandler(ContextRequestedEvent, OpenKindMenu, RoutingStrategies.Bubble);
         // Only controllers collapse (#142): a double-click, arrow key, Enter or subtree collapse closes no other row.
         Tree.AddHandler(TreeViewItem.CollapsedEvent, KeepOpen);
         // A monitor connected or removed (#133): Windows sends WM_DISPLAYCHANGE, which Avalonia passes on as this event.
@@ -87,6 +90,35 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
                 }
             }
         };
+    }
+
+    // #276: the kind menu of the device row the request came from; built each time, so only device rows have one.
+    private void OpenKindMenu(object? sender, ContextRequestedEventArgs e)
+    {
+        if (e.Source is not Control { DataContext: NodeViewModel { IsDevice: true } item } source || DataContext is not MainViewModel viewModel)
+        {
+            return;
+        }
+        MenuItem Choice(string header, UsbHelper.Core.Detection.UsbDeviceKind? kind, bool enabled = true)
+        {
+            var choice = new MenuItem { Header = header, IsEnabled = enabled };
+            choice.Click += (_, _) => viewModel.SelectKind(item.Id, kind);
+            return choice;
+        }
+        var menu = new ContextMenu
+        {
+            ItemsSource = new object[]
+            {
+                new MenuItem { Header = Strings.KindMenu, IsEnabled = false },
+                Choice(Strings.KindMenuCamera, UsbHelper.Core.Detection.UsbDeviceKind.Camera),
+                Choice(Strings.KindMenuAudio, UsbHelper.Core.Detection.UsbDeviceKind.Audio),
+                Choice(Strings.KindMenuBoth, UsbHelper.Core.Detection.UsbDeviceKind.CameraAndAudio),
+                Choice(Strings.KindMenuNeither, UsbHelper.Core.Detection.UsbDeviceKind.Neither),
+                Choice(Strings.KindMenuRemove, null, item.KindByUser),
+            },
+        };
+        menu.Open(source);
+        e.Handled = true;
     }
 
     // #266: hovering a port box shows its connector and highlights the path to it; leaving clears the highlight.

@@ -263,6 +263,22 @@ public class V4Tests
         Assert.Single(db.Guides["mine"].Rules);
     }
 
+    // #276: a kind selected by hand is judged like a reported one: an unknown device on tier 4 is within "tiers max 7", and
+    // the same device selected as a camera is over the camera's "max 3". Removal is tested on the main view model.
+    [Fact]
+    public void AKindSelectedByHandIsJudgedByTheStricterRule()
+    {
+        var guide = "name: Cams\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, hub, device] }\n"
+            + "rules:\n  - { measure: tiers, max: 7 }\n  - { measure: tiers, devices: [camera], max: 3 }\n";
+        var db = HardwareDatabase.LoadV4(Files(("guides/cams.yaml", guide)));
+        ConnectionStatus With(UsbNode camera) => DiagnosticEvaluator.Evaluate(Chain(2, camera), db.Platforms["windows-intel"], [],
+            externalDisplays: 0, guide: db.Guides["cams"]).Connections["CAM"];
+        var unknown = Device("CAM") with { DeviceKind = UsbDeviceKind.Unknown };
+
+        Assert.Equal(ConnectionStatus.Green, With(unknown));
+        Assert.NotEqual(ConnectionStatus.Green, With(unknown with { DeviceKind = UsbDeviceKind.Camera, KindByUser = true }));
+    }
+
     // usb4_router is not measured yet (#332): a measure that counts it is "at least", never 0.
     [Fact]
     public void AMeasureThatCountsUsb4RoutersIsAtLeast()
