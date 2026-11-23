@@ -141,7 +141,7 @@ usb:
   max_tiers: 7                     # seven tiers on a path (USB 2.0 specification)
   max_devices_per_controller: 127  # a 7-bit device address; above it is unstable
 usb4:
-  max_router_depth: 5              # judged by a measure that counts usb4_router; read on macOS (#332)
+  max_router_depth: 5              # a reference: a guide judges routers with its own rule (#332)
 ```
 
 ### Platform files
@@ -260,8 +260,8 @@ How to read a value:
 - Each limit is checked on its own; nothing is worked out between hubs, tiers and chain. Above any `max` is unstable
   (purple), above any `recommended` potentially unstable (orange). Only what the guide's `count` lists is judged.
 - Each bus's hubs apply to that bus's tree. A hub on a port whose bus the operating system does not report is judged by
-  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked; a guide judges routers only
-  with a measure that counts `usb4_router` (#332).
+  the lower of the USB 2 and USB 3 values, and the log says so. `usb4` is loaded and checked as a reference; routers are
+  judged only by a guide's own rule on a measure that counts `usb4_router` (#332).
 - A device's tier is the counted tier plus the chip's `built_in_hub_levels`: on an A-series chip (two levels) a device in
   the computer's own port is on tier 4.
 - Findings and the log name the guide, the key and the file, for example

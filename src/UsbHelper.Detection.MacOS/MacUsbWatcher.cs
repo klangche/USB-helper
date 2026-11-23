@@ -12,6 +12,7 @@ internal sealed class MacUsbWatcher : IDisposable
     private readonly Action<IReadOnlyList<UsbChange>> _onChanges;
     private readonly TimeSpan _debounce;
     private readonly object _gate = new();
+    private readonly object _readGate = new();
     private readonly Timer _timer;
     private readonly IDisposable _subscription;
     private IReadOnlyList<UsbNode> _tree;
@@ -43,21 +44,24 @@ internal sealed class MacUsbWatcher : IDisposable
         }
     }
 
+    // The read runs outside _gate, so an IOKit signal or Dispose never waits for it: it can take a while, since it also
+    // runs system_profiler for the USB4 routers (#332). _readGate keeps two flushes from reading at the same time.
     private void Flush()
     {
-        lock (_gate)
+        lock (_readGate)
         {
-            if (_disposed)
+            lock (_gate)
             {
-                return;
+                if (_disposed)
+                {
+                    return;
+                }
             }
 
-            IReadOnlyList<UsbChange> changes;
+            IReadOnlyList<UsbNode> current;
             try
             {
-                var current = _read();
-                changes = UsbTreeDiff.Compare(_tree, current);
-                _tree = current;
+                current = _read();
             }
             catch (Exception)
             {
@@ -65,9 +69,19 @@ internal sealed class MacUsbWatcher : IDisposable
                 return;
             }
 
-            if (changes.Count > 0)
+            lock (_gate)
             {
-                _onChanges(changes);
+                if (_disposed)
+                {
+                    return;
+                }
+
+                var changes = UsbTreeDiff.Compare(_tree, current);
+                _tree = current;
+                if (changes.Count > 0)
+                {
+                    _onChanges(changes);
+                }
             }
         }
     }

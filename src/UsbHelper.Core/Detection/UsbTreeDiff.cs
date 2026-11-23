@@ -82,5 +82,5 @@ public static class UsbTreeDiff
     private static bool SameNode(UsbNode a, UsbNode b) =>
         a.Id == b.Id && a.Kind == b.Kind && a.Name == b.Name && a.PortNumber == b.PortNumber
         && a.UserConnectable == b.UserConnectable && a.UsbC == b.UsbC && a.Bus == b.Bus && a.CompanionPortId == b.CompanionPortId && a.VendorId == b.VendorId && a.ProductId == b.ProductId && a.Problem == b.Problem
-        && a.Usb4Routers == b.Usb4Routers && a.TierLimit == b.TierLimit;
+        && a.Usb4Routers == b.Usb4Routers && a.Usb4Link == b.Usb4Link && a.TierLimit == b.TierLimit;
 }

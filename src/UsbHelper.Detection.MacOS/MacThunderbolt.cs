@@ -16,8 +16,15 @@ namespace UsbHelper.Detection.MacOS;
 public sealed record ThunderboltBus(string Name, string? ReceptacleId, string? Status, string? SpeedLabel, bool? Connected, IReadOnlyList<string> Devices,
     int RouterDepth = 0)
 {
-    /// <summary>N in <c>thunderboltusb4_bus_N</c>, or null when the name has no number.</summary>
-    public int? Index => Name.LastIndexOf('_') is var at and >= 0 && int.TryParse(Name.AsSpan(at + 1), out var index) ? index : null;
+    /// <summary>
+    /// N in <c>thunderboltusb4_bus_N</c>, the name on Apple silicon; null for any other name (an Intel Mac's
+    /// <c>thunderbolt_bus_N</c>), whose link to a USB controller has not been seen, so its routers stay "not measured".
+    /// </summary>
+    public int? Index => Name.StartsWith(Usb4BusPrefix, StringComparison.Ordinal) && int.TryParse(Name.AsSpan(Usb4BusPrefix.Length), out var index)
+        ? index
+        : null;
+
+    private const string Usb4BusPrefix = "thunderboltusb4_bus_";
 }
 
 /// <summary>Parses <c>system_profiler -json SPThunderboltDataType</c>. Missing keys mean unknown; serials and UIDs are never read.</summary>
