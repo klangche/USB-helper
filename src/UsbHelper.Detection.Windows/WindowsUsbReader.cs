@@ -79,7 +79,74 @@ internal static class WindowsUsbReader
         {
             SetupDiDestroyDeviceInfoList(set);
         }
-        return controllers;
+        return WithUsb4Routers(controllers);
+    }
+
+    // The USB4 routers on each controller's link (#332), see Usb4RouterLinks. A system without Microsoft's USB4
+    // connection manager lists no USB4 nodes, and its controllers stay "not measured".
+    private static IReadOnlyList<RawController> WithUsb4Routers(List<RawController> controllers)
+    {
+        var hosts = Usb4RouterLinks.Depths(ReadUsb4Nodes());
+        if (hosts.Count == 0)
+        {
+            return controllers;
+        }
+        var hostSlots = hosts.Select(host => (Usb4RouterLinks.Slot(LocationPaths(host.Key)), host.Value)).ToList();
+        return [.. controllers.Select(controller =>
+            Usb4RouterLinks.Link(hostSlots, Usb4RouterLinks.Slot(LocationPaths(controller.Node.InstanceId))) is ({ } routers, var link)
+                ? controller with { Usb4Routers = routers, Usb4Link = link }
+                : controller)];
+    }
+
+    // Every present node of the USB4 enumerator, with its parent.
+    private static List<Usb4Node> ReadUsb4Nodes()
+    {
+        var nodes = new List<Usb4Node>();
+        var set = SetupDiGetClassDevs(IntPtr.Zero, "USB4", IntPtr.Zero, DIGCF_ALLCLASSES | DIGCF_PRESENT);
+        if (set == InvalidHandleValue)
+        {
+            return nodes; // No USB4 enumerator on this system.
+        }
+        try
+        {
+            var info = NewDevInfoData();
+            for (uint i = 0; SetupDiEnumDeviceInfo(set, i, ref info); i++)
+            {
+                try
+                {
+                    var node = DevNode(set, ref info);
+                    var parent = CM_Get_Parent(out var up, info.DevInst, 0) == CR_SUCCESS ? InstanceId(up) : null;
+                    nodes.Add(new Usb4Node(node.InstanceId, parent, node.Name));
+                }
+                catch (Win32Exception)
+                {
+                    // A node that cannot be read is left out; its host router then counts what remains.
+                }
+            }
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(set);
+        }
+        return nodes;
+    }
+
+    // DEVPKEY_Device_LocationPaths of a device node, or none. A longer value than the buffer is read again at its size.
+    private static IReadOnlyList<string> LocationPaths(string instanceId)
+    {
+        if (CM_Locate_DevNode(out var devInst, instanceId, 0) != CR_SUCCESS)
+        {
+            return [];
+        }
+        var size = (uint)NameBufferSize;
+        var buffer = new byte[size];
+        var result = CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out var type, buffer, ref size, 0);
+        if (result == CR_BUFFER_SMALL)
+        {
+            buffer = new byte[size];
+            result = CM_Get_DevNode_Property(devInst, DevpkeyDeviceLocationPaths, out type, buffer, ref size, 0);
+        }
+        return result == CR_SUCCESS && type == DevpropTypeStringList ? CompatibleIds.Parse(buffer, size) : [];
     }
 
     /// <summary>Reads one hub and everything below it again.</summary>

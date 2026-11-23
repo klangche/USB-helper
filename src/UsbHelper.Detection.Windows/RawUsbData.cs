@@ -20,7 +20,14 @@ internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCo
 }
 
 /// <param name="Error">Why the root hub could not be read, or null.</param>
-internal sealed record RawController(RawDevNode Node, RawHub? RootHub, string? Error);
+internal sealed record RawController(RawDevNode Node, RawHub? RootHub, string? Error)
+{
+    /// <summary>The deepest USB4 device router on this controller's USB4 link (#332); null when none is linked.</summary>
+    public int? Usb4Routers { get; init; }
+
+    /// <summary>The linked routers' names, for the log.</summary>
+    public string? Usb4Link { get; init; }
+}
 
 /// <param name="Node">The hub's device node, or null when it was not found.</param>
 /// <param name="Error">Why the hub could not be read, or null.</param>
