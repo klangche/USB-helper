@@ -303,6 +303,8 @@ public class V4Tests
         Assert.Equal("guides/room.yaml", error.File);
         Assert.True(error.Line > 0);
         Assert.Contains("is a fact about the computer", error.Message, StringComparison.Ordinal);
+    }
+
     // #367 review: the OS file's MST reaches the display check (a guide can no longer state one); the OS file is verified, so
     // the warning has no "unverified" note.
     [Fact]
