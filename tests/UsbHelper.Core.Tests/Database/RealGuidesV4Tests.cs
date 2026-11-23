@@ -140,4 +140,17 @@ public class RealGuidesV4Tests
         Assert.Null(ticked.Count);
         Assert.DoesNotContain("detected", ticked.Origin, StringComparison.Ordinal);
     }
+
+    // #369 review: a disconnected device makes the overall red, but the outcome group follows what is judged: a chain over
+    // Ochno's maximum is still unstable.
+    [Fact]
+    public void AChainOverItsMaximumIsUnstableAlsoWithADisconnectedDevice()
+    {
+        UsbNode[] tree = [Controller("C1", Hub("ROOT", Behind(6, Device("KEYBOARD")), Device("MOUSE")))];
+        var gone = new MissingDevice(Device("CAMERA"), "ROOT|port3", "Port 3", ["C1", "ROOT"]);
+        var report = DiagnosticEvaluator.Evaluate(tree, Db.Platforms["windows-intel"], [gone], externalDisplays: 0, guide: Db.Guides["ochno"]);
+
+        Assert.Equal(ConnectionStatus.Red, report.Overall);
+        Assert.Equal(OutcomeKind.Unstable, OutcomeGroups.KindOf(SystemOutcome.From("Windows Intel", report)));
+    }
 }

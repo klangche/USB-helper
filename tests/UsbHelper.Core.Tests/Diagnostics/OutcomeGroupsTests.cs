@@ -1,4 +1,5 @@
 using UsbHelper.Core.Diagnostics;
+using static UsbHelper.Core.Tests.Detection.TestTree;
 
 namespace UsbHelper.Core.Tests.Diagnostics;
 
@@ -10,7 +11,7 @@ public class OutcomeGroupsTests
     private static readonly Finding Note = new(FactKind.DetectedFact, "computer", "PC", "2 external displays are active.");
 
     private static SystemOutcome System(string name, ConnectionStatus status, params Finding[] findings) =>
-        new(name, ConnectionStatus.Red, new Dictionary<string, ConnectionStatus> { ["CAM"] = status, ["GONE"] = ConnectionStatus.Red }, findings);
+        new(name, status, findings);
 
     [Fact]
     public void SystemsWithTheSameFindingsFormOneGroupAndTheOrderIsBySeverity()
@@ -51,10 +52,19 @@ public class OutcomeGroupsTests
         Assert.Equal(["Same issue on: A, B", "  " + CamLink.Message, "Good on: C"], OutcomeGroups.Lines(groups));
     }
 
-    // A disconnected device is the same on every system, so it does not make a system unstable.
+    // A disconnected device is the same on every system, so it does not decide the group; a hub count over its maximum
+    // still makes the system unstable when a device is disconnected too.
     [Fact]
-    public void ADisconnectedDeviceDoesNotDecideTheGroup() =>
-        Assert.Equal(OutcomeKind.Good, OutcomeGroups.Group([System("A", ConnectionStatus.Green)]).Single().Kind);
+    public void ADisconnectedDeviceDoesNotDecideTheGroup()
+    {
+        UsbHelper.Core.Detection.UsbNode[] tree = [Controller("C1", Hub("ROOT", Device("MOUSE")))];
+        var gone = new MissingDevice(Device("CAMERA"), "ROOT|port2", "Port 2", ["C1", "ROOT"]);
+        var report = DiagnosticEvaluator.Evaluate(tree, null, [gone]);
+
+        Assert.Equal(ConnectionStatus.Red, report.Overall);
+        Assert.NotEqual(ConnectionStatus.Red, report.Judged);
+        Assert.NotEqual(OutcomeKind.Unstable, OutcomeGroups.KindOf(SystemOutcome.From("A", report)));
+    }
 
     // A hub count over its maximum is in the overall result, not in the connections: the system is unstable, not unknown.
     [Fact]
@@ -62,7 +72,7 @@ public class OutcomeGroupsTests
     {
         var hubs = new Finding(FactKind.PredictedRisk, "computer", "PC", "6 hubs are on the USB 2 bus; limits.max_hubs is 5.");
 
-        var group = OutcomeGroups.Group([new SystemOutcome("A", ConnectionStatus.Purple, new Dictionary<string, ConnectionStatus> { ["CAM"] = ConnectionStatus.Green }, [hubs])]).Single();
+        var group = OutcomeGroups.Group([new SystemOutcome("A", ConnectionStatus.Purple, [hubs])]).Single();
 
         Assert.Equal(OutcomeKind.Unstable, group.Kind);
     }

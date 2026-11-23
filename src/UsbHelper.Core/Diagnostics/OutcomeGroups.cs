@@ -17,11 +17,13 @@ public enum OutcomeKind
 }
 
 /// <summary>One system's result, named as the panel names it: "MacBook Pro (16-inch, 2021), measured" or "Windows Intel".</summary>
-/// <param name="Overall">The system's overall result, which also holds the hub, tier, chain and display limits.</param>
-public sealed record SystemOutcome(
-    string Name, ConnectionStatus Overall, IReadOnlyDictionary<string, ConnectionStatus> Connections, IReadOnlyList<Finding> Findings)
+/// <param name="Judged">
+/// The system's result without its disconnected devices (<see cref="DiagnosticReport.Judged"/>): the connections and the
+/// hub, tier, chain and display limits.
+/// </param>
+public sealed record SystemOutcome(string Name, ConnectionStatus Judged, IReadOnlyList<Finding> Findings)
 {
-    public static SystemOutcome From(string name, DiagnosticReport report) => new(name, report.Overall, report.Connections, report.Findings);
+    public static SystemOutcome From(string name, DiagnosticReport report) => new(name, report.Judged, report.Findings);
 }
 
 /// <summary>Systems with the same outcome (#369): their names, and the findings they share, said once.</summary>
@@ -61,27 +63,16 @@ public static class OutcomeGroups
     };
 
     /// <summary>
-    /// The group a result belongs to, from its overall result, which also holds the hub and display limits. A disconnected
-    /// device (red) is the same on every system, so it does not decide the group: then the worst other connection does,
-    /// and a limit exceeded (a predicted risk) makes it at least potentially unstable.
+    /// The group a result belongs to, from its judged result: the connections and every limit, without the disconnected
+    /// devices, which are the same on every system.
     /// </summary>
-    public static OutcomeKind KindOf(SystemOutcome system) => Status(system) switch
+    public static OutcomeKind KindOf(SystemOutcome system) => system.Judged switch
     {
-        ConnectionStatus.Purple => OutcomeKind.Unstable,
+        ConnectionStatus.Purple or ConnectionStatus.Red => OutcomeKind.Unstable,
         ConnectionStatus.Orange => OutcomeKind.PotentiallyUnstable,
         ConnectionStatus.Grey => OutcomeKind.Unknown,
         _ => Judging(system.Findings).Count > 0 ? OutcomeKind.Unknown : OutcomeKind.Good,
     };
-
-    private static ConnectionStatus Status(SystemOutcome system)
-    {
-        if (system.Overall != ConnectionStatus.Red)
-        {
-            return system.Overall;
-        }
-        var worst = system.Connections.Values.Where(status => status != ConnectionStatus.Red).DefaultIfEmpty(ConnectionStatus.Green).Max();
-        return worst < ConnectionStatus.Orange && system.Findings.Any(finding => finding.Kind == FactKind.PredictedRisk) ? ConnectionStatus.Orange : worst;
-    }
 
     // The findings that judge the setup, in a fixed order so that two systems with the same findings get the same key.
     private static List<Finding> Judging(IReadOnlyList<Finding> findings) =>

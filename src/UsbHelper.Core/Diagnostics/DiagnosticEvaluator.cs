@@ -404,15 +404,17 @@ public static class DiagnosticEvaluator
             }
         }
 
-        var overall = connections.Values
-            .Concat(new[] { hubs, tiers, chain }.Select(Contribution))
+        // Everything but the connections: the limits, devices over, no limit known, reported problems and displays.
+        var limits = new[] { hubs, tiers, chain }.Select(Contribution)
             .Append(devicesOver ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(anyLimitKnown ? ConnectionStatus.Green : ConnectionStatus.Grey)
             .Append(AllNodes(tree).Any(node => node.Problem != null) ? ConnectionStatus.Purple : ConnectionStatus.Green)
             .Append(displayContribution)
-            .Max();
+            .ToList();
+        var overall = connections.Values.Concat(limits).Max();
         return new DiagnosticReport(overall, connections, hubs, tiers, displays, disconnected, findings)
         {
+            Judged = connections.Values.Where(status => status != ConnectionStatus.Red).Concat(limits).Max(),
             Depths = depths,
             NoMstMonitors = noMst,
             HubsBus = hubsMax.First(each => ReferenceEquals(each.Check, hubs)).Bus,
