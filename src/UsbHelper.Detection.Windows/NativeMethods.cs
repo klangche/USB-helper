@@ -33,6 +33,11 @@ internal static class NativeMethods
     // DEVPROP_TYPE_BINARY from devpropdef.h: the type of DEVPKEY_Device_PhysicalDeviceLocation.
     public const uint DevpropTypeBinary = 0x1003;
 
+    // DEVPKEY_Device_InLocalMachineContainer from devpkey.h (#330), a DEVPROP_TYPE_BOOLEAN: 0xFF true, 0 false.
+    public static readonly DEVPROPKEY DevpkeyDeviceInLocalMachineContainer = new(new Guid("8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c"), 4);
+
+    public const uint DevpropTypeBoolean = 0x11;
+
     public const uint DN_HAS_PROBLEM = 0x400;
     public const uint CR_SUCCESS = 0;
 

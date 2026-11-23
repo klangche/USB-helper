@@ -12,6 +12,9 @@ internal sealed record RawDevNode(string InstanceId, string Name, int? ProblemCo
     /// <summary>DEVPKEY_Device_PhysicalDeviceLocation as hex, or null when Windows gives none (#342).</summary>
     public string? PhysicalLocation { get; init; }
 
+    /// <summary>DEVPKEY_Device_InLocalMachineContainer, or null when Windows gives none (#330).</summary>
+    public bool? InLocalMachine { get; init; }
+
     /// <summary>SPDRP_COMPATIBLEIDS, empty when Windows gives none (#274).</summary>
     public IReadOnlyList<string> CompatibleIds { get; init; } = [];
 }

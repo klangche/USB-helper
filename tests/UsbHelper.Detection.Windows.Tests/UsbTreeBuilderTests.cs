@@ -292,10 +292,11 @@ public class UsbTreeBuilderTests
     [Fact]
     public void ThePhysicalLocationOfADeviceIsOnItsNode()
     {
-        var dock = new RawDevNode(@"USB\VID_1DA0&PID_901B\5&242A2F40&0&2", "USB2.0 Hub", null) { PhysicalLocation = "01000000080003000104000100000000FFFFFFFF" };
+        var dock = new RawDevNode(@"USB\VID_1DA0&PID_901B\5&242A2F40&0&2", "USB2.0 Hub", null) { PhysicalLocation = "01000000080003000104000100000000FFFFFFFF", InLocalMachine = false };
 
         var root = BuildSingle(DevicePort(2, dock));
 
         Assert.Equal("01000000080003000104000100000000FFFFFFFF", root.Children[0].Children[0].Children[0].PhysicalLocation);
+        Assert.False(root.Children[0].Children[0].Children[0].InLocalMachine); // #330: outside the PC.
     }
 }

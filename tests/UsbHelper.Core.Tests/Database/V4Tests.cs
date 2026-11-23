@@ -338,6 +338,37 @@ public class V4Tests
         Assert.Empty(TopologyCounts.Paths([LimitedControllerTree[0] with { TierLimit = null }])["KEYBOARD"].ComputerHubs);
     }
 
+    // Windows (#330, the owner's Asus on #267): InLocalMachineContainer says which nodes are in the PC. No PC with an
+    // internal hub is recorded, so this one is synthetic: an internal hub on a user-connectable port, and behind it an
+    // external keyboard. It is a detected computer hub, counted once, in place of the database value.
+    private static IReadOnlyList<UsbNode> LocalHubTree => [Controller("C1", Hub("ROOT",
+        Hub("INTERNAL", Device("KEYBOARD") with { InLocalMachine = false }, Device("WEBCAM") with { InLocalMachine = true }) with { InLocalMachine = true }))];
+
+    [Fact]
+    public void AHubInTheComputersOwnContainerIsADetectedComputerHub()
+    {
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 1, "detected: INTERNAL"), ComputerHubOf("windows-intel", LocalHubTree, "KEYBOARD"));
+        Assert.Equal(new CountPart(PathElements.ComputerHub, 1, "detected: INTERNAL"), ComputerHubOf("macos-apple-silicon", LocalHubTree, "KEYBOARD"));
+        Assert.Empty(TopologyCounts.Paths(LocalHubTree)["KEYBOARD"].Hubs);
+        Assert.Empty(TopologyCounts.Paths(LocalHubTree)["WEBCAM"].ComputerHubs); // A built-in device: no computer hub in front.
+    }
+
+    // The Asus dock: its hubs and the device behind are outside the PC, on the root hub's own port. The computer hubs in
+    // front of them were all seen, so the count is a detected 0, not the database's value.
+    private static IReadOnlyList<UsbNode> OutsideTree => [Controller("C1", Hub("ROOT",
+        Hub("DOCK2", Hub("GENESYS2", Device("WPP20") with { InLocalMachine = false }) with { InLocalMachine = false }) with { InLocalMachine = false }))];
+
+    [Fact]
+    public void ADeviceOutsideTheComputerOnItsOwnPortHasADetectedZero()
+    {
+        var zero = new CountPart(PathElements.ComputerHub, 0, "detected: none, the device is outside the computer");
+        Assert.Equal(zero, ComputerHubOf("windows-intel", OutsideTree, "WPP20"));
+        Assert.Equal(zero, ComputerHubOf("macos-apple-silicon", OutsideTree, "WPP20")); // Even where the chip says 1.
+        Assert.Equal(["DOCK2", "GENESYS2"], TopologyCounts.Paths(OutsideTree)["WPP20"].Hubs);
+        // Without the reading (a Mac, or an older Windows), the database value applies as before.
+        Assert.False(TopologyCounts.Paths(Chain(2, Device("KEYBOARD")))["KEYBOARD"].ComputerHubsMeasured);
+    }
+
     // An internal hub that serves only a built-in webcam, next to an external port on the root hub.
     private static IReadOnlyList<UsbNode> WebcamOnlyTree => [Controller("C1",
         Hub("ROOT", Hub("INTERNAL", Device("WEBCAM")).Connectable(false), Device("KEYBOARD")).Connectable(false, true))];

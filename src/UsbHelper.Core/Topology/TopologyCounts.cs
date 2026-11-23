@@ -178,7 +178,11 @@ public static class TopologyCounts
             var portPath = mark == null ? path : path with { Marks = [.. path.Marks, (PortName(hub, port), mark)] };
             foreach (var connected in port.Children)
             {
-                if (connected.Kind == UsbNodeKind.Hub && builtIn && port.UserConnectable == false)
+                // Inside the computer (#330): on a port that is not user-connectable, or a node Windows puts in the
+                // computer's own container (InLocalMachineContainer). Outside: a node Windows puts in another container.
+                var inside = builtIn && (port.UserConnectable == false || connected.InLocalMachine == true);
+                var outside = builtIn && connected.InLocalMachine == false;
+                if (connected.Kind == UsbNodeKind.Hub && inside)
                 {
                     // A hub built into the computer (#330): not an external hub, but a computer_hub for what is behind it.
                     foreach (var entry in Below(connected, above, hubs, builtIn: true, marks, portPath with { ComputerHubs = [.. portPath.ComputerHubs, connected.Name] }))
@@ -187,12 +191,14 @@ public static class TopologyCounts
                     }
                     continue;
                 }
-                // A node on an internal port (a built-in webcam) has no computer_hub in front of an external port.
-                var nodePath = builtIn && port.UserConnectable == false ? portPath with { ComputerHubs = [] } : portPath;
+                // A node on an internal port (a built-in webcam) has no computer_hub in front of an external port. A node
+                // outside the computer on its own port: the computer hubs in front of it are known, possibly none.
+                var measured = outside ? portPath with { ComputerHubsMeasured = true } : portPath;
+                var nodePath = inside ? portPath with { ComputerHubs = [] } : measured;
                 yield return (connected, new ConnectionDepth(Tier: above + 1, HubsInFront: hubs), port.Bus, port, nodePath);
                 if (connected.Kind == UsbNodeKind.Hub)
                 {
-                    foreach (var entry in Below(connected, above + 1, hubs + 1, builtIn: false, marks, portPath with { Hubs = [.. portPath.Hubs, connected.Name] }))
+                    foreach (var entry in Below(connected, above + 1, hubs + 1, builtIn: false, marks, measured with { Hubs = [.. measured.Hubs, connected.Name] }))
                     {
                         yield return entry;
                     }

@@ -48,8 +48,10 @@ internal static class RuleJudge
         {
             // Hubs the system reports inside the computer (#330) take the place of the database value on this path, so
             // they are never counted twice.
-            var computerHub = path.ComputerHubs.Count > 0 && measure.ComputerHubFrom.Contains("detected")
-                ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, $"detected: {string.Join(", ", path.ComputerHubs)}")
+            var computerHub = (path.ComputerHubs.Count > 0 || path.ComputerHubsMeasured) && measure.ComputerHubFrom.Contains("detected")
+                ? new CountPart(PathElements.ComputerHub, path.ComputerHubs.Count, path.ComputerHubs.Count > 0
+                    ? $"detected: {string.Join(", ", path.ComputerHubs)}"
+                    : "detected: none, the device is outside the computer")
                 : ComputerHub(measure, guide, profile, bus);
             parts.Add(computerHub with { Count = computerHub.Count * measure.Weight(PathElements.ComputerHub) });
         }
