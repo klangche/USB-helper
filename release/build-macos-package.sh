@@ -20,19 +20,44 @@ fi
 
 temporary=$(mktemp -d)
 mounted=0
+device=""
 mountpoint="$temporary/mounted"
-# A freshly written volume can stay busy for a few seconds (Spotlight, fseventsd), and detach then fails (#278). Retry,
-# then force; never quiet, so a failure says why.
+# A freshly written volume can stay busy for a few seconds (Spotlight, fseventsd), and detach then fails (#278).
+# hdiutil can also unmount the volume and still report "couldn't eject ... Resource busy", after which a detach by the
+# mount point only fails with "No such file or directory". So the image is detached by its device (/dev/diskN, from
+# attach) until the device is gone: retried, then forced; never quiet, so a failure says why.
+attached() {
+  diskutil info "$1" >/dev/null 2>&1
+}
 detach() {
   local attempt
   for attempt in 1 2 3 4 5; do
-    if hdiutil detach "$1"; then
+    if ! attached "$1" || hdiutil detach "$1"; then
       return 0
     fi
     echo "Detaching $1 failed (attempt $attempt of 5); retrying." >&2
     sleep 3
   done
+  attached "$1" || return 0
   hdiutil detach -force "$1"
+}
+# Attaches an image, retried, and keeps its whole-disk device in $device: the first /dev/diskN that attach prints. A
+# compressed image prints its checksum lines first, so the first line is not always the device.
+attach() {
+  local output line
+  output=$(retry hdiutil attach "$@")
+  device=""
+  while IFS= read -r line; do
+    if [[ $line =~ ^(/dev/disk[0-9]+)[[:space:]] ]]; then
+      device=${BASH_REMATCH[1]}
+      break
+    fi
+  done <<< "$output"
+  if [[ -z $device ]]; then
+    echo "hdiutil attach printed no /dev/disk device:" >&2
+    echo "$output" >&2
+    return 1
+  fi
 }
 # hdiutil on the build runners also answers "Resource busy" for a moment to create, attach or convert, for example right
 # after another disk image was detached (#282). Retry such a step, 3 seconds apart; the last failure stops the script.
@@ -48,8 +73,8 @@ retry() {
   "$@"
 }
 cleanup() {
-  if ((mounted)); then
-    detach "$mountpoint" || true
+  if ((mounted)) && [[ -n "$device" ]]; then
+    detach "$device" || true
   fi
   rm -rf "$temporary"
 }
@@ -94,15 +119,16 @@ cp "$script_dir/../src/UsbHelper.App/Assets/usb-helper.icns" "$stage/.VolumeIcon
 writable="$temporary/writable.dmg"
 retry hdiutil create -volname USB-helper -srcfolder "$stage" -ov -format UDRW "$writable"
 mkdir "$mountpoint"
-retry hdiutil attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable" >/dev/null
+attach -nobrowse -readwrite -mountpoint "$mountpoint" "$writable"
 mounted=1
 xattr -wx com.apple.FinderInfo 0000000000000000040000000000000000000000000000000000000000000000 "$mountpoint"
-detach "$mountpoint"
+detach "$device"
 mounted=0
 rm -f "$archive"
 retry hdiutil convert "$writable" -format UDZO -ov -o "$archive"
 hdiutil verify "$archive"
-retry hdiutil attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive" >/dev/null
+mkdir -p "$mountpoint" # A detach may remove it.
+attach -nobrowse -readonly -mountpoint "$mountpoint" "$archive"
 mounted=1
 for entry in \
   USB-helper.app/Contents/Info.plist \
