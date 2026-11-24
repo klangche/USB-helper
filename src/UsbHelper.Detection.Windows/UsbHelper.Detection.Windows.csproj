@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="UsbHelper.Detection.Windows.Tests" />
+    <!-- #370: the recorded trees of both systems give the same tree by port. -->
+    <InternalsVisibleTo Include="UsbHelper.App.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

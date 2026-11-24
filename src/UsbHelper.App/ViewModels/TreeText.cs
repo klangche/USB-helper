@@ -35,10 +35,10 @@ public static class TreeText
 
     private static void AddChildren(NodeViewModel item, string indent, List<string> lines)
     {
-        foreach (var child in item.Children)
+        foreach (var (child, last) in item.WrittenChildren)
         {
-            lines.Add(indent + (child.IsLast ? "`-- " : "|-- ") + Row(child));
-            AddChildren(child, indent + (child.IsLast ? "    " : "|   "), lines);
+            lines.Add(indent + (last ? "`-- " : "|-- ") + Row(child));
+            AddChildren(child, indent + (last ? "    " : "|   "), lines);
         }
     }
 

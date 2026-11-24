@@ -98,10 +98,10 @@ public sealed record ReportRow(
 
     private static void Add(NodeViewModel item, int level, IReadOnlyList<bool> guides, List<ReportRow> rows)
     {
-        foreach (var child in item.Children)
+        foreach (var (child, last) in item.WrittenChildren)
         {
-            rows.Add(Row(child, level, guides, child.IsLast));
-            Add(child, level + 1, [.. guides, !child.IsLast], rows);
+            rows.Add(Row(child, level, guides, last));
+            Add(child, level + 1, [.. guides, !last], rows);
         }
     }
 

@@ -535,7 +535,7 @@ public class ReportPdfTests
         Assert.All(model.Profiles, profile => Assert.Equal(["External hubs", "Deepest tier", "External displays"],
             profile.Checks.Take(3).Select(check => check.Name)));
         Assert.Equal(new ReportDisplay("DELL U2723QE", "HDMI", null), Assert.Single(model.Displays!));
-        Assert.Contains(model.Tree, row => row.Text == "KEYBOARD" && row.Level == 6 && row.Status != null);
+        Assert.Contains(model.Tree, row => row.Text == "KEYBOARD" && row.Level == 4 && row.Status != null); // #370: host > port > hub > port > keyboard.
         Assert.Contains(model.Tree, row => row.Text == "Port 1" && row.PortType == "USB-C");
         Assert.Equal(TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine).Length, model.Tree.Count);
     }
