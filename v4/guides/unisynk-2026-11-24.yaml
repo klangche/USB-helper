@@ -16,6 +16,11 @@ selectable: true  # true: it can be picked in the menu
 proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
 own: true  # true: our own numbers, so no source to quote
 
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
 sources:  # where the rules come from, each with a short name
   pro-av-cable:  # the short name the rules use
     link: https://unisynk.se/sv-se/usb-c-kabel-for-pro-av-240w/  # the web page

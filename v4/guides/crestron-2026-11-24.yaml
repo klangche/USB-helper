@@ -19,6 +19,12 @@
 name: Crestron  # the name in the menu
 selectable: true  # true: it can be picked in the menu
 proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
 basis:  # the words the philosophy is built on
   source: crestron  # which source below
   quote: never more than 7 tiers  # its words, copied exactly
@@ -67,6 +73,10 @@ cables:  # notes on cable lengths and approved cable models; they never change a
         limited to ~9.8 ft (3 m)
 
 notes:  # background, kept word for word
+  - >
+    Signed off by the USB-Helper owner on 2026-11-24 (#389), when the file was rewritten in the readable layout
+    (#386). Crestron has not signed this version yet; their own sign-off replaces this one when they send
+    a file.
   - >
     Quotes (Crestron 3082, Oct 22, 2026): "never more than 7 tiers"; a laptop with several ports
     "must already have a hub"; "the laptop's built-in USB connectors are already tier 2" (the reason

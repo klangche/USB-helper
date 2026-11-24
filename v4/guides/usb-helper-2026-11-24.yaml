@@ -18,6 +18,11 @@ selectable: true  # true: it can be picked in the menu
 proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
 own: true  # true: our own numbers, so no source to quote
 
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
 counts: tiers  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
 
 computer_hubs:  # the hubs inside the computer

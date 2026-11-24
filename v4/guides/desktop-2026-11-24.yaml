@@ -16,6 +16,11 @@ name: USB Standard  # the name in the menu
 selectable: true  # true: it can be picked in the menu
 proav: 0  # 1: ProAV, marked in the menu · 0: general purpose
 
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
 sources:  # where the rules come from, each with a short name
   usb2:  # the short name the rules use
     title: USB 2.0 specification  # the document's title

@@ -18,6 +18,12 @@
 name: Extron  # the name in the menu
 selectable: true  # true: it can be picked in the menu
 proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
 basis:  # the words the philosophy is built on
   source: whitepaper  # which source below
   quote: five cascading hub limit  # its words, copied exactly
@@ -66,6 +72,10 @@ limits:  # the numbers, for every device unless a scope below says otherwise
       within USB compound devices
 
 notes:  # background, kept word for word
+  - >
+    Signed off by the USB-Helper owner on 2026-11-24 (#389), when the file was rewritten in the readable layout
+    (#386). Extron has not signed this version yet; their own sign-off replaces this one when they send
+    a file.
   - >
     Quotes (white paper, Rev 1.0, page 12 of the owner's copy): "count all of the hubs between the
     host controller and the farthest peripheral. This includes all of the hubs located inside any
