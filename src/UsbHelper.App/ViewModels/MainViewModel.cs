@@ -1084,7 +1084,8 @@ public sealed class MainViewModel : ObservableObject
         var path = item?.HoverPortId is { } portId ? PortConnector.PathTo(tree, portId).Append(item.Id).ToHashSet() : [];
         foreach (var row in Flat(Roots[0]))
         {
-            row.IsOnHoveredPath = path.Contains(row.Id) || row.GroupPortIds.Any(path.Contains);
+            // #370: a port row and its router row by their ports, a hub shown with its other half by either half.
+            row.IsOnHoveredPath = path.Contains(row.Id) || row.GroupPortIds.Any(path.Contains) || (row.OtherHalfId is { } half && path.Contains(half));
         }
         if (item?.HoverPortId is { } id)
         {
@@ -1507,7 +1508,7 @@ public sealed class MainViewModel : ObservableObject
         var placement = MonitorPlacement.Place(judged, monitors ?? []);
         log.DisplayLinks(placement, judged);
         // #370: the tree is shown by the computer's ports, both halves of a connector together.
-        var layout = PortTree.Build(judged, ports.Pairs);
+        var layout = PortTree.Build(judged, ports.Pairs, missing);
         if (Roots.Count == 0)
         {
             Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement));
@@ -1529,10 +1530,12 @@ public sealed class MainViewModel : ObservableObject
             laying = true;
             foreach (var group in Roots[0].Children.Where(item => item.CanExpand))
             {
-                group.IsExpanded = open != null && group.GroupControllerIds.Contains(open);
+                // What cannot be placed stays open: it would be missed when closed.
+                group.IsExpanded = group.Id == PortTree.OtherId || (open != null && group.GroupControllerIds.Contains(open));
             }
             laying = false;
         }
+        watched.IntersectWith(Roots[0].Children); // Rows by port come and go with what is plugged in.
         foreach (var controller in Roots[0].Children.Where(item => item.Id != NodeViewModel.DisplaysId && watched.Add(item)))
         {
             controller.PropertyChanged += (sender, e) =>

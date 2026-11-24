@@ -16,12 +16,13 @@ named as the system names it, "Port 3". After the ports, "Built into the
 computer" holds the devices inside it (a webcam, a fingerprint reader,
 Bluetooth: in the computer's own container on Windows, or on a port the system
 calls internal), and, only when something cannot be placed on a port, "Other USB
-ports (not identified)", whose hover says why. Controllers and root hubs are no
-rows: the port's hover names its controller. A USB4 dock is its own row below
+ports (not identified)", whose hover says why; it stays open while the tree follows what is plugged in. Controllers and root hubs are no
+rows: the port's hover names the controller and root hub of each half. A USB4 dock is its own row below
 its port, "USB4 dock: PS9010 (router, depth 1)", with the dock's hubs below it.
 The two halves of a USB 3 hub are one row, "USB3.2 Hub + USB2.0 Hub (1DA0:901A,
 USB 2 + USB 3)", with the ports of both below it; it has the worse status of its
-two halves, and a mark on its line goes on both halves' lines. Every other hub
+two halves, and a mark on its line goes on both halves' lines. A dropped USB 3 hub
+stays one row too, with "(disconnected)". Every other hub
 and device names the bus of its port: "WPP20 (6993:B022, USB 2)". The Mac and the
 PC show the same tree for the same setup. Thin lines join the items, starting at the
 computer. Each line is drawn in the worst status of everything it leads to: a

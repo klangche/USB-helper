@@ -1145,6 +1145,15 @@ This version keeps running.</value>
     <value>Other USB ports (not identified)</value>
   </data>
   <data name="PortOnController" xml:space="preserve">
-    <value>Controller: {0}</value>
+    <value>Controller: {0}, {1}</value>
+  </data>
+  <data name="ReasonInternalPortOutside" xml:space="preserve">
+    <value>{0}: the system calls {1} internal, but says the device is not part of the computer.</value>
+  </data>
+  <data name="ReasonRouterNotPlaced" xml:space="preserve">
+    <value>{0}: on {1}, which has {2} ports in use; the system does not say which one it is on.</value>
+  </data>
+  <data name="ReasonRouterUnnamed" xml:space="preserve">
+    <value>A USB4 router</value>
   </data>
 </root>

@@ -1,4 +1,5 @@
 using UsbHelper.Core.Detection;
+using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Topology;
 
 namespace UsbHelper.Core.Tests.Topology;
@@ -93,5 +94,74 @@ public class PortTreeTests
 
         Assert.All(layout.Groups, group => Assert.Equal(PortGroupKind.Port, group.Kind));
         Assert.All(layout.Groups, group => Assert.All(group.Nodes, port => Assert.Empty(port.Children)));
+    }
+
+    private static MissingDevice Kept(UsbNode node, string portId) => new(node, portId, portId, []);
+
+    // A dropped dock (#212): its two disconnected halves, kept at the two halves of the port, are one hub.
+    [Fact]
+    public void ADroppedUsb3HubIsStillOneHub()
+    {
+        var box = Guid.NewGuid();
+        var tree = Tree(Port("ROOT|ss1", 1, UsbBus.Usb3) with { CompanionPortId = "ROOT|hs2" }, Port("ROOT|hs2", 2, UsbBus.Usb2));
+        var layout = PortTree.Build(tree, missing: [Kept(Hub("HUB3") with { ContainerId = box }, "ROOT|ss1"), Kept(Hub("HUB2") with { ContainerId = box }, "ROOT|hs2")]);
+
+        Assert.Equal("HUB3 + HUB2", layout.MissingNames["HUB3"]);
+        Assert.Contains("HUB2", layout.HiddenMissing);
+        Assert.Equal("ROOT|hs2", layout.OtherHalves["HUB3"].PortId);
+    }
+
+    // An internal port keeps its place in the built-in group with a disconnected device or a problem, and a built-in
+    // device on a user-connectable port stays built in when it drops.
+    [Fact]
+    public void ABuiltInPortKeepsItsPlaceWhenItsDeviceDrops()
+    {
+        var tree = Tree(
+            Port("ROOT|p7", 7, UsbBus.Usb2) with { UserConnectable = false },
+            Port("ROOT|p9", 9, UsbBus.Usb2) with { UserConnectable = false, Problem = "Could not read the port." },
+            Port("ROOT|p10", 10, UsbBus.Usb2));
+        var layout = PortTree.Build(tree, missing:
+            [Kept(Device("WEBCAM") with { InLocalMachine = true }, "ROOT|p7"), Kept(Device("BLUETOOTH") with { InLocalMachine = true }, "ROOT|p10")]);
+
+        var builtIn = Assert.Single(layout.Groups);
+        Assert.Equal(PortGroupKind.BuiltIn, builtIn.Kind);
+        Assert.Equal(["ROOT|p7", "ROOT|p9", "ROOT|p10"], builtIn.Nodes.Select(node => node.Id));
+        Assert.Equal(UsbBus.Usb2, layout.Buses["WEBCAM"]); // A disconnected device names its port's bus too.
+    }
+
+    // The Asus: the USB 2 halves on one controller, the USB 3 halves and the router on another. A mouse in the second
+    // USB-C port's USB 2 half does not put that port on the router's controller.
+    [Fact]
+    public void TheRouterStaysOnItsPortWhenAnotherPortsOtherHalfIsInUse()
+    {
+        var dock3 = Hub("DOCK3", Port("DOCK3|p1", 1, UsbBus.Usb3));
+        var dock2 = Hub("DOCK2", Port("DOCK2|p1", 1, UsbBus.Usb2, Device("HID")));
+        IReadOnlyList<UsbNode> tree =
+        [
+            new("PCH", UsbNodeKind.Controller, "PCH", [Hub("ROOT2",
+                Port("ROOT2|p2", 2, UsbBus.Usb2, dock2) with { CompanionPortId = "ROOT3|p1" },
+                Port("ROOT2|p3", 3, UsbBus.Usb2, Device("MOUSE")) with { CompanionPortId = "ROOT3|p2" })]),
+            new("TYPEC", UsbNodeKind.Controller, "Type-C", [Hub("ROOT3",
+                Port("ROOT3|p1", 1, UsbBus.Usb3, dock3) with { CompanionPortId = "ROOT2|p2" },
+                Port("ROOT3|p2", 2, UsbBus.Usb3) with { CompanionPortId = "ROOT2|p3" })]) { Usb4Routers = 1, Usb4Link = "USB4 link: PS9010" },
+        ];
+
+        var layout = PortTree.Build(tree);
+
+        Assert.Equal(["usb4|TYPEC", null], layout.Groups.Select(group => group.Router?.Id));
+        Assert.DoesNotContain(layout.Groups, group => group.Kind == PortGroupKind.Other);
+    }
+
+    // With companions named, hub ports pair only by them: the same port number is no pair then.
+    [Fact]
+    public void HubPortsPairByNumberOnlyWhereNoCompanionIsNamed()
+    {
+        var usb3 = Hub("HUB3", Port("HUB3|p1", 1, UsbBus.Usb3, Hub("A3", Port("A3|p1", 1, UsbBus.Usb3, Device("LAN")))) with { CompanionPortId = "HUB2|p4" });
+        var usb2 = Hub("HUB2", Port("HUB2|p1", 1, UsbBus.Usb2, Hub("B2", Port("B2|p1", 1, UsbBus.Usb2, Device("KEYBOARD")))), Port("HUB2|p4", 4, UsbBus.Usb2));
+        var layout = PortTree.Build(Tree(
+            Port("ROOT|ss1", 1, UsbBus.Usb3, usb3) with { CompanionPortId = "ROOT|hs2" },
+            Port("ROOT|hs2", 2, UsbBus.Usb2, usb2)));
+
+        Assert.Equal(["HUB3"], layout.OtherHalves.Keys); // A3 and B2 are on different connectors.
     }
 }

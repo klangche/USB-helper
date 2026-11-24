@@ -15,10 +15,12 @@ public class TreeByPortTests
     // ---- The owner's M1 Max with the Parade PS9010 dock in receptacle 1 (Mac run B on #267, 2026-11-23) ----
     // Names and locations as recorded. Vendor and product ids were not recorded on the Mac; they are the dock's own, as
     // the Asus recorded them (#354): a device's descriptor is the same on every computer. The hub ports are the entries
-    // IOKit lists for each hub port in use (AppleUSB20HubPort, AppleUSB30HubPort), which give each port its bus. The
-    // "Parade Tech USB2.0 HUB" is a device, not a hub: Windows binds it to WinUSB, which it does not do for a hub.
+    // IOKit lists for each hub port in use (AppleUSB20HubPort, AppleUSB30HubPort), which give each port its bus: they
+    // are not in the recording. The "Parade Tech USB2.0 HUB" is a hub with nothing on it, as recorded; on Windows it is a
+    // device (WinUSB), and the text shows both the same.
     internal const string MacThunderboltJson = """
         {"SPThunderboltDataType":[
+          {"_name":"thunderboltusb4_bus_2","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"Up to 40 Gb/s","receptacle_id_key":"3","receptacle_status_key":"receptacle_no_devices_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."},
           {"_name":"thunderboltusb4_bus_1","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"Up to 40 Gb/s","receptacle_id_key":"2","receptacle_status_key":"receptacle_no_devices_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."},
           {"_items":[{"_name":"PS9010","device_id_key":"0x9010","device_name_key":"PS9010","mode_key":"usb_four","route_string_key":"1","switch_version_key":"1.3","vendor_id_key":"0x1DA0","vendor_name_key":"Parade Technologies"}],
            "_name":"thunderboltusb4_bus_0","device_name_key":"MacBook Pro","receptacle_1_tag":{"current_speed_key":"40 Gb/s","receptacle_id_key":"1","receptacle_status_key":"receptacle_connected"},"route_string_key":"0","vendor_name_key":"Apple Inc."}]}
@@ -54,7 +56,7 @@ public class TreeByPortTests
             [
                 MacRootPort("usb-drd0-port-hs", "AppleUSB20XHCIARMPort", 0x00100000, MacHub(0x00100000, 0x1DA0, 0x901B, "USB2.0 Hub", usb3: false,
                     MacHub(0x00120000, 0x05E3, 0x0610, "USB2.1 Hub", usb3: false, MacDevice(0x00122000, 0x6993, 0xB022, "WPP20")),
-                    MacDevice(0x00130000, 0x1DA0, 0x5513, "Parade Tech USB2.0 HUB"),
+                    MacHub(0x00130000, 0x1DA0, 0x5513, "Parade Tech USB2.0 HUB", usb3: false),
                     MacDevice(0x00140000, 0x1DA0, 0x901C, "Billboard Device"),
                     MacDevice(0x00150000, 0x1DA0, 0x901D, "HID device"))),
                 MacRootPort("usb-drd0-port-ss", "AppleT8103USB30XHCIPort", 0x00200000, MacHub(0x00200000, 0x1DA0, 0x901A, "USB3.2 Hub", usb3: true,
@@ -67,8 +69,10 @@ public class TreeByPortTests
 
     // ---- The owner's Asus ExpertBook B5402CBA with the same dock (#354, 2026-11-23) ----
     // Instance ids, names (the bus-reported ones, which the app shows, #39), locations, containers, _PLD buffers and
-    // InLocalMachineContainer as recorded. The recording has no connector properties: the dock's two root ports are
-    // user-connectable and USB-C (it is a USB4 dock), the ports of the webcam, fingerprint reader and Bluetooth internal.
+    // InLocalMachineContainer as recorded. Assumed, as the recording has no connector properties (IOCTL_USB_GET_PORT_
+    // CONNECTOR_PROPERTIES): the dock's two root ports are user-connectable and USB-C (the _PLD's user-visible bit is 1
+    // for them, and it is a USB4 dock), the ports of the webcam, fingerprint reader and Bluetooth internal (their _PLD's
+    // bit is 0). The bus of each port is assumed from its controller and hub (Port_#….Hub_#…, SS01 or HS02).
     private static readonly Guid LocalMachine = new("00000000-0000-0000-FFFF-FFFFFFFFFFFF");
     private static readonly Guid DockBox = new("1DA04602-B000-2107-0000-000000000000");
     private static readonly Guid Genesys = new("9F4B56F0-1DF6-11E0-AC64-0800200C9A66");
@@ -229,6 +233,7 @@ public class TreeByPortTests
         Assert.Contains("Keyboard: the system calls Port 1 internal, but says the device is not part of the computer.", other.RowTip);
         Assert.Contains("Broken controller: Could not read the root hub: access denied", other.RowTip);
         Assert.Equal(PortTree.OtherId, other.Id);
+        Assert.True(other.IsExpanded); // Kept open while the tree follows, so it is not missed.
     }
 
     // The USB 2 half of the dock's hub is kept with its port, for the row's status and its line's mark.
@@ -240,5 +245,70 @@ public class TreeByPortTests
         var (usb3, half) = Assert.Single(layout.OtherHalves, each => each.Value.Hub.Name == "USB2.0 Hub");
         Assert.Equal("usb-device-00200000", usb3);
         Assert.Equal("usb-controller-00000000|roothub|port1", half.PortId);
+    }
+
+    // The port's hover names both controllers of the Asus's USB-C port, with their root hubs, though their names are the same.
+    [Fact]
+    public void ThePortsHoverNamesTheControllerAndRootHubOfEachHalf()
+    {
+        var viewModel = Loaded(AsusDock());
+        var port = viewModel.Roots[0].Rows[0];
+
+        viewModel.HoverPort(port);
+
+        Assert.Equal(2, port.PortHover!.Lines.Count(line => line == "Controller: USB-styrenhet (Universal Serial Bus), USB Root Hub (USB 3.0)"));
+    }
+
+    // Hovering a device on the USB 2 side of a merged hub lights the whole way: the port, the router and both merged hubs.
+    [Fact]
+    public void HoveringBelowTheUsb2HalfLightsThePathThroughTheMergedHubs()
+    {
+        var viewModel = Loaded(MacDock());
+        var port = viewModel.Roots[0].Rows[0];
+        var router = port.Rows[0];
+        var dock = router.Rows[0];
+        var genesys = dock.Rows[0];
+        var wpp20 = genesys.Rows.Single(row => row.Text.StartsWith("WPP20", StringComparison.Ordinal));
+
+        viewModel.HoverPort(wpp20);
+
+        Assert.All(new[] { port, router, dock, genesys, wpp20 }, row => Assert.True(row.IsOnHoveredPath, row.Text));
+        Assert.False(genesys.Rows.Single(row => row.Text.StartsWith("USB 10/100", StringComparison.Ordinal)).IsOnHoveredPath);
+    }
+
+    // The router read after the hubs: its row comes in above them, and the rows below keep their identity.
+    [Fact]
+    public void TheRouterRowComesAndGoesWithoutRebuildingTheRowsBelow()
+    {
+        var viewModel = new MainViewModel(null, [], new ComputerIdentity("Maker", "Model"), () => [], new EventLog());
+        var withoutRouter = MacDock().Select(controller => controller with { Usb4Routers = null, Usb4Link = null }).ToList();
+        viewModel.Load(withoutRouter);
+        var dock = viewModel.Roots[0].Rows[0].Rows[0];
+        Assert.StartsWith("USB3.2 Hub", dock.Text, StringComparison.Ordinal);
+
+        viewModel.Load(MacDock());
+        Assert.Same(dock, viewModel.Roots[0].Rows[0].Rows[0].Rows[0]);
+
+        viewModel.Load(withoutRouter);
+        Assert.Same(dock, viewModel.Roots[0].Rows[0].Rows[0]);
+    }
+
+    // A dropped dock stays one box: its two disconnected halves are one row at the port (#212).
+    [Fact]
+    public void ADroppedDockIsOneDisconnectedRow()
+    {
+        var tree = MacDock();
+        var viewModel = Loaded(tree);
+        var root = tree[0].Children[0];
+
+        // The detector sends each root port as it is now: the same port, with nothing on it.
+        viewModel.Apply([.. root.Children.Select(port => new UsbChange(UsbChangeKind.Removed, root.Id, port with { Children = [] }))]);
+
+        var port = viewModel.Roots[0].Rows[0];
+        Assert.Equal("USB-C port 1", port.Text);
+        // The controller still reports the router until the next read of the buses; the dropped dock is below it.
+        var dropped = Assert.Single(Assert.Single(port.Rows).Rows);
+        Assert.Equal("USB3.2 Hub + USB2.0 Hub (1DA0:901A, USB 2 + USB 3) (disconnected)", dropped.Text);
+        Assert.True(dropped.IsDisconnected);
     }
 }

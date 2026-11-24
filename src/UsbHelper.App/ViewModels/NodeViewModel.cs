@@ -54,6 +54,7 @@ public sealed class NodeViewModel : ObservableObject
     private string? portBadge;
     private string? pairedPortId;
     private bool isHalf;
+    private bool hasContent;
     private string? note;
     private IReadOnlyList<string> groupPortIds = [];
     private IReadOnlyList<string> groupControllerIds = [];
@@ -625,6 +626,9 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>For a row of the tree by port (#370): the controllers its ports are on, for opening the selected one's.</summary>
     public IReadOnlyList<string> GroupControllerIds => groupControllerIds;
 
+    /// <summary>For a hub shown with its other half (#370): the USB 2 half's id, so hovering below that half lights this row too.</summary>
+    public string? OtherHalfId { get; private set; }
+
     private void SetNote(string? value)
     {
         SetField(ref note, value, nameof(RowTip));
@@ -693,8 +697,23 @@ public sealed class NodeViewModel : ObservableObject
     private sealed record Context(IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> Linked, PortTree Layout);
 
     // A port is shown when something is on it, it has a problem, or a disconnected device is kept at it.
-    private static bool Shown(UsbNode port, DiagnosticReport report) =>
-        port.Children.Count > 0 || port.Problem != null || report.Missing.Any(missing => missing.PortId == port.Id);
+    private static bool Shown(UsbNode port, DiagnosticReport report, PortTree layout) =>
+        port.Children.Count > 0 || port.Problem != null || Kept(port, report, layout).Any();
+
+    // The disconnected devices kept at a port, without what was behind them; the USB 2 half of a dropped USB 3 hub is
+    // shown with its USB 3 half (#370), and named with it.
+    private static IEnumerable<UsbNode> Kept(UsbNode port, DiagnosticReport report, PortTree layout) => report.Missing
+        .Where(missing => missing.PortId == port.Id && !layout.HiddenMissing.Contains(missing.Node.Id))
+        .Select(missing => missing.Node with { Name = layout.MissingNames.GetValueOrDefault(missing.Node.Id) ?? missing.Node.Name, Children = [] });
+
+    // "Keyboard: the system calls Port 1 internal, but says the device is not part of the computer." (#370)
+    private static string ReasonText(PortReason reason) => reason.Kind switch
+    {
+        PortReasonKind.InternalPortOutsideDevice => string.Format(CultureInfo.CurrentCulture, Strings.ReasonInternalPortOutside, reason.Subject, reason.Place),
+        PortReasonKind.UnreadableController => string.Format(CultureInfo.CurrentCulture, Strings.NodeProblem, reason.Subject, reason.Detail),
+        _ => string.Format(CultureInfo.CurrentCulture, Strings.ReasonRouterNotPlaced,
+            reason.Subject.Length > 0 ? reason.Subject : Strings.ReasonRouterUnnamed, reason.Place, reason.Count),
+    };
 
     // The host's rows by port (#370), in the layout's order, before the Displays group: a group with nothing to show
     // has no row. Changed in place, so a row that stays keeps its place, its selection and whether it is open.
@@ -707,7 +726,7 @@ public sealed class NodeViewModel : ObservableObject
             var item = Children.FirstOrDefault(child => child.Id == group.Id)
                 ?? new NodeViewModel(group.Id, portId: null, isDisconnected: false, hasLine: true, mark);
             item.UpdateGroup(group, report, marks, context);
-            if (item.HasChildren || group.Reasons.Count > 0)
+            if (item.hasContent || group.Reasons.Count > 0)
             {
                 shown.Add(item);
             }
@@ -745,39 +764,51 @@ public sealed class NodeViewModel : ObservableObject
         PortName = port == null ? null : group.Name;
         PortBadge = group.UsbC == true ? Strings.UsbCPort : null;
         PortType = PortBadge;
-        SetNote(group.Reasons.Count == 0 ? null : string.Join("\n", group.Reasons));
+        SetNote(group.Reasons.Count == 0 ? null : string.Join("\n", group.Reasons.Select(ReasonText)));
         var wanted = group.Nodes
-            .Where(node => node.Kind != UsbNodeKind.Port || Shown(node, report))
+            .Where(node => node.Kind != UsbNodeKind.Port || Shown(node, report, context.Layout))
             .Select(node => (Node: node, Disconnected: false))
             .ToList();
+        hasContent = wanted.Count > 0;
+        // The rows below a router move in and out of its row as it comes and goes, so they keep their state and selection.
         var holder = this;
+        var routerItem = Children.FirstOrDefault(child => child.Id.StartsWith(RouterPrefix, StringComparison.Ordinal));
         if (group.Router is { } router)
         {
-            holder = Children.FirstOrDefault(child => child.Id == router.Id);
-            if (holder == null)
+            if (routerItem?.Id != router.Id)
             {
+                var below = (routerItem?.Children ?? Children).ToList();
+                (routerItem?.Children ?? Children).Clear();
                 Children.Clear();
-                holder = new NodeViewModel(router.Id, portId: null, isDisconnected: false, hasLine: true, mark);
-                Children.Add(holder);
+                routerItem = new NodeViewModel(router.Id, portId: null, isDisconnected: false, hasLine: true, mark);
+                foreach (var item in below)
+                {
+                    routerItem.Children.Add(item);
+                }
+                Children.Add(routerItem);
             }
+            holder = routerItem;
             holder.Text = router.Names is { } names
                 ? string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Dock, names, router.Depth)
                 : string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Router, router.Depth);
             holder.IsLast = true;
+            holder.groupPortIds = groupPortIds; // Lit with its port (#266).
         }
-        else if (Children.Any(child => child.Id.StartsWith(RouterPrefix, StringComparison.Ordinal)))
+        else if (routerItem != null)
         {
+            var below = routerItem.Children.ToList();
+            routerItem.Children.Clear();
             Children.Clear();
+            foreach (var item in below)
+            {
+                Children.Add(item);
+            }
         }
         holder.UpdateChildren(wanted, report, marks, context, portId: null, trailing: 0, followed: false);
         if (!ReferenceEquals(holder, this))
         {
             holder.UpdateRows();
             holder.PathStatus = Worst(holder.Children.Select(child => child.PathStatus));
-        }
-        if (group.Router != null && !holder.HasChildren)
-        {
-            Children.Clear(); // A router with nothing below it shows no port.
         }
         UpdateRows();
         PathStatus = Worst(Children.Select(child => child.PathStatus));
@@ -902,6 +933,7 @@ public sealed class NodeViewModel : ObservableObject
         // #370: a hub shown with its other half is judged by the worse half, and its line is on both halves' ports.
         var half = context.Layout.OtherHalves.GetValueOrDefault(node.Id);
         pairedPortId = half?.PortId;
+        OtherHalfId = half?.Hub.Id;
         var bus = half != null ? Strings.BusBoth
             : context.Layout.Buses.TryGetValue(node.Id, out var known) ? (known == UsbBus.Usb3 ? "USB 3" : "USB 2")
             : null;
@@ -934,15 +966,13 @@ public sealed class NodeViewModel : ObservableObject
         PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
         var wanted = node.Children
-            .Where(child => child.Kind != UsbNodeKind.Port || Shown(child, report))
+            .Where(child => child.Kind != UsbNodeKind.Port || Shown(child, report, context.Layout))
             .Select(child => (Node: child, Disconnected: false))
             .ToList();
         if (node.Kind == UsbNodeKind.Port && wanted.Count == 0)
         {
             // A disconnected device is shown at its last port, without what was behind it.
-            wanted.AddRange(report.Missing
-                .Where(missing => missing.PortId == node.Id)
-                .Select(missing => (missing.Node with { Children = [] }, true)));
+            wanted.AddRange(Kept(node, report, context.Layout).Select(kept => (kept, true)));
         }
         var monitors = context.Linked.GetValueOrDefault(node.Id) ?? [];
         UpdateChildren(wanted, report, marks, context, node.Kind == UsbNodeKind.Port ? node.Id : null,
