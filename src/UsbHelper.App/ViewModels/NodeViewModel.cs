@@ -626,6 +626,11 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>For a row of the tree by port (#370): the controllers its ports are on, for opening the selected one's.</summary>
     public IReadOnlyList<string> GroupControllerIds => groupControllerIds;
 
+    /// <summary>The selected philosophy's limit markings on this row (#371); empty for none.</summary>
+    public IReadOnlyList<LimitBadge> LimitBadges { get; private set; } = [];
+
+    public bool HasLimitBadges => LimitBadges.Count > 0;
+
     /// <summary>For a hub shown with its other half (#370): the USB 2 half's id, so hovering below that half lights this row too.</summary>
     public string? OtherHalfId { get; private set; }
 
@@ -643,10 +648,10 @@ public sealed class NodeViewModel : ObservableObject
     /// <param name="mark">Sets the mark (null for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
         string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        Action<string, CableMark?> mark, MonitorPlacement monitors)
+        Action<string, CableMark?> mark, MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
-        host.UpdateHost(name, controllers, layout, report, marks, monitors);
+        host.UpdateHost(name, controllers, layout, report, marks, monitors, limits);
         return host;
     }
 
@@ -656,7 +661,7 @@ public sealed class NodeViewModel : ObservableObject
     /// </summary>
     public void UpdateHost(
         string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        MonitorPlacement monitors)
+        MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null)
     {
         Text = name;
         IsLast = true;
@@ -678,7 +683,7 @@ public sealed class NodeViewModel : ObservableObject
             group = new NodeViewModel(DisplaysId, portId: null, isDisconnected: false, hasLine: true, mark);
             Children.Add(group);
         }
-        UpdateGroups(layout, report, marks, new Context(monitors.Linked, layout), group);
+        UpdateGroups(layout, report, marks, new Context(monitors.Linked, layout, limits ?? new Dictionary<string, IReadOnlyList<LimitMark>>()), group);
         if (group != null)
         {
             group.Text = Strings.DisplaysGroup;
@@ -694,7 +699,8 @@ public sealed class NodeViewModel : ObservableObject
 
     // What the tree's parts need besides the report and the marks: the monitors linked to USB nodes (#143) and the tree
     // by port (#370), for the hubs shown with their other half and the bus of each port.
-    private sealed record Context(IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> Linked, PortTree Layout);
+    private sealed record Context(IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> Linked, PortTree Layout,
+        IReadOnlyDictionary<string, IReadOnlyList<LimitMark>> Limits);
 
     // A port is shown when something is on it, it has a problem, or a disconnected device is kept at it.
     private static bool Shown(UsbNode port, DiagnosticReport report, PortTree layout) =>
@@ -934,6 +940,15 @@ public sealed class NodeViewModel : ObservableObject
         var half = context.Layout.OtherHalves.GetValueOrDefault(node.Id);
         pairedPortId = half?.PortId;
         OtherHalfId = half?.Hub.Id;
+        // #371: the selected philosophy's limit markings, of both halves of a hub shown as one, each once.
+        IReadOnlyList<LimitBadge> badges = IsDisconnected ? [] : LimitBadge.For(new[] { node.Id, half?.Hub.Id }.OfType<string>()
+            .SelectMany(id => context.Limits.GetValueOrDefault(id) ?? []));
+        if (!badges.SequenceEqual(LimitBadges))
+        {
+            LimitBadges = badges;
+            OnPropertyChanged(nameof(LimitBadges));
+            OnPropertyChanged(nameof(HasLimitBadges));
+        }
         var bus = half != null ? Strings.BusBoth
             : context.Layout.Buses.TryGetValue(node.Id, out var known) ? (known == UsbBus.Usb3 ? "USB 3" : "USB 2")
             : null;

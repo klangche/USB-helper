@@ -1509,13 +1509,15 @@ public sealed class MainViewModel : ObservableObject
         log.DisplayLinks(placement, judged);
         // #370: the tree is shown by the computer's ports, both halves of a connector together.
         var layout = PortTree.Build(judged, ports.Pairs, missing);
+        // #371: where the selected philosophy's limits fall, with this computer's measured counts, else the first ticked system's.
+        var limits = LimitMarks.Of(judged, Guide, thisComputer ?? profiles.FirstOrDefault(), measured: thisComputer != null, marks);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement));
+            Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement, limits));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, judged, layout, lines, marks, placement);
+            Roots[0].UpdateHost(HostName, judged, layout, lines, marks, placement, limits);
         }
         foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null && row.DeviceKind != UsbDeviceKind.Neither))
         {

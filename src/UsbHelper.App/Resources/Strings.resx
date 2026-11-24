@@ -1156,4 +1156,39 @@ This version keeps running.</value>
   <data name="ReasonRouterUnnamed" xml:space="preserve">
     <value>A USB4 router</value>
   </data>
+  <data name="LimitMarkLabel" xml:space="preserve">
+    <value>{0}: {1} {2} {3} {4}</value>
+  </data>
+  <data name="LimitMarkMax" xml:space="preserve">
+    <value>max</value>
+  </data>
+  <data name="LimitMarkRecommended" xml:space="preserve">
+    <value>recommended</value>
+  </data>
+  <data name="LimitMarkReached" xml:space="preserve">
+    <value>reached here</value>
+  </data>
+  <data name="LimitMarkPassed" xml:space="preserve">
+    <value>passed here ({0})</value>
+  </data>
+  <data name="LimitMarkRoom" xml:space="preserve">
+    <value>{0} more fit behind</value>
+  </data>
+  <data name="LimitMarkAtLeast" xml:space="preserve">
+    <value>{0}
+At least: part of the count is unknown, so the limit may come sooner:
+{1}</value>
+  </data>
+  <data name="LimitUnitHubs" xml:space="preserve">
+    <value>hubs</value>
+  </data>
+  <data name="LimitUnitTiers" xml:space="preserve">
+    <value>tiers</value>
+  </data>
+  <data name="LimitUnitRouters" xml:space="preserve">
+    <value>routers</value>
+  </data>
+  <data name="LimitMarkRoomInFront" xml:space="preserve">
+    <value>{0} more hubs fit in front</value>
+  </data>
 </root>

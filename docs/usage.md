@@ -24,7 +24,24 @@ USB 2 + USB 3)", with the ports of both below it; it has the worse status of its
 two halves, and a mark on its line goes on both halves' lines. A dropped USB 3 hub
 stays one row too, with "(disconnected)". Every other hub
 and device names the bus of its port: "WPP20 (6993:B022, USB 2)". The Mac and the
-PC show the same tree for the same setup. Thin lines join the items, starting at the
+PC show the same tree for the same setup.
+
+The selected philosophy's limits are marked in the tree (#371), in its own measure:
+on the row where its recommended or max is reached ("Ochno: chain max 5 hubs ·
+reached here") or passed ("PureLink: tiers recommended 4 tiers · passed here (5)"), and on the
+deepest hub of each path still within it, with how many more hubs fit behind it
+("Ochno: chain max 5 hubs · 2 more fit behind"); each label names the
+philosophy's measure, here Ochno's chain. A recommendation is orange, a maximum
+purple. A device rule, such as a camera rule, is marked on the rows of that kind only, with
+how many more hubs fit in front of the device. When the two halves of a hub shown as
+one have different markings, each names its bus.
+Only what the philosophy states is marked: without a limit there is no marking.
+When part of a count is unknown ("at least"), the marking's outline is dashed and
+hovering it says which part and why. The counts are this computer's as measured
+(#368); without a profile for this computer, the first ticked system's. Copy tree as
+text and the PDF report add the markings after the row.
+
+Thin lines join the items, starting at the
 computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
