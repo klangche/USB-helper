@@ -10,6 +10,13 @@ selectable: true
 proav: 1
 own: true
 
+sources:
+  pro-av-cable:
+    link: https://unisynk.se/sv-se/usb-c-kabel-for-pro-av-240w/
+    title: "USB-C kabel för Pro AV 240W"
+    author: Unisynk
+    read: "text supplied by the owner on #372; passive from the owner; the data speed is not stated"
+
 measures:
   tiers:
     counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
@@ -27,6 +34,12 @@ rules:
   - { measure: tiers, on: [macos/a-series], recommended: 3, max: 4 }
   - { measure: tiers, on: [ubuntu/arm], recommended: 3, max: 4 }
   - { measure: tiers, on: [debian/arm], recommended: 3, max: 4 }
+
+cables:
+  models:
+    - { name: "Pro AV USB-C 240W, 2 m", type: passive, length: 2, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
+    - { name: "Pro AV USB-C 240W, 3 m", type: passive, length: 3, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
+    - { name: "Pro AV USB-C 240W, 5 m", type: passive, length: 5, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
 
 notes:
   - "The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23)."
