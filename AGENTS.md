@@ -10,6 +10,9 @@ Based on:
   https://academy.claude.com/courses/ai-native-sdlc-playbook
 - Superpowers skill pack, https://github.com/obra/superpowers
   (MIT; tdd, review-pr, debugging and planning adapted in `.claude/skills/`)
+- Ponytail, https://github.com/DietrichGebert/ponytail (MIT; adapted as
+  `ponytail`), and laconic, https://github.com/GabrielBarberini/laconic
+  (MIT; adapted as `laconic`)
 - Owner: the person who owns the repository or fork. Never an AI.
 - Only the owner changes this file. Exceptions: the setup and update
   commands below, in a pull request the owner merges.
@@ -32,12 +35,14 @@ README):
 2. New repository: write `README.md` about the project (section 10).
    Existing repository: leave its README and code as they are.
 3. After the merge, create `dev` if it is missing, and make it the default
-   branch (owner action). The Planner opens the first plan issue.
+   branch (owner action). The agent creates the labels from section 6
+   that are missing. The Planner opens the first plan issue.
 
 **Update** (owner types `update repo-starter`): follow the Update prompt in
 the repo-starter README (https://github.com/klangche/repo-starter). It
 overwrites the manifest files, restores the "## Project" section unchanged,
-and refreshes `.repo-starter.lock`. Upgrading from v1 (no `MANIFEST.txt`
+creates the missing labels from section 6, and refreshes
+`.repo-starter.lock`. Upgrading from v1 (no `MANIFEST.txt`
 files or `.repo-starter.lock` here): follow the same Update prompt.
 
 **Uninstall** (owner runs the uninstall prompt): removes only the files
@@ -113,6 +118,14 @@ Plan, then steps. Everything in GitHub, nothing in extra files.
   list is the checklist. A request without an issue: create it first.
 - One step = one issue = one branch = one pull request. The pull request
   says `Closes #<issue>`.
+- Labels: every issue and pull request gets labels when it is created.
+  Exactly one type label: `plan` (plan issue), `enhancement` (`feat/`),
+  `bug` (`fix/`, `debug/`, hotfix), `documentation` (`docs/`), `release`
+  (`dev` to `main`). The pull request copies the labels of its issue.
+  Add `breaking` when the title has `!`, and `blocked` while an open
+  `Blocked by #<issue>` stands (remove it when that issue closes). A
+  label is missing: create the item anyway, tell the owner which label
+  is missing, and apply it once it exists.
 - Branches: `main` holds only tested releases. `dev` is the beta channel
   and the default branch. Branch from latest `dev`: `feat/`, `fix/`,
   `docs/` or `debug/`, then issue number and slug (`feat/12-login`).
@@ -141,14 +154,17 @@ Plan, then steps. Everything in GitHub, nothing in extra files.
 - Skills, per role (in `.claude/skills/<name>/SKILL.md`; agents without
   a skill system read the same file tools):
   - Planner: `planning` (brainstorm, then plan and sub-issues).
-  - Builder: `tdd` for features, `debugging` for bugs.
+  - Builder: `ponytail` on every change, plus `tdd` for features,
+    `debugging` for bugs.
+  - Any role, only on the owner's request: `laconic` (terse chat replies).
   - Reviewer: `review-pr`.
 - No access to issues: put the plan and its checklist in the pull request
   description instead.
 - Never merge. Never approve your own pull request. Never push to `main`
   or `dev` (except creating `dev` in Setup). Never change repository
-  settings, rulesets, labels or secrets. If you pushed to `main`/`dev` by
-  mistake, stop and tell the owner. No force push.
+  settings, rulesets, label definitions or secrets (except creating the
+  labels in Setup or Update); applying labels is required. If you pushed to
+  `main`/`dev` by mistake, stop and tell the owner. No force push.
 
 ## 7. Code
 
