@@ -1041,9 +1041,10 @@ public class MainViewModelTests
         hub.CableBusIndex = 1;
         hub.SetCable.Execute(null);
 
-        Assert.Equal(CableMark.ActiveCable(10, UsbBus.Usb3), hub.Mark);
+        // #372: an active copper cable by default; on a computer port, the host cable.
+        Assert.Equal(CableMark.ActiveCable(10, UsbBus.Usb3) with { Kind = "active_copper", Host = true }, hub.Mark);
         Assert.Equal(-1, hub.MarkIndex);
-        Assert.Equal("10 m USB 3 active cable", hub.MarkBadge);
+        Assert.Equal("10 m USB 3 active copper cable", hub.MarkBadge);
     }
 
     // #307: a mark that is none of the choices, from a hand-edited setup.json, selects no entry and stays.

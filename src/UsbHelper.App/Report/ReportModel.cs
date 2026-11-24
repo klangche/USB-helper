@@ -113,5 +113,5 @@ public sealed record ReportRow(
         item.Status,
         [.. new[] { item.MarkBadge, item.IsDisplay ? Strings.DisplayBadge : null }.OfType<string>()],
         item.PortType,
-        [.. new[] { item.DisplayNote, item.Counts }.OfType<string>().Concat(item.LimitBadges.Select(badge => badge.Text))]);
+        [.. new[] { item.DisplayNote, item.Counts }.OfType<string>().Concat(item.LimitBadges.Select(badge => badge.Text)).Concat(item.CableNoteLines)]);
 }

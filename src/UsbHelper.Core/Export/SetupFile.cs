@@ -81,7 +81,16 @@ public sealed record SetupFile(
             Detection.UsbBus? bus = metres != null && mark.RootElement.TryGetProperty("bus", out var busValue)
                 ? busValue.GetString() == "usb3" ? Detection.UsbBus.Usb3 : Detection.UsbBus.Usb2
                 : null;
-            return new Topology.CableMark(Field("hubs"), Field("tiers")) { Metres = metres, Bus = bus };
+            string? Text(string name) => mark.RootElement.TryGetProperty(name, out var value) ? value.GetString() : null;
+            // The cable's type, model and whether it is the host cable (#372); a mark without them is read as before.
+            return new Topology.CableMark(Field("hubs"), Field("tiers"))
+            {
+                Metres = metres,
+                Bus = bus,
+                Kind = Text("kind"),
+                Model = Text("model"),
+                Host = mark.RootElement.TryGetProperty("host", out var host) && host.GetBoolean(),
+            };
         }
 
         public override void Write(Utf8JsonWriter writer, Topology.CableMark value, JsonSerializerOptions options)
@@ -93,6 +102,18 @@ public sealed record SetupFile(
             {
                 writer.WriteNumber("metres", metres);
                 writer.WriteString("bus", value.Bus == Detection.UsbBus.Usb3 ? "usb3" : "usb2");
+            }
+            if (value.Kind != null)
+            {
+                writer.WriteString("kind", value.Kind);
+            }
+            if (value.Model != null)
+            {
+                writer.WriteString("model", value.Model);
+            }
+            if (value.Host)
+            {
+                writer.WriteBoolean("host", true);
             }
             writer.WriteEndObject();
         }

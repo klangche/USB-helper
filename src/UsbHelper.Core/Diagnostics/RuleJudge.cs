@@ -64,7 +64,10 @@ internal static class RuleJudge
             Add(part.Element, part.Count, part.Origin);
         }
         // An active cable with a length (#331): the measure says how many metres make a tier on its bus.
-        foreach (var (port, mark) in path.Marks.Where(each => each.Mark.Metres != null))
+        // shortcut: a model that states it adds no tiers (Ochno O-EC) still adds length tiers where a measure converts
+        // length (Crestron); a model's tiers would need to replace them if such a guide approves such a model.
+        // A passive cable adds no tiers (#372).
+        foreach (var (port, mark) in path.Marks.Where(each => each.Mark.LengthCounts))
         {
             var cableBus = mark.Bus == UsbBus.Usb3 ? "usb3" : "usb2";
             if (measure.CableMetresPerTier.TryGetValue(cableBus, out var metresPerTier))

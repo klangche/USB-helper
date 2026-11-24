@@ -535,7 +535,7 @@ This version keeps running.</value>
     <value>Offer beta versions</value>
   </data>
   <data name="MarkCable" xml:space="preserve">
-    <value>{0} m {1} active cable</value>
+    <value>{0:0.#} m {1} {2} cable</value>
   </data>
   <data name="MarkCableTitle" xml:space="preserve">
     <value>Active cable, length in metres:</value>
@@ -1190,5 +1190,41 @@ At least: part of the count is unknown, so the limit may come sooner:
   </data>
   <data name="LimitMarkRoomInFront" xml:space="preserve">
     <value>{0} more hubs fit in front</value>
+  </data>
+  <data name="CableNoteRated" xml:space="preserve">
+    <value>{0} is rated {1:0.#} m</value>
+  </data>
+  <data name="CableNoteAddsNothing" xml:space="preserve">
+    <value>adds no hubs or tiers</value>
+  </data>
+  <data name="CableNoteAdds" xml:space="preserve">
+    <value>adds {0} hubs, {1} tiers</value>
+  </data>
+  <data name="CableNoteLength" xml:space="preserve">
+    <value>{0:0.#} m {1}</value>
+  </data>
+  <data name="CableNoteNotHost" xml:space="preserve">
+    <value>{0}: {1} is not allowed as the host cable.</value>
+  </data>
+  <data name="CableKindPassive" xml:space="preserve">
+    <value>passive</value>
+  </data>
+  <data name="CableKindActiveCopper" xml:space="preserve">
+    <value>active copper</value>
+  </data>
+  <data name="CableKindActiveOptical" xml:space="preserve">
+    <value>active optical</value>
+  </data>
+  <data name="CableKindUsb4" xml:space="preserve">
+    <value>USB4/Thunderbolt</value>
+  </data>
+  <data name="CableModelOther" xml:space="preserve">
+    <value>Other cable</value>
+  </data>
+  <data name="CableHost" xml:space="preserve">
+    <value>Host cable</value>
+  </data>
+  <data name="CableKindActive" xml:space="preserve">
+    <value>active</value>
   </data>
 </root>

@@ -19,6 +19,27 @@ public sealed record CableMark(int Hubs, int Tiers)
     public UsbBus? Bus { get; init; }
 
     /// <summary>
+    /// The cable's type (#372): <c>passive</c>, <c>active_copper</c>, <c>active_optical</c> or <c>usb4</c>; null for a mark
+    /// without a type, read as an active cable as before. A passive cable adds no tiers, whatever its length.
+    /// </summary>
+    public string? Kind { get; init; }
+
+    /// <summary>The approved cable model marked (#372), by its name in the selected philosophy; null for another cable.</summary>
+    public string? Model { get; init; }
+
+    /// <summary>The cable is a host cable (#372): on a computer port, or the cable between daisy-chained docks (D5).</summary>
+    public bool Host { get; init; }
+
+    /// <summary>The cable's length adds tiers where a measure converts it (#331): any cable with a length that is not passive.</summary>
+    public bool LengthCounts => Metres != null && Kind != PassiveKind;
+
+    /// <summary>The type of a passive cable.</summary>
+    public const string PassiveKind = "passive";
+
+    /// <summary>The cable types a mark may have, in the menu's order (#372).</summary>
+    public static IReadOnlyList<string> Kinds { get; } = [PassiveKind, "active_copper", "active_optical", "usb4"];
+
+    /// <summary>
     /// An active cable of <paramref name="metres"/> on <paramref name="bus"/> (#331): no hub, and the tiers each guide
     /// works out from its length (Crestron: the first 5 m on USB 2 or 3 m on USB 3 are free, then a tier per 5 m or 3 m).
     /// </summary>
@@ -51,7 +72,8 @@ public sealed record CableMark(int Hubs, int Tiers)
     /// only possible in a hand-edited setup.json, says both: "+1 hub, +3 tiers".
     /// </summary>
     public override string ToString() =>
-        Metres is { } metres ? string.Create(CultureInfo.InvariantCulture, $"{metres:0.#} m {(Bus == UsbBus.Usb3 ? "USB 3" : "USB 2")} active cable")
+        Metres is { } metres ? string.Create(CultureInfo.InvariantCulture,
+            $"{(Host ? "host cable " : "")}{metres:0.#} m {(Bus == UsbBus.Usb3 ? "USB 3" : "USB 2")} {(Kind ?? "active").Replace('_', ' ')} cable{(Model == null ? "" : $" ({Model})")}")
         : Hubs == 0 ? Count(Tiers, "tier")
         : Hubs == Tiers ? Count(Hubs, "hub")
         : $"{Count(Hubs, "hub")}, {Count(Tiers, "tier")}";
