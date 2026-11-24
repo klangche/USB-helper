@@ -74,12 +74,17 @@ limits:  # the numbers, for every device unless a scope below says otherwise
 - `limits`: per count, `recommended` and/or `max` (empty = not stated, a number = the limit, `none` = deliberately no
   limit), `source` and `quote`. Inside a count, a scope gives the limits for part of the paths: `usb2:`, `usb3:`,
   `cameras:`, `audio:`, `on <os>:` or `on <os>/<chip>:`, each with its own `recommended`, `max`, `source` and `quote`.
-  Scopes nest (`cameras:` inside `on windows/arm:`). The rules keep the order they are written in.
+  A scope narrows the one it sits in, so `cameras:` inside `on windows/arm:` is cameras on Windows on ARM; a scope
+  inside one of the same kind (a bus in a bus, a device in a device, a platform in a platform) is an error. A limit's
+  own numbers become its first rule, then each scope in the order written. A limit or scope with neither
+  `recommended` nor `max` and no scopes is an error.
 - A philosophy that counts another way writes that count out under `measures` (with `weights`), in the full form,
   and gives its limits under `limits` as above.
 - `basis`, `sources`, `cables`, `requires` and `notes` are as in the full form, written in block style.
+- `requires` is read before the layout is expanded: a newer file that needs a newer app is listed as such, not an
+  error.
 - A mistake names the readable key and its line, for example `guides/ochno.yaml:14: Limit 'chain': 'max' must be a
-  number or none.`
+  whole number or none.`
 
 #### The full form (advanced)
 
@@ -119,8 +124,9 @@ limits:  # the numbers, for every device unless a scope below says otherwise
     as "needs a newer USB-Helper" and judges nothing; the rest of the database still loads;
   - nothing about computers (#367). MST is a fact about the computer, in the OS files: `displays.mst` for the
     operating system and `chips.<chip>.displays.mst` where a chip differs (true or false); a computer file's wins.
-    A philosophy that states `platforms`, `mst`, `computer_hubs`, `displays`, `ports`, `usb`, `usb4` or `chips` does
-    not load: the error names the file and line.
+    A philosophy in the full form that states `platforms`, `mst`, `computer_hubs`, `displays`, `ports`, `usb`, `usb4`
+    or `chips` does not load: the error names the file and line. (The readable layout's own `computer_hubs` key is the
+    evidence for the computer's hubs, not a value.)
 - There is **no fallback** between guides. A hub or device is judged by every rule that matches it, and the strictest
   result wins. A count with an unknown part (an `open` computer_hub, `usb4_router`) is "at least": above a limit it is
   exceeded, within it unknown.

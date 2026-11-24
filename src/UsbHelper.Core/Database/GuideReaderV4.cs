@@ -32,13 +32,10 @@ internal static class GuideReaderV4
     public static Guide? Read(
         ProfileValue root, string id, IReadOnlyCollection<string> baseElements, IReadOnlyCollection<string> baseKinds,
         IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? standardCounts = null)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> standardCounts)
     {
         var file = root.File;
         void Error(ProfileValue at, string message) => errors.Add(new DatabaseError(file, at.Line, message));
-        // The readable layout (#386) is the same rules written shorter: expanded to the full form, then read as one.
-        root = GuideLayout.Expand(root, standardCounts ?? new Dictionary<string, IReadOnlyList<string>>(), Error);
-
         var name = root.Find("name")?.Scalar as string;
         var selectable = root.Find("selectable")?.Scalar as bool?;
         if (string.IsNullOrEmpty(name))
@@ -66,6 +63,9 @@ internal static class GuideReaderV4
         {
             return new Guide(id, name, selectable.Value, root, null) { Format = 4, Unsupported = unsupported };
         }
+        // The readable layout (#386) is the same rules written shorter: expanded to the full form, then read as one. After
+        // 'requires', so a newer readable file that needs a newer app is listed, not an error.
+        root = GuideLayout.Expand(root, standardCounts, Error);
 
         foreach (var (key, value) in root.Fields.Where(field => !TopFields.Contains(field.Key)))
         {

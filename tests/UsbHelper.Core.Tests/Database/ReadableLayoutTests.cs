@@ -250,6 +250,17 @@ public partial class ReadableLayoutTests
     }
 
     [Fact]
+    public void AUsb3ScopeAPlatformWithoutAChipAndADefaultUnknownAreRead()
+    {
+        var guide = Load(ReadableRoom.Replace("    usb2:\n", "    usb3:\n", StringComparison.Ordinal).Replace("on windows/intel:", "on windows:", StringComparison.Ordinal)
+            .Replace("  if unknown: at least\n", "", StringComparison.Ordinal), "room");
+
+        Assert.Contains(guide.Rules, rule => rule.Bus == "usb3" && rule.Max == 2);
+        Assert.Contains(guide.Rules, rule => rule.On.SequenceEqual(["windows"]));
+        Assert.Null(guide.MeasureDefinitions["chain"].ComputerHubUnknown);
+    }
+
+    [Fact]
     public void ScopesNest()
     {
         var rules = Load(ReadableRoom.Replace("    cameras:\n", "    on windows/amd:\n      cameras:\n        max: 2\n        source: room\n        quote: two for cameras on AMD\n    cameras:\n", StringComparison.Ordinal), "room").Rules;
@@ -260,17 +271,34 @@ public partial class ReadableLayoutTests
         Assert.Equal(2L, nested.Max);
     }
 
+    // Empty means not stated: the rule has only the other number.
+    [Fact]
+    public void AnEmptyNumberIsNotStated()
+    {
+        var rule = Load(ReadableRoom.Replace("    max: 4\n", "    max:\n    recommended: 3\n", StringComparison.Ordinal), "room").Rules[0];
+
+        Assert.Equal((null, 3L, false), (rule.Max, rule.Recommended, rule.MaxNone));
+    }
+
+    // A newer readable file, with a scope this app does not know, needs a newer app: listed, not an error.
     [Fact]
     public void ARequiresInTheReadableLayoutStillSkipsTheGuide()
     {
-        var guide = Load(ReadableOchno.Replace("proav: 1", "proav: 1\nrequires:\n  - laser_link", StringComparison.Ordinal));
+        var guide = Load(ReadableOchno.Replace("proav: 1", "proav: 1\nrequires:\n  - laser_link", StringComparison.Ordinal)
+            .Replace("  room:\n", "  room:\n    usb4:\n      max: 2\n", StringComparison.Ordinal));
 
         Assert.True(guide.NeedsNewerApp);
         Assert.Equal(["laser_link"], guide.Unsupported);
     }
 
     [Theory]
-    [InlineData("    max: 5\n", "    max: five\n", 22, "Limit 'chain': 'max' must be a number or none.")]
+    [InlineData("    max: 5\n", "    max: five\n", 22, "Limit 'chain': 'max' must be a whole number or none.")]
+    [InlineData("    max: 5\n", "    max: -1\n", 22, "Limit 'chain': 'max' must be a whole number or none.")]
+    [InlineData("  room:\n    max: 4\n", "  rooom:\n    max: 4\n", 17, "'rooom' is not a standard count in base.yaml (chain, tiers, room)")]
+    [InlineData("  room:\n    max: 4\n", "  room:\n", 17, "Limit 'room': give 'recommended', 'max' or both.")]
+    [InlineData("    usb2:\n", "    usb3:\n      usb2:\n        max: 1\n    usb2:\n", 28, "Limit 'chain', usb3, usb2: a scope cannot sit inside another bus scope")]
+    [InlineData("    audio:\n", "    audio:\n      cameras:\n        max: 1\n", 32, "Limit 'chain', audio, cameras: a scope cannot sit inside another device scope")]
+    [InlineData("    on windows/intel:\n", "    on macos:\n      on windows/intel:\n        max: 1\n    on windows/intel:\n", 40, "Limit 'chain', on macos, on windows/intel: a scope cannot sit inside another platform scope")]
     [InlineData("    usb2:\n", "    usb9:\n", 27, "Limit 'chain': unknown field 'usb9'.")]
     [InlineData("counts: room, chain", "counts: room, hops", 12, "'hops' is not a standard count in base.yaml (chain, tiers, room); write it out under 'measures'.")]
     [InlineData("  if unknown: at least", "  if unknown: maybe", 15, "'computer_hubs: if unknown' must be 'at least' or a number of hubs.")]

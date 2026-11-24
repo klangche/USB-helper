@@ -100,17 +100,20 @@ internal static class GuideLayout
         // The measures: the standard counts named in 'counts' or in 'limits', each with this philosophy's evidence.
         var measures = root.Find("measures")?.Fields.ToDictionary() ?? [];
         var limits = root.Find(Limits);
-        var named = (root.Find(Counts) is { } countsValue ? Names(countsValue) : [])
-            .Concat(limits?.Fields.Keys ?? []).Distinct().Where(name => !measures.ContainsKey(name));
-        foreach (var name in named)
+        var countNames = root.Find(Counts) is { } countsValue ? Names(countsValue).ToList() : [];
+        var unknownCounts = new HashSet<string>();
+        foreach (var name in countNames.Concat(limits?.Fields.Keys ?? []).Distinct().Where(name => !measures.ContainsKey(name)))
         {
             if (!standard.TryGetValue(name, out var adds))
             {
-                error(root.Find(Counts) ?? limits ?? root,
-                    $"'{name}' is not a standard count in base.yaml ({string.Join(", ", standard.Keys)}); write it out under 'measures'.");
+                unknownCounts.Add(name);
+                error(countNames.Contains(name) ? root.Find(Counts)! : limits!.Find(name)!, standard.Count == 0
+                    ? $"'{name}' is not a count: base.yaml has no standard counts ('counts'); write it out under 'measures'."
+                    : $"'{name}' is not a standard count in base.yaml ({string.Join(", ", standard.Keys)}); write it out under 'measures'.");
                 continue;
             }
-            var measure = new Dictionary<string, ProfileValue> { ["counts"] = List(adds, root.Find(Counts) ?? limits!) };
+            var at = root.Find(Counts) ?? limits!;
+            var measure = new Dictionary<string, ProfileValue> { ["counts"] = List(adds, at) };
             if (computerHub != null && adds.Contains("computer_hub"))
             {
                 measure["computer_hub"] = computerHub;
@@ -119,27 +122,31 @@ internal static class GuideLayout
             {
                 measure["cable_length"] = cableLength;
             }
-            measures[name] = Map(measure, root.Find(Counts) ?? limits!);
+            measures[name] = Map(measure, at);
         }
         if (measures.Count > 0)
         {
             fields["measures"] = Map(measures, root.Find("measures") ?? root);
         }
 
-        // The rules: one for each limit and each of its scopes, in file order.
+        // The rules: one for each limit and each of its scopes. A limit's own numbers come first, then its scopes in the
+        // order they are written. A scope narrows: it cannot sit inside a scope of the same kind.
         var rules = root.Find("rules")?.Items.ToList() ?? [];
-        // A limit's own numbers come first, then its scopes, so the rules keep the order they are written in.
         void Rule(string measure, ProfileValue limit, Dictionary<string, ProfileValue> scope, string where)
         {
             var rule = new Dictionary<string, ProfileValue>(scope) { ["measure"] = Text(measure, limit) };
-            var scoped = new List<(ProfileValue Value, Dictionary<string, ProfileValue> Scope, string Where)>();
+            var scoped = new List<(ProfileValue Value, string Field, string Scope, string Where)>();
             foreach (var (key, value) in limit.Fields)
             {
                 if (key is "recommended" or "max")
                 {
-                    if (value.Scalar is not (long or "none"))
+                    if (value.Kind == ValueKind.Null)
                     {
-                        error(value, $"{where}: '{key}' must be a number or none.");
+                        continue; // empty: not stated
+                    }
+                    if (value.Scalar is not (long and >= 0 or "none"))
+                    {
+                        error(value, $"{where}: '{key}' must be a whole number or none.");
                         continue;
                     }
                     rule[key] = value;
@@ -150,11 +157,11 @@ internal static class GuideLayout
                 }
                 else if (Scopes.TryGetValue(key, out var kind))
                 {
-                    scoped.Add((value, Scoped(scope, kind.Field, kind.Value, value), $"{where}, {key}"));
+                    scoped.Add((value, kind.Field, kind.Value, $"{where}, {key}"));
                 }
                 else if (key.StartsWith("on ", StringComparison.Ordinal))
                 {
-                    scoped.Add((value, Scoped(scope, "on", key[3..].Trim(), value), $"{where}, {key}"));
+                    scoped.Add((value, "on", key[3..].Trim(), $"{where}, {key}"));
                 }
                 else
                 {
@@ -165,25 +172,32 @@ internal static class GuideLayout
             {
                 rules.Add(Map(rule, limit));
             }
-            foreach (var (value, inner, at) in scoped)
+            else if (scoped.Count == 0)
             {
+                error(limit, $"{where}: give 'recommended', 'max' or both.");
+            }
+            foreach (var (value, field, name, at) in scoped)
+            {
+                if (scope.ContainsKey(field))
+                {
+                    error(value, $"{at}: a scope cannot sit inside another {(field == "bus" ? "bus" : field == "on" ? "platform" : "device")} scope; write it beside it.");
+                    continue;
+                }
                 if (value.Kind != ValueKind.Mapping)
                 {
                     error(value, $"{at}: expected recommended, max, quote and source on the lines below it.");
                     continue;
                 }
+                var inner = new Dictionary<string, ProfileValue>(scope) { [field] = field == "bus" ? Text(name, value) : List([name], value) };
                 Rule(measure, value, inner, at);
             }
         }
-        Dictionary<string, ProfileValue> Scoped(Dictionary<string, ProfileValue> scope, string field, string value, ProfileValue at)
-        {
-            var next = new Dictionary<string, ProfileValue>(scope);
-            next[field] = field == "bus" ? Text(value, at)
-                : List([.. scope.GetValueOrDefault(field)?.Items.Select(item => (string)item.Scalar!) ?? [], value], at);
-            return next;
-        }
         foreach (var (measure, limit) in limits?.Fields ?? new Dictionary<string, ProfileValue>())
         {
+            if (unknownCounts.Contains(measure))
+            {
+                continue;
+            }
             if (limit.Kind != ValueKind.Mapping)
             {
                 error(limit, $"Limit '{measure}': expected recommended, max, quote and source on the lines below it.");
@@ -195,7 +209,8 @@ internal static class GuideLayout
         return Map(fields, root);
     }
 
-    // A text block ('>' or '|') ends with a line break: the readable layout drops it, so a quote reads as in the full form.
+    // A text block ('>' or '|') ends with a line break: the readable layout drops trailing whitespace from every text, so a
+    // quote reads as in the full form.
     private static ProfileValue Trimmed(ProfileValue value) => value.Kind switch
     {
         ValueKind.String when value.Scalar is string text => ProfileValue.CreateScalar(ValueKind.String, text.TrimEnd(), value.File, value.Line),
