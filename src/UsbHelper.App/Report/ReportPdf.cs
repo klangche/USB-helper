@@ -78,7 +78,7 @@ public static class ReportPdf
             {
                 draw(canvas);
             }
-            Footer(canvas, model, logo != null, i + 1, pages.Count);
+            Footer(canvas, model, i + 1, pages.Count);
             document.EndPage();
         }
         document.Close();
@@ -555,11 +555,12 @@ public static class ReportPdf
         yield return word;
     }
 
-    // The company name only when there is no logo (#232); the licensed email under the middle line.
-    private static void Footer(SKCanvas canvas, ReportModel model, bool hasLogo, int page, int pages)
+    // The company name and the room, with a logo too (#390); the licensed email under the middle line.
+    private static void Footer(SKCanvas canvas, ReportModel model, int page, int pages)
     {
         var y = ReportLayout.PageHeight - ReportLayout.Mm(12);
-        var left = string.Join(" - ", new[] { hasLogo ? null : model.CompanyName, model.RoomName }.OfType<string>());
+        // The company name is text for the end of the page, with a logo too (owner 2026-11-24).
+        var left = string.Join(" - ", new[] { model.CompanyName, model.RoomName }.OfType<string>());
         Caption.Draw(canvas, Caption.Fit(left, ReportLayout.Span(4)), ReportLayout.Left, y);
         Caption.Draw(canvas, string.Format(CultureInfo.InvariantCulture, Strings.ReportGeneratedBy, model.AppVersion),
             ReportLayout.PageWidth / 2, y, Align.Center);

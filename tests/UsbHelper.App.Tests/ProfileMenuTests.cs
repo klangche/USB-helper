@@ -89,6 +89,17 @@ public class ProfileMenuTests
         Assert.All(window.Guides, option => Assert.True(option.IsEnabled));
     }
 
+    // #390: the rules are the name's hover; a v3 guide has none, so no empty tooltip.
+    [Fact]
+    public void AV4GuideHasItsRulesAsTheHoverAndAV3GuideHasNone()
+    {
+        var v3 = new MainViewModel(EmbeddedDatabaseTests.V3(), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+        var v4 = new MainViewModel(UsbHelper.Core.Database.DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+
+        Assert.All(v3.Guides, option => Assert.Null(option.Detail));
+        Assert.StartsWith("hub chain max 5", v4.Guides.Single(option => option.Guide?.Id == "ochno").Detail, StringComparison.Ordinal);
+    }
+
     // #295: clicking an operating system's name ticks all of its chips, and again unticks them all.
     [Fact]
     public void ClickingAnOperatingSystemTicksAllItsChips()

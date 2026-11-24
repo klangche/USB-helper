@@ -92,11 +92,11 @@ public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : Obser
     /// <summary>The platform profiles, for the names in <see cref="Detail"/>.</summary>
     public IReadOnlyDictionary<string, ResolvedProfile>? Platforms { get; init; }
 
-    /// <summary>The line under the name (#327), generated from a v4 guide's rules; empty for a v3 guide and Custom.</summary>
-    public string Detail => Guide is { Format: >= 4 } rules ? GuideLine.For(rules, Platforms) : "";
-
-    /// <summary>A line is shown.</summary>
-    public bool HasDetail => Detail.Length > 0;
+    /// <summary>
+    /// The hover of the name (#327, #390), generated from a v4 guide's rules; null for a v3 guide and Custom, so they
+    /// show no empty tooltip.
+    /// </summary>
+    public string? Detail => Guide is { Format: >= 4 } rules && GuideLine.For(rules, Platforms) is { Length: > 0 } line ? line : null;
 
     /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
     public bool IsProAv => Guide?.ProAv == true;
@@ -957,7 +957,7 @@ public sealed class MainViewModel : ObservableObject
         Report(created, CompanyName, ReportLogo(Settings.Branding), appVersion);
 
     /// <summary>The logo for the PDF report (#232): the cropped vector logo when there is one, else the 512 pixel PNG.</summary>
-    /// <remarks>The report has a white page, so it takes the light theme's choice (#340); null means the name is shown.</remarks>
+    /// <remarks>The report has a white page, so it takes the light theme's choice (#340); null (no logo) means the name is shown.</remarks>
     public static string? ReportLogo(Branding? branding) =>
         branding?.Logo(LogoTheme.Light) is { } logo ? logo.Svg ?? logo.Pngs.GetValueOrDefault(512) : null;
 
@@ -1110,7 +1110,7 @@ public sealed class MainViewModel : ObservableObject
 
     /// <summary>
     /// The logo 64 pixels high for the top bar (32 high at 200% scale), chosen for <see cref="Theme"/> (#340); null when
-    /// locked, when there is no logo, or when it would be too hard to see there.
+    /// locked or when there is no logo. A logo that is hard to see is shown too (#390).
     /// </summary>
     public string? BrandingLogo => Settings.Branding?.Logo(Theme)?.Pngs.GetValueOrDefault(64);
 
