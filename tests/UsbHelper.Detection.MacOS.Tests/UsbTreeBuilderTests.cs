@@ -535,7 +535,7 @@ public class UsbTreeBuilderTests
         foreach (var hub in new[] { "USB2.1 Hub", "USB3.1 Hub", "Parade Tech USB2.0 HUB" })
         {
             var chain = Assert.Single(marks[IdOf(hub)], mark => mark.Measure == "chain");
-            Assert.Equal((LimitLevel.Max, 5L, LimitPlace.Room, 3, 2L, "hubs"), (chain.Level, chain.Limit, chain.Place, chain.Count, chain.Room, chain.Unit));
+            Assert.Equal((LimitLevel.Max, 5L, LimitPlace.Room, 3, 2L, LimitUnit.Hubs), (chain.Level, chain.Limit, chain.Place, chain.Count, chain.Room, chain.Unit));
             Assert.False(chain.AtLeast);
         }
         // Nothing is marked where the limit is not reached: not on the first hubs, not on the devices.
@@ -549,7 +549,7 @@ public class UsbTreeBuilderTests
         var marks = MarksOn("purelink");
 
         var reached = Assert.Single(marks[IdOf("USB3.1 Hub")], mark => mark.Level == LimitLevel.Recommended);
-        Assert.Equal((LimitPlace.Reached, 4, "tiers"), (reached.Place, reached.Count, reached.Unit));
+        Assert.Equal((LimitPlace.Reached, 4, LimitUnit.Tiers), (reached.Place, reached.Count, reached.Unit));
         Assert.Contains(marks[IdOf("USB2.1 Hub")], mark => mark.Level == LimitLevel.Recommended && mark.Place == LimitPlace.Reached);
         // Behind it, WPP20 at 5 is over, but the marking stays where the count got there. Max 7: two more hubs fit.
         Assert.False(marks.ContainsKey(IdOf("WPP20")));
@@ -561,18 +561,19 @@ public class UsbTreeBuilderTests
     [Fact]
     public void APhilosophyWithoutTheMeasureMarksNothingForIt()
     {
-        Assert.DoesNotContain(MarksOn("ochno").Values.SelectMany(list => list), mark => mark.Unit == "tiers");
+        Assert.DoesNotContain(MarksOn("ochno").Values.SelectMany(list => list), mark => mark.Unit == LimitUnit.Tiers);
         Assert.DoesNotContain(MarksOn("purelink").Values.SelectMany(list => list), mark => mark.Measure == "chain");
-        var none = "name: None test\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
+        // The test guide is always guides/routers-test.yaml; here with a rule that states no number.
+        var none = "name: No numbers\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
             + "rules:\n  - { measure: tiers, recommended: none, max: none }\n";
-        Assert.Empty(MarksOn("routers-test", custom: none.Replace("None test", "Routers test")));
+        Assert.Empty(MarksOn("routers-test", custom: none));
     }
 
     // A camera rule marks only cameras: here WPP20 marked as a camera, and nothing else.
     [Fact]
     public void ACameraRuleMarksOnlyCameras()
     {
-        var guide = "name: Routers test\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
+        var guide = "name: Cameras\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
             + "rules:\n  - { measure: tiers, devices: [camera], max: 4 }\n";
         UsbNode Camera(UsbNode node) => node with
         {
@@ -586,6 +587,24 @@ public class UsbTreeBuilderTests
         Assert.Equal(IdOf("WPP20"), Assert.Single(marks).Key);
         Assert.Equal((LimitPlace.Passed, 5), (camera.Place, camera.Count));
         Assert.Equal(["camera"], camera.Devices);
+    }
+
+    // An extender marked on the dock's port with the LAN adapter (2 hubs): the LAN adapter reaches Ochno's chain 5, so its
+    // hub has no room left; the other dock hubs keep theirs.
+    [Fact]
+    public void AMarkOnTheDocksPortTakesItsRoom()
+    {
+        var db = DockDatabase(DockGuide(0, 0, 0));
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        var lan = Find(tree, "USB 10/100/1000 LAN").Id;
+        var port = UsbTree.PathTo(tree, lan)[^2].Id;
+
+        var marks = LimitMarks.Of(tree, db.Guides["ochno"], db.Platforms["macos-apple-silicon"], measured: true,
+            new Dictionary<string, CableMark> { [port] = CableMark.OfHubs(2) });
+
+        Assert.Equal(LimitPlace.Reached, Assert.Single(marks[lan], mark => mark.Measure == "chain").Place);
+        Assert.DoesNotContain(marks.GetValueOrDefault(Find(tree, "USB3.1 Hub").Id) ?? [], mark => mark.Measure == "chain");
+        Assert.Equal(2L, Assert.Single(marks[Find(tree, "USB2.1 Hub").Id], mark => mark.Measure == "chain").Room);
     }
 
     // A count with an unknown part is "at least": the marking says so and why.

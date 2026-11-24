@@ -330,9 +330,27 @@ public class TreeByPortTests
         var genesys = dock.Rows[0];
 
         Assert.Empty(dock.LimitBadges);
-        Assert.Equal(["Ochno: max 5 hubs · 2 more fit behind", "Ochno: max 4 hubs · 2 more fit behind"], genesys.LimitBadges.Select(badge => badge.Text));
+        Assert.Equal(["Ochno: chain max 5 hubs · 2 more fit behind", "Ochno: room max 4 hubs · 2 more fit behind"], genesys.LimitBadges.Select(badge => badge.Text));
         Assert.All(genesys.LimitBadges, badge => Assert.Equal(("#8E24AA", false), (badge.Color, badge.Dashed)));
         Assert.Contains(TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine),
-            line => line.EndsWith("USB3.1 Hub + USB2.1 Hub (05E3:0626, USB 2 + USB 3) - stable (Ochno: max 5 hubs · 2 more fit behind) (Ochno: max 4 hubs · 2 more fit behind)", StringComparison.Ordinal));
+            line => line.EndsWith("USB3.1 Hub + USB2.1 Hub (05E3:0626, USB 2 + USB 3) - stable (Ochno: chain max 5 hubs · 2 more fit behind) (Ochno: room max 4 hubs · 2 more fit behind)", StringComparison.Ordinal));
+    }
+
+    // The two halves of a hub shown as one with different markings of one rule (Ochno's example E, a cable marked on USB 2
+    // only): each badge names its half's bus. The same marking on both halves is one badge without a bus.
+    [Fact]
+    public void HalvesWithDifferentMarkingsNameTheirBus()
+    {
+        LimitMark Chain(LimitPlace place, int count, UsbBus bus) =>
+            new("Ochno", "chain", LimitUnit.Hubs, LimitLevel.Max, 5, place, count, false, [], [], null, bus);
+
+        var differ = LimitBadge.For([Chain(LimitPlace.Room, 3, UsbBus.Usb3), Chain(LimitPlace.Reached, 5, UsbBus.Usb2)]);
+        var same = LimitBadge.For([Chain(LimitPlace.Room, 3, UsbBus.Usb3), Chain(LimitPlace.Room, 3, UsbBus.Usb2)]);
+
+        Assert.Equal(["Ochno: chain max 5 hubs (USB 3) · 2 more fit behind", "Ochno: chain max 5 hubs (USB 2) · reached here"], differ.Select(badge => badge.Text));
+        Assert.Equal(["Ochno: chain max 5 hubs · 2 more fit behind"], same.Select(badge => badge.Text));
+        // A device rule's room is in front of the device.
+        Assert.Equal("Cameras: tiers max 4 tiers (camera) · 1 more hubs fit in front",
+            LimitBadge.Of(new LimitMark("Cameras", "tiers", LimitUnit.Tiers, LimitLevel.Max, 4, LimitPlace.RoomInFront, 3, false, [], ["camera"], null)).Text);
     }
 }

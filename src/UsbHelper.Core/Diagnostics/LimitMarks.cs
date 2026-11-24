@@ -25,6 +25,20 @@ public enum LimitPlace
     /// fit behind it.
     /// </summary>
     Room,
+
+    /// <summary>A device of a device rule still within the limit: <see cref="LimitMark.Room"/> more hubs fit in front of it.</summary>
+    RoomInFront,
+}
+
+/// <summary>What a measure counts, for a marking's label (#371).</summary>
+public enum LimitUnit
+{
+    Hubs,
+    Tiers,
+    Routers,
+
+    /// <summary>None of these: the label names the measure only.</summary>
+    Other,
 }
 
 /// <summary>
@@ -32,13 +46,16 @@ public enum LimitPlace
 /// path, in that philosophy's own measure. Only what the philosophy states is marked.
 /// </summary>
 /// <param name="Guide">The philosophy's name, such as "Ochno".</param>
-/// <param name="Unit">What the measure counts, for the label: <c>hubs</c>, <c>tiers</c> or <c>routers</c>; else the measure's id.</param>
+/// <param name="Measure">The measure's id in the philosophy, such as <c>chain</c> or <c>room</c>.</param>
+/// <param name="Unit">What the measure counts, for the label.</param>
 /// <param name="Count">The count at this row; for <see cref="LimitPlace.Room"/> behind it, on a device plugged into the hub.</param>
 /// <param name="AtLeast">A part of the count is unknown, so the count is a minimum and the marking may come sooner.</param>
 /// <param name="Unknown">For <see cref="AtLeast"/>: the unknown parts and why, in English, for the marking's hover.</param>
 /// <param name="Devices">The device kinds of a device rule, such as <c>camera</c>; empty for every hub and device.</param>
-public sealed record LimitMark(string Guide, string Measure, string Unit, LimitLevel Level, long Limit, LimitPlace Place, int Count, bool AtLeast,
-    IReadOnlyList<string> Unknown, IReadOnlyList<string> Devices, string? Bus)
+/// <param name="Bus">The rule's bus, <c>usb2</c> or <c>usb3</c>; null for every bus.</param>
+/// <param name="NodeBus">The bus of the row's port, so the two halves of a hub shown as one can be told apart.</param>
+public sealed record LimitMark(string Guide, string Measure, LimitUnit Unit, LimitLevel Level, long Limit, LimitPlace Place, int Count, bool AtLeast,
+    IReadOnlyList<string> Unknown, IReadOnlyList<string> Devices, string? Bus, UsbBus? NodeBus = null)
 {
     /// <summary>How many more the limit allows behind this row; 0 when reached or passed.</summary>
     public long Room => Math.Max(0, Limit - Count);
@@ -70,14 +87,25 @@ public static class LimitMarks
                 [.. parts.Where(part => part.Count == null).Select(part => $"{part.Element}: {part.Origin}")]);
         }
 
-        void Add(string id, GuideRule rule, LimitLevel level, long limit, LimitPlace place, (int Count, bool Open, IReadOnlyList<string> Unknown) value)
+        void Add(string id, UsbBus? bus, GuideRule rule, LimitLevel level, long limit, LimitPlace place, (int Count, bool Open, IReadOnlyList<string> Unknown) value)
         {
             if (!result.TryGetValue(id, out var list))
             {
                 result[id] = list = [];
             }
             list.Add(new LimitMark(guide.Name, rule.Measure, Unit(guide.MeasureDefinitions[rule.Measure]), level, limit, place, value.Count, value.Open,
-                value.Unknown, rule.Devices, rule.Bus));
+                value.Unknown, rule.Devices, rule.Bus, bus));
+        }
+
+        // A device plugged into one of the hub's ports, with that port's cable mark (#307), whose count is highest.
+        (int Count, bool Open, IReadOnlyList<string> Unknown) Behind(GuideRule rule, UsbNode hub, DevicePath path, UsbBus? bus)
+        {
+            var below = path with { Hubs = [.. path.Hubs, hub.Name] };
+            var ports = hub.Children.Where(port => port.Kind == UsbNodeKind.Port).ToList();
+            return ports.Count == 0 ? Value(rule, below, bus) : ports
+                .Select(port => marks?.GetValueOrDefault(port.Id) is { } mark ? below with { Marks = [.. below.Marks, ($"{port.Name} of {hub.Name}", mark)] } : below)
+                .Select(each => Value(rule, each, bus))
+                .MaxBy(each => each.Count);
         }
 
         // Top down, with the counted node above each one, so a limit is marked where its count first gets there.
@@ -93,8 +121,8 @@ public static class LimitMarks
                     var here = Value(rule, path!, bus);
                     var parentMatches = above != null && rule.Devices.Count == 0 && RuleJudge.Matching(guide, profile, above, buses.GetValueOrDefault(above.Id)).Contains(rule);
                     var before = parentMatches ? Value(rule, paths[above!.Id], buses.GetValueOrDefault(above.Id)).Count : (int?)null;
-                    // A device plugged into this hub: the count behind it.
-                    var behind = deepestHub ? Value(rule, path! with { Hubs = [.. path!.Hubs, node.Name] }, bus) : default;
+                    // A device plugged into this hub: the count behind it, through the port with the most marked on it.
+                    var behind = deepestHub ? Behind(rule, node, path!, bus) : default;
                     foreach (var (level, limit) in new[] { (LimitLevel.Recommended, rule.Recommended), (LimitLevel.Max, rule.Max) })
                     {
                         if (limit is not { } value)
@@ -103,15 +131,15 @@ public static class LimitMarks
                         }
                         if (here.Count >= value && (before == null || before < value))
                         {
-                            Add(node.Id, rule, level, value, here.Count == value ? LimitPlace.Reached : LimitPlace.Passed, here);
+                            Add(node.Id, bus, rule, level, value, here.Count == value ? LimitPlace.Reached : LimitPlace.Passed, here);
                         }
                         else if (here.Count < value && rule.Devices.Count > 0)
                         {
-                            Add(node.Id, rule, level, value, LimitPlace.Room, here);
+                            Add(node.Id, bus, rule, level, value, LimitPlace.RoomInFront, here);
                         }
                         else if (here.Count < value && deepestHub && behind.Count < value)
                         {
-                            Add(node.Id, rule, level, value, LimitPlace.Room, behind);
+                            Add(node.Id, bus, rule, level, value, LimitPlace.Room, behind);
                         }
                     }
                 }
@@ -130,9 +158,9 @@ public static class LimitMarks
     }
 
     /// <summary>What a measure counts, for its label: tiers when it counts the root hub or the device, else hubs, else routers.</summary>
-    public static string Unit(GuideMeasure measure) =>
-        measure.Counts.Contains(PathElements.Device) || measure.Counts.Contains(PathElements.RootHub) ? "tiers"
-        : measure.Counts.Any(element => element is PathElements.Hub or PathElements.ComputerHub or PathElements.MarkedHub) ? "hubs"
-        : measure.Counts.Contains(PathElements.Usb4Router) ? "routers"
-        : measure.Id;
+    public static LimitUnit Unit(GuideMeasure measure) =>
+        measure.Counts.Contains(PathElements.Device) || measure.Counts.Contains(PathElements.RootHub) ? LimitUnit.Tiers
+        : measure.Counts.Any(element => element is PathElements.Hub or PathElements.ComputerHub or PathElements.MarkedHub) ? LimitUnit.Hubs
+        : measure.Counts.Contains(PathElements.Usb4Router) ? LimitUnit.Routers
+        : LimitUnit.Other;
 }

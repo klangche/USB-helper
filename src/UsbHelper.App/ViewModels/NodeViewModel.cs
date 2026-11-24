@@ -941,8 +941,8 @@ public sealed class NodeViewModel : ObservableObject
         pairedPortId = half?.PortId;
         OtherHalfId = half?.Hub.Id;
         // #371: the selected philosophy's limit markings, of both halves of a hub shown as one, each once.
-        var badges = IsDisconnected ? [] : new[] { node.Id, half?.Hub.Id }.OfType<string>()
-            .SelectMany(id => context.Limits.GetValueOrDefault(id) ?? []).Select(LimitBadge.Of).Distinct().ToList();
+        IReadOnlyList<LimitBadge> badges = IsDisconnected ? [] : LimitBadge.For(new[] { node.Id, half?.Hub.Id }.OfType<string>()
+            .SelectMany(id => context.Limits.GetValueOrDefault(id) ?? []));
         if (!badges.SequenceEqual(LimitBadges))
         {
             LimitBadges = badges;
