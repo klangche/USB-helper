@@ -271,17 +271,18 @@ public partial class ReadableLayoutTests
         Assert.Equal(2L, nested.Max);
     }
 
-    // Empty means not stated: the rule has only the other number.
     [Fact]
     public void LimitsAndActiveCablesMustHaveLinesBelowThem()
     {
         const string Own = "name: Own\nselectable: true\nproav: 0\ncounts: tiers\n";
 
-        Assert.Equal((5, "'limits' has each count on a line below it, with its recommended, max, quote and source."),
-            (Error(Own + "limits:\n  - tiers\n").Line, Error(Own + "limits:\n  - tiers\n").Message));
+        var limits = Error(Own + "limits:\n  - tiers\n");
+        Assert.Equal(5, limits.Line);
+        Assert.Equal("'limits' has each count on a line below it, with its recommended, max, quote and source.", limits.Message);
         Assert.StartsWith("'active cables' has usb2 and usb3", Error(Own + "active cables: 5\nlimits:\n  tiers:\n    max: 7\n").Message, StringComparison.Ordinal);
     }
 
+    // Empty means not stated: the rule has only the other number.
     [Fact]
     public void AnEmptyNumberIsNotStated()
     {
@@ -308,6 +309,7 @@ public partial class ReadableLayoutTests
     [InlineData("  room:\n    max: 4\n", "  rooom:\n    max: 4\n", 17, "'rooom' is not a standard count in base.yaml (chain, tiers, room)")]
     [InlineData("  room:\n    max: 4\n", "  room:\n", 17, "Limit 'room': give 'recommended', 'max' or both.")]
     [InlineData("    max: 5\n    source: room\n", "", 22, "Limit 'chain': a quote or source belongs with a 'recommended' or 'max'")]
+    [InlineData("    max: 5\n    source: room\n    quote: >\n      five hubs\n      in a chain\n", "    source: room\n", 22, "Limit 'chain': a quote or source belongs with a 'recommended' or 'max'")]
     [InlineData("counts: room, chain", "counts:\n  room: 1", 12, "'counts' names the standard counts on one line")]
     [InlineData("    usb2:\n", "    usb3:\n      usb2:\n        max: 1\n    usb2:\n", 28, "Limit 'chain', usb3, usb2: a scope cannot sit inside another bus scope")]
     [InlineData("    audio:\n", "    audio:\n      cameras:\n        max: 1\n", 32, "Limit 'chain', audio, cameras: a scope cannot sit inside another device scope")]

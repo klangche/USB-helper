@@ -82,11 +82,12 @@ internal static class GuideLayout
 
         // An active cable adds a tier per this many metres after the first, on its bus (#331).
         ProfileValue? cableLength = null;
-        if (root.Find(ActiveCables) is { Kind: not ValueKind.Mapping } notCables)
+        var cables = root.Find(ActiveCables);
+        if (cables is { Kind: not ValueKind.Mapping })
         {
-            error(notCables, "'active cables' has usb2 and usb3 on the lines below it, each with the metres per tier.");
+            error(cables, "'active cables' has usb2 and usb3 on the lines below it, each with the metres per tier.");
         }
-        else if (root.Find(ActiveCables) is { } cables)
+        else if (cables != null)
         {
             var metres = new Dictionary<string, ProfileValue>();
             foreach (var (bus, value) in cables.Fields)
