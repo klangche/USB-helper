@@ -32,7 +32,7 @@ public sealed record PortConnector(string Name, bool? UsbC, UsbBus? Bus, bool In
     /// The controller and root hub of the port and of its other half, in that order, each controller once (#370): the
     /// tree by port has no controller or root hub rows, so the hover names them.
     /// </summary>
-    public IReadOnlyList<(string Controller, string RootHub)> Controllers { get; init; } = [];
+    public IReadOnlyList<(string Controller, string RootHub, UsbBus? Bus)> Controllers { get; init; } = [];
 
     /// <summary>True when the USB 2 pair carries data now, false when it does not, null when no bus is known.</summary>
     public bool? Usb2InUse => LinesInUse(UsbBus.Usb2);
@@ -60,13 +60,13 @@ public sealed record PortConnector(string Name, bool? UsbC, UsbBus? Bus, bool In
         var onRoot = parent != null && Find(tree, parent.Id, null)?.Parent?.Kind == UsbNodeKind.Controller;
         var place = !onRoot ? PortPlace.OnHub
             : port.UserConnectable switch { true => PortPlace.ComputerPort, false => PortPlace.Internal, null => PortPlace.NotSaid };
-        var controllers = new[] { portId, partner?.Id }.OfType<string>()
-            .Select(id => tree.FirstOrDefault(controller => controller.Kind == UsbNodeKind.Controller && PathTo([controller], id).Count > 0) is { } controller
-                ? (controller, RootHub: controller.Children.First(root => PathTo([root], id).Count > 0))
+        var controllers = new[] { port, partner }.OfType<UsbNode>()
+            .Select(half => tree.FirstOrDefault(controller => controller.Kind == UsbNodeKind.Controller && PathTo([controller], half.Id).Count > 0) is { } controller
+                ? (controller, RootHub: controller.Children.First(root => PathTo([root], half.Id).Count > 0), half.Bus)
                 : default)
             .Where(each => each.controller != null)
             .DistinctBy(each => each.controller!.Id)
-            .Select(each => (each.controller!.Name, each.RootHub!.Name))
+            .Select(each => (each.controller!.Name, each.RootHub!.Name, each.Bus))
             .ToList();
         return new PortConnector(port.Name, port.UsbC ?? partner?.UsbC, port.Bus, port.Children.Count > 0, partner, place) { Controllers = controllers };
     }

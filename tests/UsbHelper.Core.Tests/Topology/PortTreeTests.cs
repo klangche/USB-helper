@@ -152,6 +152,23 @@ public class PortTreeTests
         Assert.DoesNotContain(layout.Groups, group => group.Kind == PortGroupKind.Other);
     }
 
+    // A stick plugged into the second USB-C port and pulled out again is kept at its Type-C half: no router is there.
+    [Fact]
+    public void ADisconnectedDeviceOnAnotherPortDoesNotUnplaceTheRouter()
+    {
+        IReadOnlyList<UsbNode> tree =
+        [
+            new("TYPEC", UsbNodeKind.Controller, "Type-C", [Hub("ROOT3",
+                Port("ROOT3|p1", 1, UsbBus.Usb3, Hub("DOCK3", Port("DOCK3|p1", 1, UsbBus.Usb3, Device("LAN")))),
+                Port("ROOT3|p2", 2, UsbBus.Usb3))]) { Usb4Routers = 1, Usb4Link = "USB4 link: PS9010" },
+        ];
+
+        var layout = PortTree.Build(tree, missing: [Kept(Device("STICK"), "ROOT3|p2")]);
+
+        Assert.Equal(["usb4|TYPEC", null], layout.Groups.Select(group => group.Router?.Id));
+        Assert.DoesNotContain(layout.Groups, group => group.Kind == PortGroupKind.Other);
+    }
+
     // With companions named, hub ports pair only by them: the same port number is no pair then.
     [Fact]
     public void HubPortsPairByNumberOnlyWhereNoCompanionIsNamed()

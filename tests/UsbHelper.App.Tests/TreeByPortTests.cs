@@ -256,7 +256,9 @@ public class TreeByPortTests
 
         viewModel.HoverPort(port);
 
-        Assert.Equal(2, port.PortHover!.Lines.Count(line => line == "Controller: USB-styrenhet (Universal Serial Bus), USB Root Hub (USB 3.0)"));
+        Assert.Equal(["Controller (USB 3): USB-styrenhet (Universal Serial Bus), USB Root Hub (USB 3.0)",
+            "Controller (USB 2): USB-styrenhet (Universal Serial Bus), USB Root Hub (USB 3.0)"],
+            port.PortHover!.Lines.Where(line => line.StartsWith("Controller", StringComparison.Ordinal)));
     }
 
     // Hovering a device on the USB 2 side of a merged hub lights the whole way: the port, the router and both merged hubs.
@@ -306,8 +308,8 @@ public class TreeByPortTests
 
         var port = viewModel.Roots[0].Rows[0];
         Assert.Equal("USB-C port 1", port.Text);
-        // The controller still reports the router until the next read of the buses; the dropped dock is below it.
-        var dropped = Assert.Single(Assert.Single(port.Rows).Rows);
+        // With nothing connected on the port, the router is not placed on it: the dropped dock is right below the port.
+        var dropped = Assert.Single(port.Rows);
         Assert.Equal("USB3.2 Hub + USB2.0 Hub (1DA0:901A, USB 2 + USB 3) (disconnected)", dropped.Text);
         Assert.True(dropped.IsDisconnected);
     }

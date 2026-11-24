@@ -45,7 +45,7 @@ public sealed record PortHover(string Title, IReadOnlyList<string> Lines, bool? 
             Strings.PortNeverDetected,
         };
         // #370: the controllers and root hubs are no rows of the tree any more; the hover says which the port is on.
-        lines.InsertRange(lines.Count - 1, connector.Controllers.Select(each => string.Format(CultureInfo.CurrentCulture, Strings.PortOnController, each.Controller, each.RootHub)));
+        lines.InsertRange(lines.Count - 1, connector.Controllers.Select(each => string.Format(CultureInfo.CurrentCulture, Strings.PortOnController, each.Controller, each.RootHub, Bus(each.Bus))));
         return new PortHover(string.Format(CultureInfo.CurrentCulture, Strings.PortHoverTitle, connector.Name, Bus(connector.Bus)), lines,
             connector.UsbC, connector.Usb2InUse, connector.Usb3InUse);
     }

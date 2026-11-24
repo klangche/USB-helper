@@ -138,12 +138,12 @@ public sealed record PortTree(IReadOnlyList<PortGroup> Groups, IReadOnlyDictiona
             }
         }
 
-        // The routers of a controller are on the one port whose half on that controller is in use; with several the
-        // system does not say which, so they are not placed.
+        // The routers of a controller are on the one port whose half on that controller has something connected; with
+        // several the system does not say which, so they are not placed. A disconnected device kept at a port is no router.
         var routerAt = new Dictionary<IReadOnlyList<UsbNode>, PortRouter>();
         foreach (var controller in tree.Where(controller => controller.Usb4Routers is > 0))
         {
-            var on = connectors.Where(each => each.Halves.Any(half => controllerOf.GetValueOrDefault(half.Id) == controller && InUse(half))).ToList();
+            var on = connectors.Where(each => each.Halves.Any(half => controllerOf.GetValueOrDefault(half.Id) == controller && half.Children.Count > 0)).ToList();
             if (on.Count == 1)
             {
                 routerAt[on[0].Halves] = Router(controller);
