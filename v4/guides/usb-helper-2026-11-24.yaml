@@ -1,0 +1,69 @@
+# =============================================================================
+# USB-Helper  –  USB-Helper's own guide, format v4 (#327, #328)
+# =============================================================================
+# The v3 file's own numbers as rules. It is USB-Helper's own guide, not a
+# manufacturer's, so its rules have no source quote. v3's hub count per bus is
+# not a path measure in v4, so it is not here. The MST settings per platform
+# and chip are copied unchanged.
+# =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
+
+name: USB-Helper  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+own: true  # true: our own numbers, so no source to quote
+
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
+counts: tiers  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
+
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
+
+limits:  # the numbers, for every device unless a scope below says otherwise
+  tiers:  # what 'tiers' may reach
+    recommended: 5  # a warning above this
+    max: 7  # a fault above this
+    cameras:  # for cameras
+      recommended: 3  # a warning above this
+      max: 5  # a fault above this
+    audio:  # for audio
+      recommended: 3  # a warning above this
+      max: 5  # a fault above this
+    on apple-mobile:  # on apple-mobile only
+      recommended: 2  # a warning above this
+      max: 3  # a fault above this
+    on android/phone-qualcomm:  # on android/phone-qualcomm only
+      recommended: 2  # a warning above this
+      max: 3  # a fault above this
+    on android/tablet-exynos:  # on android/tablet-exynos only
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+
+notes:  # background, kept word for word
+  - >
+    computer_hub from detected first (owner, #366 D2, 2026-11-23): the connected computer is judged
+    with the hubs it reports inside itself; a ticked system uses the computer and chip files only
+    (#368).
+  - >
+    The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in
+    them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23).
+  - >
+    mst moved to the OS files on 2026-11-23 (#367): it is a fact about the computer, not a rule of
+    this philosophy.
+  - >
+    Converted from v3/guides/usb-helper.yaml on 2026-11-19 (#328): tiers 5 recommended / 7 max,
+    cameras and audio 3 / 5, Apple mobile and Android phones 2 / 3, Android tablets 3 / 4.
+  - >
+    v3's hubs per bus (4 / 6; Apple mobile 1 / 2, Android 0 / 2) and chain (3 / 5; cameras and audio
+    1 / 3) are not carried over: v3 counted chain only as a fallback, and hubs per bus is not a path
+    measure.

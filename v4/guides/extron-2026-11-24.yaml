@@ -1,0 +1,112 @@
+# =============================================================================
+# Extron  –  Manufacturer guide, format v4 (#329)
+# =============================================================================
+# Extron counts every hub between the host controller and the farthest
+# peripheral, the hubs inside the computer included, and allows five
+# ("five cascading hub limit"). Root hubs do not count. Extenders use one or
+# two hubs and compound devices count. No separate rule for cameras or audio.
+# Setups: a known computer gives an exact chain; an unknown one leaves it "at
+# least"; marked hubs (extenders) count.
+# =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
+
+name: Extron  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+
+signed off:  # who approves this version; the file name ends with the same date
+  by: USB-Helper (owner)  # who approves it
+  company: USB-Helper  # the company that approves it
+  date: 2026-11-24  # YYYY-MM-DD
+
+basis:  # the words the philosophy is built on
+  source: whitepaper  # which source below
+  quote: five cascading hub limit  # its words, copied exactly
+
+sources:  # where the rules come from, each with a short name
+  whitepaper:  # the short name the rules use
+    title: Understanding USB in Professional AV Environments  # the document's title
+    author: Extron  # who wrote it
+    version: Rev 1.0, 03/31/17  # which version or date
+    read: >  # how USB-Helper read it
+      a copy supplied by the owner; the download needs a login, so the PDF has no URL (#329)
+    files:  # the documents
+      - name: Understanding USB in Professional AV Environments (page, login)  # the name shown for it
+        link: https://www.extron.com/article/understandingusbwp?tab=tools  # the web page
+      - name: Understanding USB in Professional AV Environments (PDF, Rev 1.0)  # the name shown for it
+        pdf:  # the PDF's address; empty: no public download, open a local copy
+        sha256: ff607ff629a566a2e2e59bff2ff44f5c6a5da74e745a0549435352a0b56358c9  # the PDF's fingerprint, to check a local copy
+        size: 3878270  # the PDF's size in bytes
+    quotes:  # the words quoted, with where they are
+      - text: >  # the words, copied exactly
+          count all of the hubs between the host controller and the farthest peripheral. This
+          includes all of the hubs located inside any computer connected to the bus, plus all hubs
+          enclosed within USB compound devices
+        file: Understanding USB in Professional AV Environments (PDF, Rev 1.0)  # which file above
+        page: 12  # the page in it
+  article:  # the short name the rules use
+    title: USB-C for Pro AV  # the document's title
+    author: Extron  # who wrote it
+    files:  # the documents
+      - name: USB-C for Pro AV (article)  # the name shown for it
+        link: https://www.extron.com/article/usb-c-connectivity-for-pro-av  # the web page
+
+counts: chain  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
+
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
+
+limits:  # the numbers, for every device unless a scope below says otherwise
+  chain:  # what 'chain' may reach
+    max: 5  # a fault above this
+    source: whitepaper  # which source above
+    quote: >  # its words, copied exactly
+      count all of the hubs between the host controller and the farthest peripheral. This includes
+      all of the hubs located inside any computer connected to the bus, plus all hubs enclosed
+      within USB compound devices
+
+notes:  # background, kept word for word
+  - >
+    Signed off by the USB-Helper owner on 2026-11-24 (#389), when the file was rewritten in the readable layout
+    (#386). Extron has not signed this version yet; their own sign-off replaces this one when they send
+    a file.
+  - >
+    Quotes (white paper, Rev 1.0, page 12 of the owner's copy): "count all of the hubs between the
+    host controller and the farthest peripheral. This includes all of the hubs located inside any
+    computer connected to the bus, plus all hubs enclosed within USB compound devices"; "five
+    cascading hub limit".
+  - >
+    Converted to v4 on 2026-11-19 (#329): chain = computer_hub + hub + marked_hub, max 5. The white
+    paper's root hub and extender sentences were supplied on 2026-11-22 from a two-column text
+    extraction, not yet checked against page 12, so they are not quoted; they follow as unchecked
+    text.
+  - >
+    Unchecked extraction, page 12 (owner, 2026-11-22), root hub: A computer's USB host controller
+    has a root hub as part of the host controller, but many computers that have USB ports on the
+    front and rear of the unit include another hub within the computer that is connected to the root
+    hub. Also, if a computer has a built‑in hub and a compound USB peripheral (e.g., a touch
+    display), two hubs of the five cascading hub limit are already in use. In this case, only three
+    more hubs can be daisy-chained to this system before the five cascading hub limit is reached.
+  - >
+    Unchecked extraction, page 12 (owner, 2026-11-22), extender, first part only: Extenders usually
+    require that at least one or two hubs of the five cascading hub limit be used within the
+    transmitter for emulation and "keep alive" functions
+  - >
+    The white paper's fingerprint, for "Open local file" (#333): size 3878270 bytes, SHA-256
+    ff607ff629a566a2e2e59bff2ff44f5c6a5da74e745a0549435352a0b56358c9.
+  - >
+    v3 source line, kept: https://www.extron.com/article/usb-c-connectivity-for-pro-av
+  - >
+    v3 source line, kept: Extron, USB-C for Pro AV design guide: seven tiers, so at most five
+    additional hubs in the signal chain
+  - >
+    v3 source line, kept: Extron: extender transmitter hubs (one or two) and receiver hubs count
+    toward the five cascading hub limit
+  - >
+    v3 link, kept: https://www.extron.com/article/usb-c-connectivity-for-pro-av
