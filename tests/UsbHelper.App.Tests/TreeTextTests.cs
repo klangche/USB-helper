@@ -37,14 +37,12 @@ public class TreeTextTests
 
     private static readonly string Golden = string.Join(Environment.NewLine,
         "Dell Inc. Latitude 7450 (Hubs: 3, devices: 2, deepest tier: 5)", // All controllers (#210).
-        "|-- Controller (Hubs: 3, devices: 2, deepest tier: 5)", // The marked line counts: +2 hubs, which are 2 tiers too (#307).
-        "|   `-- ROOT (has a display)",
-        "|       |-- Port 1 [USB-C]",
-        "|       |   `-- [+2 Hub] HUB - unknown", // No profile is checked, so every result is unknown.
-        "|       |       `-- Port 1",
-        "|       |           `-- KEYBOARD (046D:C31C) - unknown",
-        "|       `-- Port 2",
-        "|           `-- [Display] DL (17E9:6006) - unknown (Extended display: DisplayLink driver required)",
+        "|-- Port 1 [USB-C]", // #370: a row per port of the computer; no controller or root hub rows.
+        "|   `-- [+2 Hub] HUB - unknown", // No profile is checked, so every result is unknown. The marked line counts: +2 hubs, which are 2 tiers too (#307).
+        "|       `-- Port 1",
+        "|           `-- KEYBOARD (046D:C31C) - unknown",
+        "|-- Port 2",
+        "|   `-- [Display] DL (17E9:6006) - unknown (Extended display: DisplayLink driver required)",
         "`-- Displays",
         "    |-- Monitor (built-in)",
         "    `-- DELL U2723QE (HDMI)");
@@ -75,7 +73,8 @@ public class TreeTextTests
         var lines = TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine);
 
         Assert.Equal("Dell Inc. Latitude 7450 (Hubs: 2 (1+1), devices: 2, deepest tier: 3)", lines[0]);
-        Assert.Equal("|-- Controller (Hubs: 2 (1+1), devices: 2, deepest tier: 3)", lines[1]);
+        Assert.Equal("|-- Port 1", lines[1]); // #370: the counts are the host's; the rows are ports.
+        Assert.Equal("|   `-- HUB-USB2 (USB 2) - unknown", lines[2]); // With the bus of its port.
     }
 
     // #230: a header names the company, the room and the licensed email when any is set.

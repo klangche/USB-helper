@@ -52,6 +52,11 @@ public sealed class NodeViewModel : ObservableObject
     private string? portNumber;
     private string? portName;
     private string? portBadge;
+    private string? pairedPortId;
+    private bool isHalf;
+    private string? note;
+    private IReadOnlyList<string> groupPortIds = [];
+    private IReadOnlyList<string> groupControllerIds = [];
     private readonly Action<string, CableMark?> mark;
 
     private NodeViewModel(string id, string? portId, bool isDisconnected, bool hasLine, Action<string, CableMark?> mark)
@@ -137,6 +142,11 @@ public sealed class NodeViewModel : ObservableObject
             if (PortId != null && value != cableMark)
             {
                 mark(PortId, value);
+                // #370: a hub shown with its other half is on two ports, one per bus; its line carries both.
+                if (pairedPortId != null)
+                {
+                    mark(pairedPortId, value);
+                }
             }
         }
     }
@@ -203,6 +213,19 @@ public sealed class NodeViewModel : ObservableObject
     public ObservableCollection<NodeViewModel> Rows { get; } = [];
 
     public bool HasChildren => Children.Count > 0;
+
+    /// <summary>
+    /// The children as the tree as text and the report write them (#370): the halves of a port row are not written, as
+    /// the window does not show them; what is on them is. Each with whether it is the last one written.
+    /// </summary>
+    internal IReadOnlyList<(NodeViewModel Item, bool IsLast)> WrittenChildren
+    {
+        get
+        {
+            var written = Children.SelectMany(child => child.isHalf ? child.Children : [child]).ToList();
+            return [.. written.Select((item, i) => (item, i == written.Count - 1))];
+        }
+    }
 
     /// <summary>
     /// Whether the children are shown. The user expands and collapses a controller with its chevron, a double-click or
@@ -594,29 +617,41 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>The row's tooltip: the status and, below it, the depth.</summary>
-    public string? RowTip => StatusText == null ? DepthText : DepthText == null ? StatusText : $"{StatusText}\n{DepthText}";
+    public string? RowTip => string.Join("\n", new[] { StatusText, DepthText, note }.OfType<string>()) is { Length: > 0 } tip ? tip : null;
+
+    /// <summary>For a row of the tree by port (#370): the ids of the ports under it, so hovering one of them highlights it too.</summary>
+    public IReadOnlyList<string> GroupPortIds => groupPortIds;
+
+    /// <summary>For a row of the tree by port (#370): the controllers its ports are on, for opening the selected one's.</summary>
+    public IReadOnlyList<string> GroupControllerIds => groupControllerIds;
+
+    private void SetNote(string? value)
+    {
+        SetField(ref note, value, nameof(RowTip));
+    }
 
     /// <summary>
-    /// The host item, the top of the tree without a line, with <paramref name="controllers"/> and then the Displays
-    /// group, when there are <paramref name="monitors"/>, as its children.
+    /// The host item, the top of the tree without a line, with a row per group of <paramref name="layout"/> (the tree by
+    /// port, #370) and then the Displays group, when there are <paramref name="monitors"/>, as its children.
     /// </summary>
+    /// <param name="controllers">The tree itself, for the counts.</param>
     /// <param name="marks">The user's marks per port id.</param>
     /// <param name="mark">Sets the mark (null for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
-        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
+        string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
         Action<string, CableMark?> mark, MonitorPlacement monitors)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
-        host.UpdateHost(name, controllers, report, marks, monitors);
+        host.UpdateHost(name, controllers, layout, report, marks, monitors);
         return host;
     }
 
     /// <summary>
-    /// Brings the host item and its children up to date with <paramref name="controllers"/>, <paramref name="report"/>,
-    /// the marks and <paramref name="monitors"/>.
+    /// Brings the host item and its children up to date with <paramref name="controllers"/> shown by port as in
+    /// <paramref name="layout"/>, <paramref name="report"/>, the marks and <paramref name="monitors"/>.
     /// </summary>
     public void UpdateHost(
-        string name, IReadOnlyList<UsbNode> controllers, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
+        string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
         MonitorPlacement monitors)
     {
         Text = name;
@@ -639,8 +674,7 @@ public sealed class NodeViewModel : ObservableObject
             group = new NodeViewModel(DisplaysId, portId: null, isDisconnected: false, hasLine: true, mark);
             Children.Add(group);
         }
-        var trailing = group == null ? 0 : 1;
-        UpdateChildren([.. controllers.Select(controller => (controller, false))], report, marks, monitors.Linked, portId: null, trailing, trailing > 0);
+        UpdateGroups(layout, report, marks, new Context(monitors.Linked, layout), group);
         if (group != null)
         {
             group.Text = Strings.DisplaysGroup;
@@ -653,6 +687,109 @@ public sealed class NodeViewModel : ObservableObject
         UpdateRows();
         PaintChildren([]);
     }
+
+    // What the tree's parts need besides the report and the marks: the monitors linked to USB nodes (#143) and the tree
+    // by port (#370), for the hubs shown with their other half and the bus of each port.
+    private sealed record Context(IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> Linked, PortTree Layout);
+
+    // A port is shown when something is on it, it has a problem, or a disconnected device is kept at it.
+    private static bool Shown(UsbNode port, DiagnosticReport report) =>
+        port.Children.Count > 0 || port.Problem != null || report.Missing.Any(missing => missing.PortId == port.Id);
+
+    // The host's rows by port (#370), in the layout's order, before the Displays group: a group with nothing to show
+    // has no row. Changed in place, so a row that stays keeps its place, its selection and whether it is open.
+    private void UpdateGroups(PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks, Context context,
+        NodeViewModel? displays)
+    {
+        var shown = new List<NodeViewModel>();
+        foreach (var group in layout.Groups)
+        {
+            var item = Children.FirstOrDefault(child => child.Id == group.Id)
+                ?? new NodeViewModel(group.Id, portId: null, isDisconnected: false, hasLine: true, mark);
+            item.UpdateGroup(group, report, marks, context);
+            if (item.HasChildren || group.Reasons.Count > 0)
+            {
+                shown.Add(item);
+            }
+        }
+        for (var i = 0; i < shown.Count; i++)
+        {
+            shown[i].IsLast = i == shown.Count - 1 && displays == null;
+            var at = Children.IndexOf(shown[i]);
+            if (at < 0)
+            {
+                Children.Insert(i, shown[i]);
+            }
+            else if (at != i)
+            {
+                Children.Move(at, i);
+            }
+        }
+        while (Children.Count > shown.Count + (displays == null ? 0 : 1))
+        {
+            Children.RemoveAt(shown.Count);
+        }
+    }
+
+    // A row of the tree by port (#370): a computer port, its halves' hubs and devices below it, after its USB4 routers
+    // when it has any; the built-in devices; or what cannot be placed, with why in its tool tip.
+    private void UpdateGroup(PortGroup group, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks, Context context)
+    {
+        Text = group.Kind switch { PortGroupKind.BuiltIn => Strings.GroupBuiltIn, PortGroupKind.Other => Strings.GroupOther, _ => group.Name };
+        isController = true; // Opened and closed as a controller was before.
+        groupPortIds = [.. group.Nodes.Where(node => node.Kind == UsbNodeKind.Port).Select(node => node.Id)];
+        groupControllerIds = group.ControllerIds;
+        var port = group.Kind == PortGroupKind.Port ? group.Nodes[0] : null;
+        HoverPortId = port?.Id;
+        PortNumber = port == null ? null : TrailingNumber(group.Name) ?? group.Name;
+        PortName = port == null ? null : group.Name;
+        PortBadge = group.UsbC == true ? Strings.UsbCPort : null;
+        PortType = PortBadge;
+        SetNote(group.Reasons.Count == 0 ? null : string.Join("\n", group.Reasons));
+        var wanted = group.Nodes
+            .Where(node => node.Kind != UsbNodeKind.Port || Shown(node, report))
+            .Select(node => (Node: node, Disconnected: false))
+            .ToList();
+        var holder = this;
+        if (group.Router is { } router)
+        {
+            holder = Children.FirstOrDefault(child => child.Id == router.Id);
+            if (holder == null)
+            {
+                Children.Clear();
+                holder = new NodeViewModel(router.Id, portId: null, isDisconnected: false, hasLine: true, mark);
+                Children.Add(holder);
+            }
+            holder.Text = router.Names is { } names
+                ? string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Dock, names, router.Depth)
+                : string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Router, router.Depth);
+            holder.IsLast = true;
+        }
+        else if (Children.Any(child => child.Id.StartsWith(RouterPrefix, StringComparison.Ordinal)))
+        {
+            Children.Clear();
+        }
+        holder.UpdateChildren(wanted, report, marks, context, portId: null, trailing: 0, followed: false);
+        if (!ReferenceEquals(holder, this))
+        {
+            holder.UpdateRows();
+            holder.PathStatus = Worst(holder.Children.Select(child => child.PathStatus));
+        }
+        if (group.Router != null && !holder.HasChildren)
+        {
+            Children.Clear(); // A router with nothing below it shows no port.
+        }
+        UpdateRows();
+        PathStatus = Worst(Children.Select(child => child.PathStatus));
+    }
+
+    private const string RouterPrefix = "usb4|";
+
+    // "1" for "USB-C port 1": the port box shows the number, the row the name.
+    private static string? TrailingNumber(string name) =>
+        name.LastIndexOf(' ') is var at && at >= 0 && int.TryParse(name.AsSpan(at + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _)
+            ? name[(at + 1)..]
+            : null;
 
     // Top down, once every item knows its path status: the trunk colours and the guide columns of the window's rows.
     private void PaintChildren(IReadOnlyList<string?> childLines)
@@ -759,12 +896,16 @@ public sealed class NodeViewModel : ObservableObject
         _ => Strings.OutputOther,
     };
 
-    private void Update(
-        UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, bool last)
+    private void Update(UsbNode node, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks, Context context, bool last)
     {
         IsLast = last;
-        Text = Describe(node, IsDisconnected);
+        // #370: a hub shown with its other half is judged by the worse half, and its line is on both halves' ports.
+        var half = context.Layout.OtherHalves.GetValueOrDefault(node.Id);
+        pairedPortId = half?.PortId;
+        var bus = half != null ? Strings.BusBoth
+            : context.Layout.Buses.TryGetValue(node.Id, out var known) ? (known == UsbBus.Usb3 ? "USB 3" : "USB 2")
+            : null;
+        Text = Describe(node, IsDisconnected, bus);
         IsDevice = node.Kind == UsbNodeKind.Device && !IsDisconnected;
         DeviceKind = node.DeviceKind;
         KindByUser = node.KindByUser;
@@ -772,24 +913,28 @@ public sealed class NodeViewModel : ObservableObject
         isController = node.Kind == UsbNodeKind.Controller;
         // An unplugged device is no display now.
         IsDisplay = node.IsDisplayLink && !IsDisconnected;
-        if (SetField(ref cableMark, PortId == null ? null : marks.GetValueOrDefault(PortId), nameof(Mark)))
+        var marked = PortId == null ? null : marks.GetValueOrDefault(PortId) ?? (pairedPortId == null ? null : marks.GetValueOrDefault(pairedPortId));
+        if (SetField(ref cableMark, marked, nameof(Mark)))
         {
             OnPropertyChanged(nameof(MarkIndex));
             OnPropertyChanged(nameof(IsUserMarked));
             OnPropertyChanged(nameof(MarkBadge));
         }
-        Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Connections.TryGetValue(node.Id, out var value)
-            ? value
+        Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device
+            ? Worst([report.Connections.TryGetValue(node.Id, out var value) ? value : null,
+                half != null && report.Connections.TryGetValue(half.Hub.Id, out var other) ? other : null])
             : null;
         SetCounts(node.Kind == UsbNodeKind.Controller ? TreeCounts([node], marks) : null);
-        DepthText = !IsDisconnected && node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && report.Depths.TryGetValue(node.Id, out var depth)
-            ? DepthLine(depth)
-            : null;
+        var depth = report.Depths.GetValueOrDefault(node.Id);
+        if (half != null && report.Depths.GetValueOrDefault(half.Hub.Id) is { } halfDepth && (depth == null || halfDepth.Tier > depth.Tier))
+        {
+            depth = halfDepth;
+        }
+        DepthText = !IsDisconnected && node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device && depth != null ? DepthLine(depth) : null;
         PortType = node.Kind == UsbNodeKind.Port && node.UsbC == true ? Strings.UsbCPort : null;
 
         var wanted = node.Children
-            .Where(child => child.Kind != UsbNodeKind.Port || child.Children.Count > 0 || child.Problem != null
-                || report.Missing.Any(missing => missing.PortId == child.Id))
+            .Where(child => child.Kind != UsbNodeKind.Port || Shown(child, report))
             .Select(child => (Node: child, Disconnected: false))
             .ToList();
         if (node.Kind == UsbNodeKind.Port && wanted.Count == 0)
@@ -799,8 +944,8 @@ public sealed class NodeViewModel : ObservableObject
                 .Where(missing => missing.PortId == node.Id)
                 .Select(missing => (missing.Node with { Children = [] }, true)));
         }
-        var monitors = linked.GetValueOrDefault(node.Id) ?? [];
-        UpdateChildren(wanted, report, marks, linked, node.Kind == UsbNodeKind.Port ? node.Id : null,
+        var monitors = context.Linked.GetValueOrDefault(node.Id) ?? [];
+        UpdateChildren(wanted, report, marks, context, node.Kind == UsbNodeKind.Port ? node.Id : null,
             Children.Count(child => child.IsMonitorItem), monitors.Count > 0);
         UpdateMonitors(monitors, wanted.Count, report);
         if (node.Kind == UsbNodeKind.Port)
@@ -809,12 +954,15 @@ public sealed class NodeViewModel : ObservableObject
             // disconnected devices kept at it. A port with a problem keeps its own row, with them below it.
             isFolded = node.Problem == null && Children.Count > 0;
             PortBadge = PortType;
+            // #370: a half of a computer port shown as a row is no row, and what is on it needs no port box: the row is the port.
+            isHalf = isFolded && context.Layout.PortHalves.Contains(node.Id);
+            var boxed = isFolded && !isHalf;
             foreach (var child in Children)
             {
-                child.HoverPortId = isFolded ? node.Id : null;
-                child.PortNumber = isFolded ? node.PortNumber?.ToString(CultureInfo.CurrentCulture) ?? node.Name : null;
-                child.PortName = isFolded ? node.Name : null;
-                child.PortBadge = isFolded ? PortType : null;
+                child.HoverPortId = boxed ? node.Id : null;
+                child.PortNumber = boxed ? node.PortNumber?.ToString(CultureInfo.CurrentCulture) ?? node.Name : null;
+                child.PortName = boxed ? node.Name : null;
+                child.PortBadge = boxed ? PortType : null;
             }
         }
         UpdateRows();
@@ -837,7 +985,7 @@ public sealed class NodeViewModel : ObservableObject
 
     private void UpdateChildren(
         IReadOnlyList<(UsbNode Node, bool Disconnected)> wanted, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> linked, string? portId, int trailing, bool followed)
+        Context context, string? portId, int trailing, bool followed)
     {
         // The trailing monitor items (the host's Displays group, a USB node's linked monitors) stay after the USB children;
         // when there are any, the last USB child is not the last item.
@@ -850,7 +998,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 // A disconnected device has nothing behind it now, so its line cannot be marked.
                 var item = new NodeViewModel(child.Id, disconnected ? null : portId, disconnected, hasLine: true, mark);
-                item.Update(child, report, marks, linked, childIsLast);
+                item.Update(child, report, marks, context, childIsLast);
                 Children.Insert(i, item);
                 continue;
             }
@@ -859,7 +1007,7 @@ public sealed class NodeViewModel : ObservableObject
             {
                 Children.Move(at, i);
             }
-            existing.Update(child, report, marks, linked, childIsLast);
+            existing.Update(child, report, marks, context, childIsLast);
         }
         while (Children.Count > wanted.Count + trailing)
         {
@@ -954,21 +1102,20 @@ public sealed class NodeViewModel : ObservableObject
         public override string ToString() => HubsText + Depth;
     }
 
-    private static string Describe(UsbNode node, bool isDisconnected)
+    // The name, with the vendor and product id and the bus of its port (#370) in brackets when known: "WPP20 (2A28:0020, USB 2)".
+    // A USB4 router has its own row below its port (#359, #370), so a controller is named alone.
+    private static string Describe(UsbNode node, bool isDisconnected, string? bus = null)
     {
-        var name = node.VendorId is { } vendor && node.ProductId is { } product
-            ? string.Format(CultureInfo.CurrentCulture, Strings.NodeWithIds, node.Name, vendor, product)
-            : node.Name;
+        var name = (node.VendorId, node.ProductId, bus) switch
+        {
+            ({ } vendor, { } product, null) => string.Format(CultureInfo.CurrentCulture, Strings.NodeWithIds, node.Name, vendor, product),
+            ({ } vendor, { } product, { } known) => string.Format(CultureInfo.CurrentCulture, Strings.NodeWithIdsAndBus, node.Name, vendor, product, known),
+            (_, _, { } known) => string.Format(CultureInfo.CurrentCulture, Strings.NodeWithBus, node.Name, known),
+            _ => node.Name,
+        };
         if (isDisconnected)
         {
             return string.Format(CultureInfo.CurrentCulture, Strings.NodeDisconnected, name);
-        }
-        // #359: a USB4 dock is a router, not a hub; it shows on the controller of its port, named as the system names it.
-        if (node.Kind == UsbNodeKind.Controller && node.Usb4Routers is > 0 and var depth)
-        {
-            name += node.Usb4Link?.IndexOf(": ", StringComparison.Ordinal) is >= 0 and var at
-                ? string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Dock, node.Usb4Link[(at + 2)..], depth)
-                : string.Format(CultureInfo.CurrentCulture, Strings.NodeUsb4Router, depth);
         }
         return node.Problem == null ? name : string.Format(CultureInfo.CurrentCulture, Strings.NodeProblem, name, node.Problem);
     }

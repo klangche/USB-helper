@@ -88,6 +88,9 @@ public sealed class PortTesting
     /// <summary>The other half of <paramref name="portId"/>'s connector, as learned this session (#266), or null.</summary>
     public string? PartnerOf(string portId) => pairs.GetValueOrDefault(portId);
 
+    /// <summary>The two halves of each connector seen this session, by port id both ways (#370: the tree by port uses them).</summary>
+    public IReadOnlyDictionary<string, string> Pairs => pairs;
+
     /// <summary>The computer's own ports in <paramref name="tree"/>, in tree order: user-connectable, or not said, on a root hub or a built-in hub.</summary>
     public static IReadOnlyList<ComputerPort> PortsOf(IReadOnlyList<UsbNode> tree) => [.. Ports(tree).Select(each => each.Port)];
 
@@ -382,7 +385,7 @@ public sealed class PortTesting
 
     // The computer's ports in tree order, each with its port nodes: one, or the two halves of one connector. A name that
     // two ports share gets the hub it is on.
-    private static List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> Ports(IReadOnlyList<UsbNode> tree,
+    internal static List<(ComputerPort Port, IReadOnlyList<UsbNode> Halves)> Ports(IReadOnlyList<UsbNode> tree,
         IReadOnlyDictionary<string, string>? known = null)
     {
         var found = Connectors(tree.SelectMany(controller => controller.Children).SelectMany(rootHub => OwnPortNodes(rootHub)).ToList(), known);

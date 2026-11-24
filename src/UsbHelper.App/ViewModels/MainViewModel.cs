@@ -1084,7 +1084,7 @@ public sealed class MainViewModel : ObservableObject
         var path = item?.HoverPortId is { } portId ? PortConnector.PathTo(tree, portId).Append(item.Id).ToHashSet() : [];
         foreach (var row in Flat(Roots[0]))
         {
-            row.IsOnHoveredPath = path.Contains(row.Id);
+            row.IsOnHoveredPath = path.Contains(row.Id) || row.GroupPortIds.Any(path.Contains);
         }
         if (item?.HoverPortId is { } id)
         {
@@ -1238,8 +1238,10 @@ public sealed class MainViewModel : ObservableObject
             if (Roots.Count > 0 && !IsDisplay(value))
             {
                 // Owner decision in #68: clicking a controller, or anything under it, selects that controller's tree.
+                // #370: the rows are ports; a hub or device is on the controller of its tree, a port row on its first half's.
                 allControllers = value == Roots[0];
-                selectedControllerId = Roots[0].Children.FirstOrDefault(controller => Contains(controller, value))?.Id;
+                selectedControllerId = UsbTree.PathTo(tree, value.Id).FirstOrDefault()?.Id
+                    ?? Roots[0].Children.FirstOrDefault(group => Contains(group, value))?.GroupControllerIds.FirstOrDefault();
                 Refresh();
             }
         }
@@ -1504,13 +1506,15 @@ public sealed class MainViewModel : ObservableObject
 
         var placement = MonitorPlacement.Place(judged, monitors ?? []);
         log.DisplayLinks(placement, judged);
+        // #370: the tree is shown by the computer's ports, both halves of a connector together.
+        var layout = PortTree.Build(judged, ports.Pairs);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, judged, lines, marks, Mark, placement));
+            Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, judged, lines, marks, placement);
+            Roots[0].UpdateHost(HostName, judged, layout, lines, marks, placement);
         }
         foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null && row.DeviceKind != UsbDeviceKind.Neither))
         {
@@ -1520,11 +1524,12 @@ public sealed class MainViewModel : ObservableObject
         // devices, connected or disconnected. Once the user opens or closes a controller, their choices are kept.
         if (following)
         {
+            // #370: the rows are ports now; the selected controller's ports are open.
             var open = selected != null && sizes[selected.Id] > 0 ? selected.Id : null;
             laying = true;
-            foreach (var controller in Roots[0].Children.Where(item => item.CanExpand))
+            foreach (var group in Roots[0].Children.Where(item => item.CanExpand))
             {
-                controller.IsExpanded = controller.Id == open;
+                group.IsExpanded = open != null && group.GroupControllerIds.Contains(open);
             }
             laying = false;
         }

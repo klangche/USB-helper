@@ -28,6 +28,12 @@ public enum PortPlace
 /// <param name="Partner">The other half of the connector on the other bus (#342, #355), or null when none is known.</param>
 public sealed record PortConnector(string Name, bool? UsbC, UsbBus? Bus, bool InUse, UsbNode? Partner, PortPlace Place)
 {
+    /// <summary>
+    /// The controllers of the port and of its other half, one name each, in that order (#370): the tree by port has no
+    /// controller rows, so the hover names them.
+    /// </summary>
+    public IReadOnlyList<string> Controllers { get; init; } = [];
+
     /// <summary>True when the USB 2 pair carries data now, false when it does not, null when no bus is known.</summary>
     public bool? Usb2InUse => LinesInUse(UsbBus.Usb2);
 
@@ -54,7 +60,10 @@ public sealed record PortConnector(string Name, bool? UsbC, UsbBus? Bus, bool In
         var onRoot = parent != null && Find(tree, parent.Id, null)?.Parent?.Kind == UsbNodeKind.Controller;
         var place = !onRoot ? PortPlace.OnHub
             : port.UserConnectable switch { true => PortPlace.ComputerPort, false => PortPlace.Internal, null => PortPlace.NotSaid };
-        return new PortConnector(port.Name, port.UsbC ?? partner?.UsbC, port.Bus, port.Children.Count > 0, partner, place);
+        var controllers = new[] { portId, partner?.Id }.OfType<string>()
+            .Select(id => tree.FirstOrDefault(controller => controller.Kind == UsbNodeKind.Controller && PathTo([controller], id).Count > 0)?.Name)
+            .OfType<string>().Distinct().ToList();
+        return new PortConnector(port.Name, port.UsbC ?? partner?.UsbC, port.Bus, port.Children.Count > 0, partner, place) { Controllers = controllers };
     }
 
     /// <summary>The ids of <paramref name="id"/> and every element above it, from the controller down (#266, the path to highlight).</summary>

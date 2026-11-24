@@ -9,7 +9,21 @@ shows what it is reading
 profiles and the tree fill in as they arrive. The window shows the USB tree.
 Its root is this computer, named after its computer profile when one matches,
 else by the manufacturer and model Windows reports, else by its machine name;
-the USB controllers are its children. Thin lines join the items, starting at the
+its children are the computer's ports with something on them (#370). Both halves
+of a USB-C connector, its USB 2 and USB 3 halves, which the system shows on two
+buses and often on two controllers, are one row, "USB-C port 1"; another port is
+named as the system names it, "Port 3". After the ports, "Built into the
+computer" holds the devices inside it (a webcam, a fingerprint reader,
+Bluetooth: in the computer's own container on Windows, or on a port the system
+calls internal), and, only when something cannot be placed on a port, "Other USB
+ports (not identified)", whose hover says why. Controllers and root hubs are no
+rows: the port's hover names its controller. A USB4 dock is its own row below
+its port, "USB4 dock: PS9010 (router, depth 1)", with the dock's hubs below it.
+The two halves of a USB 3 hub are one row, "USB3.2 Hub + USB2.0 Hub (1DA0:901A,
+USB 2 + USB 3)", with the ports of both below it; it has the worse status of its
+two halves, and a mark on its line goes on both halves' lines. Every other hub
+and device names the bus of its port: "WPP20 (6993:B022, USB 2)". The Mac and the
+PC show the same tree for the same setup. Thin lines join the items, starting at the
 computer. Each line is drawn in the worst status of everything it leads to: a
 stable tree is green all the way, and one unstable (purple) or disconnected
 (red) device colours its path up to the computer while its stable neighbours
@@ -18,9 +32,9 @@ status colour, and a dot in that colour is in front of its name. The result
 word ("unknown", "potentially unstable", "unstable", "disconnected") follows
 the name only when the item is not stable, and such a row has a light
 background in its status colour; a stable row shows no word. Hubs and devices show
-the product name they report, falling back to the Windows name. A port is not
+the product name they report, falling back to the Windows name. A port on a hub is not
 a row of its own: the hub or device on it shows the port number in a small box
-in front of its name, and a disconnected
+in front of its name (the computer's port rows have the box themselves), and a disconnected
 device keeps the number of its last port. Hovering the box shows the port
 (#266): its name and bus, a small connector drawing (rounded for USB-C, with
 the USB 2 pair and the USB 3 lanes green when in use, grey when not, an empty
@@ -45,13 +59,12 @@ Neither; "Use what the system reports" removes it. A kind selected by hand has
 "✎" after its symbol, is judged by the same stricter rules, is noted in the log
 ("Device kind of … selected by hand: camera") and is carried in the setup export.
 Like the cable marks, it lasts until the app closes. A port with a problem keeps its own row, "Port 2: ...", with what is on
-it below. Only the USB controller rows can be collapsed: click a controller's
-chevron, double-click it, or use the left and right arrow keys to hide or show
-its tree; while it is hidden the controller's name is bold. Only the
-selected controller (see below) is open, and only when it has devices,
-connected or disconnected. The computer's row, the Displays group and
-everything below a controller, hubs built into the computer included, are
-always open. Until you select an item or open or close a controller, the
+it below. Only the port rows (and the built-in and other groups) can be collapsed: click
+a row's chevron, double-click it, or use the left and right arrow keys to hide or
+show what is on it; while it is hidden the row's name is bold. Only the ports of
+the selected controller (see below) are open. The computer's row, the Displays
+group and everything below a port row are always open. Until you select an item
+or open or close a port row, the
 tree follows what is plugged in: a controller that gains hubs or devices and
 then has more than the selected one is selected and opened, and the others
 are collapsed. Here disconnected devices count too, so a dropped dock keeps
@@ -63,7 +76,7 @@ Refresh follows again, starting from the busiest controller by connected
 hubs and devices. A
 DisplayLink device is shown as a display: a "Display" badge and "Extended
 display: DisplayLink driver required" before its name;
-every hub above it says it "has a display". After the controllers, a
+every hub above it says it "has a display". After the ports, a
 "Displays" group lists each active monitor with its name and output type, for
 example "DELL U2723QE (HDMI)"; a monitor without a name, often the built-in
 panel, is listed as "Monitor". A monitor is shown under a USB hub or device
@@ -83,7 +96,7 @@ lists the monitors at start and each one connected or removed. A hub or
 device on a port that Windows reports as a USB-C connector (from its port connector
 properties) has a "USB-C" badge after its name; this changes no result. Empty
 ports are not in the tree; the log lists the flag of every port Windows
-reports it for. Each controller shows its hub count, device count and deepest
+reports it for. The computer's row shows its hub count, device count and deepest
 tier, for example "Hubs: 3 (2+1), devices: 7, deepest tier: 4". The devices are
 the connected USB devices, each counted once whatever its bus; hubs (both halves
 of a USB 3 hub), root hubs, controllers and ports are not devices. The
@@ -91,16 +104,17 @@ numbers in brackets are the hubs per bus, always in the same order: USB 2
 (the USB 2.0 tree), then USB 3 (the SuperSpeed tree, USB 3.0 to 3.2). USB4 has
 no hubs: a USB4 dock is a USB4 router, and its USB hubs count on USB 2 and USB 3
 (#359). When a controller reports a USB4 router, the counts add it, for example
-"Hubs: 4 (2+2) · USB4 routers: 1", and the controller's row names the dock, for
-example "USB4 dock: PS9010 (router depth 1)"; the log says "USB4 routers of …: 1"
+"Hubs: 4 (2+2) · USB4 routers: 1", and the dock has its own row below its port
+(see above). When several ports of that controller are in use, the system does
+not say which one has the router: it is then named under "Other USB ports". The
+log says "USB4 routers of …: 1"
 with what reports it. Without a router there is no USB4 part. The first number is
 the sum of the hubs on each bus. A USB 3 hub has a half on each bus and the
 operating system reports each half as a hub, so one USB 3 hub counts once on USB 2
 and once on USB 3: "Hubs: 2 (1+1)". A USB 2 hub counts on USB 2 only. Each bus
 has its own chain and its own limits: the hub limits are judged per bus, not on
 the sum. The deepest tier is that of any bus. Hovering the counts shows which bus
-is which. The computer's row shows the same over all controllers, and a controller
-with nothing connected shows no counts. Copy tree as text and the PDF report show
+is which. The counts are the whole computer's, over all controllers. Copy tree as text and the PDF report show
 the counts the same way. When the operating system reports no bus at all, there
 are no brackets, just the total. The counts say "at least" when a hub, port or bus
 could not be read; a hub on a port whose bus is not reported is in the total but
@@ -290,12 +304,10 @@ pasting into an email:
 
 ```
 Dell Inc. Latitude 7450 (Hubs: 3, devices: 1, deepest tier: 5)
-|-- Controller (Hubs: 3, devices: 1, deepest tier: 5)
-|   `-- ROOT
-|       `-- Port 1 [USB-C]
-|           `-- [+2 hubs] Dock - stable
-|               `-- Port 1
-|                   `-- Keyboard (046D:C31C) - stable
+|-- USB-C port 1 [USB-C]
+|   `-- [+2 hubs] Dock (USB 2) - stable
+|       `-- Port 1
+|           `-- Keyboard (046D:C31C, USB 2) - stable
 `-- Displays
     `-- DELL U2723QE (HDMI)
 ```
