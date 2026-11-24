@@ -41,7 +41,7 @@ cables:
     - { type: usb4, text: "passive USB4 / Thunderbolt about 0.8–1 m (indicative); Thunderbolt 4: universal 2-metre cable compatibility", source: v6, quote: "universal 2-metre cable compatibility" }
     - { type: active_optical, text: "active optical cables up to 15 m", source: v6, quote: "Active optical (AOC) cables can manage up to 15m" }
   models:
-    - { name: "PureInstall PI6600 (21002)", type: passive, length: 5, speed: "USB 3.2 Gen 1", hubs: 0, tiers: 0, note: "micro-coax USB-C to USB-C", source: pi6600 }
+    - { name: "PureInstall PI6600 (21002)", type: passive, length: 5, bus: usb3, speed: "USB 3.2 Gen 1", hubs: 0, tiers: 0, note: "micro-coax USB-C to USB-C", source: pi6600 }
 
 notes:
   - "Quote (PureLink V6, supplied by the owner 2026-11-22), the rule's max 7: \"USB supports a maximum of seven tiers along any individual connection path. Tier 1 is the host and its integrated root hub, Tiers 2–6 can contain up to five additional hubs, and Tier 7 is reserved for the final USB device.\" One rule holds both numbers, so its quote is the recommendation."
