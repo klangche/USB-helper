@@ -82,7 +82,11 @@ internal static class GuideLayout
 
         // An active cable adds a tier per this many metres after the first, on its bus (#331).
         ProfileValue? cableLength = null;
-        if (root.Find(ActiveCables) is { } cables)
+        if (root.Find(ActiveCables) is { Kind: not ValueKind.Mapping } notCables)
+        {
+            error(notCables, "'active cables' has usb2 and usb3 on the lines below it, each with the metres per tier.");
+        }
+        else if (root.Find(ActiveCables) is { } cables)
         {
             var metres = new Dictionary<string, ProfileValue>();
             foreach (var (bus, value) in cables.Fields)
@@ -100,6 +104,14 @@ internal static class GuideLayout
         // The measures: the standard counts named in 'counts' or in 'limits', each with this philosophy's evidence.
         var measures = root.Find("measures")?.Fields.ToDictionary() ?? [];
         var limits = root.Find(Limits);
+        if (limits is { Kind: not ValueKind.Mapping })
+        {
+            error(limits, "'limits' has each count on a line below it, with its recommended, max, quote and source.");
+        }
+        if (root.Find(Counts) is { Kind: not (ValueKind.String or ValueKind.List) } badCounts)
+        {
+            error(badCounts, "'counts' names the standard counts on one line, for example 'counts: chain, room'.");
+        }
         var countNames = root.Find(Counts) is { } countsValue ? Names(countsValue).ToList() : [];
         var unknownCounts = new HashSet<string>();
         foreach (var name in countNames.Concat(limits?.Fields.Keys ?? []).Distinct().Where(name => !measures.ContainsKey(name)))
@@ -136,10 +148,12 @@ internal static class GuideLayout
         {
             var rule = new Dictionary<string, ProfileValue>(scope) { ["measure"] = Text(measure, limit) };
             var scoped = new List<(ProfileValue Value, string Field, string Scope, string Where)>();
+            var numbered = false; // a number was written, even a wrong one: that error is enough
             foreach (var (key, value) in limit.Fields)
             {
                 if (key is "recommended" or "max")
                 {
+                    numbered |= value.Kind != ValueKind.Null;
                     if (value.Kind == ValueKind.Null)
                     {
                         continue; // empty: not stated
@@ -172,9 +186,14 @@ internal static class GuideLayout
             {
                 rules.Add(Map(rule, limit));
             }
-            else if (scoped.Count == 0)
+            else if (!numbered && scoped.Count == 0)
             {
                 error(limit, $"{where}: give 'recommended', 'max' or both.");
+            }
+            else if (!numbered && (rule.ContainsKey("quote") || rule.ContainsKey("source")))
+            {
+                error(rule.GetValueOrDefault("quote") ?? rule["source"],
+                    $"{where}: a quote or source belongs with a 'recommended' or 'max'; this limit has only scopes, so give it in each scope.");
             }
             foreach (var (value, field, name, at) in scoped)
             {

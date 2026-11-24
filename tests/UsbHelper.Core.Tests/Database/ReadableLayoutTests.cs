@@ -273,6 +273,16 @@ public partial class ReadableLayoutTests
 
     // Empty means not stated: the rule has only the other number.
     [Fact]
+    public void LimitsAndActiveCablesMustHaveLinesBelowThem()
+    {
+        const string Own = "name: Own\nselectable: true\nproav: 0\ncounts: tiers\n";
+
+        Assert.Equal((5, "'limits' has each count on a line below it, with its recommended, max, quote and source."),
+            (Error(Own + "limits:\n  - tiers\n").Line, Error(Own + "limits:\n  - tiers\n").Message));
+        Assert.StartsWith("'active cables' has usb2 and usb3", Error(Own + "active cables: 5\nlimits:\n  tiers:\n    max: 7\n").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnEmptyNumberIsNotStated()
     {
         var rule = Load(ReadableRoom.Replace("    max: 4\n", "    max:\n    recommended: 3\n", StringComparison.Ordinal), "room").Rules[0];
@@ -293,9 +303,12 @@ public partial class ReadableLayoutTests
 
     [Theory]
     [InlineData("    max: 5\n", "    max: five\n", 22, "Limit 'chain': 'max' must be a whole number or none.")]
+    [InlineData("    max: 4\n", "    max: 4.5\n", 18, "Limit 'room': 'max' must be a whole number or none.")]
     [InlineData("    max: 5\n", "    max: -1\n", 22, "Limit 'chain': 'max' must be a whole number or none.")]
     [InlineData("  room:\n    max: 4\n", "  rooom:\n    max: 4\n", 17, "'rooom' is not a standard count in base.yaml (chain, tiers, room)")]
     [InlineData("  room:\n    max: 4\n", "  room:\n", 17, "Limit 'room': give 'recommended', 'max' or both.")]
+    [InlineData("    max: 5\n    source: room\n", "", 22, "Limit 'chain': a quote or source belongs with a 'recommended' or 'max'")]
+    [InlineData("counts: room, chain", "counts:\n  room: 1", 12, "'counts' names the standard counts on one line")]
     [InlineData("    usb2:\n", "    usb3:\n      usb2:\n        max: 1\n    usb2:\n", 28, "Limit 'chain', usb3, usb2: a scope cannot sit inside another bus scope")]
     [InlineData("    audio:\n", "    audio:\n      cameras:\n        max: 1\n", 32, "Limit 'chain', audio, cameras: a scope cannot sit inside another device scope")]
     [InlineData("    on windows/intel:\n", "    on macos:\n      on windows/intel:\n        max: 1\n    on windows/intel:\n", 40, "Limit 'chain', on macos, on windows/intel: a scope cannot sit inside another platform scope")]

@@ -36,6 +36,7 @@ internal static class GuideReaderV4
     {
         var file = root.File;
         void Error(ProfileValue at, string message) => errors.Add(new DatabaseError(file, at.Line, message));
+
         var name = root.Find("name")?.Scalar as string;
         var selectable = root.Find("selectable")?.Scalar as bool?;
         if (string.IsNullOrEmpty(name))

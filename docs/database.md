@@ -77,7 +77,8 @@ limits:  # the numbers, for every device unless a scope below says otherwise
   A scope narrows the one it sits in, so `cameras:` inside `on windows/arm:` is cameras on Windows on ARM; a scope
   inside one of the same kind (a bus in a bus, a device in a device, a platform in a platform) is an error. A limit's
   own numbers become its first rule, then each scope in the order written. A limit or scope with neither
-  `recommended` nor `max` and no scopes is an error.
+  `recommended` nor `max` and no scopes is an error, and so is a `quote` or `source` on a limit that has only
+  scopes: give it in each scope.
 - A philosophy that counts another way writes that count out under `measures` (with `weights`), in the full form,
   and gives its limits under `limits` as above.
 - `basis`, `sources`, `cables`, `requires` and `notes` are as in the full form, written in block style.
