@@ -4,46 +4,109 @@
 # Moved one to one from v3: tiers 4 / 6, cameras and audio 3 / 4, and the
 # chip and platform values. Not a manufacturer source, so no quotes.
 # =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
 
-name: Unisynk
-selectable: true
-proav: 1
-own: true
+name: Unisynk  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+own: true  # true: our own numbers, so no source to quote
 
-sources:
-  pro-av-cable:
-    link: https://unisynk.se/sv-se/usb-c-kabel-for-pro-av-240w/
-    title: "USB-C kabel för Pro AV 240W"
-    author: Unisynk
-    read: "text supplied by the owner on #372; passive from the owner; the data speed is not stated"
+sources:  # where the rules come from, each with a short name
+  pro-av-cable:  # the short name the rules use
+    link: https://unisynk.se/sv-se/usb-c-kabel-for-pro-av-240w/  # the web page
+    title: USB-C kabel för Pro AV 240W  # the document's title
+    author: Unisynk  # who wrote it
+    read: >  # how USB-Helper read it
+      text supplied by the owner on #372; passive from the owner; the data speed is not stated
 
-measures:
-  tiers:
-    counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
-    computer_hub: { from: [detected, computer, chip], unknown: open }
+counts: tiers  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
 
-rules:
-  - { measure: tiers, recommended: 4, max: 6 }
-  - { measure: tiers, devices: [camera], recommended: 3, max: 4 }
-  - { measure: tiers, devices: [audio], recommended: 3, max: 4 }
-  - { measure: tiers, on: [apple-mobile], recommended: 2, max: 3 }
-  - { measure: tiers, on: [android], recommended: 2, max: 3 }
-  - { measure: tiers, on: [windows/amd], recommended: 3, max: 5 }
-  - { measure: tiers, on: [windows/arm], recommended: 3, max: 4 }
-  - { measure: tiers, on: [macos/apple-silicon], recommended: 3, max: 5 }
-  - { measure: tiers, on: [macos/a-series], recommended: 3, max: 4 }
-  - { measure: tiers, on: [ubuntu/arm], recommended: 3, max: 4 }
-  - { measure: tiers, on: [debian/arm], recommended: 3, max: 4 }
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
 
-cables:
-  models:
-    - { name: "Pro AV USB-C 240W, 2 m", type: passive, length: 2, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
-    - { name: "Pro AV USB-C 240W, 3 m", type: passive, length: 3, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
-    - { name: "Pro AV USB-C 240W, 5 m", type: passive, length: 5, hubs: 0, tiers: 0, note: "made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not stated", source: pro-av-cable }
+limits:  # the numbers, for every device unless a scope below says otherwise
+  tiers:  # what 'tiers' may reach
+    recommended: 4  # a warning above this
+    max: 6  # a fault above this
+    cameras:  # for cameras
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+    audio:  # for audio
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+    on apple-mobile:  # on apple-mobile only
+      recommended: 2  # a warning above this
+      max: 3  # a fault above this
+    on android:  # on android only
+      recommended: 2  # a warning above this
+      max: 3  # a fault above this
+    on windows/amd:  # on windows/amd only
+      recommended: 3  # a warning above this
+      max: 5  # a fault above this
+    on windows/arm:  # on windows/arm only
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+    on macos/apple-silicon:  # on macos/apple-silicon only
+      recommended: 3  # a warning above this
+      max: 5  # a fault above this
+    on macos/a-series:  # on macos/a-series only
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+    on ubuntu/arm:  # on ubuntu/arm only
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
+    on debian/arm:  # on debian/arm only
+      recommended: 3  # a warning above this
+      max: 4  # a fault above this
 
-notes:
-  - "The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23)."
-  - "mst moved to the OS files on 2026-11-23 (#367): it is a fact about the computer, not a rule of this philosophy."
-  - "Moved to v4 on 2026-11-19 (#329): the tiers values one to one. v3's hubs per bus (3 / 5; Apple mobile and Android 1 / 2) are not a path measure in v4 and are not carried over. Not verified: Unisynk's numbers come from practical experience, not a published source."
-  - "v3 source line, kept: USB-Helper base limits + Ochno-style conservatism on tiers"
-  - "v3 source line, kept: Unisynk practical experience with switcher and extension topologies"
+cables:  # notes on cable lengths and approved cable models; they never change a result
+  models:  # cables this philosophy names
+    - name: Pro AV USB-C 240W, 2 m  # the model's name
+      type: passive  # the cable type: passive, active, active_optical or usb4
+      length: 2  # in metres
+      hubs: 0  # hubs inside it
+      tiers: 0  # tiers it adds
+      note: >  # shown with the model
+        made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not
+        stated
+      source: pro-av-cable  # which source above
+    - name: Pro AV USB-C 240W, 3 m  # the model's name
+      type: passive  # the cable type: passive, active, active_optical or usb4
+      length: 3  # in metres
+      hubs: 0  # hubs inside it
+      tiers: 0  # tiers it adds
+      note: >  # shown with the model
+        made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not
+        stated
+      source: pro-av-cable  # which source above
+    - name: Pro AV USB-C 240W, 5 m  # the model's name
+      type: passive  # the cable type: passive, active, active_optical or usb4
+      length: 5  # in metres
+      hubs: 0  # hubs inside it
+      tiers: 0  # tiers it adds
+      note: >  # shown with the model
+        made as the host cable (laptop to dock or extender); lockable, 240 W PD; data speed not
+        stated
+      source: pro-av-cable  # which source above
+
+notes:  # background, kept word for word
+  - >
+    The per-OS rules (on:) are this philosophy's own rules. The computer's hidden hubs are not in
+    them: they are counted once, from the OS, chip and computer files (owner, #366 D1, 2026-11-23).
+  - >
+    mst moved to the OS files on 2026-11-23 (#367): it is a fact about the computer, not a rule of
+    this philosophy.
+  - >
+    Moved to v4 on 2026-11-19 (#329): the tiers values one to one. v3's hubs per bus (3 / 5; Apple
+    mobile and Android 1 / 2) are not a path measure in v4 and are not carried over. Not verified:
+    Unisynk's numbers come from practical experience, not a published source.
+  - >
+    v3 source line, kept: USB-Helper base limits + Ochno-style conservatism on tiers
+  - >
+    v3 source line, kept: Unisynk practical experience with switcher and extension topologies

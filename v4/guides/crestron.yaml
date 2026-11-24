@@ -9,38 +9,79 @@
 # Setups: a known computer gives exact tiers; an unknown one counts one
 # computer hub (unknown: 1); marked hubs and active cables add tiers.
 # =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
 
-name: Crestron
-selectable: true
-proav: 1
-basis: { source: crestron, quote: "never more than 7 tiers" }
+name: Crestron  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+basis:  # the words the philosophy is built on
+  source: crestron  # which source below
+  quote: never more than 7 tiers  # its words, copied exactly
 
-sources:
-  crestron:
-    link: https://community.crestron.com/s/article/3082#What_Is_A_Tier
-    title: "USB Tiers (knowledge article 3082)"
-    author: Crestron
-    version: "Oct 22, 2026"
-    read: "behind a Crestron login; the copy quoted in #325"
+sources:  # where the rules come from, each with a short name
+  crestron:  # the short name the rules use
+    link: >  # the web page
+      https://community.crestron.com/s/article/3082#What_Is_A_Tier
+    title: USB Tiers (knowledge article 3082)  # the document's title
+    author: Crestron  # who wrote it
+    version: Oct 22, 2026  # which version or date
+    read: >  # how USB-Helper read it
+      behind a Crestron login; the copy quoted in #325
 
-measures:
-  tiers:
-    counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
-    computer_hub: { from: [detected, computer, chip], unknown: 1 }
-    cable_length: { usb2_metres_per_tier: 5, usb3_metres_per_tier: 3 }
+counts: tiers  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
 
-rules:
-  - { measure: tiers, max: 7, source: crestron, quote: "never more than 7 tiers" }
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: 1  # at least = the count is a minimum · a number = assume that many
 
-cables:
-  notes:
-    - { type: passive, bus: usb2, text: "passive USB 2 about 5 m per run", source: crestron, quote: "Passive USB 2 cabling should be limited to ~16.4 ft (5 m) per run, while USB 3 should be limited to ~9.8 ft (3 m)" }
-    - { type: passive, bus: usb3, text: "passive USB 3 about 3 m per run", source: crestron, quote: "Passive USB 2 cabling should be limited to ~16.4 ft (5 m) per run, while USB 3 should be limited to ~9.8 ft (3 m)" }
+active cables:  # an active cable adds a tier for each of these lengths after the first
+  usb2: 5  # metres, on USB 2
+  usb3: 3  # metres, on USB 3
 
-notes:
-  - "Quotes (Crestron 3082, Oct 22, 2026): \"never more than 7 tiers\"; a laptop with several ports \"must already have a hub\"; \"the laptop's built-in USB connectors are already tier 2\" (the reason for computer_hub unknown: 1)."
-  - "Converted to v4 on 2026-11-19 (#329): tiers = root_hub + computer_hub + hub + marked_hub + cable_length + device, max 7. cable_length: the first 5 m (USB 2) or 3 m (USB 3) are free, then one tier per 5 m or 3 m; the app counts the marked tiers until cable marks with length (#331)."
-  - "v3 source line, kept: https://community.crestron.com/s/article/3082#What_Is_A_Tier"
-  - "v3 source line, kept: Crestron knowledge article 3082, USB Tiers (Oct 22, 2026): host tier 1, device the final tier, never more than 7 tiers"
-  - "v3 source line, kept: Crestron: built-in host hubs, hub products with more than four ports and extender pairs each add tiers; an active cable adds a tier per extra 5 m (USB 2) or 3 m (USB 3)"
-  - "v3 link, kept: https://community.crestron.com/s/article/3082#What_Is_A_Tier"
+limits:  # the numbers, for every device unless a scope below says otherwise
+  tiers:  # what 'tiers' may reach
+    max: 7  # a fault above this
+    source: crestron  # which source above
+    quote: never more than 7 tiers  # its words, copied exactly
+
+cables:  # notes on cable lengths and approved cable models; they never change a result
+  notes:  # shown beside a cable of that type
+    - type: passive  # the cable type: passive, active, active_optical or usb4
+      bus: usb2  # usb2 or usb3; left out: both
+      text: passive USB 2 about 5 m per run  # the note shown beside the cable
+      source: crestron  # which source above
+      quote: >  # its words, copied exactly
+        Passive USB 2 cabling should be limited to ~16.4 ft (5 m) per run, while USB 3 should be
+        limited to ~9.8 ft (3 m)
+    - type: passive  # the cable type: passive, active, active_optical or usb4
+      bus: usb3  # usb2 or usb3; left out: both
+      text: passive USB 3 about 3 m per run  # the note shown beside the cable
+      source: crestron  # which source above
+      quote: >  # its words, copied exactly
+        Passive USB 2 cabling should be limited to ~16.4 ft (5 m) per run, while USB 3 should be
+        limited to ~9.8 ft (3 m)
+
+notes:  # background, kept word for word
+  - >
+    Quotes (Crestron 3082, Oct 22, 2026): "never more than 7 tiers"; a laptop with several ports
+    "must already have a hub"; "the laptop's built-in USB connectors are already tier 2" (the reason
+    for computer_hub unknown: 1).
+  - >
+    Converted to v4 on 2026-11-19 (#329): tiers = root_hub + computer_hub + hub + marked_hub +
+    cable_length + device, max 7. cable_length: the first 5 m (USB 2) or 3 m (USB 3) are free, then
+    one tier per 5 m or 3 m; the app counts the marked tiers until cable marks with length (#331).
+  - >
+    v3 source line, kept: https://community.crestron.com/s/article/3082#What_Is_A_Tier
+  - >
+    v3 source line, kept: Crestron knowledge article 3082, USB Tiers (Oct 22, 2026): host tier 1,
+    device the final tier, never more than 7 tiers
+  - >
+    v3 source line, kept: Crestron: built-in host hubs, hub products with more than four ports and
+    extender pairs each add tiers; an active cable adds a tier per extra 5 m (USB 2) or 3 m (USB 3)
+  - >
+    v3 link, kept: https://community.crestron.com/s/article/3082#What_Is_A_Tier
