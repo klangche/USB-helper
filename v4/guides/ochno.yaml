@@ -22,6 +22,16 @@ sources:
     author: Johan Niininen
     version: "Updated Oct 28"
     read: "the copy quoted in #325"
+  o-ec-10:
+    link: https://www.ochno.com/products/sku/O-EC-10
+    title: "Ochno Full-Feature Extension Cable, 10m (O-EC-10)"
+    author: Ochno
+    read: "text supplied by the owner on #372; 0 hubs, 0 tiers and not as the host cable from the owner"
+  o-ec-20:
+    link: https://www.ochno.com/products/sku/O-EC-20
+    title: "Ochno Full-Feature Extension Cable, 20m (O-EC-20)"
+    author: Ochno
+    read: "as O-EC-10, from the owner on #372"
 
 measures:
   chain:
@@ -33,6 +43,11 @@ measures:
 rules:
   - { measure: chain, max: 5, source: ochno, quote: "having max 5 usb hubs daisy-chained" }
   - { measure: room, max: 4, source: ochno, quote: "to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4" }
+
+cables:
+  models:
+    - { name: O-EC-10, type: active_optical, length: 10, bus: usb3, speed: "USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60", hubs: 0, tiers: 0, host: false, note: "for O-PC-4 installations", source: o-ec-10 }
+    - { name: O-EC-20, type: active_optical, length: 20, bus: usb3, speed: "USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60", hubs: 0, tiers: 0, host: false, note: "for O-PC-4 installations", source: o-ec-20 }
 
 notes:
   - "Quotes (Ochno, Updated Oct 28): \"having max 5 usb hubs daisy-chained\"; \"the max 5 hub hops is the same for USB 2.0 and USB 3.2\"; \"to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4\"; a non-root internal hub counts for \"MacBook Pro M-series (all versions)\"."
