@@ -2313,6 +2313,33 @@ public class MainViewModelTests
         Assert.Null(MainViewModel.ReportLogo(null));
     }
 
+    // The report and the export name the database and the philosophy in use (#389).
+    [Fact]
+    public void TheReportAndTheExportNameTheDatabaseAndThePhilosophy()
+    {
+        var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Load(Desk);
+
+        var report = viewModel.Report(new DateTime(2026, 11, 24, 12, 0, 0), null, null, "0.11.0");
+
+        Assert.Equal("Database v4", report.Database);
+        Assert.Equal(viewModel.Guide?.Name, report.Philosophy);
+    }
+
+    // A v4 philosophy is named with its file, and with its sign-off once the database's files are signed off (#389, #395);
+    // the report takes it from the setup export.
+    [Fact]
+    public void AV4PhilosophyIsNamedWithItsFileAndAnySignOff()
+    {
+        var viewModel = new MainViewModel(DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]), [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "windows-intel"));
+        viewModel.Load(Desk);
+
+        var report = viewModel.Report(new DateTime(2026, 11, 24, 12, 0, 0), null, null, "0.11.0");
+
+        Assert.Equal(viewModel.Guide!.VersionHover, report.Philosophy);
+        Assert.StartsWith($"{viewModel.Guide.Name} · {viewModel.Guide.File[(viewModel.Guide.File.LastIndexOf('/') + 1)..]}", report.Philosophy, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheReportNamesTheLicensedEmailOnlyWhenUnlocked()
     {

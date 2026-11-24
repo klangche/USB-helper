@@ -29,16 +29,15 @@ public static class DatabaseFormats
     public static HardwareDatabase Read(int format, IReadOnlyDictionary<string, string> files) => Readers[format](files);
 
     /// <summary>
-    /// The database to use: <paramref name="preferred"/> when it is given, present and loads, else the newest present
-    /// format that loads. Formats not in <paramref name="supported"/> are ignored. Each format that is tried and does
-    /// not load, and the format in use with why it is not the newest, is a line in <paramref name="log"/>.
+    /// The database to use: the newest present format that loads (there is no setting for it, #389). Formats not in
+    /// <paramref name="supported"/> are ignored. Each format that is tried and does not load, and the format in use with
+    /// why it is not the newest, is a line in <paramref name="log"/>.
     /// </summary>
     /// <param name="present">A loader per format folder that exists; each throws <see cref="DatabaseException"/> when its files have problems.</param>
-    /// <param name="preferred">The format chosen in a beta's settings; null for the newest.</param>
     /// <param name="supported">The formats the app reads; <see cref="Supported"/> by default.</param>
     /// <exception cref="DatabaseException">No format loads: the errors of the first one tried.</exception>
     public static (HardwareDatabase Database, int Format) Choose(
-        IReadOnlyDictionary<int, Func<HardwareDatabase>> present, int? preferred, Action<string> log, IReadOnlyList<int>? supported = null)
+        IReadOnlyDictionary<int, Func<HardwareDatabase>> present, Action<string> log, IReadOnlyList<int>? supported = null)
     {
         supported ??= Supported;
         var formats = present.Keys.Where(supported.Contains).OrderDescending().ToList();
@@ -47,19 +46,13 @@ public static class DatabaseFormats
             throw new DatabaseException([new DatabaseError("", 0, $"No database folder of a format this app reads ({string.Join(", ", supported.Select(Folder))}).")]);
         }
         var newest = formats[0];
-        if (preferred is { } chosen && formats.Remove(chosen))
-        {
-            formats.Insert(0, chosen);
-        }
         DatabaseException? first = null;
         foreach (var format in formats)
         {
             try
             {
                 var database = present[format]();
-                var why = format == newest ? ""
-                    : format == preferred ? ", chosen in the settings"
-                    : $", because {Folder(newest)} does not load";
+                var why = format == newest ? "" : $", because {Folder(newest)} does not load";
                 log($"Database format {Folder(format)} in use{why}");
                 return (database, format);
             }

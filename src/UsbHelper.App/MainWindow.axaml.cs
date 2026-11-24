@@ -263,7 +263,7 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
     }
 
     void IMainWindowActions.ShowAbout() =>
-        _ = new AboutWindow { DataContext = new AboutViewModel { Database = (DataContext as MainViewModel)?.DatabaseVersion } }.ShowDialog(this);
+        _ = new AboutWindow { DataContext = new AboutViewModel { Database = (DataContext as MainViewModel)?.DatabaseVersion, DatabaseDetail = (DataContext as MainViewModel)?.DatabaseMarkerDetail } }.ShowDialog(this);
 
     void IMainWindowActions.Exit() => Close();
 

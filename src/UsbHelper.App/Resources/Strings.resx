@@ -637,12 +637,6 @@ This version keeps running.</value>
   <data name="PortOnBus" xml:space="preserve">
     <value>{0} ({1})</value>
   </data>
-  <data name="SettingsDatabaseFormat" xml:space="preserve">
-    <value>Database format (beta only, used from the next start):</value>
-  </data>
-  <data name="SettingsDatabaseFormatNewest" xml:space="preserve">
-    <value>Newest ({0})</value>
-  </data>
   <data name="SettingsRememberProfiles" xml:space="preserve">
     <value>Remember the checked profiles between starts</value>
   </data>
@@ -1226,5 +1220,28 @@ At least: part of the count is unknown, so the limit may come sooner:
   </data>
   <data name="CableKindActive" xml:space="preserve">
     <value>active</value>
+  </data>
+  <data name="DatabaseMarker" xml:space="preserve">
+    <value>Database v{0} · {1} ({2})</value>
+    <comment>The database in use (#389): format, commit date, short commit.</comment>
+  </data>
+  <data name="DatabaseMarkerUnknown" xml:space="preserve">
+    <value>Database v{0}</value>
+    <comment>The database in use when the build did not record its commit.</comment>
+  </data>
+  <data name="DatabaseMarkerFormat" xml:space="preserve">
+    <value>Format: v{0}</value>
+  </data>
+  <data name="DatabaseMarkerBuiltIn" xml:space="preserve">
+    <value>Built into this app</value>
+  </data>
+  <data name="DatabaseMarkerDownloaded" xml:space="preserve">
+    <value>Downloaded from the database branch: newer than the built-in one</value>
+  </data>
+  <data name="DatabaseMarkerCommit" xml:space="preserve">
+    <value>Commit {0}, {1}</value>
+  </data>
+  <data name="DatabaseMarkerOthers" xml:space="preserve">
+    <value>Also built in, not used: {0}</value>
   </data>
 </root>

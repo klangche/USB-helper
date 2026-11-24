@@ -86,7 +86,7 @@ public sealed class DatabaseUpdateTests : IDisposable
 
         Assert.Equal(Newer, window.DatabaseVersion);
         Assert.Equal(HardwareDatabase.Load(files).Computers.Count, window.Computers.Count);
-        Assert.Contains("Database in use: updated, 2026-11-18 (bbbbbbb)", Lines);
+        Assert.Contains("Database in use: v3, updated, 2026-11-18 (bbbbbbb)", Lines);
         // Stored for the next start, every file under the commit's folder, and marked current.
         Assert.Equal(Newer, Cache.Version());
         Assert.Equal(files["base.yaml"], File.ReadAllText(Path.Combine(Cache.Folder, Newer.Sha, "v3", "base.yaml")));
@@ -251,22 +251,13 @@ public sealed class DatabaseUpdateTests : IDisposable
     [Fact]
     public void AtStartTheBuiltInFormatIsReadAndNamed()
     {
-        var (database, errors, version, format) = DatabaseUpdate.LoadAtStart(Cache.Folder, new Dictionary<int, IReadOnlyDictionary<string, string>> { [3] = RealFiles() }, BuiltIn, log, null);
+        var (database, errors, version, format) = DatabaseUpdate.LoadAtStart(Cache.Folder, new Dictionary<int, IReadOnlyDictionary<string, string>> { [3] = RealFiles() }, BuiltIn, log);
 
         Assert.NotNull(database);
         Assert.Empty(errors);
         Assert.Equal(BuiltIn, version);
         Assert.Equal(3, format);
         Assert.Contains("Database format v3 in use", Lines);
-    }
-
-    [Theory]
-    [InlineData(true, 3, 3)]
-    [InlineData(false, 3, null)]
-    [InlineData(true, null, null)]
-    public void OnlyABetaUsesTheSavedFormat(bool beta, int? saved, int? preferred)
-    {
-        Assert.Equal(preferred, DatabaseUpdate.PreferredFormat(beta, saved));
     }
 
     // A cache from before #334 (files at the top, a "current" file) and an interrupted download are removed on save.

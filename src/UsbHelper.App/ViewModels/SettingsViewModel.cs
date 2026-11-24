@@ -94,31 +94,6 @@ public sealed class SettingsViewModel : ObservableObject
         set => Change(current with { DownloadDatabaseUpdates = value });
     }
 
-    /// <summary>The database format chosen in a beta (#334); null for the newest. Release builds ignore it.</summary>
-    public int? DatabaseFormat
-    {
-        get => current.DatabaseFormat;
-        set => Change(current with { DatabaseFormat = value });
-    }
-
-    /// <summary>True in a beta build (a version with "-beta"): only betas show and use the database format switch (#334).</summary>
-    public static bool IsBeta => AppVersion.Current.Contains("-beta", StringComparison.Ordinal);
-
-    /// <summary>The formats the switch offers: the built-in ones, newest first; the first entry is "Newest".</summary>
-    public IReadOnlyList<int> DatabaseFormats { get; init; } = [.. Core.Database.DatabaseFormats.Supported.Reverse()];
-
-    /// <summary>"Newest (v4)", then each older format, "v3".</summary>
-    public IReadOnlyList<string> DatabaseFormatChoices =>
-        [string.Format(CultureInfo.CurrentCulture, Strings.SettingsDatabaseFormatNewest, Core.Database.DatabaseFormats.Folder(DatabaseFormats[0])),
-            .. DatabaseFormats.Skip(1).Select(Core.Database.DatabaseFormats.Folder)];
-
-    /// <summary>The chosen entry of <see cref="DatabaseFormatChoices"/>: 0 for Newest, also when the saved format is not offered.</summary>
-    public int DatabaseFormatIndex
-    {
-        get => DatabaseFormat is { } format && DatabaseFormats.Skip(1).Contains(format) ? DatabaseFormats.ToList().IndexOf(format) : 0;
-        set => DatabaseFormat = value > 0 && value < DatabaseFormats.Count ? DatabaseFormats[value] : null;
-    }
-
     /// <summary>The stored choice; it is kept while locked and used again on unlock (#246).</summary>
     public bool OfferBetas
     {
@@ -387,11 +362,6 @@ public sealed class SettingsViewModel : ObservableObject
             OnPropertyChanged(nameof(OfferBetas));
             OnPropertyChanged(nameof(BetasOffered));
         }
-        if (before.DatabaseFormat != current.DatabaseFormat)
-        {
-            OnPropertyChanged(nameof(DatabaseFormat));
-            OnPropertyChanged(nameof(DatabaseFormatIndex));
-        }
         if (before.RememberCheckedProfiles != current.RememberCheckedProfiles)
         {
             OnPropertyChanged(nameof(RememberCheckedProfiles));
@@ -405,7 +375,6 @@ public sealed class SettingsViewModel : ObservableObject
     // The lists are compared by content, so an unchanged choice writes nothing.
     private static bool Same(AppSettings a, AppSettings b) =>
         a.CheckForUpdatesAtStart == b.CheckForUpdatesAtStart && a.DownloadDatabaseUpdates == b.DownloadDatabaseUpdates && a.OfferBetas == b.OfferBetas
-        && a.DatabaseFormat == b.DatabaseFormat
         && a.RememberCheckedProfiles == b.RememberCheckedProfiles && a.CompanyName == b.CompanyName
         && a.LicenceEmail == b.LicenceEmail && a.LicenceCode == b.LicenceCode
         && a.CheckedOperatingSystems.SequenceEqual(b.CheckedOperatingSystems) && a.CheckedComputers.SequenceEqual(b.CheckedComputers)

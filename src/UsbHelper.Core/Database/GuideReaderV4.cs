@@ -20,7 +20,10 @@ internal static class GuideReaderV4
     public static readonly IReadOnlyList<string> ComputerHubEvidence = ["detected", "computer", "chip"];
 
     private static readonly string[] TopFields =
-        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "cables", "requires", "notes", "verification"];
+        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "cables", "requires", "notes", "verification", SignedOffField];
+
+    /// <summary>The sign-off of a philosophy's version (#389).</summary>
+    public const string SignedOffField = "signed off";
 
     // Facts about computers (#367): they live in base, OS, chip and computer files, never in a philosophy.
     private static readonly string[] ComputerFacts = ["platforms", "mst", "computer_hubs", "displays", "ports", "usb", "usb4", "chips"];
@@ -29,10 +32,12 @@ internal static class GuideReaderV4
     /// <param name="baseKinds">The device kinds base.yaml lists.</param>
     /// <param name="chips">Every platform's chip keys, for <c>platforms</c> and <c>on</c>.</param>
     /// <param name="standardCounts">base.yaml's standard counts (#386), for a philosophy in the readable layout.</param>
+    /// <param name="fileDate">The date in a dated file name (<c>ochno-2026-11-24.yaml</c>, #389): the file must then be signed
+    /// off on that date. Null for an undated file, whose sign-off is optional.</param>
     public static Guide? Read(
         ProfileValue root, string id, IReadOnlyCollection<string> baseElements, IReadOnlyCollection<string> baseKinds,
         IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors,
-        IReadOnlyDictionary<string, IReadOnlyList<string>> standardCounts)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> standardCounts, DateOnly? fileDate = null)
     {
         var file = root.File;
         void Error(ProfileValue at, string message) => errors.Add(new DatabaseError(file, at.Line, message));
@@ -94,6 +99,7 @@ internal static class GuideReaderV4
         {
             Error(root, "Field 'basis' is required in a manufacturer guide (proav: 1 without own: true): the source and the exact quote it works from.");
         }
+        var signedOff = ReadSignOff(root.Find(SignedOffField), fileDate, root, Error);
         var measures = ReadMeasures(root.Find("measures"), baseElements, Error);
         var rules = ReadRules(root.Find("rules"), measures, baseKinds, chips, sources, manufacturer, Error);
         var (cableNotes, cableModels) = ReadCables(root.Find("cables"), sources, Error);
@@ -104,8 +110,50 @@ internal static class GuideReaderV4
             Format = 4,
             MeasureDefinitions = measures,
             Rules = rules,
+            SignedOff = signedOff,
             SourceDefinitions = sources,
         };
+    }
+
+    // signed off (#389): by and date required, role and company optional. A dated file must be signed off on its date.
+    private static GuideSignOff? ReadSignOff(ProfileValue? value, DateOnly? fileDate, ProfileValue root, Action<ProfileValue, string> error)
+    {
+        if (value == null)
+        {
+            if (fileDate != null)
+            {
+                error(root, $"Field '{SignedOffField}' is required: by (who approves this version), optionally role and company, and date ({fileDate:yyyy-MM-dd}, as in the file name).");
+            }
+            return null;
+        }
+        if (value.Kind != ValueKind.Mapping)
+        {
+            error(value, $"Field '{SignedOffField}': expected by, role, company and date on the lines below it.");
+            return null;
+        }
+        foreach (var (key, field) in value.Fields.Where(field => field.Key is not ("by" or "role" or "company" or "date")))
+        {
+            error(field, $"Field '{SignedOffField}': unknown field '{key}'; it has by, role, company and date.");
+        }
+        var by = value.Find("by")?.Scalar as string;
+        if (string.IsNullOrWhiteSpace(by))
+        {
+            error(value.Find("by") ?? value, $"Field '{SignedOffField}': 'by' is required: who approves this version.");
+        }
+        var dateValue = value.Find("date");
+        DateOnly? date = dateValue?.Scalar is string text
+            && DateOnly.TryParseExact(text, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed)
+            ? parsed : null;
+        if (date == null)
+        {
+            error(dateValue ?? value, $"Field '{SignedOffField}': 'date' is required, as YYYY-MM-DD.");
+        }
+        else if (fileDate != null && date != fileDate)
+        {
+            error(dateValue!, $"Field '{SignedOffField}': 'date' {date:yyyy-MM-dd} must equal the date in the file name, {fileDate:yyyy-MM-dd}.");
+        }
+        string? Optional(string key) => value.Find(key)?.Scalar as string is { Length: > 0 } text ? text : null;
+        return string.IsNullOrWhiteSpace(by) || date == null ? null : new GuideSignOff(by, Optional("role"), Optional("company"), date.Value);
     }
 
     // cables (#372): notes on lengths and approved models, for the notes on a marked cable only; never a status.

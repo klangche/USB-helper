@@ -24,20 +24,15 @@ public sealed class DatabaseUpdate(
 {
     private readonly IReadOnlyList<int> formats = formats ?? DatabaseFormats.Supported;
 
-    /// <summary>The format to prefer at start (#334): the saved one in a beta; a release always uses the newest (null).</summary>
-    public static int? PreferredFormat(bool beta, int? saved) => beta ? saved : null;
-
     /// <summary>
     /// The database to start with (#334): of each built-in format, the downloaded one when it is newer and still loads,
-    /// else the built-in one; then the format chosen in a beta's settings, or the newest that loads
-    /// (<see cref="DatabaseFormats.Choose"/>). The errors are those of a built-in database that does not load.
+    /// else the built-in one; then the newest format that loads (<see cref="DatabaseFormats.Choose"/>). There is no setting
+    /// for the format (#389). The errors are those of a built-in database that does not load.
     /// </summary>
     /// <param name="builtIn">The built-in files of each format.</param>
     /// <param name="builtInVersion">Their commit; null when the build did not record it, so any downloaded one is newer.</param>
-    /// <param name="preferred">The format chosen in a beta's settings; null for the newest.</param>
     public static (HardwareDatabase? Database, IReadOnlyList<DatabaseError> Errors, DatabaseVersion? Version, int? Format) LoadAtStart(
-        string cacheFolder, IReadOnlyDictionary<int, IReadOnlyDictionary<string, string>> builtIn, DatabaseVersion? builtInVersion, EventLog log,
-        int? preferred)
+        string cacheFolder, IReadOnlyDictionary<int, IReadOnlyDictionary<string, string>> builtIn, DatabaseVersion? builtInVersion, EventLog log)
     {
         var versions = new Dictionary<int, DatabaseVersion?>();
         var loaders = builtIn.ToDictionary(format => format.Key, format => (Func<HardwareDatabase>)(() =>
@@ -48,7 +43,7 @@ public sealed class DatabaseUpdate(
         }));
         try
         {
-            var (chosen, used) = DatabaseFormats.Choose(loaders, preferred, log.Add);
+            var (chosen, used) = DatabaseFormats.Choose(loaders, log.Add);
             return (chosen, [], versions[used], used);
         }
         catch (DatabaseException e)

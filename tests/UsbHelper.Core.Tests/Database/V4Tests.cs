@@ -122,7 +122,7 @@ public class V4Tests
         Assert.Equal(["room", "chain"], db.Guides["room"].Count);
         Assert.Equal(new Uri("https://example.com/room"), db.Guides["room"].Link);
         Assert.Equal(1L, db.Platforms["macos-apple-silicon"].Find("computer_hubs.usb3")?.Scalar);
-        Assert.Same(db, DatabaseFormats.Choose(new Dictionary<int, Func<HardwareDatabase>> { [3] = () => throw new InvalidOperationException(), [4] = () => db }, null, _ => { }).Database);
+        Assert.Same(db, DatabaseFormats.Choose(new Dictionary<int, Func<HardwareDatabase>> { [3] = () => throw new InvalidOperationException(), [4] = () => db }, _ => { }).Database);
     }
 
     [Fact]

@@ -264,7 +264,9 @@ runs. The export saves one zip, `usb-helper_<room>_<date>_<time>.zip`
   your active-cable marks (each as its hubs and tiers, `{"hubs": 2, "tiers": 2}`;
   a file from an older version has one number N per mark, which is read as
   +N hubs), the monitors and their output type, and each
-  checked profile's result with every finding, the unknown ones included.
+  checked profile's result with every finding, the unknown ones included,
+  the database in use (`database`, for example "Database v4 · 2026-11-24
+  (abc1234)") and the philosophy with its file and sign-off (`philosophy`).
 - `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
 - `screenshot.png`: the main window as shown.
 - `log.txt`: the log.
@@ -497,10 +499,10 @@ File > Settings opens the settings. Each change is saved at once:
   While locked the box is greyed out and unticked and only stable releases are
   offered; "Enter a code to unlock beta updates" opens the unlock popup. The
   choice made while unlocked is kept and comes back on unlock.
-- **Database format** (betas only, Newest by default): the database format
-  the beta uses from the next start, for example "Newest (v4)" or "v3", to
-  compare an older format's results. Saved in `settings.json`. Release builds
-  do not show it and always use the newest format.
+- There is no database format setting (#389): the app always uses the
+  newest format that loads. The window's bottom right shows the database in
+  use, for example "Database v4 · 2026-11-24 (abc1234)"; hover it for where it
+  came from, the commit and the other formats built in.
 - **Remember the checked profiles between starts** (off by default): on, the
   chips ticked and the philosophy picked in "USB philosophy" are ticked and picked again
   at the next start, instead of only the detected platform profile and

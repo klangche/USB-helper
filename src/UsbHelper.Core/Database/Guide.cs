@@ -93,6 +93,35 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>A v4 guide's rules, in file order (#327); empty for a v3 guide.</summary>
     public IReadOnlyList<GuideRule> Rules { get; init; } = [];
 
+    /// <summary>Who approved this version (#389); null for a file that has none yet (a v3 guide, or an undated v4 file).</summary>
+    public GuideSignOff? SignedOff { get; init; }
+
+    /// <summary>
+    /// Older versions of this philosophy in the database (#389), oldest first: loaded to check them, kept as history, never
+    /// judged.
+    /// </summary>
+    public IReadOnlyList<string> OlderFiles { get; internal set; } = [];
+
+    /// <summary>
+    /// The version for a hover (#389): "Ochno · ochno-2026-11-24.yaml · signed off 2026-11-24 by Johan Niininen (Ochno)".
+    /// </summary>
+    public string VersionHover =>
+        $"{Name} · {File[(File.LastIndexOf('/') + 1)..]}" + (SignedOff is { } signOff ? $" · {signOff}" : "");
+
+    /// <summary>
+    /// The version in use, for the log (#389), for example
+    /// "Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Ochno)); 1 older version kept:
+    /// guides/ochno-2026-11-19.yaml".
+    /// </summary>
+    public string VersionLine =>
+        $"{Name}: using {File}" + (SignedOff is { } signOff ? $" ({signOff})" : "")
+        + OlderFiles.Count switch
+        {
+            0 => "",
+            1 => $"; 1 older version kept: {OlderFiles[0]}",
+            var n => $"; {n} older versions kept: {string.Join(", ", OlderFiles)}",
+        };
+
     /// <summary>A v4 guide's sources by id (#327); empty for a v3 guide.</summary>
     public IReadOnlyDictionary<string, GuideSource> SourceDefinitions { get; init; } = new Dictionary<string, GuideSource>();
 
