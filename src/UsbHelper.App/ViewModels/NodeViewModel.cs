@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using UsbHelper.App.Resources;
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Topology;
@@ -187,14 +188,65 @@ public sealed class NodeViewModel : ObservableObject
     /// <summary>The choices for <see cref="CableBusIndex"/>.</summary>
     public static IReadOnlyList<string> CableBuses { get; } = [Strings.GuideLineUsb2, Strings.GuideLineUsb3];
 
-    /// <summary>Marks the line as an active cable of <see cref="CableMetres"/> on the chosen bus (#331).</summary>
+    /// <summary>
+    /// Marks the line as a cable of <see cref="CableMetres"/> on the chosen bus (#331), of the chosen type, as a host cable
+    /// or not, and as one of the selected philosophy's approved models or another cable (#372). A model brings its rated
+    /// length and type, and the hubs and tiers its maker says it adds.
+    /// </summary>
     public System.Windows.Input.ICommand SetCable => field ??= new IndexCommand(_ =>
     {
-        if (CableMetres is { } metres && metres > 0)
+        var model = CableModelIndex > 0 && CableModelIndex <= models.Count ? models[CableModelIndex - 1] : null;
+        if ((model == null ? (double?)CableMetres : model.Length) is { } metres && metres > 0)
         {
-            Mark = CableMark.ActiveCable((double)metres, CableBusIndex == 1 ? UsbBus.Usb3 : UsbBus.Usb2);
+            Mark = CableMark.ActiveCable(metres, CableBusIndex == 1 ? UsbBus.Usb3 : UsbBus.Usb2) with
+            {
+                Kind = model?.Type ?? CableMark.Kinds[Math.Clamp(CableKindIndex, 0, CableMark.Kinds.Count - 1)],
+                Model = model?.Name,
+                Host = CableHost,
+                Hubs = model?.Hubs ?? 0,
+                Tiers = model?.Tiers ?? 0,
+            };
         }
     });
+
+    /// <summary>The cable types for the menu (#372): passive, active copper, active optical, USB4/Thunderbolt.</summary>
+    public static IReadOnlyList<string> CableKinds { get; } = [.. CableMark.Kinds.Select(CableNotes.Kind)];
+
+    /// <summary>The cable's type for <see cref="SetCable"/>, in <see cref="CableKinds"/>; the marked cable's at first, else active copper.</summary>
+    public int CableKindIndex
+    {
+        get => cableKindIndex ?? Math.Max(0, CableMark.Kinds.ToList().IndexOf(cableMark?.Kind ?? "active_copper"));
+        set => cableKindIndex = value;
+    }
+
+    private int? cableKindIndex;
+
+    /// <summary>"Other cable", then the selected philosophy's approved models (#372).</summary>
+    public IReadOnlyList<string> CableModels { get; private set; } = [Strings.CableModelOther];
+
+    private IReadOnlyList<CableModel> models = [];
+
+    /// <summary>The model for <see cref="SetCable"/>: 0 for another cable; the marked model at first.</summary>
+    public int CableModelIndex
+    {
+        get => cableModelIndex ?? models.ToList().FindIndex(model => model.Name == cableMark?.Model) + 1;
+        set => cableModelIndex = value;
+    }
+
+    private int? cableModelIndex;
+
+    /// <summary>The cable is a host cable (#372): at first, a marked cable's choice, else whether the line is from a computer port.</summary>
+    public bool CableHost
+    {
+        get => cableHost ?? cableMark?.Host ?? onComputerPort;
+        set => cableHost = value;
+    }
+
+    private bool? cableHost;
+    private bool onComputerPort;
+
+    /// <summary>The selected philosophy's notes on the marked cable (#372), for the hover and the report; empty for none.</summary>
+    public IReadOnlyList<string> CableNoteLines { get; private set; } = [];
 
     /// <summary>The user marked this line; the view draws it dashed with <see cref="MarkBadge"/>.</summary>
     public bool IsUserMarked => cableMark != null;
@@ -648,10 +700,11 @@ public sealed class NodeViewModel : ObservableObject
     /// <param name="mark">Sets the mark (null for none) on a port id; called when the user marks a line.</param>
     public static NodeViewModel Host(
         string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        Action<string, CableMark?> mark, MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null)
+        Action<string, CableMark?> mark, MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null,
+        Guide? guide = null)
     {
         var host = new NodeViewModel(HostId, portId: null, isDisconnected: false, hasLine: false, mark);
-        host.UpdateHost(name, controllers, layout, report, marks, monitors, limits);
+        host.UpdateHost(name, controllers, layout, report, marks, monitors, limits, guide);
         return host;
     }
 
@@ -661,7 +714,7 @@ public sealed class NodeViewModel : ObservableObject
     /// </summary>
     public void UpdateHost(
         string name, IReadOnlyList<UsbNode> controllers, PortTree layout, DiagnosticReport report, IReadOnlyDictionary<string, CableMark> marks,
-        MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null)
+        MonitorPlacement monitors, IReadOnlyDictionary<string, IReadOnlyList<LimitMark>>? limits = null, Guide? guide = null)
     {
         Text = name;
         IsLast = true;
@@ -683,7 +736,7 @@ public sealed class NodeViewModel : ObservableObject
             group = new NodeViewModel(DisplaysId, portId: null, isDisconnected: false, hasLine: true, mark);
             Children.Add(group);
         }
-        UpdateGroups(layout, report, marks, new Context(monitors.Linked, layout, limits ?? new Dictionary<string, IReadOnlyList<LimitMark>>()), group);
+        UpdateGroups(layout, report, marks, new Context(monitors.Linked, layout, limits ?? new Dictionary<string, IReadOnlyList<LimitMark>>(), guide), group);
         if (group != null)
         {
             group.Text = Strings.DisplaysGroup;
@@ -700,7 +753,7 @@ public sealed class NodeViewModel : ObservableObject
     // What the tree's parts need besides the report and the marks: the monitors linked to USB nodes (#143) and the tree
     // by port (#370), for the hubs shown with their other half and the bus of each port.
     private sealed record Context(IReadOnlyDictionary<string, IReadOnlyList<DisplayMonitor>> Linked, PortTree Layout,
-        IReadOnlyDictionary<string, IReadOnlyList<LimitMark>> Limits);
+        IReadOnlyDictionary<string, IReadOnlyList<LimitMark>> Limits, Guide? Guide);
 
     // A port is shown when something is on it, it has a problem, or a disconnected device is kept at it.
     private static bool Shown(UsbNode port, DiagnosticReport report, PortTree layout) =>
@@ -961,11 +1014,25 @@ public sealed class NodeViewModel : ObservableObject
         // An unplugged device is no display now.
         IsDisplay = node.IsDisplayLink && !IsDisconnected;
         var marked = PortId == null ? null : marks.GetValueOrDefault(PortId) ?? (pairedPortId == null ? null : marks.GetValueOrDefault(pairedPortId));
+        // #372: the cable menu offers the selected philosophy's models; the line's notes come from it too.
+        models = context.Guide?.CableModels ?? [];
+        if (!CableModels.Skip(1).SequenceEqual(models.Select(model => model.Name)))
+        {
+            CableModels = [Strings.CableModelOther, .. models.Select(model => model.Name)];
+            OnPropertyChanged(nameof(CableModels));
+        }
+        onComputerPort = PortId != null && context.Layout.PortHalves.Contains(PortId);
         if (SetField(ref cableMark, marked, nameof(Mark)))
         {
             OnPropertyChanged(nameof(MarkIndex));
             OnPropertyChanged(nameof(IsUserMarked));
             OnPropertyChanged(nameof(MarkBadge));
+        }
+        var notes = CableNotes.For(context.Guide, cableMark);
+        if (!notes.SequenceEqual(CableNoteLines))
+        {
+            CableNoteLines = notes;
+            SetNote(notes.Count == 0 ? null : string.Join("\n", notes)); // The line's hover (#372).
         }
         Status = node.Kind is UsbNodeKind.Hub or UsbNodeKind.Device
             ? Worst([report.Connections.TryGetValue(node.Id, out var value) ? value : null,

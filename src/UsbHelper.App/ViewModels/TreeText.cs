@@ -62,7 +62,7 @@ public static class TreeText
         {
             row.Append(" - ").Append(word);
         }
-        foreach (var note in new[] { item.DisplayNote, item.Counts }.OfType<string>().Concat(item.LimitBadges.Select(badge => badge.Text)))
+        foreach (var note in new[] { item.DisplayNote, item.Counts }.OfType<string>().Concat(item.LimitBadges.Select(badge => badge.Text)).Concat(item.CableNoteLines))
         {
             row.Append(" (").Append(note).Append(')');
         }

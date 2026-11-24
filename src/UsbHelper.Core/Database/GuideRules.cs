@@ -78,3 +78,22 @@ public sealed record SourceFile(string Name, Uri? Url, bool IsPdf, string? Sha25
 
 /// <summary>A quote from a source (#333), with the entry it is in and its page there.</summary>
 public sealed record SourceQuote(string Text, string? File, int? Page);
+
+/// <summary>
+/// A note on cable lengths in a philosophy (#372), shown on a marked cable's hover and in the report; it never changes a
+/// status.
+/// </summary>
+/// <param name="Type">The cable type it is about, as <see cref="Topology.CableMark.Kinds"/> names them.</param>
+/// <param name="Bus"><c>usb2</c> or <c>usb3</c>; null for both.</param>
+/// <param name="Text">The note, as the philosophy words it: "passive USB 3.2 Gen 1 about 2 m (indicative)".</param>
+public sealed record CableNote(string Type, string? Bus, string Text, string? Source, string? Quote);
+
+/// <summary>A cable model a philosophy approves (#372), for the notes and for marking a cable as that model.</summary>
+/// <param name="Name">Its name, as the user picks it: "PureInstall PI6600 (21002)".</param>
+/// <param name="Length">Its rated length in metres.</param>
+/// <param name="Speed">The speed it is rated for, as its maker states it; null when not stated.</param>
+/// <param name="Hubs">The hubs it adds, when its maker states them; null for the default of its type.</param>
+/// <param name="Tiers">The tiers it adds, when its maker states them; null for the default of its type.</param>
+/// <param name="HostAllowed">False when its maker says it does not work as the host cable.</param>
+/// <param name="Note">More from its maker, such as "240 W, lockable"; null for none.</param>
+public sealed record CableModel(string Name, string Type, double Length, string? Speed, int? Hubs, int? Tiers, bool HostAllowed, string? Note, string? Source);

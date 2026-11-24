@@ -293,6 +293,12 @@
                                 <ComboBox ItemsSource="{x:Static vm:NodeViewModel.CableBuses}" SelectedIndex="{Binding CableBusIndex}" />
                                 <Button Content="{x:Static res:Strings.MarkCableSet}" Command="{Binding SetCable}" CommandParameter="0" />
                               </StackPanel>
+                              <!-- #372: the cable's type, an approved model of the selected philosophy, and whether it is the host cable. -->
+                              <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ComboBox ItemsSource="{x:Static vm:NodeViewModel.CableKinds}" SelectedIndex="{Binding CableKindIndex}" />
+                                <ComboBox ItemsSource="{Binding CableModels}" SelectedIndex="{Binding CableModelIndex}" />
+                                <CheckBox Content="{x:Static res:Strings.CableHost}" IsChecked="{Binding CableHost}" />
+                              </StackPanel>
                             </StackPanel>
                           </MenuItem.Header>
                         </MenuItem>

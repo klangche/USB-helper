@@ -20,7 +20,7 @@ internal static class GuideReaderV4
     public static readonly IReadOnlyList<string> ComputerHubEvidence = ["detected", "computer", "chip"];
 
     private static readonly string[] TopFields =
-        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "requires", "notes", "verification"];
+        ["name", "selectable", "proav", "own", "basis", "sources", "measures", "rules", "cables", "requires", "notes", "verification"];
 
     // Facts about computers (#367): they live in base, OS, chip and computer files, never in a philosophy.
     private static readonly string[] ComputerFacts = ["platforms", "mst", "computer_hubs", "displays", "ports", "usb", "usb4", "chips"];
@@ -91,13 +91,136 @@ internal static class GuideReaderV4
         }
         var measures = ReadMeasures(root.Find("measures"), baseElements, Error);
         var rules = ReadRules(root.Find("rules"), measures, baseKinds, chips, sources, manufacturer, Error);
+        var (cableNotes, cableModels) = ReadCables(root.Find("cables"), sources, Error);
         return new Guide(id, name, selectable.Value, root, null)
         {
+            CableNotes = cableNotes,
+            CableModels = cableModels,
             Format = 4,
             MeasureDefinitions = measures,
             Rules = rules,
             SourceDefinitions = sources,
         };
+    }
+
+    // cables (#372): notes on lengths and approved models, for the notes on a marked cable only; never a status.
+    //   cables:
+    //     notes:  [{ type: passive, bus: usb3, text: "...", source: v6, quote: "..." }]
+    //     models: [{ name: "...", type: passive, length: 5, speed: "...", hubs: 0, tiers: 0, host: false, note: "...", source: ... }]
+    private static (List<CableNote> Notes, List<CableModel> Models) ReadCables(ProfileValue? value, Dictionary<string, GuideSource> sources,
+        Action<ProfileValue, string> error)
+    {
+        var notes = new List<CableNote>();
+        var models = new List<CableModel>();
+        if (value == null)
+        {
+            return (notes, models);
+        }
+        if (value.Kind != ValueKind.Mapping)
+        {
+            error(value, "Field 'cables': expected a mapping with 'notes' and 'models'.");
+            return (notes, models);
+        }
+        foreach (var (key, field) in value.Fields.Where(field => field.Key is not ("notes" or "models")))
+        {
+            error(field, $"Field 'cables': unknown field '{key}'.");
+        }
+        IEnumerable<ProfileValue> Entries(string key)
+        {
+            if (value.Find(key) is not { } list)
+            {
+                return [];
+            }
+            if (list.Kind != ValueKind.List)
+            {
+                error(list, $"Field 'cables.{key}': expected a list.");
+                return [];
+            }
+            return list.Items.Where(entry =>
+            {
+                if (entry.Kind != ValueKind.Mapping)
+                {
+                    error(entry, $"Field 'cables.{key}': each entry must be a mapping.");
+                }
+                return entry.Kind == ValueKind.Mapping;
+            });
+        }
+        string? Text(ProfileValue entry, string key, string where, bool required)
+        {
+            var text = entry.Find(key)?.Scalar as string;
+            if ((required && string.IsNullOrWhiteSpace(text)) || (entry.Find(key) is { } found && found.Kind is not (ValueKind.String or ValueKind.Null)))
+            {
+                error(entry.Find(key) ?? entry, $"{where}: '{key}' {(required ? "is required and " : "")}must be text.");
+            }
+            return string.IsNullOrWhiteSpace(text) ? null : text;
+        }
+        bool Common(ProfileValue entry, string where, string[] fields)
+        {
+            foreach (var (key, field) in entry.Fields.Where(field => !fields.Contains(field.Key)))
+            {
+                error(field, $"{where}: unknown field '{key}'.");
+            }
+            var type = entry.Find("type")?.Scalar as string;
+            if (type == null || !Topology.CableMark.Kinds.Contains(type))
+            {
+                error(entry.Find("type") ?? entry, $"{where}: 'type' must be one of {string.Join(", ", Topology.CableMark.Kinds)}.");
+                return false;
+            }
+            if (entry.Find("source")?.Scalar is string source && !sources.ContainsKey(source))
+            {
+                error(entry.Find("source")!, $"{where}: source '{source}' is not in 'sources'.");
+            }
+            return true;
+        }
+        foreach (var entry in Entries("notes"))
+        {
+            const string where = "A cable note";
+            var bus = entry.Find("bus")?.Scalar as string;
+            if (entry.Find("bus") != null && bus is not ("usb2" or "usb3"))
+            {
+                error(entry.Find("bus")!, $"{where}: 'bus' must be usb2 or usb3.");
+            }
+            var text = Text(entry, "text", where, required: true);
+            if (Common(entry, where, ["type", "bus", "text", "source", "quote"]) && text != null)
+            {
+                notes.Add(new CableNote((string)entry.Find("type")!.Scalar!, bus, text, entry.Find("source")?.Scalar as string, Text(entry, "quote", where, required: false)));
+            }
+        }
+        foreach (var entry in Entries("models"))
+        {
+            var name = Text(entry, "name", "A cable model", required: true);
+            var where = $"Cable model '{name}'";
+            var length = entry.Find("length")?.Scalar is long or double ? Convert.ToDouble(entry.Find("length")!.Scalar, System.Globalization.CultureInfo.InvariantCulture) : 0;
+            if (length <= 0)
+            {
+                error(entry.Find("length") ?? entry, $"{where}: 'length' is required, in metres, above 0.");
+            }
+            int? Count(string key)
+            {
+                if (entry.Find(key) is not { } found)
+                {
+                    return null;
+                }
+                if (found.Scalar is not long count || count < 0)
+                {
+                    error(found, $"{where}: '{key}' must be a whole number, 0 or more.");
+                    return null;
+                }
+                return (int)count;
+            }
+            if (entry.Find("host") is { } host && host.Kind != ValueKind.Boolean)
+            {
+                error(host, $"{where}: 'host' must be true or false.");
+            }
+            var ok = Common(entry, where, ["name", "type", "length", "speed", "hubs", "tiers", "host", "note", "source"]);
+            var (hubs, tiers) = (Count("hubs"), Count("tiers"));
+            if (ok && name != null && length > 0)
+            {
+                models.Add(new CableModel(name, (string)entry.Find("type")!.Scalar!, length, Text(entry, "speed", where, required: false), hubs, tiers,
+                    entry.Find("host")?.Scalar is not false, Text(entry, "note", where, required: false), entry.Find("source")?.Scalar as string));
+            }
+        }
+        return (notes, models);
     }
 
     private static Dictionary<string, GuideSource> ReadSources(ProfileValue? value, Action<ProfileValue, string> error)

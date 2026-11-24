@@ -1513,11 +1513,11 @@ public sealed class MainViewModel : ObservableObject
         var limits = LimitMarks.Of(judged, Guide, thisComputer ?? profiles.FirstOrDefault(), measured: thisComputer != null, marks);
         if (Roots.Count == 0)
         {
-            Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement, limits));
+            Roots.Add(NodeViewModel.Host(HostName, judged, layout, lines, marks, Mark, placement, limits, Guide));
         }
         else
         {
-            Roots[0].UpdateHost(HostName, judged, layout, lines, marks, placement, limits);
+            Roots[0].UpdateHost(HostName, judged, layout, lines, marks, placement, limits, Guide);
         }
         foreach (var row in Flat(Roots[0]).Where(row => row.KindSymbol != null && row.DeviceKind != UsbDeviceKind.Neither))
         {

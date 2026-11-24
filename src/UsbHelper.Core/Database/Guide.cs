@@ -96,6 +96,12 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
     /// <summary>A v4 guide's sources by id (#327); empty for a v3 guide.</summary>
     public IReadOnlyDictionary<string, GuideSource> SourceDefinitions { get; init; } = new Dictionary<string, GuideSource>();
 
+    /// <summary>A v4 guide's notes on cable lengths (#372), in file order; empty for none.</summary>
+    public IReadOnlyList<CableNote> CableNotes { get; init; } = [];
+
+    /// <summary>The cable models a v4 guide approves (#372), in file order; empty for none.</summary>
+    public IReadOnlyList<CableModel> CableModels { get; init; } = [];
+
     /// <summary>
     /// What the guide <c>requires</c> that this app does not know (#327). When not empty, the guide is listed as "needs a
     /// newer USB-Helper" and nothing is judged by it.

@@ -56,6 +56,13 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
     after the first, so at 5 m per tier a 10 m cable adds 1;
   - `rules`: each names a `measure`, optionally a `bus` (`usb2`, `usb3`), `devices` (device kinds) and `on`
     (`windows` or `windows/amd`), then `recommended` and/or `max` (a number or `none`), `source` and `quote`;
+  - `cables` (#372): notes on cable lengths and the cable models the philosophy approves. They are only shown, on a
+    marked cable's hover and in the PDF report, and never change a status. `notes` entries have `type` (`passive`,
+    `active_copper`, `active_optical`, `usb4`), optionally `bus` (`usb2`, `usb3`), `text` (the note as shown after the
+    guide's name), `source` and `quote`. `models` entries have `name`, `type`, `length` (rated, in metres), optionally
+    `speed`, `hubs` and `tiers` (what the model adds, when its maker states it; they replace the mark's when the user
+    marks a cable as that model), `host: false` (it does not work as the host cable), `note` and `source`. A
+    philosophy's approved models are listed in the cable menu when it is selected;
   - `requires`: elements or device kinds the guide needs. A guide that needs one this app does not know is listed
     as "needs a newer USB-Helper" and judges nothing; the rest of the database still loads;
   - nothing about computers (#367). MST is a fact about the computer, in the OS files: `displays.mst` for the
