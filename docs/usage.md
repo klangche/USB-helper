@@ -221,13 +221,13 @@ Below the list, "Active cable" takes the cable's length in metres and its bus
 gives the first 5 m (USB 2) or 3 m (USB 3) free, then one tier per further 5 m
 or 3 m, so a 10 m USB 2 cable adds one tier; a guide that does not count cable
 length, such as Ochno, ignores it. The badge then says, for example, "10 m USB 2
-active cable".
+active copper cable".
 Under it, pick the cable's type (passive, active copper, active optical,
 USB4/Thunderbolt), one of the selected philosophy's approved models or "Other
 cable", and whether it is the host cable (#372). It is ticked at first on a
 computer port. Tick it for the cable between two daisy-chained docks too. A
-passive cable adds no tiers, whatever its length. A model brings its rated length
-and type, and the hubs and tiers its maker says it adds: an Ochno O-EC extension
+passive cable adds no tiers, whatever its length. A model brings its rated length,
+type and bus, and the hubs and tiers its maker says it adds: an Ochno O-EC extension
 cable adds none. Hovering the marked row shows the selected philosophy's notes on
 that cable, which the PDF report also lists, for example "PureLink: passive USB 3.2
 Gen 1 about 2 m (indicative); PureInstall PI6600 (21002) is rated 5 m", or "Ochno:

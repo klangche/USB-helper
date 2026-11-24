@@ -40,7 +40,7 @@ public class CableNotesTests
         cables:
           models:
             - { name: O-EC-10, type: active_optical, length: 10, speed: "USB 3.2 Gen 2", hubs: 0, tiers: 0, host: false }
-            - { name: O-EC-20, type: active_optical, length: 20, speed: "USB 3.2 Gen 2", hubs: 0, tiers: 0, host: false }
+            - { name: O-EC-20, type: active_optical, length: 20, bus: usb3, speed: "USB 3.2 Gen 2", hubs: 0, tiers: 0, host: false }
         """;
 
     private static HardwareDatabase Database(params (string Id, string Text)[] guides)
@@ -97,6 +97,7 @@ public class CableNotesTests
         Assert.True(dock.Mark!.Host); // On a computer port.
         Assert.Equal(["PureLink: passive USB 3.2 Gen 1 about 2 m (indicative); PureInstall PI6600 (21002) is rated 5 m"], dock.CableNoteLines);
         Assert.Contains("PureLink: passive USB 3.2 Gen 1 about 2 m", dock.RowTip);
+        Assert.Equal("3 m USB 3 passive cable", dock.MarkBadge); // The badge names the type.
         Assert.Equal(before, (StatusOf(viewModel, "DOCK"), StatusOf(viewModel, "CAMERA")));
 
         // Marked as the approved model: its rated 5 m and its speed; still no status change, and no tier for a passive cable.
@@ -128,7 +129,7 @@ public class CableNotesTests
         second.CableModelIndex = 2;
         second.SetCable.Execute(null);
 
-        Assert.Equal((0, 0, false), (second.Mark!.Hubs, second.Mark.Tiers, second.Mark.Host));
+        Assert.Equal((0, 0, false, UsbBus.Usb3), (second.Mark!.Hubs, second.Mark.Tiers, second.Mark.Host, second.Mark.Bus)); // The model's bus.
         Assert.Equal(["Ochno O-EC-20: 20 m active optical, USB 3.2 Gen 2, adds no hubs or tiers"], second.CableNoteLines);
         Assert.Equal(before, StatusOf(viewModel, "CAMERA"));
     }

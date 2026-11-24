@@ -60,8 +60,10 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
     marked cable's hover and in the PDF report, and never change a status. `notes` entries have `type` (`passive`,
     `active_copper`, `active_optical`, `usb4`), optionally `bus` (`usb2`, `usb3`), `text` (the note as shown after the
     guide's name), `source` and `quote`. `models` entries have `name`, `type`, `length` (rated, in metres), optionally
-    `speed`, `hubs` and `tiers` (what the model adds, when its maker states it; they replace the mark's when the user
-    marks a cable as that model), `host: false` (it does not work as the host cable), `note` and `source`. A
+    `bus` (the mark's bus when the user marks a cable as that model), `speed`, `hubs` and `tiers` (what the model adds,
+    when its maker states it: the mark's hubs and tiers; a philosophy that converts an active cable's length into tiers,
+    such as Crestron, still does), `host: false` (it does not work as the host cable), `note` and `source`. An error in
+    this section, as anywhere in a v4 guide, stops the whole v4 database from loading. A
     philosophy's approved models are listed in the cable menu when it is selected;
   - `requires`: elements or device kinds the guide needs. A guide that needs one this app does not know is listed
     as "needs a newer USB-Helper" and judges nothing; the rest of the database still loads;

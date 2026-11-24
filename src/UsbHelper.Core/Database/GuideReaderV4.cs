@@ -166,9 +166,9 @@ internal static class GuideReaderV4
                 error(entry.Find("type") ?? entry, $"{where}: 'type' must be one of {string.Join(", ", Topology.CableMark.Kinds)}.");
                 return false;
             }
-            if (entry.Find("source")?.Scalar is string source && !sources.ContainsKey(source))
+            if (entry.Find("source") is { } sourceValue && (sourceValue.Scalar is not string source || !sources.ContainsKey(source)))
             {
-                error(entry.Find("source")!, $"{where}: source '{source}' is not in 'sources'.");
+                error(sourceValue, $"{where}: 'source' must name an entry in 'sources'.");
             }
             return true;
         }
@@ -189,7 +189,7 @@ internal static class GuideReaderV4
         foreach (var entry in Entries("models"))
         {
             var name = Text(entry, "name", "A cable model", required: true);
-            var where = $"Cable model '{name}'";
+            var where = name == null ? "A cable model" : $"Cable model '{name}'";
             var length = entry.Find("length")?.Scalar is long or double ? Convert.ToDouble(entry.Find("length")!.Scalar, System.Globalization.CultureInfo.InvariantCulture) : 0;
             if (length <= 0)
             {
@@ -212,12 +212,20 @@ internal static class GuideReaderV4
             {
                 error(host, $"{where}: 'host' must be true or false.");
             }
-            var ok = Common(entry, where, ["name", "type", "length", "speed", "hubs", "tiers", "host", "note", "source"]);
+            var modelBus = entry.Find("bus")?.Scalar as string;
+            if (entry.Find("bus") != null && modelBus is not ("usb2" or "usb3"))
+            {
+                error(entry.Find("bus")!, $"{where}: 'bus' must be usb2 or usb3.");
+            }
+            var ok = Common(entry, where, ["name", "type", "length", "bus", "speed", "hubs", "tiers", "host", "note", "source"]);
             var (hubs, tiers) = (Count("hubs"), Count("tiers"));
             if (ok && name != null && length > 0)
             {
                 models.Add(new CableModel(name, (string)entry.Find("type")!.Scalar!, length, Text(entry, "speed", where, required: false), hubs, tiers,
-                    entry.Find("host")?.Scalar is not false, Text(entry, "note", where, required: false), entry.Find("source")?.Scalar as string));
+                    entry.Find("host")?.Scalar is not false, Text(entry, "note", where, required: false), entry.Find("source")?.Scalar as string)
+                {
+                    Bus = modelBus switch { "usb2" => Detection.UsbBus.Usb2, "usb3" => Detection.UsbBus.Usb3, _ => null },
+                });
             }
         }
         return (notes, models);

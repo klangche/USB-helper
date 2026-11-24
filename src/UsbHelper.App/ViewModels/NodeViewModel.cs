@@ -100,7 +100,9 @@ public sealed class NodeViewModel : ObservableObject
     {
         if (mark.Metres is { } metres)
         {
-            return string.Format(CultureInfo.CurrentCulture, Strings.MarkCable, metres, mark.Bus == UsbBus.Usb3 ? Strings.GuideLineUsb3 : Strings.GuideLineUsb2);
+            // #372: the cable's type; a mark from before it is an active cable.
+            return string.Format(CultureInfo.CurrentCulture, Strings.MarkCable, metres, mark.Bus == UsbBus.Usb3 ? Strings.GuideLineUsb3 : Strings.GuideLineUsb2,
+                mark.Kind == null ? Strings.CableKindActive : CableNotes.Kind(mark.Kind));
         }
         string Hubs(int number) => number == 1 ? Strings.MarkHubOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkHubs, number);
         string Tiers(int number) => number == 1 ? Strings.MarkTierOne : string.Format(CultureInfo.CurrentCulture, Strings.MarkTiers, number);
@@ -198,7 +200,7 @@ public sealed class NodeViewModel : ObservableObject
         var model = CableModelIndex > 0 && CableModelIndex <= models.Count ? models[CableModelIndex - 1] : null;
         if ((model == null ? (double?)CableMetres : model.Length) is { } metres && metres > 0)
         {
-            Mark = CableMark.ActiveCable(metres, CableBusIndex == 1 ? UsbBus.Usb3 : UsbBus.Usb2) with
+            Mark = CableMark.ActiveCable(metres, model?.Bus ?? (CableBusIndex == 1 ? UsbBus.Usb3 : UsbBus.Usb2)) with
             {
                 Kind = model?.Type ?? CableMark.Kinds[Math.Clamp(CableKindIndex, 0, CableMark.Kinds.Count - 1)],
                 Model = model?.Name,
@@ -1019,7 +1021,9 @@ public sealed class NodeViewModel : ObservableObject
         if (!CableModels.Skip(1).SequenceEqual(models.Select(model => model.Name)))
         {
             CableModels = [Strings.CableModelOther, .. models.Select(model => model.Name)];
+            cableModelIndex = null; // A choice in the old list means nothing in the new one: the marked model again.
             OnPropertyChanged(nameof(CableModels));
+            OnPropertyChanged(nameof(CableModelIndex));
         }
         onComputerPort = PortId != null && context.Layout.PortHalves.Contains(PortId);
         if (SetField(ref cableMark, marked, nameof(Mark)))

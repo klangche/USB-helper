@@ -96,4 +96,8 @@ public sealed record CableNote(string Type, string? Bus, string Text, string? So
 /// <param name="Tiers">The tiers it adds, when its maker states them; null for the default of its type.</param>
 /// <param name="HostAllowed">False when its maker says it does not work as the host cable.</param>
 /// <param name="Note">More from its maker, such as "240 W, lockable"; null for none.</param>
-public sealed record CableModel(string Name, string Type, double Length, string? Speed, int? Hubs, int? Tiers, bool HostAllowed, string? Note, string? Source);
+public sealed record CableModel(string Name, string Type, double Length, string? Speed, int? Hubs, int? Tiers, bool HostAllowed, string? Note, string? Source)
+{
+    /// <summary>The bus it carries, when its maker states it; marking it sets the mark's bus. Null: the bus picked.</summary>
+    public Detection.UsbBus? Bus { get; init; }
+}
