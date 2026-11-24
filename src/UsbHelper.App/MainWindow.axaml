@@ -57,7 +57,8 @@
                       <StackPanel Orientation="Horizontal" Spacing="8">
                         <!-- The guide's rules (#327) show on hover, not under the name (owner 2026-11-24). -->
                         <RadioButton GroupName="Guides" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}"
-                                     ToolTip.Tip="{Binding Detail}" Content="{Binding Label}" />
+                                     ToolTip.Tip="{Binding Detail}" ToolTip.ShowOnDisabled="True"
+                                     AutomationProperties.HelpText="{Binding Detail}" Content="{Binding Label}" />
                         <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as USB Standard has none. -->
                         <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
                           <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />

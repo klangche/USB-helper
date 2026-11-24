@@ -555,7 +555,7 @@ public static class ReportPdf
         yield return word;
     }
 
-    // The company name only when there is no logo (#232); the licensed email under the middle line.
+    // The company name and the room, with a logo too (#390); the licensed email under the middle line.
     private static void Footer(SKCanvas canvas, ReportModel model, int page, int pages)
     {
         var y = ReportLayout.PageHeight - ReportLayout.Mm(12);

@@ -194,7 +194,7 @@ public class ReportPdfTests
         Assert.DoesNotContain("Licensed to", string.Join("\n", PageTexts(Pdf(ReportSamples.Full(null)))));
     }
 
-    // #232: the company name only where no logo is shown; the metadata keeps it.
+    // #390: with a logo, the name is not in the header but is in the footer; the metadata keeps it.
     [Fact]
     public void With_a_logo_the_company_name_is_not_in_the_header_but_is_in_the_footer()
     {
