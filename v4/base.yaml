@@ -22,6 +22,19 @@ path_elements:
   usb4_router: { found_by: "not measured yet (#267, #332)" }
   device: { found_by: "the hub or device itself" }
 
+# The standard ways of counting a path (#386). A philosophy names one or more with, for example,
+# "counts: chain". A philosophy that counts another way writes its own under "measures".
+counts:
+  chain:  # a count a philosophy can name
+    explain: hubs in a row in front of a device, the computer's own hubs included  # what it counts, in words
+    adds: computer_hub, hub, marked_hub  # the path elements above it adds up
+  tiers:  # a count a philosophy can name
+    explain: USB tiers, from the computer's root hub to the device itself  # what it counts, in words
+    adds: root_hub, computer_hub, hub, marked_hub, cable_length, device  # the path elements above it adds up
+  room:  # a count a philosophy can name
+    explain: only the hubs in the room, not the computer's own  # what it counts, in words
+    adds: hub, marked_hub  # the path elements above it adds up
+
 # Device kinds by USB interface class (#274, #327).
 device_kinds:
   camera: { usb_class: 14 }   # 0x0E, video

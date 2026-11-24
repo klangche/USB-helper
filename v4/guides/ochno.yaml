@@ -9,56 +9,124 @@
 # chain; an unknown one leaves the chain "at least" (unknown: open); marked hubs
 # (active extenders) count in both chain and room.
 # =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
 
-name: Ochno
-selectable: true
-proav: 1
-basis: { source: ochno, quote: "having max 5 usb hubs daisy-chained" }
+name: Ochno  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+basis:  # the words the philosophy is built on
+  source: ochno  # which source below
+  quote: having max 5 usb hubs daisy-chained  # its words, copied exactly
 
-sources:
-  ochno:
-    link: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
-    title: "Guide: USB hub chains in video conference room"
-    author: Johan Niininen
-    version: "Updated Oct 28"
-    read: "the copy quoted in #325"
-  o-ec-10:
-    link: https://www.ochno.com/products/sku/O-EC-10
-    title: "Ochno Full-Feature Extension Cable, 10m (O-EC-10)"
-    author: Ochno
-    read: "text supplied by the owner on #372; 0 hubs, 0 tiers and not as the host cable from the owner"
-  o-ec-20:
-    link: https://www.ochno.com/products/sku/O-EC-20
-    title: "Ochno Full-Feature Extension Cable, 20m (O-EC-20)"
-    author: Ochno
-    read: "as O-EC-10, from the owner on #372"
+sources:  # where the rules come from, each with a short name
+  ochno:  # the short name the rules use
+    link: >  # the web page
+      https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
+    title: >  # the document's title
+      Guide: USB hub chains in video conference room
+    author: Johan Niininen  # who wrote it
+    version: Updated Oct 28  # which version or date
+    read: >  # how USB-Helper read it
+      the copy quoted in #325
+  o-ec-10:  # the short name the rules use
+    link: https://www.ochno.com/products/sku/O-EC-10  # the web page
+    title: Ochno Full-Feature Extension Cable, 10m (O-EC-10)  # the document's title
+    author: Ochno  # who wrote it
+    read: >  # how USB-Helper read it
+      text supplied by the owner on #372; 0 hubs, 0 tiers and not as the host cable from the owner
+  o-ec-20:  # the short name the rules use
+    link: https://www.ochno.com/products/sku/O-EC-20  # the web page
+    title: Ochno Full-Feature Extension Cable, 20m (O-EC-20)  # the document's title
+    author: Ochno  # who wrote it
+    read: >  # how USB-Helper read it
+      as O-EC-10, from the owner on #372
 
-measures:
-  chain:
-    counts: [computer_hub, hub, marked_hub]
-    computer_hub: { from: [detected, computer, chip], unknown: open }
-  room:
-    counts: [hub, marked_hub]
+counts: chain, room  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
 
-rules:
-  - { measure: chain, max: 5, source: ochno, quote: "having max 5 usb hubs daisy-chained" }
-  - { measure: room, max: 4, source: ochno, quote: "to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4" }
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
 
-cables:
-  models:
-    - { name: O-EC-10, type: active_optical, length: 10, bus: usb3, speed: "USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60", hubs: 0, tiers: 0, host: false, note: "for O-PC-4 installations", source: o-ec-10 }
-    - { name: O-EC-20, type: active_optical, length: 20, bus: usb3, speed: "USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60", hubs: 0, tiers: 0, host: false, note: "for O-PC-4 installations", source: o-ec-20 }
+limits:  # the numbers, for every device unless a scope below says otherwise
+  chain:  # what 'chain' may reach
+    max: 5  # a fault above this
+    source: ochno  # which source above
+    quote: having max 5 usb hubs daisy-chained  # its words, copied exactly
+  room:  # what 'room' may reach
+    max: 4  # a fault above this
+    source: ochno  # which source above
+    quote: >  # its words, copied exactly
+      to ensure that the video conference room works with 100% of all laptops, the max available
+      hubs are 4
 
-notes:
-  - "Quotes (Ochno, Updated Oct 28): \"having max 5 usb hubs daisy-chained\"; \"the max 5 hub hops is the same for USB 2.0 and USB 3.2\"; \"to ensure that the video conference room works with 100% of all laptops, the max available hubs are 4\"; a non-root internal hub counts for \"MacBook Pro M-series (all versions)\"."
-  - "Converted to v4 on 2026-11-19 (#329): chain = computer_hub + hub + marked_hub, max 5; room = hub + marked_hub, max 4."
-  - "Worked examples (derived by USB-Helper, not stated by Ochno; owner, 2026-11-22):"
-  - "A: Windows Intel laptop (0 internal hubs) → dock (2 hubs) → AOC (1) → videobar (1, camera behind it): room 4, chain 4. Both within."
-  - "B: the same room on a MacBook Pro M1 (1 internal hub): room 4, chain 5. Both within."
-  - "C: Windows Intel laptop → dock (2) → Ethernet extender (2) → videobar (1): room 5 is over 4 (notice: only for known Windows laptops), chain 5 within. On an M-series Mac: chain 6, over."
-  - "D: MacBook Neo (2 internal hubs, Lightware, not Ochno) → dock (2) → AOC (1) → videobar (1): room 4 within, chain 6 over. Ochno's \"4 for all laptops\" does not cover two internal hubs, and Ochno does not name the MacBook Neo."
-  - "E: M-series Mac → dock (2) → active electrical cable (2 on USB 2, 0 on USB 3) → videobar (1). Camera on USB 3: chain 4, within. Microphone on USB 2: chain 6, over. This is the failure the article describes."
-  - "F: the article's picture, \"8 hubs in a chain and will fail 100% of the time\": chain 8 or more on any laptop, over 5."
-  - "v3 source line, kept: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"
-  - "v3 source line, kept: Ochno: max 5 USB hubs daisy-chained, the same for USB 2.0 and USB 3.2; root hubs do not count, a laptop's non-root internal hub does (MacBook Pro M-series, other ARM laptops and Chromebooks, a few Intel laptops), so 4 for all laptops; docks have at least 2 hubs inside, Ethernet extenders 1–2, active electrical cables use hubs as re-drivers, active optical cables usually 1–2, interactive displays at least 2; many videobars, cameras and audio devices have internal hubs; some products have more USB 2.0 than USB 3.2 hubs."
-  - "v3 link, kept: https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room"
+cables:  # notes on cable lengths and approved cable models; they never change a result
+  models:  # cables this philosophy names
+    - name: O-EC-10  # the model's name
+      type: active_optical  # the cable type: passive, active, active_optical or usb4
+      length: 10  # in metres
+      bus: usb3  # usb2 or usb3; left out: both
+      speed: USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60  # the data speed, as stated
+      hubs: 0  # hubs inside it
+      tiers: 0  # tiers it adds
+      host: false  # false: not to be used as the cable from the computer
+      note: for O-PC-4 installations  # shown with the model
+      source: o-ec-10  # which source above
+    - name: O-EC-20  # the model's name
+      type: active_optical  # the cable type: passive, active, active_optical or usb4
+      length: 20  # in metres
+      bus: usb3  # usb2 or usb3; left out: both
+      speed: USB 3.2 Gen 2, 10 Gbps; DP 1.4 Alt Mode 4K60  # the data speed, as stated
+      hubs: 0  # hubs inside it
+      tiers: 0  # tiers it adds
+      host: false  # false: not to be used as the cable from the computer
+      note: for O-PC-4 installations  # shown with the model
+      source: o-ec-20  # which source above
+
+notes:  # background, kept word for word
+  - >
+    Quotes (Ochno, Updated Oct 28): "having max 5 usb hubs daisy-chained"; "the max 5 hub hops is
+    the same for USB 2.0 and USB 3.2"; "to ensure that the video conference room works with 100% of
+    all laptops, the max available hubs are 4"; a non-root internal hub counts for "MacBook Pro
+    M-series (all versions)".
+  - >
+    Converted to v4 on 2026-11-19 (#329): chain = computer_hub + hub + marked_hub, max 5; room = hub
+    + marked_hub, max 4.
+  - >
+    Worked examples (derived by USB-Helper, not stated by Ochno; owner, 2026-11-22):
+  - >
+    A: Windows Intel laptop (0 internal hubs) → dock (2 hubs) → AOC (1) → videobar (1, camera behind
+    it): room 4, chain 4. Both within.
+  - >
+    B: the same room on a MacBook Pro M1 (1 internal hub): room 4, chain 5. Both within.
+  - >
+    C: Windows Intel laptop → dock (2) → Ethernet extender (2) → videobar (1): room 5 is over 4
+    (notice: only for known Windows laptops), chain 5 within. On an M-series Mac: chain 6, over.
+  - >
+    D: MacBook Neo (2 internal hubs, Lightware, not Ochno) → dock (2) → AOC (1) → videobar (1): room
+    4 within, chain 6 over. Ochno's "4 for all laptops" does not cover two internal hubs, and Ochno
+    does not name the MacBook Neo.
+  - >
+    E: M-series Mac → dock (2) → active electrical cable (2 on USB 2, 0 on USB 3) → videobar (1).
+    Camera on USB 3: chain 4, within. Microphone on USB 2: chain 6, over. This is the failure the
+    article describes.
+  - >
+    F: the article's picture, "8 hubs in a chain and will fail 100% of the time": chain 8 or more on
+    any laptop, over 5.
+  - >
+    v3 source line, kept:
+    https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room
+  - >
+    v3 source line, kept: Ochno: max 5 USB hubs daisy-chained, the same for USB 2.0 and USB 3.2;
+    root hubs do not count, a laptop's non-root internal hub does (MacBook Pro M-series, other ARM
+    laptops and Chromebooks, a few Intel laptops), so 4 for all laptops; docks have at least 2 hubs
+    inside, Ethernet extenders 1–2, active electrical cables use hubs as re-drivers, active optical
+    cables usually 1–2, interactive displays at least 2; many videobars, cameras and audio devices
+    have internal hubs; some products have more USB 2.0 than USB 3.2 hubs.
+  - >
+    v3 link, kept:
+    https://ochno.atlassian.net/wiki/spaces/~ocs/pages/1114996744/Guide+USB+hub+chains+in+video+conference+room

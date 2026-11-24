@@ -5,26 +5,39 @@
 # Setups: a known computer gives exact tiers; an unknown one leaves them "at
 # least"; marked hubs and active cables add tiers.
 # =============================================================================
+# How to edit
+#   Every key has a short comment saying what it means. Indent with spaces.
+#   In a limit: empty or left out = not stated, a number = the limit,
+#   none = deliberately no limit.
+#   Long text goes in a block: a line ending in '>', then the text indented
+#   below it, with no quotes or escapes.
 
-name: USB Standard
-selectable: true
-proav: 0
+name: USB Standard  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 0  # 1: ProAV, marked in the menu · 0: general purpose
 
-sources:
-  usb2:
-    title: "USB 2.0 specification"
-    author: USB-IF
-    version: "section 4.1.1"
-    read: "as cited in base.yaml"
+sources:  # where the rules come from, each with a short name
+  usb2:  # the short name the rules use
+    title: USB 2.0 specification  # the document's title
+    author: USB-IF  # who wrote it
+    version: section 4.1.1  # which version or date
+    read: as cited in base.yaml  # how USB-Helper read it
 
-measures:
-  tiers:
-    counts: [root_hub, computer_hub, hub, marked_hub, cable_length, device]
-    computer_hub: { from: [detected, computer, chip], unknown: open }
+counts: tiers  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
 
-rules:
-  - { measure: tiers, max: 7, source: usb2 }
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
 
-notes:
-  - "Converted to v4 on 2026-11-19 (#329): tiers max 7 from the USB 2.0 specification, section 4.1.1. No quote: the specification's text was not supplied."
-  - "v3 source line, kept: USB 2.0 and USB 3.x specifications (USB-IF): at most 7 tiers on a path, host included"
+limits:  # the numbers, for every device unless a scope below says otherwise
+  tiers:  # what 'tiers' may reach
+    max: 7  # a fault above this
+    source: usb2  # which source above
+
+notes:  # background, kept word for word
+  - >
+    Converted to v4 on 2026-11-19 (#329): tiers max 7 from the USB 2.0 specification, section 4.1.1.
+    No quote: the specification's text was not supplied.
+  - >
+    v3 source line, kept: USB 2.0 and USB 3.x specifications (USB-IF): at most 7 tiers on a path,
+    host included
