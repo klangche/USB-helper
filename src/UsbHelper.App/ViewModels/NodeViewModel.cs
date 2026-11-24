@@ -672,7 +672,28 @@ public sealed class NodeViewModel : ObservableObject
     }
 
     /// <summary>The row's tooltip: the status and, below it, the depth.</summary>
-    public string? RowTip => string.Join("\n", new[] { StatusText, DepthText, note }.OfType<string>()) is { Length: > 0 } tip ? tip : null;
+    public string? RowTip => string.Join("\n", new[] { StatusText, DepthText, note }.OfType<string>()
+        .Concat(unknowns.Select(unknown => string.Format(CultureInfo.CurrentCulture, Strings.NodeUnknownTip, unknown)))) is { Length: > 0 } tip ? tip : null;
+
+    /// <summary>
+    /// What is not known about this hub or device (#397), for example "the system does not say whether this hub's port is
+    /// built in": shown in the row's hover, not as a line in the results.
+    /// </summary>
+    public IReadOnlyList<string> Unknowns
+    {
+        get => unknowns;
+        set
+        {
+            if (!unknowns.SequenceEqual(value))
+            {
+                unknowns = value;
+                OnPropertyChanged(nameof(Unknowns));
+                OnPropertyChanged(nameof(RowTip));
+            }
+        }
+    }
+
+    private IReadOnlyList<string> unknowns = [];
 
     /// <summary>For a row of the tree by port (#370): the ids of the ports under it, so hovering one of them highlights it too.</summary>
     public IReadOnlyList<string> GroupPortIds => groupPortIds;

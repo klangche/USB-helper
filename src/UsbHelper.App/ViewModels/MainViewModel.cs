@@ -74,7 +74,11 @@ public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : Obser
         {
             if (SetField(ref guide, value))
             {
+                info = null;
                 OnPropertyChanged(nameof(IsProAv));
+                OnPropertyChanged(nameof(Info));
+                OnPropertyChanged(nameof(HasInfo));
+                OnPropertyChanged(nameof(Detail));
             }
         }
     }
@@ -93,12 +97,17 @@ public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : Obser
     public IReadOnlyDictionary<string, ResolvedProfile>? Platforms { get; init; }
 
     /// <summary>
-    /// The hover of the name (#327, #390), generated from a v4 guide's rules; null for a v3 guide and Custom, so they
-    /// show no empty tooltip.
+    /// The hover of the philosophy's ⓘ button (#327, #390, #397): its menu line, sign-off and source; null for a v3 guide
+    /// and Custom, which have no ⓘ.
     /// </summary>
-    public string? Detail => Guide is { Format: >= 4 } rules
-        ? string.Join('\n', new[] { GuideLine.For(rules, Platforms), rules.VersionHover }.Where(line => line.Length > 0))
-        : null;
+    public string? Detail => Info?.Summary;
+
+    /// <summary>The philosophy's details behind its ⓘ button (#397); null for a v3 guide and for Custom.</summary>
+    public GuideInfo? Info => info ??= IsCustom ? null : GuideInfo.Of(Guide, Platforms);
+
+    public bool HasInfo => Info != null;
+
+    private GuideInfo? info;
 
     /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
     public bool IsProAv => Guide?.ProAv == true;
@@ -127,15 +136,89 @@ public sealed record BusCountsRow(string Bus, string Hubs, string DeepestTier);
 /// </param>
 public sealed record FindingItem(string Header, string Message);
 
-/// <summary>One issue of an outcome group (#369), said once; clicking it selects <see cref="SubjectId"/> in the tree.</summary>
+/// <summary>
+/// One issue of an outcome group (#369), said once; clicking it selects <see cref="SubjectId"/> in the tree and opens
+/// what was counted (#397).
+/// </summary>
 /// <param name="Counted">What was counted, part by part with its origin (#326); null when the finding counts nothing.</param>
-public sealed record OutcomeIssue(string Text, string SubjectId, string? Counted = null);
+public sealed class OutcomeIssue(string text, string subjectId, string? counted = null) : ObservableObject
+{
+    private bool isOpen;
+
+    public string Text { get; } = text;
+
+    public string SubjectId { get; } = subjectId;
+
+    public string? Counted { get; } = counted;
+
+    /// <summary>The count lines show only once the issue is opened (#397).</summary>
+    public bool IsOpen
+    {
+        get => isOpen;
+        set
+        {
+            if (SetField(ref isOpen, value))
+            {
+                OnPropertyChanged(nameof(ShowsCounted));
+            }
+        }
+    }
+
+    public bool ShowsCounted => IsOpen && Counted != null;
+}
 
 /// <summary>
-/// A group of systems with the same outcome (#369): "Same issue on:", "Unknown on:" or "Good on:", the systems, and
-/// the issues they share.
+/// One line of the results (#369, #397): a group's title and its systems, opened on click to show the issues they share,
+/// said once. The systems that are not fully known share one quiet line, with why in its hover.
 /// </summary>
-public sealed record OutcomeRow(string Title, string Systems, string Color, IReadOnlyList<OutcomeIssue> Issues);
+/// <param name="Hint">For the quiet line: why each system is not fully known, one line per system; null for the others.</param>
+public sealed class OutcomeRow(string title, string systems, string color, IReadOnlyList<OutcomeIssue> issues, string? hint = null) : ObservableObject
+{
+    private bool isExpanded;
+
+    public string Title { get; } = title;
+
+    public string Systems { get; } = systems;
+
+    public string Color { get; } = color;
+
+    public IReadOnlyList<OutcomeIssue> Issues { get; } = issues;
+
+    public string? Hint { get; } = hint;
+
+    /// <summary>The line of the systems that are not fully known (#397): quiet, never listing findings.</summary>
+    public bool IsQuiet => Hint != null;
+
+    public double TitleOpacity => IsQuiet ? 0.7 : 1;
+
+    /// <summary>The line has something to open: its issues, or for the quiet line its reasons.</summary>
+    public bool CanExpand => Issues.Count > 0 || IsQuiet;
+
+    public bool IsExpanded
+    {
+        get => isExpanded;
+        set
+        {
+            if (SetField(ref isExpanded, value))
+            {
+                OnPropertyChanged(nameof(Chevron));
+                OnPropertyChanged(nameof(ShowsIssues));
+                OnPropertyChanged(nameof(ShowsHint));
+            }
+        }
+    }
+
+    public bool ShowsIssues => IsExpanded && !IsQuiet;
+
+    public bool ShowsHint => IsExpanded && IsQuiet;
+
+    /// <summary>"›" closed, "⌄" open; nothing when there is nothing to open.</summary>
+    public string Chevron => !CanExpand ? "" : IsExpanded ? "⌄" : "›";
+
+    public RelayCommand Toggle => toggle ??= new RelayCommand(() => IsExpanded = !IsExpanded);
+
+    private RelayCommand? toggle;
+}
 
 /// <summary>The session popup (#341): a new session after a break, or a restart into a newer installed version.</summary>
 /// <param name="Text">What the popup asks.</param>
@@ -686,6 +769,14 @@ public sealed class MainViewModel : ObservableObject
         [.. (result.ThisComputer is { } here ? [SystemOutcome.From(ThisComputerLabel, here.Report)] : Array.Empty<SystemOutcome>())
             .Concat(result.Profiles.Select((profile, i) => SystemOutcome.From(options[i].Label, profile.Report)))];
 
+    // The panel's titles (#397) name the outcome; the report and the log keep "Same issue on:" (#369).
+    private static string PanelTitle(OutcomeKind kind) => kind switch
+    {
+        OutcomeKind.Unstable => Strings.OutcomeUnstable,
+        OutcomeKind.PotentiallyUnstable => Strings.OutcomePotentiallyUnstable,
+        _ => OutcomeTitle(kind),
+    };
+
     private static string OutcomeTitle(OutcomeKind kind) => kind switch
     {
         OutcomeKind.Good => Strings.OutcomeGood,
@@ -781,16 +872,15 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HasGuideNoLink => guide != null && GuideLink == null;
 
-    /// <summary>Every PDF and link of the guide's sources, in the order listed (#333); empty for a v3 guide.</summary>
-    public IReadOnlyList<Sources.SourceEntry> GuideSources => Sources.SourceRouter.EntriesOf(guide);
+    /// <summary>The selected philosophy's details behind its ⓘ button over the results (#397); null for a v3 guide.</summary>
+    public GuideInfo? GuideInfo => GuideInfo.Of(guide, database?.Platforms);
 
-    /// <summary>The guide lists sources with PDFs or links.</summary>
-    public bool HasGuideSources => GuideSources.Count > 0;
+    public bool HasGuideInfo => GuideInfo != null;
 
     private void OnGuideChanged()
     {
-        OnPropertyChanged(nameof(GuideSources));
-        OnPropertyChanged(nameof(HasGuideSources));
+        OnPropertyChanged(nameof(GuideInfo));
+        OnPropertyChanged(nameof(HasGuideInfo));
         OnPropertyChanged(nameof(GuideText));
         OnPropertyChanged(nameof(GuideTextBefore));
         OnPropertyChanged(nameof(GuideTextAfter));
@@ -1593,12 +1683,44 @@ public sealed class MainViewModel : ObservableObject
 
         // #369: every system in exactly one group, by its whole set of findings; the log and the report get the whole
         // computer's groups, the panel those of what the status field covers.
+        // #397: one line per group, opened on click. The systems that are not fully known share one quiet line, whose
+        // hover says why; findings that are only unknown go to the row's hover and the log, never to a panel line.
         OutcomeRows.Clear();
-        foreach (var group in OutcomeGroups.Group(Systems(report, options)))
+        var groups = OutcomeGroups.Group(Systems(report, options));
+        var unknownReasons = new List<string>();
+        foreach (var group in groups)
         {
-            OutcomeRows.Add(new OutcomeRow(OutcomeTitle(group.Kind), string.Join(", ", group.Systems), OutcomeColor(group.Kind),
-                [.. group.Findings.Select(finding => new OutcomeIssue(finding.Brief, finding.SubjectId, finding.CountParts.Count == 0 ? null
+            if (group.Kind == OutcomeKind.Unknown)
+            {
+                // The unknown that leaves a count open says most: "the computer's own hubs are unknown" before a hub's port.
+                var reason = (group.Findings.FirstOrDefault(finding => finding.Kind == FactKind.Unknown && finding.CountParts.Count > 0)
+                    ?? group.Findings.FirstOrDefault(finding => finding.Kind == FactKind.Unknown))?.Brief ?? Strings.OutcomeNotKnownReason;
+                var more = group.Findings.Count(finding => finding.Kind == FactKind.Unknown) - 1;
+                unknownReasons.AddRange(group.Systems.Select(system => string.Format(CultureInfo.CurrentCulture,
+                    more > 0 ? Strings.OutcomeNotKnownSystemMore : Strings.OutcomeNotKnownSystem, system, reason, more)));
+                continue;
+            }
+            OutcomeRows.Add(new OutcomeRow(PanelTitle(group.Kind), string.Join(", ", group.Systems), OutcomeColor(group.Kind),
+                [.. group.Findings.Where(finding => finding.Kind != FactKind.Unknown).Select(finding => new OutcomeIssue(finding.Brief, finding.SubjectId,
+                    finding.CountParts.Count == 0 ? null
                     : string.Format(CultureInfo.CurrentCulture, Strings.OutcomeCounted, string.Join(" + ", finding.CountParts))))]));
+        }
+        if (unknownReasons.Count > 0)
+        {
+            var good = OutcomeRows.Count(row => row.Color == OutcomeColor(OutcomeKind.Good));
+            OutcomeRows.Insert(OutcomeRows.Count - good, new OutcomeRow(
+                string.Format(CultureInfo.CurrentCulture, unknownReasons.Count == 1 ? Strings.OutcomeNotKnownOne : Strings.OutcomeNotKnownMany, unknownReasons.Count),
+                "", OutcomeColor(OutcomeKind.Unknown), [], string.Join("\n", unknownReasons)));
+        }
+        // The tree's rows: what is not known about each hub or device, in its hover (#397).
+        var unknownBySubject = (report.ThisComputer is { } measuredHere ? measuredHere.Report.Findings : [])
+            .Concat(report.Profiles.SelectMany(result => result.Report.Findings))
+            .Where(finding => finding.Kind == FactKind.Unknown)
+            .GroupBy(finding => finding.SubjectId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)[.. group.Select(finding => finding.Brief).Distinct()]);
+        foreach (var row in Flat(Roots[0]))
+        {
+            row.Unknowns = unknownBySubject.GetValueOrDefault(row.Id) ?? [];
         }
         log.Outcomes(OutcomeGroups.Lines(OutcomeGroups.Group(Systems(all, options))));
 

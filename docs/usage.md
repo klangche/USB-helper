@@ -181,14 +181,20 @@ checked profiles, judged by the picked philosophy; the status field says
 "Judged by the PureLink philosophy". The
 status field groups the results by outcome (#369): every system, this
 computer and each checked profile, is in exactly one group, by its whole set of
-findings. "Same issue on:" names the systems with the same issues, then each
-issue once ("Cam Link 4K: tiers 5 exceeds the recommended 3") with what was
-counted below it, part by part with its origin (#326). Clicking an issue
-selects its device in the tree, as a click in the tree does, so the status field
-then covers that device's controller. "Unknown on:" holds the systems whose counts are
-only "at least" or whose limits are unknown, and "Good on:" those with no
-finding. The worst groups come first. The exported log ends with the same
-groups under "Results by outcome", and the PDF report lists them too. This
+findings. Each group is one line, worst first (#397): "Unstable on:" (a
+maximum is exceeded), "Potentially unstable on:" (a recommendation is
+exceeded), then one quiet line such as "2 systems not fully known", then "Good
+on:". Click a line (›) to open it: the issues its systems share, each once
+("Cam Link 4K: tiers 5 exceeds the recommended 3"). Clicking an issue selects
+its device in the tree, as a click in the tree does, so the status field then
+covers that device's controller, and opens what was counted, part by part with
+its origin (#326). The quiet line's ⓘ hover says, one line per system, why it
+is not fully known, for example a count that is only "at least" because the
+computer's own hubs are unknown. What is not known about one hub or device
+(for example whether its port is built in) is in that row's hover in the tree
+("Not known: …") and in the log, never a line of its own. The exported log ends
+with every group in full under "Results by outcome" ("Same issue on:",
+"Unknown on:", "Good on:"), and the PDF report lists them too. This
 computer is always one of the systems, for example "MacBook Pro (16-inch, 2021), measured" (#368):
 its own computer file if there is one, else its operating system and chip,
 judged with what it measures, such as the hub an M1 Max hides inside itself
@@ -384,9 +390,17 @@ hides Custom and USB-Helper's guide applies; so it does at start when the app
 is locked or `custom.yaml` is missing or invalid (the log says why). The file
 is kept, and Custom is back once unlocked.
 
-## Guide sources
+## Guide details and sources
 
-Under the guide's name, "Sources:" lists every PDF and web link of the guide's
+A philosophy's details sit behind the ⓘ next to its name, in the USB
+philosophy menu and after "Judged by …" over the results (#397). Its hover
+gives the menu line (what it counts and its limits), who signed it off and
+when, with its file (#389), and its source. A click opens a panel with
+everything: what each count adds up, in words; every limit with its quote and
+source; the special cases (cameras, per bus, per operating system); the cable
+notes and models; and the sources. The ProAV mark has a one-line hover only.
+
+Under "Sources" in that panel are every PDF and web link of the guide's
 sources, each by its name (#333). A PDF has a small PDF mark and opens in the
 app's own viewer, at the quoted page when the guide gives one; a link opens in
 the browser. A PDF is downloaded only when you click it, into `sources-cache/`

@@ -47,6 +47,40 @@ public static class GuideLine
         return string.Join(Strings.GuideLineSeparator, parts);
     }
 
+    /// <summary>One rule as the menu line writes it, for example "USB 2: hub chain max 2" (#397, the details panel).</summary>
+    public static string Part(GuideRule rule, IReadOnlyDictionary<string, ResolvedProfile>? platforms = null)
+    {
+        List<string> scope = [.. rule.On.Select(on => PlaceName(on, platforms))];
+        if (rule.Bus != null)
+        {
+            scope.Add(rule.Bus == "usb2" ? Strings.GuideLineUsb2 : Strings.GuideLineUsb3);
+        }
+        if (rule.Devices.Count > 0)
+        {
+            scope.Add(Join([.. rule.Devices.Select(KindName)]));
+        }
+        var text = $"{MeasureName(rule.Measure)} {Values(rule)}";
+        return scope.Count == 0 ? text : string.Format(CultureInfo.CurrentCulture, Strings.GuideLineScope, string.Join(", ", scope), text);
+    }
+
+    /// <summary>What a measure adds up, in words, for example "hub chain: the computer's own hubs + hubs + marked hubs".</summary>
+    public static string Counts(GuideMeasure measure) =>
+        string.Format(CultureInfo.CurrentCulture, Strings.GuideInfoCounts, MeasureName(measure.Id), string.Join(" + ", measure.Counts.Select(element =>
+            ElementName(element) + (measure.Weights.GetValueOrDefault(element, 1) is var weight and not 1
+                ? string.Format(CultureInfo.CurrentCulture, Strings.GuideInfoWeight, weight) : ""))));
+
+    private static string ElementName(string element) => element switch
+    {
+        "root_hub" => Strings.GuideElementRootHub,
+        "computer_hub" => Strings.GuideElementComputerHub,
+        "hub" => Strings.GuideElementHub,
+        "marked_hub" => Strings.GuideElementMarkedHub,
+        "cable_length" => Strings.GuideElementCableLength,
+        "usb4_router" => Strings.GuideElementUsb4Router,
+        "device" => Strings.GuideElementDevice,
+        _ => element,
+    };
+
     private static bool SameExceptKind(GuideRule rule, GuideRule other) =>
         other.Devices.Count == 1 && other.Devices[0] != rule.Devices[0] && other.Devices[0] is "camera" or "audio"
         && other.Measure == rule.Measure && other.Bus == rule.Bus && other.On.SequenceEqual(rule.On)

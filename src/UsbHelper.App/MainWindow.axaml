@@ -13,6 +13,38 @@
   <Window.KeyBindings>
     <KeyBinding Gesture="F5" Command="{Binding RefreshCommand}" />
   </Window.KeyBindings>
+  <!-- A philosophy's details panel (#397), behind its ⓘ button in the menu and over the results. -->
+  <Window.DataTemplates>
+    <DataTemplate x:DataType="app:GuideInfo">
+      <ScrollViewer MaxHeight="440" MaxWidth="460">
+        <StackPanel Spacing="2">
+          <ItemsControl ItemsSource="{Binding Lines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="app:GuideInfoLine">
+                <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="{Binding Indent, Converter={x:Static app:LeftMarginConverter.Instance}}"
+                                     FontWeight="{Binding IsHeading, Converter={x:Static app:LeftMarginConverter.Bold}}"
+                                     FontStyle="{Binding IsQuote, Converter={x:Static app:LeftMarginConverter.Italic}}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <!-- Every PDF and link of the sources (#333): a PDF opens in the built-in viewer, a link in the browser. -->
+          <TextBlock Text="{x:Static res:Strings.SourcesLabel}" FontWeight="SemiBold" IsVisible="{Binding HasSources}" Margin="0,4,0,0" />
+          <ItemsControl ItemsSource="{Binding Sources}" Margin="12,0,0,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="sources:SourceEntry">
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <Border IsVisible="{Binding IsPdf}" Background="#B03A2E" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Static res:Strings.PdfMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
+                  </Border>
+                  <HyperlinkButton Content="{Binding Name}" ToolTip.Tip="{Binding Tip}" Padding="0" VerticalAlignment="Center" Click="OpenSource" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </DataTemplate>
+  </Window.DataTemplates>
   <DockPanel>
 
     <!-- Menu bar (#125): Alt or an underlined access key opens it. Settings (#126) comes later. -->
@@ -55,12 +87,21 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:GuideOption">
                       <StackPanel Orientation="Horizontal" Spacing="8">
-                        <!-- The guide's rules (#327) show on hover, not under the name (owner 2026-11-24). -->
-                        <RadioButton GroupName="Guides" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}"
-                                     ToolTip.Tip="{Binding Detail}" ToolTip.ShowOnDisabled="True"
-                                     AutomationProperties.HelpText="{Binding Detail}" Content="{Binding Label}" />
-                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as USB Standard has none. -->
-                        <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
+                        <RadioButton GroupName="Guides" IsChecked="{Binding IsSelected}" IsEnabled="{Binding IsEnabled}" Content="{Binding Label}" />
+                        <!-- #397: the philosophy's details sit behind one ⓘ: its rules, sign-off and source on hover, everything on click. -->
+                        <Button Content="ⓘ" IsVisible="{Binding HasInfo}" Padding="2,0" Background="Transparent" BorderThickness="0"
+                                VerticalAlignment="Center" ToolTip.Tip="{Binding Detail}" AutomationProperties.Name="{x:Static res:Strings.GuideInfoButtonTip}"
+                                AutomationProperties.HelpText="{Binding Detail}">
+                          <Button.Flyout>
+                            <Flyout Placement="RightEdgeAlignedTop">
+                              <ContentControl Content="{Binding Info}" />
+                            </Flyout>
+                          </Button.Flyout>
+                        </Button>
+                        <!-- The ProAV mark (#299): guides for ProAV rooms; a general-purpose guide such as USB Standard has none.
+                             #397: a one-line hover only; the details are behind the ⓘ. -->
+                        <Border IsVisible="{Binding IsProAv}" Background="#8A8A8A" CornerRadius="2" Padding="3,0" VerticalAlignment="Center"
+                                ToolTip.Tip="{x:Static res:Strings.ProAvTip}">
                           <TextBlock Text="{x:Static res:Strings.ProAvMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
                         </Border>
                         <!-- Custom (#300), last and only while unlocked: opens its editor. -->
@@ -455,50 +496,50 @@
                              Padding="0" VerticalAlignment="Center" ToolTip.Tip="{Binding GuideLink}" />
             <TextBlock Text="{Binding GuideName}" IsVisible="{Binding HasGuideNoLink}" VerticalAlignment="Center" />
             <TextBlock Text="{Binding GuideTextAfter}" VerticalAlignment="Center" />
-          </WrapPanel>
-          <!-- Every PDF and link of the guide's sources (#333): a PDF opens in the built-in viewer, a link in the browser. -->
-          <WrapPanel Opacity="0.7" IsVisible="{Binding HasGuideSources}">
-            <TextBlock Text="{x:Static res:Strings.SourcesLabel}" VerticalAlignment="Center" Margin="0,0,6,0" />
-            <ItemsControl ItemsSource="{Binding GuideSources}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="sources:SourceEntry">
-                  <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,10,0">
-                    <Border IsVisible="{Binding IsPdf}" Background="#B03A2E" CornerRadius="2" Padding="3,0" VerticalAlignment="Center">
-                      <TextBlock Text="{x:Static res:Strings.PdfMark}" Foreground="White" FontSize="8" FontWeight="SemiBold" />
-                    </Border>
-                    <HyperlinkButton Content="{Binding Name}" ToolTip.Tip="{Binding Tip}" Padding="0" VerticalAlignment="Center" Click="OpenSource" />
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- #397: the philosophy's details, its sources among them, behind its ⓘ. -->
+            <Button Content="ⓘ" IsVisible="{Binding HasGuideInfo}" Padding="4,0" Background="Transparent" BorderThickness="0"
+                    VerticalAlignment="Center" ToolTip.Tip="{Binding GuideInfo.Summary}"
+                    AutomationProperties.Name="{x:Static res:Strings.GuideInfoButtonTip}" AutomationProperties.HelpText="{Binding GuideInfo.Summary}">
+              <Button.Flyout>
+                <Flyout Placement="BottomEdgeAlignedLeft">
+                  <ContentControl Content="{Binding GuideInfo}" />
+                </Flyout>
+              </Button.Flyout>
+            </Button>
           </WrapPanel>
           <TextBlock Text="{x:Static res:Strings.NothingChecked}" IsVisible="{Binding NothingChecked}" TextWrapping="Wrap" />
-          <!-- #369: the results grouped by outcome, worst first: "Same issue on:", "Unknown on:", "Good on:", each with its
-               systems and the issues they share, said once. Clicking an issue selects its device in the tree. -->
+          <!-- #369, #397: the results, one line per group, worst first: "Unstable on:", "Potentially unstable on:", then
+               one quiet line for the systems not fully known (why is in its hover), then "Good on:". A line opens on click
+               to show the issues its systems share, said once; clicking an issue selects its device in the tree and opens
+               what was counted. -->
           <ItemsControl ItemsSource="{Binding OutcomeRows}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:OutcomeRow">
-                <StackPanel Margin="0,0,0,8" Spacing="2">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Border Background="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}" CornerRadius="4" Padding="6,2">
-                      <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="Bold" />
-                    </Border>
-                  </StackPanel>
-                  <TextBlock Text="{Binding Systems}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                  <ItemsControl ItemsSource="{Binding Issues}">
+                <StackPanel Margin="0,0,0,6" Spacing="2">
+                  <Button Command="{Binding Toggle}" IsHitTestVisible="{Binding CanExpand}" Background="Transparent" BorderThickness="0"
+                          Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                          ToolTip.Tip="{Binding Hint}" AutomationProperties.HelpText="{Binding Hint}">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding Chevron}" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                      <TextBlock DockPanel.Dock="Right" Text="ⓘ" IsVisible="{Binding IsQuiet}" Opacity="0.7" Margin="8,0,0,0" VerticalAlignment="Center" />
+                      <TextBlock DockPanel.Dock="Left" Text="●" Foreground="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}"
+                                 Margin="0,0,6,0" VerticalAlignment="Center" />
+                      <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Opacity="{Binding TitleOpacity}">
+                        <Run Text="{Binding Title}" FontWeight="SemiBold" />
+                        <Run Text="{Binding Systems}" />
+                      </TextBlock>
+                    </DockPanel>
+                  </Button>
+                  <TextBlock Text="{Binding Hint}" IsVisible="{Binding ShowsHint}" TextWrapping="Wrap" Opacity="0.7" Margin="16,0,0,0" />
+                  <ItemsControl ItemsSource="{Binding Issues}" IsVisible="{Binding ShowsIssues}" Margin="16,0,0,0">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:OutcomeIssue">
                         <StackPanel>
                           <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Cursor="Hand" TextDecorations="Underline"
                                      PointerPressed="SelectOutcomeIssue" />
-                          <!-- What was counted, part by part with its origin (#326). -->
+                          <!-- What was counted, part by part with its origin (#326): once the issue is opened. -->
                           <TextBlock Text="{Binding Counted}" TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="12,0,0,0"
-                                     IsVisible="{Binding Counted, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                     IsVisible="{Binding ShowsCounted}" />
                         </StackPanel>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>

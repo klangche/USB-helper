@@ -108,7 +108,7 @@ public class ProfileMenuTests
         var ochno = window.Guides.Single(option => option.Guide?.Id == "ochno");
         var file = ochno.Guide!.File[(ochno.Guide.File.LastIndexOf('/') + 1)..];
 
-        Assert.EndsWith($"\nOchno · {file}" + (ochno.Guide.SignedOff is { } signOff ? $" · {signOff}" : ""), ochno.Detail, StringComparison.Ordinal);
+        Assert.Contains($"\nOchno · {file}" + (ochno.Guide.SignedOff is { } signOff ? $" · {signOff}" : "") + "\n", ochno.Detail, StringComparison.Ordinal);
     }
 
     // #295: clicking an operating system's name ticks all of its chips, and again unticks them all.
