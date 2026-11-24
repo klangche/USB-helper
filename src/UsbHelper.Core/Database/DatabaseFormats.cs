@@ -29,8 +29,9 @@ public static class DatabaseFormats
     public static HardwareDatabase Read(int format, IReadOnlyDictionary<string, string> files) => Readers[format](files);
 
     /// <summary>
-    /// The database to use: the newest present format that loads (there is no setting for it, #389). Formats not in <paramref name="supported"/> are ignored. Each format that is tried and does
-    /// not load, and the format in use with why it is not the newest, is a line in <paramref name="log"/>.
+    /// The database to use: the newest present format that loads (there is no setting for it, #389). Formats not in
+    /// <paramref name="supported"/> are ignored. Each format that is tried and does not load, and the format in use with
+    /// why it is not the newest, is a line in <paramref name="log"/>.
     /// </summary>
     /// <param name="present">A loader per format folder that exists; each throws <see cref="DatabaseException"/> when its files have problems.</param>
     /// <param name="supported">The formats the app reads; <see cref="Supported"/> by default.</param>

@@ -2326,9 +2326,10 @@ public class MainViewModelTests
         Assert.Equal(viewModel.Guide?.Name, report.Philosophy);
     }
 
-    // A v4 philosophy is named with its file and sign-off (#389); the report takes it from the setup export.
+    // A v4 philosophy is named with its file, and with its sign-off once the database's files are signed off (#389, #395);
+    // the report takes it from the setup export.
     [Fact]
-    public void AV4PhilosophyIsNamedWithItsFileAndSignOff()
+    public void AV4PhilosophyIsNamedWithItsFileAndAnySignOff()
     {
         var viewModel = new MainViewModel(DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]), [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "windows-intel"));
         viewModel.Load(Desk);
