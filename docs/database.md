@@ -33,6 +33,62 @@ must be there, or the script fails. Run it once after cloning, and again to get 
 v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `database` branch, with
 `schema_version: 4`.
 
+#### The readable layout (#386)
+
+A philosophy is written in the readable layout: block style only (no `{ }` or `[ ]`), long text in `>` blocks with no
+quotes or escapes, and a short comment on every key. It is a shorter way to write the full form below: the app expands
+it into `measures` and `rules` when it loads the file, so both judge the same. A file in the full form still loads.
+
+```yaml
+name: Ochno  # the name in the menu
+selectable: true  # true: it can be picked in the menu
+proav: 1  # 1: ProAV, marked in the menu · 0: general purpose
+
+counts: chain, room  # chain = hubs in front of a device · tiers = USB tiers · room = only the room's hubs
+
+computer_hubs:  # the hubs inside the computer
+  use: measured, computer, chip  # measured = this computer, computer = its file, chip = its chip's file
+  if unknown: at least  # at least = the count is a minimum · a number = assume that many
+
+limits:  # the numbers, for every device unless a scope below says otherwise
+  chain:  # what 'chain' may reach
+    max: 5  # a fault above this
+    source: ochno  # which source above
+    quote: having max 5 usb hubs daisy-chained  # its words, copied exactly
+  room:  # what 'room' may reach
+    max: 4  # a fault above this
+    source: ochno  # which source above
+    quote: >  # its words, copied exactly
+      to ensure that the video conference room works with 100% of all laptops, the max available
+      hubs are 4
+```
+
+- `counts`: the standard counts the philosophy uses, defined once in `base.yaml` under `counts`, each with `explain`
+  (in words) and `adds` (its path elements): `chain` (computer_hub, hub, marked_hub), `tiers` (root_hub, computer_hub,
+  hub, marked_hub, cable_length, device) and `room` (hub, marked_hub). A count named under `limits` is used too.
+- `computer_hubs`: `use` is the evidence for the computer's own hubs, in order (`measured` is what this computer
+  reports, the full form's `detected`); `if unknown` is `at least` (the count is a minimum) or a number of hubs to
+  assume. It applies to every count that adds `computer_hub`.
+- `active cables`: `usb2` and `usb3`, the metres per extra tier of a marked active cable, for every count that adds
+  `cable_length`.
+- `limits`: per count, `recommended` and/or `max` (empty = not stated, a number = the limit, `none` = deliberately no
+  limit), `source` and `quote`. Inside a count, a scope gives the limits for part of the paths: `usb2:`, `usb3:`,
+  `cameras:`, `audio:`, `on <os>:` or `on <os>/<chip>:`, each with its own `recommended`, `max`, `source` and `quote`.
+  A scope narrows the one it sits in, so `cameras:` inside `on windows/arm:` is cameras on Windows on ARM; a scope
+  inside one of the same kind (a bus in a bus, a device in a device, a platform in a platform) is an error. A limit's
+  own numbers become its first rule, then each scope in the order written. A limit or scope with neither
+  `recommended` nor `max` and no scopes is an error, and so is a `quote` or `source` on a limit that has only
+  scopes: give it in each scope.
+- A philosophy that counts another way writes that count out under `measures` (with `weights`), in the full form,
+  and gives its limits under `limits` as above.
+- `basis`, `sources`, `cables`, `requires` and `notes` are as in the full form, written in block style.
+- `requires` is read before the layout is expanded: a newer file that needs a newer app is listed as such, not an
+  error.
+- A mistake names the readable key and its line, for example `guides/ochno.yaml:14: Limit 'chain': 'max' must be a
+  whole number or none.`
+
+#### The full form (advanced)
+
 - `base.yaml` lists the **path elements** once, each with `found_by` (how the app finds it): `root_hub`,
   `computer_hub`, `hub`, `marked_hub`, `cable_length`, `usb4_router` (read on macOS, #332) and `device`. It also lists the
   **device kinds** by USB class: `camera` (14, 0x0E), `audio` (1) and `hid` (3).
@@ -69,8 +125,9 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
     as "needs a newer USB-Helper" and judges nothing; the rest of the database still loads;
   - nothing about computers (#367). MST is a fact about the computer, in the OS files: `displays.mst` for the
     operating system and `chips.<chip>.displays.mst` where a chip differs (true or false); a computer file's wins.
-    A philosophy that states `platforms`, `mst`, `computer_hubs`, `displays`, `ports`, `usb`, `usb4` or `chips` does
-    not load: the error names the file and line.
+    A philosophy in the full form that states `platforms`, `mst`, `computer_hubs`, `displays`, `ports`, `usb`, `usb4`
+    or `chips` does not load: the error names the file and line. (The readable layout's own `computer_hubs` key is the
+    evidence for the computer's hubs, not a value.)
 - There is **no fallback** between guides. A hub or device is judged by every rule that matches it, and the strictest
   result wins. A count with an unknown part (an `open` computer_hub, `usb4_router`) is "at least": above a limit it is
   exceeded, within it unknown.

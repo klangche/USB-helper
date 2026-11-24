@@ -228,9 +228,11 @@ public sealed class HardwareDatabase
             // v4 (#327): no fallback between guides; each states its own rules.
             var elements = usb.Find("path_elements")?.Fields.Keys.ToList() ?? [];
             var kinds = usb.Find("device_kinds")?.Fields.Keys.ToList() ?? [];
+            var standardCounts = GuideLayout.Standard(usb.Find("counts"));
             foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key, StringComparer.Ordinal))
             {
-                if (ProfileFileReader.Read(files[file], file, errors) is { } root && GuideReaderV4.Read(root, id, elements, kinds, chips, errors) is { } guide)
+                if (ProfileFileReader.Read(files[file], file, errors) is { } root
+                    && GuideReaderV4.Read(root, id, elements, kinds, chips, errors, standardCounts) is { } guide)
                 {
                     guides.Add(id, guide);
                 }
