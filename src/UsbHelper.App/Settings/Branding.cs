@@ -19,8 +19,9 @@ public sealed record Branding(string? CompanyName, string? LogoOriginal, IReadOn
     double? Luminance = null, ThemeLogo? Light = null, ThemeLogo? Dark = null)
 {
     /// <summary>
-    /// The logo shown on <paramref name="theme"/> (#340): that theme's own logo; else the uploaded logo when its contrast
-    /// there is 3:1 or more; else null, and the company name is shown instead, never an invisible logo.
+    /// The logo shown on <paramref name="theme"/> (#340): that theme's own logo, else the uploaded logo. An uploaded logo is
+    /// always shown (owner 2026-11-24): the company name is only for text, such as logs and the end of a report. A logo
+    /// that is weak on the theme gets a hint in Settings (<see cref="Weak"/>).
     /// </summary>
     public ThemeLogo? Logo(LogoTheme theme)
     {
@@ -28,7 +29,7 @@ public sealed record Branding(string? CompanyName, string? LogoOriginal, IReadOn
         {
             return own;
         }
-        return LogoOriginal != null && LogoContrast.Visible(Luminance, theme) ? new ThemeLogo(LogoPngs, LogoSvg) : null;
+        return LogoOriginal != null ? new ThemeLogo(LogoPngs, LogoSvg) : null;
     }
 
     /// <summary>True when there is an uploaded logo that is too weak on <paramref name="theme"/>, so Settings offers a fix.</summary>

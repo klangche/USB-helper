@@ -134,7 +134,7 @@ limits:  # the numbers, for every device unless a scope below says otherwise
 - In a manufacturer guide (`proav: 1`), `basis` and every rule need `source` and `quote`. `own: true` marks a guide
   with the owner's own numbers (USB-Helper, Unisynk), which have no source to quote. Unknown measures, path elements and
   device kinds, and two rules with the same measure, bus, devices and platforms, are errors with the file and line.
-- The line under a guide in the menu is generated from its rules, with the words from the strings file, for example
+- The line shown when hovering a guide in the menu is generated from its rules, with the words from the strings file, for example
   "hub chain max 5; USB 2: hub chain max 2; cameras and audio: tiers recommended 3, max 4".
 
 ```yaml
