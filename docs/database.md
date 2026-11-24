@@ -54,7 +54,7 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
 
 - Several versions of one id may sit side by side. The newest is used. Older ones are read to check them, then kept as
   history and never judged. The log says, for example, "Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24
-  by Johan Niininen (Ochno)); 1 older version kept".
+  by Johan Niininen (Product manager, Ochno)); 1 older version kept: guides/ochno-2026-11-19.yaml".
 - Two versions with the same id and date (ids are compared ignoring case) are an error. A dated file without a
   sign-off, or one whose sign-off date is not the file name's date, is an error with the file and line.
 - An undated file (`guides/ochno.yaml`) still loads, without a sign-off, and counts as older than any dated one. This

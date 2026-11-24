@@ -2326,6 +2326,19 @@ public class MainViewModelTests
         Assert.Equal(viewModel.Guide?.Name, report.Philosophy);
     }
 
+    // A v4 philosophy is named with its file and sign-off (#389); the report takes it from the setup export.
+    [Fact]
+    public void AV4PhilosophyIsNamedWithItsFileAndSignOff()
+    {
+        var viewModel = new MainViewModel(DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]), [], new ComputerIdentity("Dell Inc.", "Latitude 7450", Platform: "windows-intel"));
+        viewModel.Load(Desk);
+
+        var report = viewModel.Report(new DateTime(2026, 11, 24, 12, 0, 0), null, null, "0.11.0");
+
+        Assert.Equal(viewModel.Guide!.VersionHover, report.Philosophy);
+        Assert.StartsWith($"{viewModel.Guide.Name} · {viewModel.Guide.File[(viewModel.Guide.File.LastIndexOf('/') + 1)..]}", report.Philosophy, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TheReportNamesTheLicensedEmailOnlyWhenUnlocked()
     {

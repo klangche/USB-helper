@@ -110,11 +110,17 @@ public sealed class Guide(string id, string name, bool selectable, ProfileValue 
 
     /// <summary>
     /// The version in use, for the log (#389), for example
-    /// "Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Ochno)); 1 older version kept".
+    /// "Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Ochno)); 1 older version kept:
+    /// guides/ochno-2026-11-19.yaml".
     /// </summary>
     public string VersionLine =>
         $"{Name}: using {File}" + (SignedOff is { } signOff ? $" ({signOff})" : "")
-        + OlderFiles.Count switch { 0 => "", 1 => "; 1 older version kept", var n => $"; {n} older versions kept" };
+        + OlderFiles.Count switch
+        {
+            0 => "",
+            1 => $"; 1 older version kept: {OlderFiles[0]}",
+            var n => $"; {n} older versions kept: {string.Join(", ", OlderFiles)}",
+        };
 
     /// <summary>A v4 guide's sources by id (#327); empty for a v3 guide.</summary>
     public IReadOnlyDictionary<string, GuideSource> SourceDefinitions { get; init; } = new Dictionary<string, GuideSource>();

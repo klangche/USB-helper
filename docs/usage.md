@@ -264,7 +264,9 @@ runs. The export saves one zip, `usb-helper_<room>_<date>_<time>.zip`
   your active-cable marks (each as its hubs and tiers, `{"hubs": 2, "tiers": 2}`;
   a file from an older version has one number N per mark, which is read as
   +N hubs), the monitors and their output type, and each
-  checked profile's result with every finding, the unknown ones included.
+  checked profile's result with every finding, the unknown ones included,
+  the database in use (`database`, for example "Database v4 · 2026-11-24
+  (abc1234)") and the philosophy with its file and sign-off (`philosophy`).
 - `tree.txt`: the tree as text, as Edit > Copy tree as text gives it.
 - `screenshot.png`: the main window as shown.
 - `log.txt`: the log.

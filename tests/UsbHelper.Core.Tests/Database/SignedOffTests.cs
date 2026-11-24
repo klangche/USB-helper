@@ -55,7 +55,7 @@ public class SignedOffTests
         Assert.Equal(5L, Assert.Single(ochno.Rules).Max);
         Assert.Equal(["guides/ochno-2026-11-19.yaml"], ochno.OlderFiles);
         Assert.Equal(new GuideSignOff("Johan Niininen", "Product manager", "Ochno", new DateOnly(2026, 11, 24)), ochno.SignedOff);
-        Assert.Equal("Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Product manager, Ochno)); 1 older version kept",
+        Assert.Equal("Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Product manager, Ochno)); 1 older version kept: guides/ochno-2026-11-19.yaml",
             ochno.VersionLine);
     }
 
@@ -104,12 +104,25 @@ public class SignedOffTests
     public void ASignOffNeedsByAndAValidDate(string from, string to, string message) =>
         Assert.Equal(message, Error(("guides/ochno-2026-11-24.yaml", Ochno("2026-11-24").Replace(from, to, StringComparison.Ordinal))).Message);
 
-    [Fact]
-    public void TwoVersionsWithTheSameDateAreAnError()
+    // Two versions with the same id and date differ only in case: one id spelled two ways is an error, dated or not.
+    [Theory]
+    [InlineData("guides/Ochno-2026-11-24.yaml", "guides/ochno-2026-11-24.yaml")]
+    [InlineData("guides/Ochno.yaml", "guides/ochno.yaml")]
+    [InlineData("guides/Ochno-2026-11-19.yaml", "guides/ochno-2026-11-24.yaml")]
+    public void AnIdSpelledTwoWaysIsAnError(string first, string second)
     {
-        var error = Error(("guides/ochno-2026-11-24.yaml", Ochno("2026-11-24")), ("guides/Ochno-2026-11-24.yaml", Ochno("2026-11-24")));
+        var error = Error((first, Ochno(first[^15..^5])), (second, Ochno(second[^15..^5])));
 
-        Assert.Equal("Two versions of 'ochno' have the same date, 2026-11-24: guides/Ochno-2026-11-24.yaml, guides/ochno-2026-11-24.yaml.", error.Message);
+        Assert.Equal($"The versions of 'ochno' spell its id in different ways: {first}, {second}. Use one spelling, in lower case.", error.Message);
+    }
+
+    // An older version is checked too: its error stops the load, as any file's does.
+    [Fact]
+    public void AnErrorInAnOlderVersionIsAnError()
+    {
+        var error = Error(("guides/ochno-2026-11-19.yaml", Ochno("2026-11-18")), ("guides/ochno-2026-11-24.yaml", Ochno("2026-11-24")));
+
+        Assert.Equal("guides/ochno-2026-11-19.yaml", error.File);
     }
 
     [Fact]
@@ -119,7 +132,7 @@ public class SignedOffTests
 
         log.DatabaseLoaded(HardwareDatabase.LoadV4(Files(("guides/ochno-2026-11-19.yaml", Ochno("2026-11-19")), ("guides/ochno-2026-11-24.yaml", Ochno("2026-11-24")))));
 
-        Assert.Contains("Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Product manager, Ochno)); 1 older version kept",
+        Assert.Contains("Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24 by Johan Niininen (Product manager, Ochno)); 1 older version kept: guides/ochno-2026-11-19.yaml",
             log.Entries.Select(entry => entry.Text));
     }
 

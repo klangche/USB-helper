@@ -244,7 +244,7 @@ public sealed class HardwareDatabase
     // v4 (#327): no fallback between guides; each states its own rules. A file is guides/<id>.yaml or, signed off,
     // guides/<id>-<YYYY-MM-DD>.yaml (#389): several versions of one id may sit side by side, and the newest is used. Older
     // ones are read to check them, then kept as history. An undated file counts as older than any dated one. Ids are
-    // compared ignoring case, so "Ochno-2026-11-24.yaml" and "ochno-2026-11-24.yaml" are the same version: an error.
+    // compared ignoring case, and one id spelled two ways is an error, so two versions never share an id and a date.
     private static Dictionary<string, Guide> ReadGuidesV4(
         IReadOnlyDictionary<string, string> files, ProfileValue usb, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
@@ -261,9 +261,13 @@ public sealed class HardwareDatabase
         foreach (var group in versions)
         {
             var ordered = group.OrderBy(each => each.Version.Date ?? DateOnly.MinValue).ThenBy(each => each.File, StringComparer.Ordinal).ToList();
-            foreach (var same in ordered.GroupBy(each => each.Version.Date).Where(same => same.Key != null && same.Count() > 1))
+            // One id, one spelling: "Ochno-2026-11-24.yaml" next to "ochno-2026-11-24.yaml" (or "Ochno.yaml" next to
+            // "ochno.yaml") would make the id depend on the order the files are read in.
+            if (ordered.Select(each => each.Version.Id).Distinct(StringComparer.Ordinal).Count() > 1)
             {
-                errors.Add(new DatabaseError(same.Last().File, 0, $"Two versions of '{group.Key}' have the same date, {same.Key:yyyy-MM-dd}: {string.Join(", ", same.Select(each => each.File))}."));
+                errors.Add(new DatabaseError(ordered[^1].File, 0,
+                    $"The versions of '{group.Key.ToLowerInvariant()}' spell its id in different ways: {string.Join(", ", ordered.Select(each => each.File).Order(StringComparer.Ordinal))}. Use one spelling, in lower case."));
+                continue;
             }
             Guide? newest = null;
             foreach (var (file, version) in ordered)

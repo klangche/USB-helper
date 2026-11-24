@@ -43,7 +43,7 @@ public sealed class DatabaseUpdate(
         }));
         try
         {
-            var (chosen, used) = DatabaseFormats.Choose(loaders, null, log.Add);
+            var (chosen, used) = DatabaseFormats.Choose(loaders, log.Add);
             return (chosen, [], versions[used], used);
         }
         catch (DatabaseException e)

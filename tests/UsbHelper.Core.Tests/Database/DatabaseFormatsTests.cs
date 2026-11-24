@@ -14,8 +14,8 @@ public class DatabaseFormatsTests
     private static Func<HardwareDatabase> Broken(string message) =>
         () => throw new DatabaseException([new DatabaseError("base.yaml", 1, message)]);
 
-    private (HardwareDatabase Database, int Format) Choose(Dictionary<int, Func<HardwareDatabase>> present, int? preferred = null) =>
-        DatabaseFormats.Choose(present, preferred, log.Add, Supported);
+    private (HardwareDatabase Database, int Format) Choose(Dictionary<int, Func<HardwareDatabase>> present) =>
+        DatabaseFormats.Choose(present, log.Add, Supported);
 
     [Fact]
     public void TheNewestPresentFormatIsUsed()
@@ -50,15 +50,6 @@ public class DatabaseFormatsTests
 
         Assert.Equal(4, format);
         Assert.DoesNotContain(log, line => line.Contains("v5", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void ThePreferredFormatIsUsedWhenItLoads()
-    {
-        Assert.Equal(3, Choose(new() { [3] = () => V3, [4] = () => V4 }, preferred: 3).Format);
-        Assert.Equal("Database format v3 in use, chosen in the settings", log[^1]);
-        Assert.Equal(4, Choose(new() { [3] = Broken("broken"), [4] = () => V4 }, preferred: 3).Format);
-        Assert.Equal(4, Choose(new() { [4] = () => V4 }, preferred: 3).Format);
     }
 
     [Fact]

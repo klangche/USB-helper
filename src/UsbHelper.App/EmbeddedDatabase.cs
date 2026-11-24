@@ -21,7 +21,7 @@ public static class EmbeddedDatabase
     /// <exception cref="DatabaseException">No format loads: the errors of the newest.</exception>
     public static HardwareDatabase Load(Assembly assembly) =>
         DatabaseFormats.Choose(Files(assembly).ToDictionary(
-            format => format.Key, format => (Func<HardwareDatabase>)(() => DatabaseFormats.Read(format.Key, format.Value))), null, _ => { }).Database;
+            format => format.Key, format => (Func<HardwareDatabase>)(() => DatabaseFormats.Read(format.Key, format.Value))), _ => { }).Database;
 
     /// <summary>The embedded files of each format folder, by format, then by path inside the folder.</summary>
     public static Dictionary<int, IReadOnlyDictionary<string, string>> Files() => Files(typeof(EmbeddedDatabase).Assembly);

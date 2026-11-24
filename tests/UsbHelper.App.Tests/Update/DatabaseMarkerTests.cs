@@ -21,9 +21,12 @@ public class DatabaseMarkerTests
     [Fact]
     public void TheWindowShowsTheMarkerAndTheFormatWhenTheCommitIsUnknown()
     {
-        var window = new ViewModels.MainViewModel(EmbeddedDatabaseTests.V3(), [], new Core.Detection.ComputerIdentity("", "", Platform: "windows-intel"));
+        var window = new ViewModels.MainViewModel(EmbeddedDatabaseTests.V3(), [], new Core.Detection.ComputerIdentity("", "", Platform: "windows-intel"))
+        {
+            DatabaseFormat = 3,
+        };
 
-        Assert.Equal("Database v4", window.DatabaseMarker);
+        Assert.Equal("Database v3", window.DatabaseMarker);
         Assert.Null(window.DatabaseMarkerDetail);
     }
 }
