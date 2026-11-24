@@ -150,15 +150,16 @@ public class CableNotesTests
     [Fact]
     public void APhilosophyWithoutCableNotesShowsNone()
     {
+        // The general-purpose guide states nothing about cables.
         var db = Database();
-        var viewModel = Loaded(db, "crestron");
+        var viewModel = Loaded(db, "desktop");
         var dock = Row(viewModel, "DOCK");
 
         dock.CableMetres = 6;
         dock.SetCable.Execute(null);
 
         Assert.Empty(dock.CableNoteLines);
-        Assert.Empty(db.Guides["crestron"].CableNotes);
+        Assert.Empty(db.Guides["desktop"].CableNotes);
     }
 
     [Fact]
