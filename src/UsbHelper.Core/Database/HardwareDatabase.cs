@@ -230,7 +230,8 @@ public sealed class HardwareDatabase
             var kinds = usb.Find("device_kinds")?.Fields.Keys.ToList() ?? [];
             foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key, StringComparer.Ordinal))
             {
-                if (ProfileFileReader.Read(files[file], file, errors) is { } root && GuideReaderV4.Read(root, id, elements, kinds, chips, errors) is { } guide)
+                if (ProfileFileReader.Read(files[file], file, errors) is { } root
+                    && GuideReaderV4.Read(root, id, elements, kinds, chips, errors, GuideLayout.Standard(usb.Find("counts"))) is { } guide)
                 {
                     guides.Add(id, guide);
                 }

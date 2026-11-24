@@ -84,6 +84,11 @@ internal static class ProfileSchema
         ["device_kinds"] = FieldType.Mapping,
         ["device_kinds.*"] = FieldType.Mapping,
         ["device_kinds.*.usb_class"] = FieldType.Integer, // The USB interface class, for example 0x0E (14) for a camera.
+        // The standard counts a readable philosophy names (#386): chain, tiers, room, each with what it adds.
+        ["counts"] = FieldType.Mapping,
+        ["counts.*"] = FieldType.Mapping,
+        ["counts.*.explain"] = FieldType.String,
+        ["counts.*.adds"] = FieldType.String,
     });
 
     /// <summary>
@@ -158,7 +163,7 @@ internal static class ProfileSchema
     private static string SchemaPath(string path)
     {
         var parts = path.Split('.');
-        if (parts.Length >= 2 && parts[0] is "ports" or "chips" or "path_elements" or "device_kinds")
+        if (parts.Length >= 2 && parts[0] is "ports" or "chips" or "path_elements" or "device_kinds" or "counts")
         {
             parts[1] = "*";
         }

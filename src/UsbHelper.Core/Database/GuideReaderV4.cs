@@ -28,12 +28,16 @@ internal static class GuideReaderV4
     /// <param name="baseElements">The path elements base.yaml lists.</param>
     /// <param name="baseKinds">The device kinds base.yaml lists.</param>
     /// <param name="chips">Every platform's chip keys, for <c>platforms</c> and <c>on</c>.</param>
+    /// <param name="standardCounts">base.yaml's standard counts (#386), for a philosophy in the readable layout.</param>
     public static Guide? Read(
         ProfileValue root, string id, IReadOnlyCollection<string> baseElements, IReadOnlyCollection<string> baseKinds,
-        IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
+        IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? standardCounts = null)
     {
         var file = root.File;
         void Error(ProfileValue at, string message) => errors.Add(new DatabaseError(file, at.Line, message));
+        // The readable layout (#386) is the same rules written shorter: expanded to the full form, then read as one.
+        root = GuideLayout.Expand(root, standardCounts ?? new Dictionary<string, IReadOnlyList<string>>(), Error);
 
         var name = root.Find("name")?.Scalar as string;
         var selectable = root.Find("selectable")?.Scalar as bool?;
