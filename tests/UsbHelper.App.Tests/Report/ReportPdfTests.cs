@@ -196,13 +196,14 @@ public class ReportPdfTests
 
     // #232: the company name only where no logo is shown; the metadata keeps it.
     [Fact]
-    public void With_a_logo_the_company_name_is_neither_in_the_header_nor_in_the_footer()
+    public void With_a_logo_the_company_name_is_not_in_the_header_but_is_in_the_footer()
     {
         var pdf = Pdf(ReportSamples.Full(ReportSamples.WriteLogo()));
         var pages = PageTexts(pdf);
 
-        Assert.DoesNotContain(ReportSamples.Company, string.Join("\n", pages));
-        Assert.All(pages, page => Assert.Contains(ReportSamples.Room, page)); // The footer still names the room.
+        // Owner 2026-11-24: the logo in the header, the name as text at the end of each page.
+        Assert.False(pages[0].StartsWith($"{ReportSamples.Company}\n", StringComparison.Ordinal));
+        Assert.All(pages, page => Assert.Contains($"{ReportSamples.Company} - {ReportSamples.Room}", page));
         using var document = PdfDocument.Open(pdf);
         Assert.Equal(ReportSamples.Company, document.Information.Author);
     }

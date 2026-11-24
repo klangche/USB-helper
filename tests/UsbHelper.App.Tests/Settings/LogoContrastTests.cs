@@ -73,14 +73,15 @@ public sealed class LogoContrastTests : IDisposable
     }
 
     [Fact]
-    public void TheThemeLogoComesFirstThenAVisibleUploadThenTheName()
+    public void TheThemeLogoComesFirstThenTheUploadEvenWhenWeak()
     {
         var pngs = new Dictionary<int, string> { [64] = "logo-64.png" };
         var dark = new ThemeLogo(new Dictionary<int, string> { [64] = "dark-64.png" }, null);
         var black = new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 0);
 
         Assert.Same(dark, (black with { Dark = dark }).Logo(LogoTheme.Dark)); // The dark logo is used on dark.
-        Assert.Null(black.Logo(LogoTheme.Dark)); // None set and weak: the company name.
+        // Owner 2026-11-24: an uploaded logo always shows, weak or not; the name is only for text.
+        Assert.Equal("logo-64.png", black.Logo(LogoTheme.Dark)!.Pngs[64]);
         Assert.Equal("logo-64.png", black.Logo(LogoTheme.Light)!.Pngs[64]); // Fine: the uploaded logo.
         Assert.True(black.Weak(LogoTheme.Dark));
         Assert.False(black.Weak(LogoTheme.Light));
@@ -114,12 +115,12 @@ public sealed class LogoContrastTests : IDisposable
     }
 
     [Fact]
-    public void InvertItPreviewsThenSavesTheCopyAndUsesItAndRemovingFallsBackToTheName()
+    public void InvertItPreviewsThenSavesTheCopyAndUsesItAndRemovingFallsBackToTheUpload()
     {
         var (settings, main) = BlackLogo();
         main.Theme = LogoTheme.Dark;
-        Assert.Null(main.BrandingLogo);
-        Assert.Equal("Acme AB", main.BrandingName);
+        Assert.Equal(Path.Combine(folder, "USB-helper", "branding", "logo-64.png"), main.BrandingLogo); // The weak upload still shows.
+        Assert.Null(main.BrandingName);
         var offer = settings.ThemeOffer(LogoTheme.Dark);
 
         offer.Invert();
@@ -140,8 +141,8 @@ public sealed class LogoContrastTests : IDisposable
         main.Theme = LogoTheme.Dark;
 
         offer.Remove();
-        Assert.Null(main.BrandingLogo);
-        Assert.Equal("Acme AB", main.BrandingName);
+        Assert.Equal(Path.Combine(folder, "USB-helper", "branding", "logo-64.png"), main.BrandingLogo); // Back to the upload.
+        Assert.Null(main.BrandingName);
         Assert.False(offer.HasOwnLogo);
     }
 
@@ -188,8 +189,8 @@ public sealed class LogoContrastTests : IDisposable
 
         Assert.Contains(nameof(MainViewModel.BrandingLogo), changed);
         Assert.Contains(nameof(MainViewModel.BrandingName), changed);
-        Assert.Null(main.BrandingLogo);
-        Assert.Equal("Acme AB", main.BrandingName);
+        Assert.NotNull(main.BrandingLogo); // Owner 2026-11-24: still the logo on dark, never the name.
+        Assert.Null(main.BrandingName);
         Assert.Equal(LogoTheme.Dark, MainWindow.ThemeOf(Avalonia.Styling.ThemeVariant.Dark));
         Assert.Equal(LogoTheme.Light, MainWindow.ThemeOf(Avalonia.Styling.ThemeVariant.Light));
     }
@@ -213,7 +214,7 @@ public sealed class LogoContrastTests : IDisposable
         var pngs = new Dictionary<int, string> { [512] = "logo-512.png" };
         var light = new ThemeLogo(new Dictionary<int, string> { [512] = "light-512.png" }, null);
 
-        Assert.Null(MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 1)));
+        Assert.Equal("logo-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 1))); // Weak: still the logo.
         Assert.Equal("light-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 1, Light: light)));
         Assert.Equal("logo-512.png", MainViewModel.ReportLogo(new Branding("Acme AB", "logo-original.png", pngs, null, Luminance: 0)));
     }
