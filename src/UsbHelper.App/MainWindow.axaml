@@ -377,6 +377,24 @@
                              IsVisible="{Binding RowStatusWord, Converter={x:Static ObjectConverters.IsNotNull}}"
                              Foreground="{Binding LineColor, Converter={x:Static app:HexBrushConverter.Instance}}" />
                   <TextBlock Text="{Binding DisplayNote}" IsVisible="{Binding HasDisplayBelow}" />
+                  <!-- Where the selected philosophy's recommended and max are reached (#371): orange or purple, dashed for "at least". -->
+                  <ItemsControl ItemsSource="{Binding LimitBadges}" IsVisible="{Binding HasLimitBadges}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:LimitBadge">
+                        <Panel ToolTip.Tip="{Binding Tip}" VerticalAlignment="Center">
+                          <Rectangle Stroke="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}" StrokeThickness="1"
+                                     StrokeDashArray="{Binding DashArray}" RadiusX="3" RadiusY="3" />
+                          <TextBlock Text="{Binding Text}" FontSize="10" Margin="4,1"
+                                     Foreground="{Binding Color, Converter={x:Static app:HexBrushConverter.Instance}}" />
+                        </Panel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                   <!-- "Hubs: 4 (3+1), ...": the hubs per bus in brackets, USB 2, USB 3 (#217, #298), then any USB4 routers (#359); hovering
                        shows the text and which bus is which. -->
                   <StackPanel Orientation="Horizontal" Opacity="0.7" ToolTip.Tip="{Binding CountsTip}"

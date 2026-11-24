@@ -1,4 +1,5 @@
 using UsbHelper.App.ViewModels;
+using UsbHelper.Core.Database;
 using UsbHelper.Core.Detection;
 using UsbHelper.Core.Diagnostics;
 using UsbHelper.Core.Topology;
@@ -312,5 +313,26 @@ public class TreeByPortTests
         var dropped = Assert.Single(port.Rows);
         Assert.Equal("USB3.2 Hub + USB2.0 Hub (1DA0:901A, USB 2 + USB 3) (disconnected)", dropped.Text);
         Assert.True(dropped.IsDisconnected);
+    }
+
+    // #371: Ochno selected on the M1 Max: its max 5 hubs is marked on the dock's deepest hubs with the room left, once on
+    // a hub shown with its other half, in the window, the text and the report.
+    [Fact]
+    public void TheSelectedPhilosophysLimitIsMarkedOnTheDocksDeepestHubs()
+    {
+        var db = DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]);
+        var viewModel = new MainViewModel(db, [], new ComputerIdentity("Maker", "Model", Platform: "macos-apple-silicon"), () => [], new EventLog())
+        {
+            Guide = db.Guides["ochno"],
+        };
+        viewModel.Load(MacDock());
+        var dock = viewModel.Roots[0].Rows[0].Rows[0].Rows[0];
+        var genesys = dock.Rows[0];
+
+        Assert.Empty(dock.LimitBadges);
+        Assert.Equal(["Ochno: max 5 hubs · 2 more fit behind", "Ochno: max 4 hubs · 2 more fit behind"], genesys.LimitBadges.Select(badge => badge.Text));
+        Assert.All(genesys.LimitBadges, badge => Assert.Equal(("#8E24AA", false), (badge.Color, badge.Dashed)));
+        Assert.Contains(TreeText.Render(viewModel.Roots[0]).Split(Environment.NewLine),
+            line => line.EndsWith("USB3.1 Hub + USB2.1 Hub (05E3:0626, USB 2 + USB 3) - stable (Ochno: max 5 hubs · 2 more fit behind) (Ochno: max 4 hubs · 2 more fit behind)", StringComparison.Ordinal));
     }
 }

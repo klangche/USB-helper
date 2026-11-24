@@ -512,6 +512,99 @@ public class UsbTreeBuilderTests
         Assert.Equal(ConnectionStatus.Grey, purelink.Profiles.Single().Report.Connections[wpp20]);
     }
 
+    // #371: where the selected philosophy's limits fall on the recorded M1 Max dock, with this Mac's measured counts.
+    private static IReadOnlyDictionary<string, IReadOnlyList<LimitMark>> MarksOn(string guide, Func<UsbNode, UsbNode>? change = null, string? custom = null)
+    {
+        var db = DockDatabase(custom ?? DockGuide(0, 0, 0));
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+        if (change != null)
+        {
+            tree = [.. tree.Select(change)];
+        }
+        return LimitMarks.Of(tree, db.Guides[guide], db.Platforms["macos-apple-silicon"], measured: true);
+    }
+
+    private static string IdOf(string name) => Find(UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt)), name).Id;
+
+    [Fact]
+    public void OchnosMaxFiveHubsLeavesRoomForTwoMoreHubsBehindTheDock()
+    {
+        var marks = MarksOn("ochno");
+
+        // Chain: the Mac's hidden hub 1 + the dock's two hubs; a device plugged into the dock is at 3 of 5.
+        foreach (var hub in new[] { "USB2.1 Hub", "USB3.1 Hub", "Parade Tech USB2.0 HUB" })
+        {
+            var chain = Assert.Single(marks[IdOf(hub)], mark => mark.Measure == "chain");
+            Assert.Equal((LimitLevel.Max, 5L, LimitPlace.Room, 3, 2L, "hubs"), (chain.Level, chain.Limit, chain.Place, chain.Count, chain.Room, chain.Unit));
+            Assert.False(chain.AtLeast);
+        }
+        // Nothing is marked where the limit is not reached: not on the first hubs, not on the devices.
+        Assert.False(marks.ContainsKey(IdOf("USB2.0 Hub")));
+        Assert.False(marks.ContainsKey(IdOf("WPP20")));
+    }
+
+    [Fact]
+    public void PureLinksRecommendedFourTiersIsReachedAtTheDocksSecondHub()
+    {
+        var marks = MarksOn("purelink");
+
+        var reached = Assert.Single(marks[IdOf("USB3.1 Hub")], mark => mark.Level == LimitLevel.Recommended);
+        Assert.Equal((LimitPlace.Reached, 4, "tiers"), (reached.Place, reached.Count, reached.Unit));
+        Assert.Contains(marks[IdOf("USB2.1 Hub")], mark => mark.Level == LimitLevel.Recommended && mark.Place == LimitPlace.Reached);
+        // Behind it, WPP20 at 5 is over, but the marking stays where the count got there. Max 7: two more hubs fit.
+        Assert.False(marks.ContainsKey(IdOf("WPP20")));
+        var max = Assert.Single(marks[IdOf("USB2.1 Hub")], mark => mark.Level == LimitLevel.Max);
+        Assert.Equal((LimitPlace.Room, 5, 2L), (max.Place, max.Count, max.Room));
+    }
+
+    // Only what the philosophy states: Ochno has no tier rule, PureLink no chain; "max: none" draws nothing.
+    [Fact]
+    public void APhilosophyWithoutTheMeasureMarksNothingForIt()
+    {
+        Assert.DoesNotContain(MarksOn("ochno").Values.SelectMany(list => list), mark => mark.Unit == "tiers");
+        Assert.DoesNotContain(MarksOn("purelink").Values.SelectMany(list => list), mark => mark.Measure == "chain");
+        var none = "name: None test\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
+            + "rules:\n  - { measure: tiers, recommended: none, max: none }\n";
+        Assert.Empty(MarksOn("routers-test", custom: none.Replace("None test", "Routers test")));
+    }
+
+    // A camera rule marks only cameras: here WPP20 marked as a camera, and nothing else.
+    [Fact]
+    public void ACameraRuleMarksOnlyCameras()
+    {
+        var guide = "name: Routers test\nselectable: true\nproav: 0\nmeasures:\n  tiers: { counts: [root_hub, computer_hub, hub, device], computer_hub: { from: [detected], unknown: open } }\n"
+            + "rules:\n  - { measure: tiers, devices: [camera], max: 4 }\n";
+        UsbNode Camera(UsbNode node) => node with
+        {
+            DeviceKind = node.Name == "WPP20" ? UsbDeviceKind.Camera : node.DeviceKind,
+            Children = [.. node.Children.Select(Camera)],
+        };
+
+        var marks = MarksOn("routers-test", Camera, guide);
+
+        var camera = Assert.Single(Assert.Single(marks).Value);
+        Assert.Equal(IdOf("WPP20"), Assert.Single(marks).Key);
+        Assert.Equal((LimitPlace.Passed, 5), (camera.Place, camera.Count));
+        Assert.Equal(["camera"], camera.Devices);
+    }
+
+    // A count with an unknown part is "at least": the marking says so and why.
+    [Fact]
+    public void AnAtLeastCountMarksWithWhy()
+    {
+        var db = DockDatabase(DockGuide(0, 0, 0));
+        var tree = UsbTreeBuilder.Build(DockControllers, MacThunderbolt.Parse(DockThunderbolt));
+
+        // A ticked macOS M-series system: PureLink does not take a chip's hub, so its hub is unknown.
+        var marks = LimitMarks.Of(tree, db.Guides["purelink"], db.Platforms["macos-apple-silicon"], measured: false);
+
+        // At least 4 (the hidden hub unknown): the recommended 4 is reached at WPP20 at the earliest.
+        var mark = Assert.Single(marks[Find(tree, "WPP20").Id], each => each.Level == LimitLevel.Recommended);
+        Assert.Equal((LimitPlace.Reached, 4), (mark.Place, mark.Count));
+        Assert.True(mark.AtLeast);
+        Assert.Contains(mark.Unknown, why => why.StartsWith("computer_hub: ", StringComparison.Ordinal));
+    }
+
     // A bus with no router (0): no usb4_router part, and the count is exact, not "at least".
     [Fact]
     public void ABusWithNoRouterAddsNoRouterPart()
