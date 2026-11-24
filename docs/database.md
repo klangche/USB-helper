@@ -60,7 +60,7 @@ v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `
   not the file name's date, is an error with the file and line.
 - An undated file (`guides/ochno.yaml`) still loads, without a sign-off, and counts as older than any dated one. This
   is for the move to dated files only.
-- A philosophy's hover in the menu ends with its file and sign-off ("Ochno · ochno-2026-11-24.yaml · signed off …"); the
+- A philosophy's ⓘ hover in the menu (#397) has its file and sign-off ("Ochno · ochno-2026-11-24.yaml · signed off …"); the
   PDF report and the exported setup (`philosophy`) carry the same line.
 
 #### The readable layout (#386)
@@ -164,7 +164,7 @@ limits:  # the numbers, for every device unless a scope below says otherwise
 - In a manufacturer guide (`proav: 1`), `basis` and every rule need `source` and `quote`. `own: true` marks a guide
   with the owner's own numbers (USB-Helper, Unisynk), which have no source to quote. Unknown measures, path elements and
   device kinds, and two rules with the same measure, bus, devices and platforms, are errors with the file and line.
-- The line shown when hovering a guide in the menu is generated from its rules, with the words from the strings file, for example
+- The line shown when hovering the ⓘ next to a guide in the menu (#397) is generated from its rules, with the words from the strings file, for example
   "hub chain max 5; USB 2: hub chain max 2; cameras and audio: tiers recommended 3, max 4".
 
 ```yaml

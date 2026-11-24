@@ -1244,4 +1244,81 @@ At least: part of the count is unknown, so the limit may come sooner:
   <data name="DatabaseMarkerOthers" xml:space="preserve">
     <value>Also built in, not used: {0}</value>
   </data>
+  <data name="OutcomeUnstable" xml:space="preserve">
+    <value>Unstable on:</value>
+    <comment>A results line (#397): a maximum is exceeded or a connection has an error on these systems.</comment>
+  </data>
+  <data name="OutcomePotentiallyUnstable" xml:space="preserve">
+    <value>Potentially unstable on:</value>
+    <comment>A results line (#397): a recommendation is exceeded on these systems.</comment>
+  </data>
+  <data name="OutcomeNotKnownOne" xml:space="preserve">
+    <value>1 system not fully known</value>
+  </data>
+  <data name="OutcomeNotKnownMany" xml:space="preserve">
+    <value>{0} systems not fully known</value>
+  </data>
+  <data name="OutcomeNotKnownSystem" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>Why a system is not fully known: its name, then the first thing that is unknown.</comment>
+  </data>
+  <data name="OutcomeNotKnownSystemMore" xml:space="preserve">
+    <value>{0}: {1} (and {2} more in the log)</value>
+  </data>
+  <data name="OutcomeNotKnownReason" xml:space="preserve">
+    <value>a limit is not known</value>
+  </data>
+  <data name="NodeUnknownTip" xml:space="preserve">
+    <value>Not known: {0}</value>
+    <comment>A tree row's hover (#397): something the system does not say about this hub or device.</comment>
+  </data>
+  <data name="GuideInfoButtonTip" xml:space="preserve">
+    <value>About this philosophy</value>
+  </data>
+  <data name="GuideInfoCountsHeading" xml:space="preserve">
+    <value>What it counts</value>
+  </data>
+  <data name="GuideInfoLimitsHeading" xml:space="preserve">
+    <value>Its limits</value>
+  </data>
+  <data name="GuideInfoCablesHeading" xml:space="preserve">
+    <value>Cables</value>
+  </data>
+  <data name="GuideInfoCounts" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>A measure and what it adds up, for example "hub chain: the computer's own hubs + hubs + marked hubs".</comment>
+  </data>
+  <data name="GuideInfoWeight" xml:space="preserve">
+    <value> (each counts {0})</value>
+  </data>
+  <data name="GuideInfoSource" xml:space="preserve">
+    <value>Source: {0}</value>
+  </data>
+  <data name="GuideInfoCableModel" xml:space="preserve">
+    <value>{0}, {1} m</value>
+  </data>
+  <data name="GuideElementRootHub" xml:space="preserve">
+    <value>the root hub</value>
+  </data>
+  <data name="GuideElementComputerHub" xml:space="preserve">
+    <value>the computer's own hubs</value>
+  </data>
+  <data name="GuideElementHub" xml:space="preserve">
+    <value>hubs</value>
+  </data>
+  <data name="GuideElementMarkedHub" xml:space="preserve">
+    <value>marked hubs</value>
+  </data>
+  <data name="GuideElementCableLength" xml:space="preserve">
+    <value>active cable lengths</value>
+  </data>
+  <data name="GuideElementUsb4Router" xml:space="preserve">
+    <value>USB4 routers</value>
+  </data>
+  <data name="GuideElementDevice" xml:space="preserve">
+    <value>the device</value>
+  </data>
+  <data name="ProAvTip" xml:space="preserve">
+    <value>ProAV philosophy: made for meeting rooms and AV installations</value>
+  </data>
 </root>

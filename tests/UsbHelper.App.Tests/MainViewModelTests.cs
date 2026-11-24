@@ -797,16 +797,18 @@ public class MainViewModelTests
         viewModel.Load(Desk);
         viewModel.Computers.Single().IsChecked = true;
 
-        var systems = viewModel.OutcomeRows.SelectMany(row => row.Systems.Split(", ")).ToList();
+        var systems = viewModel.OutcomeRows.Where(row => !row.IsQuiet).SelectMany(row => row.Systems.Split(", ")).ToList();
         Assert.Equal(systems.Distinct().Count(), systems.Count);
-        Assert.Contains(viewModel.OutcomeRows, row => row.Title is "Good on:" or "Same issue on:" or "Unknown on:");
+        Assert.Contains(viewModel.OutcomeRows, row => row.Title is "Good on:" or "Unstable on:" or "Potentially unstable on:" || row.IsQuiet);
         Assert.Contains("Results by outcome", log.Export(), StringComparison.Ordinal);
-        // The report and the export hold the same groups, title and systems, in the same order.
+        // The report and the export keep every group in full (#397), the same in both, title and systems in order.
         var report = viewModel.Report(new DateTime(2026, 11, 23, 18, 0, 0), null, null, "0.11.0");
-        var titles = viewModel.OutcomeRows.Select(row => row.Title + " " + row.Systems).ToList();
-        Assert.Equal(titles, report.Outcomes.Where(line => !line.StartsWith(' ')));
+        var titles = report.Outcomes.Where(line => !line.StartsWith(' ')).ToList();
         Assert.Equal(titles, log.Export().Split('\n').SkipWhile(line => line.Trim() != "Results by outcome").Skip(1)
             .TakeWhile(line => line.Trim().Length > 0).Select(line => line.TrimEnd('\r')).Where(line => !line.StartsWith(' ')));
+        // The panel shows each group that is not "Unknown on:" with the same systems, and the unknown ones as one line.
+        Assert.Equal(titles.Where(line => !line.StartsWith("Unknown on:", StringComparison.Ordinal)).Select(line => line[(line.IndexOf(':') + 2)..]),
+            viewModel.OutcomeRows.Where(row => !row.IsQuiet).Select(row => row.Systems));
     }
 
     [Fact]

@@ -98,6 +98,7 @@ public partial class MainWindow : Window, IMainWindowActions, ISourceShell
         if (sender is Control { DataContext: OutcomeIssue issue } && DataContext is MainViewModel viewModel)
         {
             viewModel.SelectDevice(issue.SubjectId);
+            issue.IsOpen = !issue.IsOpen;
         }
     }
 
