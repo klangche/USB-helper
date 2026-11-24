@@ -100,6 +100,17 @@ public class ProfileMenuTests
         Assert.StartsWith("hub chain max 5", v4.Guides.Single(option => option.Guide?.Id == "ochno").Detail, StringComparison.Ordinal);
     }
 
+    // The hover's last line names the philosophy's file and sign-off (#389).
+    [Fact]
+    public void AV4GuidesHoverNamesItsFileAndSignOff()
+    {
+        var window = new MainViewModel(UsbHelper.Core.Database.DatabaseFormats.Read(4, EmbeddedDatabase.Files()[4]), [], new ComputerIdentity("", "", Platform: "windows-intel"));
+        var ochno = window.Guides.Single(option => option.Guide?.Id == "ochno");
+        var file = ochno.Guide!.File[(ochno.Guide.File.LastIndexOf('/') + 1)..];
+
+        Assert.EndsWith($"\nOchno · {file}" + (ochno.Guide.SignedOff is { } signOff ? $" · {signOff}" : ""), ochno.Detail, StringComparison.Ordinal);
+    }
+
     // #295: clicking an operating system's name ticks all of its chips, and again unticks them all.
     [Fact]
     public void ClickingAnOperatingSystemTicksAllItsChips()

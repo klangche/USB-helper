@@ -48,6 +48,11 @@ public class CableNotesTests
         var files = new Dictionary<string, string>(EmbeddedDatabase.Files()[4]);
         foreach (var (id, text) in guides)
         {
+            // The test's text replaces every version of the guide in the database, dated ones too (#389).
+            foreach (var version in files.Keys.Where(file => System.Text.RegularExpressions.Regex.IsMatch(file, $@"^guides/{id}(-\d{{4}}-\d{{2}}-\d{{2}})?\.yaml$")).ToList())
+            {
+                files.Remove(version);
+            }
             files[$"guides/{id}.yaml"] = text;
         }
         return DatabaseFormats.Read(4, files);

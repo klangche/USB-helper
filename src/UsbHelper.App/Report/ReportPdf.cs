@@ -141,6 +141,11 @@ public static class ReportPdf
         {
             lines.Add((Caption, string.Format(CultureInfo.InvariantCulture, Strings.ReportLicensedTo, email), captionLine));
         }
+        // Which database and philosophy judged it, with its file and sign-off (#389).
+        foreach (var line in new[] { model.Database, model.Philosophy }.OfType<string>())
+        {
+            lines.Add((Caption, line, captionLine));
+        }
         var textHeight = lines.Sum(line => line.Advance) - captionLine + 8;
         var height = Math.Max(textHeight, logo == null ? 0 : Logo.Box.Height) + 18;
         layout.Place(height, (canvas, top) =>

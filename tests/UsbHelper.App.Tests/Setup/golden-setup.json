@@ -1,6 +1,8 @@
 {
   "format_version": 1,
   "room_name": "Room 4.12",
+  "database": "Database v4",
+  "philosophy": "USB-Helper",
   "app_version": "0.6.0-test",
   "date": "2026-11-03",
   "computer": {

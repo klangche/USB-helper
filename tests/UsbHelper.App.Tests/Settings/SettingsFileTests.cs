@@ -73,6 +73,19 @@ public sealed class SettingsFileTests : IDisposable
         Assert.Equal("", settings.CompanyName); // A settings.json from before #228.
     }
 
+    // The beta's database format setting is gone (#389): a saved value is ignored, and the other settings still load.
+    [Fact]
+    public void AnOldDatabaseFormatIsIgnored()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+        File.WriteAllText(FilePath, """{ "databaseFormat": 3, "offerBetas": false }""");
+
+        var settings = new SettingsFile(FilePath).Load(log);
+
+        Assert.False(settings.OfferBetas);
+        Assert.Empty(log.Entries);
+    }
+
     [Fact]
     public void ANullCompanyNameIsEmpty()
     {

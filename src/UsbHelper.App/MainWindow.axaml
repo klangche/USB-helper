@@ -169,6 +169,11 @@
       <HyperlinkButton Content="{Binding Unlock.UnlockedText}" Command="{Binding UnlockCommand}" Padding="0" />
     </Border>
 
+    <!-- The database in use (#389): its format, date and commit; the hover says where it came from. -->
+    <TextBlock x:Name="DatabaseMarker" DockPanel.Dock="Bottom" Text="{Binding DatabaseMarker}" FontSize="11" Opacity="0.7"
+               HorizontalAlignment="Right" Margin="12,0,12,4" ToolTip.Tip="{Binding DatabaseMarkerDetail}"
+               AutomationProperties.HelpText="{Binding DatabaseMarkerDetail}" />
+
     <Grid ColumnDefinitions="3*,6,2*" Margin="12,0,12,12">
 
       <DockPanel Grid.Column="0">

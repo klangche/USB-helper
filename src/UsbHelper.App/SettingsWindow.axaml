@@ -17,11 +17,6 @@
     <!-- Beta updates only while unlocked (#246): disabled and unticked while locked; the stored choice is kept. -->
     <CheckBox Content="{x:Static res:Strings.SettingsOfferBetas}" IsChecked="{Binding BetasOffered}" IsEnabled="{Binding BetasUnlocked}" />
     <HyperlinkButton Content="{x:Static res:Strings.UnlockBetasNeeded}" IsVisible="{Binding !BetasUnlocked}" Click="OpenUnlock" Padding="0" />
-    <!-- The database format, only in betas (#334). -->
-    <StackPanel Spacing="4" IsVisible="{x:Static vm:SettingsViewModel.IsBeta}">
-      <TextBlock Text="{x:Static res:Strings.SettingsDatabaseFormat}" />
-      <ComboBox ItemsSource="{Binding DatabaseFormatChoices}" SelectedIndex="{Binding DatabaseFormatIndex}" />
-    </StackPanel>
     <CheckBox Content="{x:Static res:Strings.SettingsRememberProfiles}" IsChecked="{Binding RememberCheckedProfiles}" />
 
     <!-- Company branding (#228). The name is saved when the box loses focus, so it is trimmed only once typing is done.

@@ -17,11 +17,6 @@ public sealed record AppSettings
     /// <summary>Betas are offered next to stable releases.</summary>
     public bool OfferBetas { get; set; } = true;
 
-    /// <summary>
-    /// The database format a beta uses (#334); null for the newest. Release builds ignore it and always use the newest.
-    /// </summary>
-    public int? DatabaseFormat { get; set; }
-
     /// <summary>The checked profiles are kept for the next start.</summary>
     public bool RememberCheckedProfiles { get; set; }
 

@@ -101,3 +101,17 @@ public sealed record CableModel(string Name, string Type, double Length, string?
     /// <summary>The bus it carries, when its maker states it; marking it sets the mark's bus. Null: the bus picked.</summary>
     public Detection.UsbBus? Bus { get; init; }
 }
+
+/// <summary>
+/// Who approved a version of a philosophy (#389): <c>signed off:</c> with <c>by</c>, optionally <c>role</c> and
+/// <c>company</c>, and <c>date</c> (YYYY-MM-DD), which a dated file name repeats.
+/// </summary>
+public sealed record GuideSignOff(string By, string? Role, string? Company, DateOnly Date)
+{
+    /// <summary>For a hover and the log, for example "signed off 2026-11-24 by Johan Niininen (Ochno)".</summary>
+    public override string ToString()
+    {
+        var who = string.Join(", ", new[] { Role, Company }.OfType<string>());
+        return $"signed off {Date:yyyy-MM-dd} by {By}" + (who.Length > 0 ? $" ({who})" : "");
+    }
+}

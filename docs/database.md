@@ -24,7 +24,11 @@ must be there, or the script fails. Run it once after cloning, and again to get 
   load").
 - A folder of a format the app does not know, such as `v5/` seen by an app that reads up to `v4/`, is ignored, so
   publishing a new format never breaks installed apps.
-- Betas have a "Database format" switch in Settings (see [usage.md](usage.md#settings)). Release builds ignore it.
+- There is no setting for the format (#389; betas had one, #334). A saved `databaseFormat` in settings.json is ignored.
+- The window shows the database in use at its bottom right, for example "Database v4 · 2026-11-24 (abc1234)". Its hover,
+  and the About window's database line, give the format, whether it is built in or downloaded, the full commit and the
+  other formats built in ("Also built in, not used: v3"). The log ("Database in use: v4, built in, …"), the PDF report
+  and the exported setup (`database`) name it too.
 - Adding `v5`: add its reader to `DatabaseFormats`, and `v5/` to the `database` branch before the code that reads it is
   built. Nothing else changes: the build script, the update check and the cache follow the list of readers.
 
@@ -32,6 +36,31 @@ must be there, or the script fails. Run it once after cloning, and again to get 
 
 v4 judges every guide exactly as its source counts. Its folder is `v4/` on the `database` branch, with
 `schema_version: 4`.
+
+#### Signed-off, dated files (#389)
+
+- A v4 philosophy is `guides/<id>-<YYYY-MM-DD>.yaml`, for example `guides/ochno-2026-11-24.yaml`. The id is the part
+  before the date, so a remembered choice ("ochno") keeps working.
+- A dated file has `signed off:` with `by` (who approves this version), optionally `role` and `company`, and `date`,
+  which must equal the date in the file name:
+
+  ```yaml
+  signed off:  # who approves this version
+    by: Johan Niininen
+    role: Product manager
+    company: Ochno
+    date: 2026-11-24
+  ```
+
+- Several versions of one id may sit side by side. The newest is used. Older ones are read to check them, then kept as
+  history and never judged. The log says, for example, "Ochno: using guides/ochno-2026-11-24.yaml (signed off 2026-11-24
+  by Johan Niininen (Ochno)); 1 older version kept".
+- Two versions with the same id and date (ids are compared ignoring case) are an error. A dated file without a
+  sign-off, or one whose sign-off date is not the file name's date, is an error with the file and line.
+- An undated file (`guides/ochno.yaml`) still loads, without a sign-off, and counts as older than any dated one. This
+  is for the move to dated files only.
+- A philosophy's hover in the menu ends with its file and sign-off ("Ochno · ochno-2026-11-24.yaml · signed off …"); the
+  PDF report and the exported setup (`philosophy`) carry the same line.
 
 #### The readable layout (#386)
 

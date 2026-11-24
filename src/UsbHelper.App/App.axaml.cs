@@ -140,15 +140,15 @@ public partial class App : Application
         log.Add("Loading database");
         // The log is only written on the UI thread: why a downloaded database is not used is copied over after.
         var notes = new EventLog();
-        // A beta may use an older format, chosen in the settings (#334); a release always uses the newest.
-        var preferred = DatabaseUpdate.PreferredFormat(SettingsViewModel.IsBeta, viewModel.Settings.DatabaseFormat);
+        // The newest format that loads (#334); there is no setting for it (#389).
         var (database, errors, version, format) = await Task.Run(() =>
-            DatabaseUpdate.LoadAtStart(cache.Folder, EmbeddedDatabase.Files(), EmbeddedDatabase.Version(), notes, preferred));
+            DatabaseUpdate.LoadAtStart(cache.Folder, EmbeddedDatabase.Files(), EmbeddedDatabase.Version(), notes));
         foreach (var note in notes.Entries)
         {
             log.Add(note.Text);
         }
         viewModel.DatabaseFormat = format ?? DatabaseFormats.Newest;
+        viewModel.OtherFormats = [.. EmbeddedDatabase.Files().Keys.Where(each => each != viewModel.DatabaseFormat).Order()];
         viewModel.LoadDatabase(database, errors, version);
     }
 

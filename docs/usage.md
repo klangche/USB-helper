@@ -497,10 +497,10 @@ File > Settings opens the settings. Each change is saved at once:
   While locked the box is greyed out and unticked and only stable releases are
   offered; "Enter a code to unlock beta updates" opens the unlock popup. The
   choice made while unlocked is kept and comes back on unlock.
-- **Database format** (betas only, Newest by default): the database format
-  the beta uses from the next start, for example "Newest (v4)" or "v3", to
-  compare an older format's results. Saved in `settings.json`. Release builds
-  do not show it and always use the newest format.
+- There is no database format setting (#389): the app always uses the
+  newest format that loads. The window's bottom right shows the database in
+  use, for example "Database v4 · 2026-11-24 (abc1234)"; hover it for where it
+  came from, the commit and the other formats built in.
 - **Remember the checked profiles between starts** (off by default): on, the
   chips ticked and the philosophy picked in "USB philosophy" are ticked and picked again
   at the next start, instead of only the detected platform profile and

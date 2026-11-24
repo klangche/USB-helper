@@ -36,6 +36,12 @@ public sealed record ReportModel(
     /// <summary>The email the report features are unlocked for (#232), in the header and footer; null when none.</summary>
     public string? LicensedTo { get; init; }
 
+    /// <summary>The database in use (#389), "Database v4 · 2026-11-24 (abc1234)", under the header; null when unknown.</summary>
+    public string? Database { get; init; }
+
+    /// <summary>The philosophy with its file and sign-off (#389), under the header; null when none is used.</summary>
+    public string? Philosophy { get; init; }
+
     /// <summary>
     /// The database files of the checked profiles, as the findings name them: the report writes "Hardware database" in
     /// their place (#247).

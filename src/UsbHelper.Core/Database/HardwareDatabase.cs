@@ -216,6 +216,10 @@ public sealed class HardwareDatabase
     private static Dictionary<string, Guide> ReadGuides(
         IReadOnlyDictionary<string, string> files, ProfileValue usb, int format, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
     {
+        if (format >= 4)
+        {
+            return ReadGuidesV4(files, usb, chips, errors);
+        }
         var guides = new Dictionary<string, Guide>();
         var guideFiles = files.Keys.Where(IsGuideFile).ToDictionary(FileId);
         if (!guideFiles.ContainsKey(Guide.DefaultId))
@@ -223,22 +227,6 @@ public sealed class HardwareDatabase
             errors.Add(new DatabaseError($"guides/{Guide.DefaultId}.yaml", 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
         }
         var maxTiers = MaxTiers(usb);
-        if (format >= 4)
-        {
-            // v4 (#327): no fallback between guides; each states its own rules.
-            var elements = usb.Find("path_elements")?.Fields.Keys.ToList() ?? [];
-            var kinds = usb.Find("device_kinds")?.Fields.Keys.ToList() ?? [];
-            var standardCounts = GuideLayout.Standard(usb.Find("counts"));
-            foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key, StringComparer.Ordinal))
-            {
-                if (ProfileFileReader.Read(files[file], file, errors) is { } root
-                    && GuideReaderV4.Read(root, id, elements, kinds, chips, errors, standardCounts) is { } guide)
-                {
-                    guides.Add(id, guide);
-                }
-            }
-            return guides;
-        }
         Guide? fallback = null;
         foreach (var (id, file) in guideFiles.OrderBy(guide => guide.Key == Guide.DefaultId ? 0 : 1).ThenBy(guide => guide.Key, StringComparer.Ordinal))
         {
@@ -252,6 +240,56 @@ public sealed class HardwareDatabase
         }
         return guides;
     }
+
+    // v4 (#327): no fallback between guides; each states its own rules. A file is guides/<id>.yaml or, signed off,
+    // guides/<id>-<YYYY-MM-DD>.yaml (#389): several versions of one id may sit side by side, and the newest is used. Older
+    // ones are read to check them, then kept as history. An undated file counts as older than any dated one. Ids are
+    // compared ignoring case, so "Ochno-2026-11-24.yaml" and "ochno-2026-11-24.yaml" are the same version: an error.
+    private static Dictionary<string, Guide> ReadGuidesV4(
+        IReadOnlyDictionary<string, string> files, ProfileValue usb, IReadOnlyDictionary<string, List<string>> chips, List<DatabaseError> errors)
+    {
+        var elements = usb.Find("path_elements")?.Fields.Keys.ToList() ?? [];
+        var kinds = usb.Find("device_kinds")?.Fields.Keys.ToList() ?? [];
+        var standardCounts = GuideLayout.Standard(usb.Find("counts"));
+        var versions = files.Keys.Where(IsGuideFile).Select(file => (File: file, Version: GuideVersion(FileId(file))))
+            .GroupBy(each => each.Version.Id, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.Ordinal);
+        if (!versions.Any(group => group.Key == Guide.DefaultId))
+        {
+            errors.Add(new DatabaseError($"guides/{Guide.DefaultId}-<YYYY-MM-DD>.yaml", 0, "File not found: USB-Helper's guide is the default and the fallback of every other guide."));
+        }
+        var guides = new Dictionary<string, Guide>();
+        foreach (var group in versions)
+        {
+            var ordered = group.OrderBy(each => each.Version.Date ?? DateOnly.MinValue).ThenBy(each => each.File, StringComparer.Ordinal).ToList();
+            foreach (var same in ordered.GroupBy(each => each.Version.Date).Where(same => same.Key != null && same.Count() > 1))
+            {
+                errors.Add(new DatabaseError(same.Last().File, 0, $"Two versions of '{group.Key}' have the same date, {same.Key:yyyy-MM-dd}: {string.Join(", ", same.Select(each => each.File))}."));
+            }
+            Guide? newest = null;
+            foreach (var (file, version) in ordered)
+            {
+                if (ProfileFileReader.Read(files[file], file, errors) is { } root
+                    && GuideReaderV4.Read(root, group.Key, elements, kinds, chips, errors, standardCounts, version.Date) is { } guide)
+                {
+                    newest = file == ordered[^1].File ? guide : newest;
+                }
+            }
+            if (newest != null)
+            {
+                newest.OlderFiles = [.. ordered.Take(ordered.Count - 1).Select(each => each.File)];
+                guides.Add(group.Key, newest);
+            }
+        }
+        return guides;
+    }
+
+    /// <summary>
+    /// A v4 guide file's id and date (#389): "ochno-2026-11-24" is Ochno's version of 2026-11-24, "ochno" an undated one.
+    /// </summary>
+    internal static (string Id, DateOnly? Date) GuideVersion(string name) =>
+        name.Length > 11 && name[^11] == '-'
+        && DateOnly.TryParseExact(name[^10..], "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date)
+            ? (name[..^11], date) : (name, null);
 
     // One guide file; null when it cannot be used. A guide without fallback is USB-Helper's, whose values must all be filled in.
     private static Guide? ReadGuide(

@@ -54,6 +54,17 @@ public sealed record SetupFile(
     [JsonPropertyOrder(-1)]
     public string? LicensedTo { get; init; }
 
+    /// <summary>The database in use (#389), for example "Database v4 · 2026-11-24 (abc1234)"; null in older files.</summary>
+    [JsonPropertyOrder(-1)]
+    public string? Database { get; init; }
+
+    /// <summary>
+    /// The philosophy that judged the setup, with its file and sign-off (#389), for example
+    /// "Ochno · ochno-2026-11-24.yaml · signed off 2026-11-24 by Johan Niininen (Ochno)"; null in older files.
+    /// </summary>
+    [JsonPropertyOrder(-1)]
+    public string? Philosophy { get; init; }
+
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,

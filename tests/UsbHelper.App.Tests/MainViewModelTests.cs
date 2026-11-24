@@ -2313,6 +2313,19 @@ public class MainViewModelTests
         Assert.Null(MainViewModel.ReportLogo(null));
     }
 
+    // The report and the export name the database and the philosophy in use (#389).
+    [Fact]
+    public void TheReportAndTheExportNameTheDatabaseAndThePhilosophy()
+    {
+        var viewModel = new MainViewModel(DatabaseFolder.Load("Dell Inc.", "Latitude 7450", status: "verified"), [], new ComputerIdentity("Dell Inc.", "Latitude 7450"));
+        viewModel.Load(Desk);
+
+        var report = viewModel.Report(new DateTime(2026, 11, 24, 12, 0, 0), null, null, "0.11.0");
+
+        Assert.Equal("Database v4", report.Database);
+        Assert.Equal(viewModel.Guide?.Name, report.Philosophy);
+    }
+
     [Fact]
     public void TheReportNamesTheLicensedEmailOnlyWhenUnlocked()
     {

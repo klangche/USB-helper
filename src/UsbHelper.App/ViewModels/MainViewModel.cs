@@ -96,7 +96,9 @@ public sealed class GuideOption(Guide? guide, RelayCommand? edit = null) : Obser
     /// The hover of the name (#327, #390), generated from a v4 guide's rules; null for a v3 guide and Custom, so they
     /// show no empty tooltip.
     /// </summary>
-    public string? Detail => Guide is { Format: >= 4 } rules && GuideLine.For(rules, Platforms) is { Length: > 0 } line ? line : null;
+    public string? Detail => Guide is { Format: >= 4 } rules
+        ? string.Join('\n', new[] { GuideLine.For(rules, Platforms), rules.VersionHover }.Where(line => line.Length > 0))
+        : null;
 
     /// <summary>A ProAV guide (<c>proav: 1</c>), marked in the menu (#299).</summary>
     public bool IsProAv => Guide?.ProAv == true;
@@ -449,15 +451,28 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The database format in use (#334), set at start: an update of this format replaces the database.</summary>
     public int DatabaseFormat { get; set; } = DatabaseFormats.Newest;
 
+    /// <summary>The other formats built into the app, not used (#389), for the marker's hover.</summary>
+    public IReadOnlyList<int> OtherFormats { get; set; } = [];
+
+    /// <summary>The database marker (#389): "Database v4 · 2026-11-24 (abc1234)", or "Database v4" when the commit is unknown.</summary>
+    public string DatabaseMarker => DatabaseVersion?.Marker(DatabaseFormat)
+        ?? string.Format(CultureInfo.CurrentCulture, Strings.DatabaseMarkerUnknown, DatabaseFormat);
+
+    /// <summary>The marker's hover: format, where it came from, the commit and the other formats; null when unknown.</summary>
+    public string? DatabaseMarkerDetail => DatabaseVersion?.MarkerDetail(DatabaseFormat, OtherFormats);
+
     /// <summary>Which database is in use (#290); null when the build did not record it.</summary>
     public DatabaseVersion? DatabaseVersion { get; private set; }
 
     private void UseVersion(DatabaseVersion? version)
     {
         DatabaseVersion = version;
+        OnPropertyChanged(nameof(DatabaseVersion));
+        OnPropertyChanged(nameof(DatabaseMarker));
+        OnPropertyChanged(nameof(DatabaseMarkerDetail));
         if (version != null)
         {
-            log.Add($"Database in use: {version.LogText}");
+            log.Add($"Database in use: v{DatabaseFormat}, {version.LogText}");
         }
     }
 
@@ -983,6 +998,8 @@ public sealed class MainViewModel : ObservableObject
             CompanyName = CompanyName,
             RoomName = Room,
             LicensedTo = Entitlements.LicensedTo,
+            Database = DatabaseMarker,
+            Philosophy = guide is { Format: >= 4 } used ? used.VersionHover : guide?.Name,
         };
     }
 
@@ -1042,6 +1059,8 @@ public sealed class MainViewModel : ObservableObject
                 OutcomeTitle),
             PortsTested = ports.Tried.Count == 0 ? null : PortTesting.LogText(ports.Summary(PortsProfile(Checked.Select(option => option.Profile))), ports.Differences()),
             DatabaseFiles = [.. Checked.SelectMany(option => option.Profile.Files).Concat(GuideFiles()).Distinct()],
+            Database = setup.Database,
+            Philosophy = setup.Philosophy,
         };
     }
 

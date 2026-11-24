@@ -19,6 +19,9 @@ public sealed class AboutViewModel
     /// <summary>"Database: built in, 2026-11-18 (9c92cfe)" or "Database: updated ...".</summary>
     public string DatabaseText => Database?.Text ?? Strings.AboutDatabaseUnknown;
 
+    /// <summary>The database marker's hover (#389): format, where it came from, the commit and the other formats.</summary>
+    public string? DatabaseDetail { get; init; }
+
     public string License => Strings.AboutLicense;
 
     public string IconAttribution => Strings.AboutIconAttribution;

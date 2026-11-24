@@ -81,8 +81,15 @@ public sealed class EventLog(TimeProvider? clock = null)
         Added?.Invoke(entry);
     }
 
-    public void DatabaseLoaded(HardwareDatabase database) =>
+    public void DatabaseLoaded(HardwareDatabase database)
+    {
         Add($"Database loaded: {database.Platforms.Count} platform profiles, {database.Computers.Count} computer profiles, {database.Guides.Count} guides");
+        // Which version of each philosophy is used (#389).
+        foreach (var guide in database.Guides.Values.Where(guide => guide.Format >= 4).OrderBy(guide => guide.Id, StringComparer.Ordinal))
+        {
+            Add(guide.VersionLine);
+        }
+    }
 
     public void DatabaseFailed(IReadOnlyList<DatabaseError> errors)
     {
